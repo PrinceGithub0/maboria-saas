@@ -32,17 +32,19 @@ export const POST = withRequestLogging(
 
     // 7-day trial by default (maps to "Pro" features via SubscriptionPlan.GROWTH).
     const trialEndsAt = addDays(new Date(), 7);
-    await prisma.subscription.create({
-      data: {
-        userId: created.id,
-        plan: "GROWTH",
-        status: "TRIALING",
-        renewalDate: trialEndsAt,
-        trialEndsAt,
-        currency: "NGN",
-        interval: "monthly",
-      },
-    });
+    await prisma.subscription
+      .create({
+        data: {
+          userId: created.id,
+          plan: "GROWTH",
+          status: "TRIALING",
+          renewalDate: trialEndsAt,
+          trialEndsAt,
+          currency: "NGN",
+          interval: "monthly",
+        },
+      })
+      .catch(() => undefined);
 
     return NextResponse.json({ success: true }, { status: 201 });
   })
