@@ -3,6 +3,8 @@ type Currency = "USD" | "NGN";
 
 type PricingMeta = { usd?: number; ngn?: number; displayName: string; features: string[] };
 
+export const TRIAL_DAYS = 7;
+
 // Pricing is intentionally kept as a small, hardcoded table so UI can render without a DB dependency.
 // "GROWTH" maps to the "Pro" plan label in the UI to avoid breaking existing SubscriptionPlan values.
 const pricingTable: Record<Plan, PricingMeta> = {
@@ -37,6 +39,20 @@ export function pricingTableForUI(currency: Currency) {
       plan,
       label: meta.displayName,
       price: currency === "USD" ? meta.usd ?? null : meta.ngn ?? null,
+      features: meta.features,
+    };
+  });
+}
+
+export function pricingTableDualCurrency() {
+  const ordered: Plan[] = ["STARTER", "GROWTH", "ENTERPRISE"];
+  return ordered.map((plan) => {
+    const meta = pricingTable[plan];
+    return {
+      plan,
+      label: meta.displayName,
+      usd: meta.usd ?? null,
+      ngn: meta.ngn ?? null,
       features: meta.features,
     };
   });

@@ -1,17 +1,27 @@
 "use client";
 
+import Link from "next/link";
 import useSWR from "swr";
 import { Card } from "@/components/ui/card";
 import { Table } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { pricingTableForUI } from "@/lib/pricing";
+import { pricingTableDualCurrency } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
+function formatMoney(amount: number, currency: "NGN" | "USD") {
+  const locale = currency === "NGN" ? "en-NG" : "en-US";
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
 export default function BillingPage() {
   const { data, isLoading } = useSWR("/api/billing/history", fetcher);
-  const plans = pricingTableForUI("NGN");
+  const plans = pricingTableDualCurrency();
 
   return (
     <div className="space-y-6">
@@ -19,32 +29,54 @@ export default function BillingPage() {
         <p className="text-xs uppercase tracking-[0.2em] text-indigo-300">Billing</p>
         <h1 className="text-3xl font-semibold text-white">Billing history</h1>
       </div>
+
       <Card title="Plans">
         <div className="grid gap-4 md:grid-cols-3">
-          {plans.map((p) => (
-            <Card key={p.plan} className="bg-slate-900/60" title={(p as any).label ?? p.plan}>
-              <p className="text-2xl font-semibold text-white">
-                {p.price == null ? (
-                  "Contact sales"
-                ) : (
-                  <>
-                    ₦{Number(p.price).toLocaleString()}
-                    <span className="text-sm text-slate-400">/mo</span>
-                  </>
-                )}
-              </p>
-              <ul className="mt-2 space-y-1 text-sm text-slate-300">
-                {p.features.map((f) => (
-                  <li key={f}>• {f}</li>
-                ))}
-              </ul>
-              <Button className="mt-3 w-full" variant="secondary">
-                {p.plan === "ENTERPRISE" ? "Contact" : "Choose"}
-              </Button>
-            </Card>
-          ))}
+          {plans.map((p) => {
+            const isEnterprise = p.plan === "ENTERPRISE";
+            const href = isEnterprise ? "/contact" : "/dashboard/subscription";
+            const cta = isEnterprise ? "Contact sales" : "Manage plan";
+
+            return (
+              <Card key={p.plan} className="bg-slate-900/60" title={p.label}>
+                <div className="space-y-3">
+                  <div className="text-2xl font-semibold text-white">
+                    {p.ngn == null ? (
+                      "Contact sales"
+                    ) : (
+                      <div className="flex flex-col gap-1">
+                        <div>
+                          {formatMoney(p.ngn, "NGN")}
+                          <span className="text-sm text-slate-400">/mo</span>
+                        </div>
+                        {p.usd != null && (
+                          <div className="text-sm font-medium text-slate-400">{formatMoney(p.usd, "USD")}/mo</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <ul className="space-y-1 text-sm text-slate-300">
+                    {p.features.map((f) => (
+                      <li key={f} className="flex items-start gap-2">
+                        <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-400" />
+                        <span>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Link href={href}>
+                    <Button className="w-full" variant="secondary">
+                      {cta}
+                    </Button>
+                  </Link>
+                </div>
+              </Card>
+            );
+          })}
         </div>
       </Card>
+
       <Card title="Payments">
         {isLoading ? (
           <Skeleton className="h-24" />
@@ -61,6 +93,7 @@ export default function BillingPage() {
           />
         )}
       </Card>
+
       <Card title="Invoices">
         {isLoading ? (
           <Skeleton className="h-24" />

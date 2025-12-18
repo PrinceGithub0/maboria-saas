@@ -1,8 +1,8 @@
-import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { pricingTableDualCurrency, TRIAL_DAYS } from "@/lib/pricing";
 
 const features = [
   { title: "AI Automation", desc: "Generate flows, optimize steps, and run with resilience." },
@@ -11,11 +11,22 @@ const features = [
   { title: "Admin control center", desc: "Full logs, flags, impersonation, and revenue analytics." },
 ];
 
-const plans = [
-  { name: "Starter", price: "₦7,000", desc: "For founders and solo operators", cta: "Choose Starter" },
-  { name: "Pro", price: "₦15,000", desc: "For teams running automation daily", cta: "Choose Pro", featured: true },
-  { name: "Enterprise", price: "Contact sales", desc: "For advanced controls and support", cta: "Contact sales" },
-];
+const planMeta: Record<string, { desc: string; cta: string; href: string; featured?: boolean }> = {
+  STARTER: { desc: "For founders and solo operators", cta: "Start free trial", href: "/signup" },
+  GROWTH: { desc: "For teams running automation daily", cta: "Start free trial", href: "/signup", featured: true },
+  ENTERPRISE: { desc: "For advanced controls and support", cta: "Contact sales", href: "/contact" },
+};
+
+const plans = pricingTableDualCurrency().map((p) => ({ ...p, ...planMeta[p.plan] }));
+
+function formatMoney(amount: number, currency: "NGN" | "USD") {
+  const locale = currency === "NGN" ? "en-NG" : "en-US";
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
 
 export default function LandingPage() {
   return (
@@ -43,13 +54,13 @@ export default function LandingPage() {
       <main className="mx-auto max-w-6xl px-6 pb-16">
         <section className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
           <div className="space-y-6">
-            <Badge variant="success">USD + NGN billing • AI automation</Badge>
+            <Badge variant="success">{"USD + NGN billing \u2022 AI automation"}</Badge>
             <h1 className="text-4xl font-semibold leading-tight text-white sm:text-5xl">
               Automate revenue operations with AI-native workflows.
             </h1>
             <p className="text-lg text-slate-300">
-              Maboria unifies automations, billing, invoicing, and AI insights. Build flows in seconds,
-              get paid in USD/NGN, and keep admins in control with a full audit stack.
+              Maboria unifies automations, billing, invoicing, and AI insights. Build flows in seconds, get paid in
+              USD/NGN, and keep admins in control with a full audit stack.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link href="/signup">
@@ -61,6 +72,7 @@ export default function LandingPage() {
                 </Button>
               </Link>
             </div>
+            <p className="text-sm text-slate-400">No credit card required. Trial is {TRIAL_DAYS} days.</p>
             <div className="flex flex-wrap gap-4 text-sm text-slate-300">
               <div className="rounded-xl border border-slate-800/60 bg-slate-900/50 px-4 py-3">
                 Dual payments: Stripe (USD/EUR) + Paystack (NGN)
@@ -84,11 +96,11 @@ export default function LandingPage() {
                   </div>
                   <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
                     <p className="text-sm text-slate-200">AI: Suggest improvements</p>
-                    <p className="text-xs text-slate-500">“Add WhatsApp nudge and retry twice”</p>
+                    <p className="text-xs text-slate-500">"Add WhatsApp nudge and retry twice"</p>
                   </div>
                   <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
                     <p className="text-sm text-slate-200">Billing</p>
-                    <p className="text-xs text-slate-500">Stripe + Paystack in sync • PDF invoices</p>
+                    <p className="text-xs text-slate-500">Stripe + Paystack in sync - PDF invoices</p>
                   </div>
                 </div>
               </div>
@@ -108,23 +120,41 @@ export default function LandingPage() {
         <section className="mt-16 space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-semibold text-white">Pricing</h2>
-            <Badge variant="success">Monthly billing</Badge>
+            <Badge variant="success">{TRIAL_DAYS}-day free trial</Badge>
           </div>
+
           <div className="grid gap-4 md:grid-cols-3">
             {plans.map((plan) => (
               <Card
-                key={plan.name}
-                title={plan.name}
+                key={plan.plan}
+                title={plan.label}
                 className={`h-full ${plan.featured ? "border-indigo-500/60 shadow-lg shadow-indigo-500/20" : ""}`}
               >
-                <p className="text-3xl font-semibold text-white">
-                  {plan.price}
-                  {plan.name !== "Enterprise" && <span className="text-sm text-slate-400">/mo</span>}
-                </p>
-                <p className="text-sm text-slate-400">{plan.desc}</p>
-                <Button className="mt-3 w-full" variant={plan.featured ? "primary" : "secondary"}>
-                  {plan.cta}
-                </Button>
+                <div className="space-y-2">
+                  <div className="text-3xl font-semibold text-white">
+                    {plan.ngn == null ? (
+                      "Contact sales"
+                    ) : (
+                      <div className="flex flex-col gap-1">
+                        <div>
+                          {formatMoney(plan.ngn, "NGN")}
+                          <span className="text-sm text-slate-400">/mo</span>
+                        </div>
+                        {plan.usd != null && (
+                          <div className="text-sm font-medium text-slate-400">{formatMoney(plan.usd, "USD")}/mo</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <p className="text-sm text-slate-400">{plan.desc}</p>
+                </div>
+
+                <Link href={plan.href}>
+                  <Button className="mt-3 w-full" variant={plan.featured ? "primary" : "secondary"}>
+                    {plan.cta}
+                  </Button>
+                </Link>
               </Card>
             ))}
           </div>
@@ -135,19 +165,19 @@ export default function LandingPage() {
             <div>
               <h3 className="text-xl font-semibold text-white">Loved by operators</h3>
               <p className="text-sm text-slate-400">
-                “Maboria replaced 4 tools. Billing, automations, AI insights, and admin observability just work.”
+                "Maboria replaced 4 tools. Billing, automations, AI insights, and admin observability just work."
               </p>
             </div>
             <div className="space-y-3">
               <div className="rounded-xl border border-slate-900 bg-slate-900/60 p-4">
                 <p className="text-sm text-slate-300">
-                  “We ship faster with AI-generated flows and get paid faster with dual-currency billing.”
+                  "We ship faster with AI-generated flows and get paid faster with dual-currency billing."
                 </p>
-                <p className="text-xs text-slate-500">— Future Customer</p>
+                <p className="text-xs text-slate-500">- Future Customer</p>
               </div>
               <div className="rounded-xl border border-slate-900 bg-slate-900/60 p-4">
-                <p className="text-sm text-slate-300">“Admin panel feels like Stripe’s—amazing visibility.”</p>
-                <p className="text-xs text-slate-500">— Future Admin</p>
+                <p className="text-sm text-slate-300">"Admin panel feels like Stripe's - amazing visibility."</p>
+                <p className="text-xs text-slate-500">- Future Admin</p>
               </div>
             </div>
           </div>
@@ -170,7 +200,9 @@ export default function LandingPage() {
               Support
             </Link>
           </div>
-          <p>© {new Date().getFullYear()} Maboria Inc.</p>
+          <p>
+            {"\u00A9"} {new Date().getFullYear()} Maboria Inc.
+          </p>
         </div>
       </footer>
     </div>

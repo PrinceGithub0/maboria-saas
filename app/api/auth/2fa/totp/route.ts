@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword } from "@/lib/auth";
 import { buildOtpauthUrl, generateBackupCodes, generateTotpSecret, verifyTotp } from "@/lib/totp";
 import { withErrorHandling } from "@/lib/api-handler";
+import { Prisma } from "@prisma/client";
 
 type StoredBackupCode = { hash: string; usedAt: string | null };
 
@@ -142,9 +143,8 @@ export const DELETE = withErrorHandling(async (req: Request) => {
 
   await prisma.user.update({
     where: { id: session.user.id },
-    data: { twoFactorEnabled: false, twoFactorSecret: null, twoFactorBackupCodes: null },
+    data: { twoFactorEnabled: false, twoFactorSecret: null, twoFactorBackupCodes: Prisma.DbNull },
   });
 
   return NextResponse.json({ enabled: false });
 });
-

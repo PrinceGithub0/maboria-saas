@@ -15,24 +15,24 @@ export const POST = withErrorHandling(async () => {
   if (!isPlanAtLeast(plan, "pro")) {
     return NextResponse.json({ error: "Upgrade required", requiredPlan: "pro", plan }, { status: 402 });
   }
-  const usage = await enforceUsageLimit(session.user.id, "aiRequests");
-  if (!usage.ok) {
+  const usageLimit = await enforceUsageLimit(session.user.id, "aiRequests");
+  if (!usageLimit.ok) {
     return NextResponse.json(
-      { error: "Upgrade required", reason: "AI usage limit reached", requiredPlan: "pro", ...usage },
+      { error: "Upgrade required", reason: "AI usage limit reached", requiredPlan: "pro", ...usageLimit },
       { status: 402 }
     );
   }
 
   assertRateLimit(`ai:insight:${session.user.id}`);
 
-  const [runs, usage, subs, invoices] = await Promise.all([
+  const [runs, usageLogs, subs, invoices] = await Promise.all([
     prisma.automationRun.count({ where: { userId: session.user.id, runStatus: "SUCCESS" } }),
     prisma.aiUsageLog.findMany({ where: { userId: session.user.id }, orderBy: { createdAt: "desc" }, take: 20 }),
     prisma.subscription.findMany({ where: { userId: session.user.id } }),
     prisma.invoice.findMany({ where: { userId: session.user.id }, orderBy: { generatedAt: "desc" } }),
   ]);
 
-  const stats = { runs, usage, subs, invoices };
+  const stats = { runs, usageLogs, subs, invoices };
   const json = await aiRouter({
     mode: "insight",
     prompt: "Generate insights",
