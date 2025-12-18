@@ -5,6 +5,7 @@ import { signupSchema } from "@/lib/validators";
 import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
+import { addDays } from "date-fns";
 
 // Credentials signup endpoint: validates payload, hashes password, prevents duplicates, returns clear errors.
 export const POST = withRequestLogging(
@@ -20,12 +21,26 @@ export const POST = withRequestLogging(
     }
 
     const passwordHash = await hashPassword(parsed.password);
-    await prisma.user.create({
+    const created = await prisma.user.create({
       data: {
         name: parsed.name,
         email: parsed.email,
         passwordHash,
         role: "USER",
+      },
+    });
+
+    // 7-day trial by default (maps to "Pro" features via SubscriptionPlan.GROWTH).
+    const trialEndsAt = addDays(new Date(), 7);
+    await prisma.subscription.create({
+      data: {
+        userId: created.id,
+        plan: "GROWTH",
+        status: "TRIALING",
+        renewalDate: trialEndsAt,
+        trialEndsAt,
+        currency: "NGN",
+        interval: "monthly",
       },
     });
 

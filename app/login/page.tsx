@@ -11,6 +11,7 @@ import { Alert } from "@/components/ui/alert";
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [otp, setOtp] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -23,10 +24,11 @@ export default function LoginPage() {
       redirect: false,
       email,
       password,
+      otp: otp || undefined,
     });
     setLoading(false);
     if (res?.error) {
-      setError(res.error);
+      setError(res.error === "CredentialsSignin" ? "Invalid email, password, or 2FA code." : res.error);
     } else {
       router.push("/dashboard");
     }
@@ -54,6 +56,12 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+          />
+          <Input
+            label="2FA code (if enabled)"
+            value={otp}
+            onChange={(e) => setOtp(e.target.value)}
+            placeholder="123456 or backup code"
           />
           <Button className="w-full" loading={loading} type="submit">
             Sign in

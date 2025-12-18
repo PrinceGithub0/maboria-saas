@@ -6,13 +6,13 @@ import { Badge } from "@/components/ui/badge";
 const plans = [
   {
     name: "Starter",
-    price: "$29",
+    price: "₦7,000",
     desc: "Solo operators getting started",
     features: ["100 automations/month", "Invoice generator", "Email support"],
   },
   {
-    name: "Growth",
-    price: "$99",
+    name: "Pro",
+    price: "₦15,000",
     desc: "Scaling teams with revenue ops",
     features: [
       "Unlimited automations",
@@ -25,7 +25,7 @@ const plans = [
   },
   {
     name: "Enterprise",
-    price: "Custom",
+    price: "Contact sales",
     desc: "Security, SSO, bespoke workflows",
     features: [
       "Dedicated automation pods",
@@ -45,7 +45,7 @@ export default function PricingPage() {
           <Badge variant="success">Stripe · Paystack</Badge>
           <h1 className="text-4xl font-semibold text-white">Pricing that scales with you</h1>
           <p className="text-slate-400">
-            Flexible billing in USD, EUR, and NGN. Switch plans anytime and stay compliant.
+            Start with a 7-day free trial, then choose the plan that fits your team.
           </p>
         </div>
         <div className="grid gap-6 md:grid-cols-3">

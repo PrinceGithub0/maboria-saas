@@ -1,22 +1,26 @@
-type Plan = "STARTER" | "GROWTH" | "PREMIUM" | "ENTERPRISE";
+type Plan = "STARTER" | "GROWTH" | "ENTERPRISE";
 type Currency = "USD" | "NGN";
 
-const pricingTable: Record<Plan, { usd: number; ngn: number; features: string[] }> = {
-  STARTER: { usd: 29, ngn: 20000, features: ["Basic automations", "Email support", "100 runs/mo"] },
-  GROWTH: {
-    usd: 99,
-    ngn: 75000,
-    features: ["Unlimited runs", "AI assistant", "Webhook automation", "Priority support"],
+type PricingMeta = { usd?: number; ngn?: number; displayName: string; features: string[] };
+
+// Pricing is intentionally kept as a small, hardcoded table so UI can render without a DB dependency.
+// "GROWTH" maps to the "Pro" plan label in the UI to avoid breaking existing SubscriptionPlan values.
+const pricingTable: Record<Plan, PricingMeta> = {
+  STARTER: {
+    usd: 9,
+    ngn: 7000,
+    displayName: "Starter",
+    features: ["Core automations", "Invoices", "Email notifications", "Team-ready basics"],
   },
-  PREMIUM: {
-    usd: 199,
-    ngn: 150000,
-    features: ["Premium AI flows", "Advanced insights", "Dedicated support", "Sandbox environments"],
+  GROWTH: {
+    usd: 19,
+    ngn: 15000,
+    displayName: "Pro",
+    features: ["AI assistant", "WhatsApp automation", "Higher usage limits", "Priority support"],
   },
   ENTERPRISE: {
-    usd: 399,
-    ngn: 300000,
-    features: ["Custom SLAs", "Dedicated CSM", "Security reviews", "On-prem options"],
+    displayName: "Enterprise",
+    features: ["Custom limits", "Advanced controls", "SLA options", "Dedicated support"],
   },
 };
 
@@ -26,9 +30,14 @@ export function getPlanPrice(plan: Plan, currency: Currency) {
 }
 
 export function pricingTableForUI(currency: Currency) {
-  return Object.entries(pricingTable).map(([plan, meta]) => ({
-    plan,
-    price: currency === "USD" ? meta.usd : meta.ngn,
-    features: meta.features,
-  }));
+  const ordered: Plan[] = ["STARTER", "GROWTH", "ENTERPRISE"];
+  return ordered.map((plan) => {
+    const meta = pricingTable[plan];
+    return {
+      plan,
+      label: meta.displayName,
+      price: currency === "USD" ? meta.usd ?? null : meta.ngn ?? null,
+      features: meta.features,
+    };
+  });
 }

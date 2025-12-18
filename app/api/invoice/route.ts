@@ -7,6 +7,7 @@ import { createInvoiceRecord } from "@/lib/invoice";
 import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { env } from "@/lib/env";
+import { enforceUsageLimit } from "@/lib/entitlements";
 
 export const GET = withErrorHandling(async () => {
   const session = await getServerSession(authOptions);
@@ -23,6 +24,21 @@ export const GET = withErrorHandling(async () => {
 export const POST = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const usage = await enforceUsageLimit(session.user.id, "invoices");
+  if (!usage.ok) {
+    return NextResponse.json(
+      {
+        error: "Upgrade required",
+        reason: "Invoice limit reached for this month",
+        requiredPlan: usage.plan === "free" ? "starter" : "pro",
+        plan: usage.plan,
+        limit: usage.limit,
+        used: usage.used,
+      },
+      { status: 402 }
+    );
+  }
 
   const body = await req.json();
   const parsed = invoiceSchema.parse(body);

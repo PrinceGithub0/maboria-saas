@@ -6,10 +6,34 @@ import { fetchRecentMemory, rememberAssistantMessage } from "@/lib/assistant-mem
 import { withErrorHandling } from "@/lib/api-handler";
 import { prisma } from "@/lib/prisma";
 import { aiRouter } from "@/lib/ai/router";
+import { enforceUsageLimit, getUserPlan, isPlanAtLeast } from "@/lib/entitlements";
 
 export const POST = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const plan = await getUserPlan(session.user.id);
+  if (!isPlanAtLeast(plan, "pro")) {
+    return NextResponse.json(
+      { error: "Upgrade required", requiredPlan: "pro", plan },
+      { status: 402 }
+    );
+  }
+
+  const usage = await enforceUsageLimit(session.user.id, "aiRequests");
+  if (!usage.ok) {
+    return NextResponse.json(
+      {
+        error: "Upgrade required",
+        reason: "AI usage limit reached for this month",
+        requiredPlan: "pro",
+        plan: usage.plan,
+        limit: usage.limit,
+        used: usage.used,
+      },
+      { status: 402 }
+    );
+  }
 
   const { mode, prompt, context } = await req.json();
   assertRateLimit(`ai:${session.user.id}`);

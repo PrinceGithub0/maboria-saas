@@ -12,6 +12,20 @@ export default function SubscriptionPage() {
   const { data, mutate } = useSWR("/api/subscription", fetcher);
   const subs = data || [];
 
+  const formatPlan = (plan: string) => {
+    switch ((plan || "").toUpperCase()) {
+      case "STARTER":
+        return "Starter";
+      case "GROWTH":
+      case "PREMIUM":
+        return "Pro";
+      case "ENTERPRISE":
+        return "Enterprise";
+      default:
+        return plan;
+    }
+  };
+
   const openPortal = async () => {
     const res = await fetch("/api/payments/stripe/portal", { method: "POST" });
     const json = await res.json();
@@ -40,7 +54,7 @@ export default function SubscriptionPage() {
             data={subs}
             keyExtractor={(row: any) => row.id}
             columns={[
-              { key: "plan", label: "Plan" },
+              { key: "plan", label: "Plan", render: (row: any) => formatPlan(row.plan) },
               { key: "status", label: "Status" },
               {
                 key: "renewalDate",

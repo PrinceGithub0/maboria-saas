@@ -81,6 +81,9 @@ model User {
   onboardingComplete Boolean        @default(false)
   tourComplete   Boolean            @default(false)
   preferredCurrency String          @default("USD")
+  twoFactorEnabled Boolean          @default(false)
+  twoFactorSecret  String?
+  twoFactorBackupCodes Json?
   subscriptions  Subscription[]
   payments       Payment[]
   automationFlows AutomationFlow[]

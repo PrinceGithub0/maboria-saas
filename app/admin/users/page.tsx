@@ -18,6 +18,20 @@ export default function AdminUsersPage() {
     u.email.toLowerCase().includes(query.toLowerCase()) || u.name.toLowerCase().includes(query.toLowerCase())
   );
 
+  const formatPlan = (plan: string) => {
+    switch ((plan || "").toUpperCase()) {
+      case "STARTER":
+        return "Starter";
+      case "GROWTH":
+      case "PREMIUM":
+        return "Pro";
+      case "ENTERPRISE":
+        return "Enterprise";
+      default:
+        return plan || "None";
+    }
+  };
+
   const toggleAdmin = async (id: string, role: string) => {
     await fetch(`/api/admin/users/${id}/role`, {
       method: "PUT",
@@ -54,7 +68,7 @@ export default function AdminUsersPage() {
               {
                 key: "plan",
                 label: "Plan",
-                render: (row: any) => row.subscriptions?.[0]?.plan || "None",
+                render: (row: any) => formatPlan(row.subscriptions?.[0]?.plan),
               },
               {
                 key: "actions",

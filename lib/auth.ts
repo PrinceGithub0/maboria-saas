@@ -3,6 +3,23 @@ import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import Credentials from "next-auth/providers/credentials";
 import type { NextAuthOptions } from "next-auth";
 import { prisma } from "./prisma";
+import { verifyTotp } from "./totp";
+
+type StoredBackupCode = { hash: string; usedAt: string | null };
+
+function normalizeBackupCodes(value: unknown): StoredBackupCode[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((c) => {
+      if (!c || typeof c !== "object") return null;
+      const hash = (c as any).hash;
+      const usedAt = (c as any).usedAt ?? null;
+      if (typeof hash !== "string") return null;
+      if (usedAt !== null && typeof usedAt !== "string") return null;
+      return { hash, usedAt };
+    })
+    .filter(Boolean) as StoredBackupCode[];
+}
 
 export async function hashPassword(password: string) {
   const salt = await genSalt(10);
@@ -27,6 +44,7 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        otp: { label: "2FA code", type: "text" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials.password) {
@@ -48,6 +66,39 @@ export const authOptions: NextAuthOptions = {
 
         if (!valid) {
           return null;
+        }
+
+        // If TOTP 2FA is enabled, require either a valid 6-digit code or an unused backup code.
+        if (user.twoFactorEnabled) {
+          const otp = (credentials as any)?.otp as string | undefined;
+          if (!otp) return null;
+
+          const trimmed = otp.trim();
+          let verified = false;
+
+          if (user.twoFactorSecret && /^\d{6}$/.test(trimmed.replace(/\s+/g, ""))) {
+            verified = verifyTotp({ secret: user.twoFactorSecret, token: trimmed });
+          }
+
+          if (!verified) {
+            const stored = normalizeBackupCodes(user.twoFactorBackupCodes);
+            for (let i = 0; i < stored.length; i++) {
+              const entry = stored[i];
+              if (entry.usedAt) continue;
+              const ok = await verifyPassword(trimmed, entry.hash);
+              if (ok) {
+                stored[i] = { ...entry, usedAt: new Date().toISOString() };
+                await prisma.user.update({
+                  where: { id: user.id },
+                  data: { twoFactorBackupCodes: stored as any },
+                });
+                verified = true;
+                break;
+              }
+            }
+          }
+
+          if (!verified) return null;
         }
 
         return {

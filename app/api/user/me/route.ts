@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
+import { getUserPlan } from "@/lib/entitlements";
 
 export const GET = withRequestLogging(withErrorHandling(async () => {
   const session = await getServerSession(authOptions);
@@ -25,5 +26,10 @@ export const GET = withRequestLogging(withErrorHandling(async () => {
     },
   });
 
-  return NextResponse.json(user);
+  if (!user) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const plan = await getUserPlan(session.user.id);
+  return NextResponse.json({ ...user, plan });
 }));

@@ -12,9 +12,9 @@ const features = [
 ];
 
 const plans = [
-  { name: "Starter", price: "$29", desc: "Perfect for founders", cta: "Choose Starter" },
-  { name: "Growth", price: "$99", desc: "Teams shipping fast", cta: "Choose Growth", featured: true },
-  { name: "Premium", price: "$199", desc: "Advanced automation", cta: "Choose Premium" },
+  { name: "Starter", price: "₦7,000", desc: "For founders and solo operators", cta: "Choose Starter" },
+  { name: "Pro", price: "₦15,000", desc: "For teams running automation daily", cta: "Choose Pro", featured: true },
+  { name: "Enterprise", price: "Contact sales", desc: "For advanced controls and support", cta: "Contact sales" },
 ];
 
 export default function LandingPage() {
@@ -119,7 +119,7 @@ export default function LandingPage() {
               >
                 <p className="text-3xl font-semibold text-white">
                   {plan.price}
-                  <span className="text-sm text-slate-400">/mo</span>
+                  {plan.name !== "Enterprise" && <span className="text-sm text-slate-400">/mo</span>}
                 </p>
                 <p className="text-sm text-slate-400">{plan.desc}</p>
                 <Button className="mt-3 w-full" variant={plan.featured ? "primary" : "secondary"}>
