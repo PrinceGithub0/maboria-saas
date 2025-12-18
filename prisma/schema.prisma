@@ -1,0 +1,389 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+  STAFF
+  DISABLED
+}
+
+enum SubscriptionPlan {
+  STARTER
+  GROWTH
+  ENTERPRISE
+  PREMIUM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+  INACTIVE
+}
+
+enum PaymentProvider {
+  STRIPE
+  PAYSTACK
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+enum AutomationStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum AutomationRunStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELED
+}
+
+enum SupportStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model User {
+  id             String             @id @default(cuid())
+  name           String
+  email          String             @unique
+  emailVerified  DateTime?
+  passwordHash   String
+  role           Role               @default(USER)
+  createdAt      DateTime           @default(now())
+  onboardingComplete Boolean        @default(false)
+  tourComplete   Boolean            @default(false)
+  preferredCurrency String          @default("USD")
+  subscriptions  Subscription[]
+  payments       Payment[]
+  automationFlows AutomationFlow[]
+  automationRuns AutomationRun[]    @relation("UserAutomationRuns")
+  invoices       Invoice[]
+  activityLogs   ActivityLog[]
+  supportTickets SupportTicket[]
+  sessions       Session[]
+  accounts       Account[]
+  resetTokens    PasswordResetToken[]
+  businesses     BusinessMember[]
+  notifications  Notification[]
+  aiMemories     AiMemory[]
+  twoFactorTokens TwoFactorToken[]
+  aiUsageLogs    AiUsageLog[]
+  ticketMessages TicketMessage[]
+  ownedBusinesses Business[]     @relation("OwnedBusinesses")
+  usageRecords   UsageRecord[]
+  transactions   Transaction[]
+}
+
+model Subscription {
+  id          String             @id @default(cuid())
+  user        User               @relation(fields: [userId], references: [id])
+  userId      String
+  plan        SubscriptionPlan
+  status      SubscriptionStatus
+  renewalDate DateTime
+  trialEndsAt DateTime?
+  usageLimit  Int?
+  usagePeriod String?            @default("monthly")
+  currency    String             @default("USD")
+  graceEndsAt DateTime?
+  cancellationReason String?
+  overageUsed Int               @default(0)
+  interval    String            @default("monthly")
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  invoices    Invoice[]
+}
+
+model Payment {
+  id        String           @id @default(cuid())
+  user      User             @relation(fields: [userId], references: [id])
+  userId    String
+  amount    Decimal          @db.Decimal(14, 2)
+  currency  String
+  provider  PaymentProvider
+  status    PaymentStatus
+  createdAt DateTime         @default(now())
+  metadata  Json?
+  reference String?          @unique
+  gatewayResponse Json?
+  originalAmount Decimal?    @db.Decimal(14, 2)
+  originalCurrency String?
+  amountUsd Decimal?         @db.Decimal(14, 2)
+  amountNgn Decimal?         @db.Decimal(14, 2)
+}
+
+model AutomationFlow {
+  id          String           @id @default(cuid())
+  user        User             @relation(fields: [userId], references: [id])
+  userId      String
+  business    Business?        @relation(fields: [businessId], references: [id])
+  businessId  String?
+  title       String
+  description String
+  steps       Json
+  category    String?
+  aiParams    Json?
+  status      AutomationStatus @default(DRAFT)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  runs        AutomationRun[]
+  triggers    Trigger[]
+  actions     Action[]
+}
+
+model AutomationRun {
+  id         String              @id @default(cuid())
+  flow       AutomationFlow      @relation(fields: [flowId], references: [id])
+  flowId     String
+  runStatus  AutomationRunStatus @default(PENDING)
+  logs       Json
+  output     Json?
+  createdAt  DateTime            @default(now())
+  user       User                @relation("UserAutomationRuns", fields: [userId], references: [id])
+  userId     String
+  startedAt  DateTime?           @default(now())
+  completedAt DateTime?
+  retryCount Int                 @default(0)
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  user          User          @relation(fields: [userId], references: [id])
+  userId        String
+  invoiceNumber String        @unique
+  items         Json
+  total         Decimal       @db.Decimal(14, 2)
+  currency      String
+  status        InvoiceStatus
+  generatedAt   DateTime      @default(now())
+  tax           Decimal?      @db.Decimal(14, 2)
+  discount      Decimal?      @db.Decimal(14, 2)
+  metadata      Json?
+  pdfUrl        String?
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+  subscriptionId String?
+  customerId    String?
+  plan          SubscriptionPlan?
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+  action    String
+  timestamp DateTime @default(now())
+  metadata  Json?
+}
+
+model AiUsageLog {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  model     String
+  tokens    Int
+  prompt    String?
+  createdAt DateTime @default(now())
+  subscriptionId String?
+}
+
+model RateLimitLog {
+  id        String   @id @default(cuid())
+  key       String
+  count     Int
+  window    String
+  createdAt DateTime @default(now())
+}
+
+model Setting {
+  key   String @id
+  value String
+}
+
+model SupportTicket {
+  id        String        @id @default(cuid())
+  user      User          @relation(fields: [userId], references: [id])
+  userId    String
+  title     String
+  message   String
+  status    SupportStatus @default(OPEN)
+  createdAt DateTime      @default(now())
+  metadata  Json?
+  priority  String        @default("normal")
+  attachments Json?
+  replies   TicketMessage[]
+}
+
+model TicketMessage {
+  id         String   @id @default(cuid())
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id])
+  ticketId   String
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  body       String
+  createdAt  DateTime @default(now())
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model TwoFactorToken {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Business {
+  id          String             @id @default(cuid())
+  name        String
+  domain      String?
+  owner       User               @relation("OwnedBusinesses", fields: [ownerId], references: [id])
+  ownerId     String
+  createdAt   DateTime           @default(now())
+  members     BusinessMember[]
+  workflows   AutomationFlow[]
+}
+
+model BusinessMember {
+  id         String   @id @default(cuid())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  business   Business @relation(fields: [businessId], references: [id])
+  businessId String
+  role       String   @default("member")
+  createdAt  DateTime @default(now())
+}
+
+model Trigger {
+  id          String         @id @default(cuid())
+  flow        AutomationFlow @relation(fields: [flowId], references: [id])
+  flowId      String
+  type        String
+  config      Json
+  conditions  Json?
+  createdAt   DateTime       @default(now())
+}
+
+model Action {
+  id        String         @id @default(cuid())
+  flow      AutomationFlow @relation(fields: [flowId], references: [id])
+  flowId    String
+  type      String
+  config    Json
+  order     Int
+  createdAt DateTime        @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  type      String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model AiMemory {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  role      String
+  content   String
+  createdAt DateTime @default(now())
+}
+
+model UsageRecord {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  category  String
+  amount    Int
+  period    String
+  createdAt DateTime @default(now())
+}
+
+model Transaction {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  currency  String
+  amount    Decimal  @db.Decimal(14, 2)
+  status    String
+  reference String   @unique
+  metadata  Json?
+  createdAt DateTime @default(now())
+}
+
+// NextAuth models
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?
+  access_token       String?
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?
+  session_state      String?
+  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}

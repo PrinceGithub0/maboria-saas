@@ -1,0 +1,41 @@
+"use client";
+
+import useSWR from "swr";
+import { Card } from "@/components/ui/card";
+import { Table } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+
+const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
+export default function AdminSupportPage() {
+  const { data } = useSWR("/api/admin/support", fetcher);
+
+  return (
+    <div className="space-y-4 px-6 py-6">
+      <div>
+        <p className="text-xs uppercase tracking-[0.2em] text-indigo-300">Admin</p>
+        <h1 className="text-3xl font-semibold text-white">Support tickets</h1>
+      </div>
+      <Card>
+        <Table
+          data={data || []}
+          keyExtractor={(row: any) => row.id}
+          columns={[
+            { key: "title", label: "Title" },
+            { key: "user", label: "User", render: (row: any) => row.user?.email },
+            {
+              key: "status",
+              label: "Status",
+              render: (row: any) => <Badge>{row.status}</Badge>,
+            },
+            {
+              key: "createdAt",
+              label: "Created",
+              render: (row: any) => new Date(row.createdAt).toLocaleString(),
+            },
+          ]}
+        />
+      </Card>
+    </div>
+  );
+}
