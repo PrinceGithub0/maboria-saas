@@ -21,9 +21,9 @@ export function Button({
   const base =
     "inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition";
   const variants: Record<string, string> = {
-    primary: "bg-indigo-500 text-white hover:bg-indigo-400 shadow-lg shadow-indigo-500/30",
-    secondary: "bg-slate-800 text-slate-50 hover:bg-slate-700 border border-slate-700",
-    ghost: "text-slate-200 hover:bg-slate-800/80",
+    primary: "bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-600/20",
+    secondary: "bg-muted text-foreground hover:brightness-95 border border-border",
+    ghost: "text-foreground hover:bg-muted",
     danger: "bg-rose-600 text-white hover:bg-rose-500",
   };
   const sizes: Record<string, string> = {

@@ -13,8 +13,8 @@ export default function AdminNotificationsPage() {
   return (
     <div className="space-y-4 px-6 py-6">
       <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-indigo-300">Admin</p>
-        <h1 className="text-3xl font-semibold text-white">Notifications</h1>
+        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Admin</p>
+        <h1 className="text-3xl font-semibold text-foreground">Notifications</h1>
       </div>
       <Card title="System alerts">
         {isLoading ? (

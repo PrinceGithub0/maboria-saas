@@ -26,8 +26,8 @@ export default function BillingPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-indigo-300">Billing</p>
-        <h1 className="text-3xl font-semibold text-white">Billing history</h1>
+        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Billing</p>
+        <h1 className="text-3xl font-semibold text-foreground">Billing history</h1>
       </div>
 
       <Card title="Plans">
@@ -38,25 +38,25 @@ export default function BillingPage() {
             const cta = isEnterprise ? "Contact sales" : "Manage plan";
 
             return (
-              <Card key={p.plan} className="bg-slate-900/60" title={p.label}>
+              <Card key={p.plan} className="bg-card/60" title={p.label}>
                 <div className="space-y-3">
-                  <div className="text-2xl font-semibold text-white">
+                  <div className="text-2xl font-semibold text-foreground">
                     {p.ngn == null ? (
                       "Contact sales"
                     ) : (
                       <div className="flex flex-col gap-1">
                         <div>
                           {formatMoney(p.ngn, "NGN")}
-                          <span className="text-sm text-slate-400">/mo</span>
+                          <span className="text-sm text-muted-foreground">/mo</span>
                         </div>
                         {p.usd != null && (
-                          <div className="text-sm font-medium text-slate-400">{formatMoney(p.usd, "USD")}/mo</div>
+                          <div className="text-sm font-medium text-muted-foreground">{formatMoney(p.usd, "USD")}/mo</div>
                         )}
                       </div>
                     )}
                   </div>
 
-                  <ul className="space-y-1 text-sm text-slate-300">
+                  <ul className="space-y-1 text-sm text-muted-foreground">
                     {p.features.map((f) => (
                       <li key={f} className="flex items-start gap-2">
                         <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-400" />

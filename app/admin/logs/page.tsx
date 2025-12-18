@@ -15,8 +15,8 @@ export default function AdminLogsPage() {
   return (
     <div className="space-y-4 px-6 py-6">
       <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-indigo-300">Admin</p>
-        <h1 className="text-3xl font-semibold text-white">System logs</h1>
+        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Admin</p>
+        <h1 className="text-3xl font-semibold text-foreground">System logs</h1>
       </div>
       <Tabs
         tabs={[
@@ -71,7 +71,7 @@ export default function AdminLogsPage() {
                         render: (row: any) => (
                           <div className="flex gap-2">
                             <button
-                              className="text-xs text-indigo-300"
+                              className="text-xs text-indigo-600 dark:text-indigo-300"
                               onClick={() => fetch(`/api/admin/webhooks/${row.id}/replay`, { method: "POST" })}
                             >
                               Replay
@@ -83,7 +83,7 @@ export default function AdminLogsPage() {
                               Resolve
                             </button>
                             <button
-                              className="text-xs text-slate-300"
+                              className="text-xs text-muted-foreground"
                               onClick={() => fetch(`/api/admin/webhooks/${row.id}/archive`, { method: "POST" })}
                             >
                               Archive

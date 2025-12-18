@@ -71,11 +71,11 @@ export function AutomationBuilder({
                   {steps.map((step, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2"
+                      className="flex items-center justify-between rounded-xl border border-border bg-muted/50 px-3 py-2"
                     >
                       <div className="flex items-center gap-3">
                         <Badge variant="default">{step.type}</Badge>
-                        <span className="text-sm text-slate-200">Step {idx + 1}</span>
+                        <span className="text-sm text-foreground">Step {idx + 1}</span>
                       </div>
                       <Button variant="ghost" onClick={() => removeStep(idx)}>
                         Remove
@@ -83,7 +83,7 @@ export function AutomationBuilder({
                     </div>
                   ))}
                   {steps.length === 0 && (
-                    <p className="text-sm text-slate-400">No steps yet. Add your first step.</p>
+                    <p className="text-sm text-muted-foreground">No steps yet. Add your first step.</p>
                   )}
                 </div>
               </Card>
@@ -93,7 +93,7 @@ export function AutomationBuilder({
             id: "preview",
             label: "Preview JSON",
             content: (
-              <pre className="rounded-2xl border border-slate-800 bg-slate-950 p-4 text-xs text-slate-200">
+              <pre className="rounded-2xl border border-border bg-muted/40 p-4 text-xs text-foreground">
                 {JSON.stringify({ title, description, steps }, null, 2)}
               </pre>
             ),
@@ -108,7 +108,7 @@ export function AutomationBuilder({
           placeholder="Describe a flow and let AI build it"
           value={aiPrompt}
           onChange={(e) => setAiPrompt(e.target.value)}
-          className="flex-1 rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-100"
+          className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
         />
         <Button variant="secondary" onClick={generateWithAI} loading={aiLoading}>
           AI Generate
@@ -129,7 +129,7 @@ function AddStep({
     <div className="flex items-center gap-3">
       <select
         onChange={(e) => onSelect(e.target.value)}
-        className="rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-100"
+        className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
       >
         <option value="parseText">Parse text</option>
         <option value="extractData">Extract data</option>

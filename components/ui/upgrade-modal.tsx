@@ -23,12 +23,12 @@ export function UpgradeModal({
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="success">Plan</Badge>
-          <span className="text-sm text-slate-200">
+          <span className="text-sm text-foreground">
             This feature requires{" "}
-            <span className="font-semibold text-white">{requiredPlan.toUpperCase()}</span>.
+            <span className="font-semibold text-foreground">{requiredPlan.toUpperCase()}</span>.
           </span>
         </div>
-        <p className="text-sm text-slate-300">
+        <p className="text-sm text-muted-foreground">
           {description ?? "Upgrade your plan to unlock this feature. Your account and data stay the same."}
         </p>
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
@@ -43,4 +43,3 @@ export function UpgradeModal({
     </Modal>
   );
 }
-

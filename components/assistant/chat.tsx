@@ -44,7 +44,7 @@ export function AssistantChat() {
       <div className="space-y-4">
         <div
           ref={listRef}
-          className="max-h-96 overflow-y-auto rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-2"
+          className="max-h-96 space-y-2 overflow-y-auto rounded-xl border border-border bg-background p-4"
         >
           <AnimatePresence>
             {messages.map((m, idx) => (
@@ -58,13 +58,13 @@ export function AssistantChat() {
                 <div
                   className={`max-w-md rounded-2xl px-3 py-2 text-sm shadow ${
                     m.role === "assistant"
-                      ? "bg-slate-900 text-slate-100"
+                      ? "bg-muted text-foreground"
                       : "bg-indigo-600 text-white"
                   }`}
                 >
                   <p>{m.content}</p>
-                  <p className="mt-1 text-[10px] uppercase text-slate-400">
-                    {new Date(m.ts || Date.now()).toLocaleTimeString()}
+                  <p className="mt-1 text-[10px] uppercase text-muted-foreground">
+                    {m.ts ? new Date(m.ts).toLocaleTimeString() : ""}
                   </p>
                 </div>
               </motion.div>
@@ -72,7 +72,7 @@ export function AssistantChat() {
           </AnimatePresence>
           {loading && <Skeleton className="h-6 w-24" />}
           {messages.length === 0 && (
-            <p className="text-sm text-slate-500">Ask about automations, revenue, or invoices.</p>
+            <p className="text-sm text-muted-foreground">Ask about automations, revenue, or invoices.</p>
           )}
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">

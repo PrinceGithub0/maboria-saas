@@ -35,11 +35,11 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-slate-50">
-      <div className="w-full max-w-md rounded-2xl border border-slate-900 bg-slate-900/70 p-8 shadow-2xl">
-        <p className="text-xs uppercase tracking-[0.2em] text-indigo-300">Maboria</p>
-        <h1 className="mt-2 text-2xl font-semibold text-white">Welcome back</h1>
-        <p className="text-sm text-slate-400">Sign in to manage automations and billing.</p>
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
+      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-2xl">
+        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Maboria</p>
+        <h1 className="mt-2 text-2xl font-semibold text-foreground">Welcome back</h1>
+        <p className="text-sm text-muted-foreground">Sign in to manage automations and billing.</p>
         {params.get("message") && <Alert variant="success">{params.get("message")}</Alert>}
         {error && <Alert variant="error">{error}</Alert>}
         <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
@@ -67,16 +67,16 @@ export default function LoginPage() {
             Sign in
           </Button>
         </form>
-        <div className="mt-4 flex items-center justify-between text-sm text-slate-400">
-          <Link href="/signup" className="text-indigo-300 hover:text-white">
+        <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
+          <Link href="/signup" className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-200">
             Create account
           </Link>
-          <Link href="/forgot" className="text-indigo-300 hover:text-white">
+          <Link href="/forgot" className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-200">
             Forgot password
           </Link>
         </div>
-        <div className="mt-4 text-center text-sm text-slate-400">
-          <Link href="/faq" className="text-indigo-300 hover:text-white">
+        <div className="mt-4 text-center text-sm text-muted-foreground">
+          <Link href="/faq" className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-200">
             View FAQ
           </Link>
         </div>

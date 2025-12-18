@@ -30,14 +30,12 @@ export default async function DashboardPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-indigo-300">Dashboard</p>
-          <h1 className="text-3xl font-semibold text-white">Overview</h1>
-          <p className="text-sm text-slate-400">
-            Real-time metrics across automations, invoices, and payments.
-          </p>
+          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Dashboard</p>
+          <h1 className="text-3xl font-semibold text-foreground">Overview</h1>
+          <p className="text-sm text-muted-foreground">Real-time metrics across automations, invoices, and payments.</p>
         </div>
         <div className="flex gap-2">
-          <Badge variant="success">Secure · Logged</Badge>
+          <Badge variant="success">{"Secure \u2022 Logged"}</Badge>
           <Link href="/dashboard/onboarding">
             <Button variant="secondary" size="sm">
               Product tour
@@ -48,23 +46,23 @@ export default async function DashboardPage() {
 
       <div className="grid gap-4 md:grid-cols-4">
         <Card title="Total revenue">
-          <p className="text-3xl font-semibold text-white">${(revenue / 100).toFixed(2)}</p>
-          <p className="text-xs text-slate-400">Stripe + Paystack</p>
+          <p className="text-3xl font-semibold text-foreground">${(revenue / 100).toFixed(2)}</p>
+          <p className="text-xs text-muted-foreground">Stripe + Paystack</p>
         </Card>
         <Card title="Invoices">
-          <p className="text-3xl font-semibold text-white">{invoices}</p>
-          <p className="text-xs text-slate-400">Generated across all currencies</p>
+          <p className="text-3xl font-semibold text-foreground">{invoices}</p>
+          <p className="text-xs text-muted-foreground">Generated across all currencies</p>
         </Card>
         <Card title="Automations">
-          <p className="text-3xl font-semibold text-white">{automations}</p>
-          <p className="text-xs text-slate-400">Active and draft flows</p>
+          <p className="text-3xl font-semibold text-foreground">{automations}</p>
+          <p className="text-xs text-muted-foreground">Active and draft flows</p>
         </Card>
         <Card title="Run health">
-          <p className="text-3xl font-semibold text-white">
-            {successRuns} <span className="text-sm text-slate-400">ok</span> /{" "}
-            {failedRuns} <span className="text-sm text-rose-300">failed</span>
+          <p className="text-3xl font-semibold text-foreground">
+            {successRuns} <span className="text-sm text-muted-foreground">ok</span> / {failedRuns}{" "}
+            <span className="text-sm text-rose-600 dark:text-rose-300">failed</span>
           </p>
-          <p className="text-xs text-slate-400">Last 100 runs</p>
+          <p className="text-xs text-muted-foreground">Last 100 runs</p>
         </Card>
       </div>
 
@@ -84,3 +82,4 @@ export default async function DashboardPage() {
     </div>
   );
 }
+

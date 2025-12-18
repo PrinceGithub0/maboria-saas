@@ -25,8 +25,8 @@ export default function AutomationsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-indigo-300">Automations</p>
-          <h1 className="text-3xl font-semibold text-white">Your flows</h1>
+          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Automations</p>
+          <h1 className="text-3xl font-semibold text-foreground">Your flows</h1>
         </div>
         <Link href="/dashboard/automations/new">
           <Button>Create automation</Button>
@@ -41,7 +41,7 @@ export default function AutomationsPage() {
             title={flow.title}
             actions={<Badge variant="default">{flow.status}</Badge>}
           >
-            <p className="text-sm text-slate-300">{flow.description}</p>
+            <p className="text-sm text-muted-foreground">{flow.description}</p>
             <div className="mt-3 flex gap-2">
               <Link href={`/dashboard/automations/${flow.id}`}>
                 <Button size="sm" variant="secondary">

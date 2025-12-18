@@ -16,7 +16,7 @@ import {
 
 type FaqCategory =
   | "What Maboria Is"
-  | "Who It’s For"
+  | "Who It's For"
   | "Account & Workspace"
   | "Payments & Subscriptions"
   | "Invoices"
@@ -35,7 +35,7 @@ type FaqItem = {
 
 const iconByCategory: Record<FaqCategory, React.ComponentType<{ className?: string }>> = {
   "What Maboria Is": Bot,
-  "Who It’s For": UserPlus,
+  "Who It's For": UserPlus,
   "Account & Workspace": ShieldCheck,
   "Payments & Subscriptions": CreditCard,
   Invoices: FileText,
@@ -52,11 +52,11 @@ const faqs: FaqItem[] = [
     category: "What Maboria Is",
     question: "What is Maboria?",
     answer:
-      "Maboria is a web app for managing workflows, customers, invoices, payments, subscriptions, and notifications in one place. It’s built for African businesses, starting with Nigeria. You use it from a dashboard after signing in.",
+      "Maboria is a web app for managing workflows, customers, invoices, payments, subscriptions, and notifications in one place. It's built for African businesses, starting with Nigeria. You use it from a dashboard after signing in.",
   },
   {
     id: "who-for",
-    category: "Who It’s For",
+    category: "Who It's For",
     question: "Who is Maboria for?",
     answer:
       "Maboria is for non-technical business owners and teams who want to automate repetitive tasks and keep billing and customer operations organized. It fits SMEs, startups, and growing companies that need clear visibility and control.",
@@ -66,7 +66,7 @@ const faqs: FaqItem[] = [
     category: "Account & Workspace",
     question: "How do I set up my account and workspace?",
     answer:
-      "Create an account with your email and password, then complete onboarding to add your business details and preferences. Your workspace keeps your invoices, payments, automations, and activity in one place. You can invite team members when needed.",
+      "Create an account with your email and password, then complete onboarding to add your business details and preferences. Your workspace keeps your invoices, payments, automations, and activity in one place. You can add team access when needed.",
   },
   {
     id: "billing",
@@ -101,7 +101,7 @@ const faqs: FaqItem[] = [
     category: "Two-Factor Authentication",
     question: "Does Maboria support two-factor authentication (2FA)?",
     answer:
-      "Yes. You can enable an extra verification step for your account using one-time codes. If you lose access, you can use account recovery options such as password reset.",
+      "Yes. You can enable an extra verification step for your account using one-time codes. If you lose access, you can use account recovery options such as password reset and backup codes (if enabled).",
   },
   {
     id: "security",
@@ -113,7 +113,7 @@ const faqs: FaqItem[] = [
   {
     id: "support",
     category: "Support & Contact",
-    question: "How do I get help if something isn’t working?",
+    question: "How do I get help if something isn't working?",
     answer:
       "Use the Support Center to review common questions and submit a support request. Share what you were trying to do and what you saw on screen so issues can be resolved quickly. You can also check the Status page to confirm system health.",
   },
@@ -121,7 +121,7 @@ const faqs: FaqItem[] = [
 
 const categories: FaqCategory[] = [
   "What Maboria Is",
-  "Who It’s For",
+  "Who It's For",
   "Account & Workspace",
   "Payments & Subscriptions",
   "Invoices",
@@ -142,10 +142,7 @@ export function FAQSection() {
     return faqs.filter((item) => {
       if (item.category !== activeCategory) return false;
       if (!q) return true;
-      return (
-        item.question.toLowerCase().includes(q) ||
-        item.answer.toLowerCase().includes(q)
-      );
+      return item.question.toLowerCase().includes(q) || item.answer.toLowerCase().includes(q);
     });
   }, [activeCategory, query]);
 
@@ -157,35 +154,35 @@ export function FAQSection() {
   const ActiveIcon = iconByCategory[active.category];
 
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
-      <div className="pointer-events-none absolute -top-24 left-1/2 h-64 w-[520px] -translate-x-1/2 rounded-full bg-indigo-500/20 blur-3xl" />
+    <section className="relative overflow-hidden rounded-2xl border border-border bg-card/70 p-6">
+      <div className="pointer-events-none absolute -top-24 left-1/2 h-64 w-[520px] -translate-x-1/2 rounded-full bg-indigo-500/10 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-28 right-0 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl" />
 
       <div className="relative">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-indigo-300">FAQ</p>
-            <h2 className="mt-2 text-xl font-semibold text-white">Quick answers</h2>
-            <p className="mt-1 max-w-xl text-sm text-slate-300">
+            <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">FAQ</p>
+            <h2 className="mt-2 text-xl font-semibold text-foreground">Quick answers</h2>
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
               Clear explanations for common questions. Choose a topic, then pick a question.
             </p>
           </div>
 
           <div className="relative w-full lg:max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search questions..."
-              className="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-9 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none"
+              className="w-full rounded-xl border border-input bg-background px-9 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-indigo-400 focus:outline-none"
               aria-label="Search FAQ"
             />
           </div>
         </div>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-[240px_360px_1fr]">
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-3">
-            <p className="px-2 pb-2 text-xs font-semibold text-slate-400">Topics</p>
+          <div className="rounded-2xl border border-border bg-background/60 p-3">
+            <p className="px-2 pb-2 text-xs font-semibold text-muted-foreground">Topics</p>
             <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible">
               {categories.map((cat) => {
                 const CatIcon = iconByCategory[cat];
@@ -201,12 +198,17 @@ export function FAQSection() {
                     className={clsx(
                       "group flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-indigo-500/40",
                       selected
-                        ? "bg-indigo-500/15 text-white ring-1 ring-indigo-500/30"
-                        : "text-slate-300 hover:bg-slate-900/60"
+                        ? "bg-indigo-500/10 text-foreground ring-1 ring-indigo-500/30"
+                        : "text-muted-foreground hover:bg-muted/60"
                     )}
                     aria-current={selected ? "page" : undefined}
                   >
-                    <CatIcon className={clsx("h-4 w-4", selected ? "text-indigo-300" : "text-slate-400")} />
+                    <CatIcon
+                      className={clsx(
+                        "h-4 w-4",
+                        selected ? "text-indigo-600 dark:text-indigo-300" : "text-muted-foreground"
+                      )}
+                    />
                     <span className="whitespace-nowrap">{cat}</span>
                   </button>
                 );
@@ -214,13 +216,13 @@ export function FAQSection() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/40">
-            <div className="border-b border-slate-800 px-4 py-3">
-              <p className="text-xs font-semibold text-slate-400">Questions</p>
+          <div className="rounded-2xl border border-border bg-background/60">
+            <div className="border-b border-border px-4 py-3">
+              <p className="text-xs font-semibold text-muted-foreground">Questions</p>
             </div>
             <div className="max-h-[340px] overflow-auto p-2 lg:max-h-[520px]">
               {filtered.length === 0 ? (
-                <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-4 text-sm text-slate-300">
+                <div className="rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
                   No matches in this topic. Try a different search.
                 </div>
               ) : (
@@ -234,19 +236,13 @@ export function FAQSection() {
                         onClick={() => setActiveId(item.id)}
                         className={clsx(
                           "w-full rounded-xl border px-3 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-indigo-500/40",
-                          selected
-                            ? "border-indigo-500/40 bg-indigo-500/10"
-                            : "border-slate-800 bg-slate-950/40 hover:bg-slate-900/50"
+                          selected ? "border-indigo-500/40 bg-indigo-500/10" : "border-border bg-background/60 hover:bg-muted/50"
                         )}
                         aria-expanded={selected}
                         aria-controls={`faq-answer-${item.id}`}
                       >
-                        <p className={clsx("text-sm font-semibold", selected ? "text-white" : "text-slate-200")}>
-                          {item.question}
-                        </p>
-                        <p className="mt-1 line-clamp-2 text-xs text-slate-400">
-                          {item.answer}
-                        </p>
+                        <p className="text-sm font-semibold text-foreground">{item.question}</p>
+                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.answer}</p>
                       </button>
                     );
                   })}
@@ -255,22 +251,22 @@ export function FAQSection() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-5">
+          <div className="rounded-2xl border border-border bg-background/60 p-5">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-500/15 text-indigo-300 ring-1 ring-indigo-500/25">
+                <div className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-500/10 text-indigo-600 ring-1 ring-indigo-500/20 dark:text-indigo-300">
                   <ActiveIcon className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-slate-400">{active.category}</p>
-                  <h3 className="text-lg font-semibold text-white">{active.question}</h3>
+                  <p className="text-xs font-semibold text-muted-foreground">{active.category}</p>
+                  <h3 className="text-lg font-semibold text-foreground">{active.question}</h3>
                 </div>
               </div>
             </div>
 
             <div
               id={`faq-answer-${active.id}`}
-              className="mt-4 rounded-xl border border-slate-800 bg-slate-950/50 p-4 text-sm leading-relaxed text-slate-200 transition"
+              className="mt-4 rounded-xl border border-border bg-background/70 p-4 text-sm leading-relaxed text-muted-foreground transition"
             >
               {active.answer}
             </div>
@@ -280,3 +276,4 @@ export function FAQSection() {
     </section>
   );
 }
+

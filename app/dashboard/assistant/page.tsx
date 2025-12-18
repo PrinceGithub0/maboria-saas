@@ -24,9 +24,9 @@ export default function AssistantPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-indigo-300">AI Copilot</p>
-          <h1 className="text-3xl font-semibold text-white">Assistant</h1>
-          <p className="text-sm text-slate-400">
+          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">AI Copilot</p>
+          <h1 className="text-3xl font-semibold text-foreground">Assistant</h1>
+          <p className="text-sm text-muted-foreground">
             Ask for automation flows, improvements, diagnoses, and business insights.
           </p>
         </div>
@@ -57,10 +57,10 @@ export default function AssistantPage() {
       </Card>
       <div className="relative">
         {!canUseAI && (
-          <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl border border-slate-800 bg-slate-950/60 backdrop-blur">
+          <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl border border-border bg-background/70 backdrop-blur">
             <div className="max-w-sm space-y-2 text-center">
-              <p className="text-sm font-semibold text-white">Upgrade to Pro to use the AI Assistant</p>
-              <p className="text-xs text-slate-400">
+              <p className="text-sm font-semibold text-foreground">Upgrade to Pro to use the AI Assistant</p>
+              <p className="text-xs text-muted-foreground">
                 AI features are available on Pro and Enterprise plans.
               </p>
               <Button onClick={() => setUpgradeOpen(true)}>Upgrade</Button>

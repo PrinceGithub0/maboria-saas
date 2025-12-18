@@ -13,7 +13,7 @@ export function Tabs({
   const [active, setActive] = useState(defaultTab ?? tabs[0]?.id);
   return (
     <div>
-      <div className="mb-4 inline-flex gap-2 rounded-full bg-slate-900/70 p-1">
+      <div className="mb-4 inline-flex gap-2 rounded-full border border-border bg-muted p-1">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -21,8 +21,8 @@ export function Tabs({
             className={clsx(
               "rounded-full px-4 py-2 text-xs font-semibold transition",
               active === tab.id
-                ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/30"
-                : "text-slate-300 hover:text-white"
+                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20"
+                : "text-muted-foreground hover:text-foreground"
             )}
           >
             {tab.label}

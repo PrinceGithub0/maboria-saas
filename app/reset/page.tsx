@@ -33,16 +33,16 @@ export default function ResetPage() {
 
   if (!token) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-50">
+      <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
         <Alert variant="error">Missing reset token</Alert>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-slate-50">
-      <div className="w-full max-w-md rounded-2xl border border-slate-900 bg-slate-900/70 p-8 shadow-2xl">
-        <h1 className="text-2xl font-semibold text-white">Reset password</h1>
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
+      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-2xl">
+        <h1 className="text-2xl font-semibold text-foreground">Reset password</h1>
         {status && <Alert variant="info">{status}</Alert>}
         <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
           <Input

@@ -44,8 +44,8 @@ export default function AdminUsersPage() {
     <div className="space-y-4 px-6 py-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-indigo-300">Admin</p>
-          <h1 className="text-3xl font-semibold text-white">User management</h1>
+          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Admin</p>
+          <h1 className="text-3xl font-semibold text-foreground">User management</h1>
         </div>
         <Input
           placeholder="Search users"

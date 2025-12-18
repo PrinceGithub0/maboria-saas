@@ -68,8 +68,8 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-indigo-300">Settings</p>
-        <h1 className="text-3xl font-semibold text-white">Profile & security</h1>
+        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Settings</p>
+        <h1 className="text-3xl font-semibold text-foreground">Profile & security</h1>
       </div>
       {status && <Alert variant="info">{status}</Alert>}
       <Card title="Profile">
@@ -90,11 +90,11 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-950/40 p-4">
+        <div className="mt-8 rounded-2xl border border-border bg-muted/40 p-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm font-semibold text-white">Authenticator 2FA (TOTP)</p>
-              <p className="text-xs text-slate-400">
+              <p className="text-sm font-semibold text-foreground">Authenticator 2FA (TOTP)</p>
+              <p className="text-xs text-muted-foreground">
                 Use an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password, etc.).
               </p>
             </div>
@@ -111,20 +111,20 @@ export default function SettingsPage() {
 
           {!enabled && setup && (
             <div className="mt-4 space-y-3">
-              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3 text-sm text-slate-200">
+              <div className="rounded-xl border border-border bg-background/70 p-3 text-sm text-foreground">
                 {setup.qr ? (
                   <div className="mb-3 flex items-center justify-center">
                     <img
                       src={setup.qr}
                       alt="Authenticator setup QR code"
-                      className="h-44 w-44 rounded-xl border border-slate-800 bg-white p-2"
+                      className="h-44 w-44 rounded-xl border border-border bg-white p-2"
                     />
                   </div>
                 ) : null}
-                <p className="font-semibold text-white">Setup secret</p>
-                <p className="mt-1 break-all font-mono text-xs text-slate-300">{setup.secret}</p>
-                <p className="mt-2 font-semibold text-white">Setup link (otpauth)</p>
-                <p className="mt-1 break-all font-mono text-xs text-slate-300">{setup.uri}</p>
+                <p className="font-semibold text-foreground">Setup secret</p>
+                <p className="mt-1 break-all font-mono text-xs text-muted-foreground">{setup.secret}</p>
+                <p className="mt-2 font-semibold text-foreground">Setup link (otpauth)</p>
+                <p className="mt-1 break-all font-mono text-xs text-muted-foreground">{setup.uri}</p>
               </div>
               <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
                 <Input
@@ -165,7 +165,7 @@ export default function SettingsPage() {
                 {backupCodes.map((c) => (
                   <div
                     key={c}
-                    className="rounded-lg border border-amber-500/20 bg-slate-950/40 px-3 py-2 font-mono text-xs text-amber-100"
+                    className="rounded-lg border border-amber-500/20 bg-background/70 px-3 py-2 font-mono text-xs text-amber-100"
                   >
                     {c}
                   </div>

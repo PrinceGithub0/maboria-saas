@@ -20,22 +20,20 @@ export default function WorkflowsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-indigo-300">Workflows</p>
-          <h1 className="text-3xl font-semibold text-white">Triggers → Actions</h1>
+          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Workflows</p>
+          <h1 className="text-3xl font-semibold text-foreground">{"Triggers \u2192 Actions"}</h1>
         </div>
-        <Badge variant="success">Drag & drop ready</Badge>
+        <Badge variant="success">Drag &amp; drop ready</Badge>
       </div>
+
       <WorkflowBuilder onSave={save} />
+
       <div className="grid gap-4 md:grid-cols-2">
         {workflows?.map((wf: any) => (
-          <Card
-            key={wf.id}
-            title={wf.title}
-            actions={<Badge>{wf.status}</Badge>}
-          >
-            <p className="text-sm text-slate-300">{wf.description}</p>
-            <p className="text-xs text-slate-500">
-              {wf.triggers.length} triggers · {wf.actions.length} actions
+          <Card key={wf.id} title={wf.title} actions={<Badge>{wf.status}</Badge>}>
+            <p className="text-sm text-muted-foreground">{wf.description}</p>
+            <p className="text-xs text-muted-foreground">
+              {wf.triggers.length} triggers {"\u2022"} {wf.actions.length} actions
             </p>
             <div className="mt-2 flex gap-2">
               <Button size="sm" variant="secondary">
@@ -51,3 +49,4 @@ export default function WorkflowsPage() {
     </div>
   );
 }
+

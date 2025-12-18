@@ -53,12 +53,15 @@ export function WorkflowBuilder({
                 <Card title="Triggers" actions={<Button onClick={addTrigger}>Add Trigger</Button>}>
                   <div className="space-y-2">
                     {triggers.map((t, idx) => (
-                      <div key={idx} className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2">
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between rounded-lg border border-border bg-muted/50 px-3 py-2"
+                      >
                         <div className="flex items-center gap-3">
                           <Badge>{t.type}</Badge>
-                          <span className="text-sm text-slate-300">#{idx + 1}</span>
+                          <span className="text-sm text-muted-foreground">#{idx + 1}</span>
                         </div>
-                        <span className="text-xs text-slate-400">{JSON.stringify(t.config)}</span>
+                        <span className="text-xs text-muted-foreground">{JSON.stringify(t.config)}</span>
                       </div>
                     ))}
                   </div>
@@ -66,12 +69,15 @@ export function WorkflowBuilder({
                 <Card title="Actions" actions={<Button variant="secondary" onClick={addAction}>Add Action</Button>}>
                   <div className="space-y-2">
                     {actions.map((a, idx) => (
-                      <div key={idx} className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2">
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between rounded-lg border border-border bg-muted/50 px-3 py-2"
+                      >
                         <div className="flex items-center gap-3">
                           <Badge variant="success">{a.type}</Badge>
-                          <span className="text-sm text-slate-300">Order {a.order}</span>
+                          <span className="text-sm text-muted-foreground">Order {a.order}</span>
                         </div>
-                        <span className="text-xs text-slate-400">{JSON.stringify(a.config)}</span>
+                        <span className="text-xs text-muted-foreground">{JSON.stringify(a.config)}</span>
                       </div>
                     ))}
                   </div>
@@ -83,7 +89,7 @@ export function WorkflowBuilder({
             id: "preview",
             label: "Preview JSON",
             content: (
-              <pre className="rounded-2xl border border-slate-800 bg-slate-950 p-4 text-xs text-slate-200">
+              <pre className="rounded-2xl border border-border bg-muted/40 p-4 text-xs text-foreground">
                 {JSON.stringify({ title, description, triggers, actions }, null, 2)}
               </pre>
             ),

@@ -12,10 +12,10 @@ export function Card({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className={clsx("rounded-2xl border border-slate-800 bg-slate-900/70 p-6", className)}>
+    <div className={clsx("rounded-2xl border border-border bg-card p-6 text-card-foreground", className)}>
       {title && (
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-200">{title}</h3>
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
           {actions}
         </div>
       )}

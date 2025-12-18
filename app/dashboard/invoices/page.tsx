@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,12 +12,16 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 export default function InvoicesPage() {
   const { data: invoices, mutate } = useSWR("/api/invoice", fetcher);
   const [form, setForm] = useState({
-    invoiceNumber: `INV-${Date.now()}`,
+    invoiceNumber: "",
     currency: "USD",
     status: "SENT",
     items: [{ name: "Service", quantity: 1, price: 10000 }],
   });
   const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    setForm((prev) => (prev.invoiceNumber ? prev : { ...prev, invoiceNumber: `INV-${Date.now()}` }));
+  }, []);
 
   const createInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,8 +35,8 @@ export default function InvoicesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-indigo-300">Invoices</p>
-        <h1 className="text-3xl font-semibold text-white">Generator</h1>
+        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Invoices</p>
+        <h1 className="text-3xl font-semibold text-foreground">Generator</h1>
       </div>
       <Card title="Create invoice">
         <form className="grid grid-cols-2 gap-4" onSubmit={createInvoice}>
@@ -73,8 +77,9 @@ export default function InvoicesPage() {
         title="History"
         actions={
           <input
+            suppressHydrationWarning
             placeholder="Search invoices"
-            className="rounded-lg border border-slate-800 bg-slate-900/70 px-3 py-2 text-sm text-slate-100"
+            className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />

@@ -20,8 +20,8 @@ export default function RunsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-indigo-300">Automation</p>
-        <h1 className="text-3xl font-semibold text-white">Runs</h1>
+        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Automation</p>
+        <h1 className="text-3xl font-semibold text-foreground">Runs</h1>
       </div>
       <Card>
         <Table

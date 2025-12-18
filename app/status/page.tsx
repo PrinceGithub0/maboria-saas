@@ -10,7 +10,7 @@ function StatusItem({ label, status }: { label: string; status: "green" | "yello
   const color =
     status === "green" ? "text-emerald-400" : status === "yellow" ? "text-amber-400" : "text-rose-400";
   return (
-    <div className="flex items-center gap-2 text-sm text-slate-200">
+    <div className="flex items-center gap-2 text-sm text-foreground">
       <Circle className={`h-3 w-3 ${color}`} />
       {label}
     </div>
@@ -20,7 +20,7 @@ function StatusItem({ label, status }: { label: string; status: "green" | "yello
 export default function StatusPage() {
   const { data } = useSWR("/api/health", fetcher);
   return (
-    <div className="mx-auto max-w-4xl space-y-6 px-6 py-10 text-slate-100">
+    <div className="mx-auto max-w-4xl space-y-6 px-6 py-10 text-foreground">
       <h1 className="text-3xl font-semibold">System Status</h1>
       <div className="grid gap-4 md:grid-cols-2">
         <Card title="Core services">

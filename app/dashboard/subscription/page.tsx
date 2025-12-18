@@ -36,8 +36,8 @@ export default function SubscriptionPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-indigo-300">Subscription</p>
-          <h1 className="text-3xl font-semibold text-white">Manage plan</h1>
+          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Subscription</p>
+          <h1 className="text-3xl font-semibold text-foreground">Manage plan</h1>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => mutate()}>Refresh</Button>

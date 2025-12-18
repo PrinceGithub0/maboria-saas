@@ -11,31 +11,40 @@ const faqs = [
 
 export default function SupportPage() {
   return (
-    <div className="mx-auto max-w-5xl space-y-8 px-6 py-12 text-slate-100">
+    <div className="mx-auto max-w-5xl space-y-8 px-6 py-12 text-foreground">
       <h1 className="text-3xl font-semibold">Support Center</h1>
       <div className="grid gap-6 md:grid-cols-3">
         <Card title="FAQ">
-          <div className="space-y-3 text-sm text-slate-300">
+          <div className="space-y-3 text-sm text-muted-foreground">
             {faqs.map((item) => (
               <div key={item.q}>
-                <p className="font-semibold text-white">{item.q}</p>
-                <p className="text-slate-400">{item.a}</p>
+                <p className="font-semibold text-foreground">{item.q}</p>
+                <p className="text-muted-foreground">{item.a}</p>
               </div>
             ))}
           </div>
         </Card>
         <Card title="Troubleshooting">
-          <p className="text-sm text-slate-300">
+          <p className="text-sm text-muted-foreground">
             Restart failed automations from Runs, verify webhook signatures, ensure billing details are valid, and
             check system status on /status.
           </p>
         </Card>
         <Card title="Documentation">
-          <p className="text-sm text-slate-300">See internal /docs for architecture, APIs, and deployment guides.</p>
+          <p className="text-sm text-muted-foreground">See internal /docs for architecture, APIs, and deployment guides.</p>
         </Card>
       </div>
       <Card title="Contact support">
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-3 text-sm text-muted-foreground">
+          <p>
+            Email us directly at{" "}
+            <a className="text-indigo-500 hover:text-indigo-400" href="mailto:info@maboria.com">
+              info@maboria.com
+            </a>{" "}
+            for urgent issues. You can also submit the form below.
+          </p>
+        </div>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
           <Input label="Email" placeholder="you@company.com" />
           <Input label="Subject" placeholder="Billing, automation, AI..." />
           <div className="md:col-span-2">

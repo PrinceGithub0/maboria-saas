@@ -20,8 +20,8 @@ export default function UsagePage() {
   return (
     <div className="space-y-4">
       <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-indigo-300">Usage</p>
-        <h1 className="text-3xl font-semibold text-white">Analytics</h1>
+        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Usage</p>
+        <h1 className="text-3xl font-semibold text-foreground">Analytics</h1>
       </div>
       <Card title="AI token usage">
         <MiniAreaChart data={chartData} />

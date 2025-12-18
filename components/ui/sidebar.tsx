@@ -43,14 +43,14 @@ export function Sidebar({ role }: Props) {
   ];
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-64 border-r border-slate-900 bg-slate-950/80 p-4 backdrop-blur lg:block">
+    <aside className="sticky top-0 hidden h-screen w-64 border-r border-border bg-background p-4 backdrop-blur lg:block">
       <div className="mb-6 flex items-center gap-2">
         <div className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-500/20 text-indigo-300 font-bold">
           M
         </div>
         <div>
-          <p className="text-sm text-slate-400">Maboria</p>
-          <p className="text-lg font-semibold text-white">Control</p>
+          <p className="text-sm text-muted-foreground">Maboria</p>
+          <p className="text-lg font-semibold text-foreground">Control</p>
         </div>
       </div>
       <nav className="flex flex-col gap-2">
@@ -63,7 +63,7 @@ export function Sidebar({ role }: Props) {
               href={item.href}
               className={clsx(
                 "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition",
-                active ? "bg-indigo-500/20 text-white" : "text-slate-300 hover:bg-slate-900"
+                active ? "bg-indigo-500/15 text-foreground" : "text-muted-foreground hover:bg-muted"
               )}
             >
               <Icon className="h-4 w-4" />

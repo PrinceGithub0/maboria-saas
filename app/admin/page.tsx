@@ -29,35 +29,35 @@ export default async function AdminPage() {
   return (
     <div className="space-y-6 px-6 py-6">
       <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-indigo-300">Admin</p>
-        <h1 className="text-3xl font-semibold text-white">Platform health</h1>
+        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Admin</p>
+        <h1 className="text-3xl font-semibold text-foreground">Platform health</h1>
       </div>
       <div className="grid gap-4 md:grid-cols-4">
         <Card title="Total revenue">
-          <p className="text-3xl font-semibold text-white">${totalRevenue.toFixed(2)}</p>
-          <p className="text-xs text-slate-400">Stripe + Paystack</p>
+          <p className="text-3xl font-semibold text-foreground">${totalRevenue.toFixed(2)}</p>
+          <p className="text-xs text-muted-foreground">Stripe + Paystack</p>
         </Card>
         <Card title="Active subscriptions">
-          <p className="text-3xl font-semibold text-white">{activeSubs}</p>
-          <p className="text-xs text-slate-400">Across all plans</p>
+          <p className="text-3xl font-semibold text-foreground">{activeSubs}</p>
+          <p className="text-xs text-muted-foreground">Across all plans</p>
         </Card>
         <Card title="Recent users">
-          <p className="text-3xl font-semibold text-white">{totalUsers}</p>
-          <p className="text-xs text-slate-400">Latest signups</p>
+          <p className="text-3xl font-semibold text-foreground">{totalUsers}</p>
+          <p className="text-xs text-muted-foreground">Latest signups</p>
         </Card>
         <Card title="Automation errors">
           <p className="text-3xl font-semibold text-rose-200">
             {runs.filter((r) => r.runStatus === "FAILED").length}
           </p>
-          <p className="text-xs text-slate-400">Last 5 runs</p>
+          <p className="text-xs text-muted-foreground">Last 5 runs</p>
         </Card>
         <Card title="AI assistant messages">
-          <p className="text-3xl font-semibold text-white">{aiMemories}</p>
-          <p className="text-xs text-slate-400">Total stored interactions</p>
+          <p className="text-3xl font-semibold text-foreground">{aiMemories}</p>
+          <p className="text-xs text-muted-foreground">Total stored interactions</p>
         </Card>
         <Card title="Failed payments (30d)">
           <p className="text-3xl font-semibold text-rose-200">{failed30}</p>
-          <p className="text-xs text-slate-400">Watch churn risk</p>
+          <p className="text-xs text-muted-foreground">Watch churn risk</p>
         </Card>
       </div>
       <Card title="MRR trend">

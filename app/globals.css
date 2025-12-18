@@ -1,28 +1,65 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: light;
+  --background: #ffffff;
+  --foreground: #0f172a;
+
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+
+  --muted: #f1f5f9;
+  --muted-foreground: #475569;
+
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+
+  --glass-from: rgba(255, 255, 255, 0.85);
+  --glass-to: rgba(241, 245, 249, 0.85);
+  --glass-border: rgba(15, 23, 42, 0.08);
+}
+
+.dark {
+  color-scheme: dark;
   --background: #020617;
   --foreground: #e2e8f0;
+
+  --card: #0b1220;
+  --card-foreground: #e2e8f0;
+
+  --muted: #0f172a;
+  --muted-foreground: #94a3b8;
+
+  --border: #1e293b;
+  --input: #1e293b;
+
+  --glass-from: rgba(30, 41, 59, 0.75);
+  --glass-to: rgba(15, 23, 42, 0.75);
+  --glass-border: rgba(148, 163, 184, 0.12);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
-  background: radial-gradient(circle at 20% 20%, #1e1b4b 0, transparent 35%),
-    radial-gradient(circle at 80% 0%, #0ea5e9 0, transparent 25%),
-    #020617;
+  background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
   transition: background 0.2s ease, color 0.2s ease;
 }
 
 .glass {
-  background: linear-gradient(120deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.8));
-  border: 1px solid rgba(148, 163, 184, 0.1);
+  background: linear-gradient(120deg, var(--glass-from), var(--glass-to));
+  border: 1px solid var(--glass-border);
   backdrop-filter: blur(8px);
 }

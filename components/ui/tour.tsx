@@ -50,16 +50,16 @@ export function TourOverlay() {
   if (!visible) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-40 max-w-sm rounded-2xl border border-indigo-500/40 bg-slate-950/90 p-4 shadow-xl">
+    <div className="fixed bottom-4 right-4 z-40 max-w-sm rounded-2xl border border-indigo-500/40 bg-card p-4 shadow-xl">
       <p className="text-xs uppercase tracking-[0.2em] text-indigo-300">Product tour</p>
-      <h4 className="mt-1 text-lg font-semibold text-white">{step.title}</h4>
-      <p className="text-sm text-slate-300">{step.desc}</p>
+      <h4 className="mt-1 text-lg font-semibold text-foreground">{step.title}</h4>
+      <p className="text-sm text-muted-foreground">{step.desc}</p>
       <div className="mt-3 flex items-center justify-between">
         <div className="flex gap-1">
           {steps.map((_, idx) => (
             <span
               key={idx}
-              className={`h-1.5 w-6 rounded-full ${idx === active ? "bg-indigo-400" : "bg-slate-700"}`}
+              className={`h-1.5 w-6 rounded-full ${idx === active ? "bg-indigo-500" : "bg-border"}`}
             />
           ))}
         </div>
@@ -92,7 +92,7 @@ export function TourOverlay() {
         </div>
       </div>
       <button
-        className="mt-2 text-xs text-indigo-300 hover:text-indigo-100"
+        className="mt-2 text-xs text-indigo-600 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-200"
         onClick={() => {
           setVisible(true);
           goToStep(0);

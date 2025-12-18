@@ -7,6 +7,7 @@ import useSWR from "swr";
 import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { ThemeSwitcher } from "@/components/ui/theme-switcher";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -22,26 +23,27 @@ export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="flex items-center justify-between border-b border-slate-900 bg-slate-950/80 px-4 py-3 backdrop-blur lg:px-6">
+    <header className="flex items-center justify-between border-b border-border bg-background px-4 py-3 backdrop-blur lg:px-6">
       <div className="flex flex-1 items-center gap-3">
         <button
-          className="rounded-lg border border-slate-800 p-2 text-slate-300 hover:bg-slate-900 lg:hidden"
+          className="rounded-lg border border-border bg-card p-2 text-muted-foreground hover:bg-muted lg:hidden"
           aria-label="Toggle navigation"
           onClick={() => setMenuOpen((o) => !o)}
         >
           <Menu className="h-5 w-5" />
         </button>
         <div className="relative hidden w-80 lg:block">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
           <input
             placeholder="Search automations, invoices, payments..."
-            className="w-full rounded-lg border border-slate-800 bg-slate-900/70 px-10 py-2 text-sm text-slate-100 focus:border-indigo-400 focus:outline-none"
+            className="w-full rounded-lg border border-input bg-muted px-10 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-indigo-400 focus:outline-none"
           />
         </div>
       </div>
       <div className="flex items-center gap-3">
+        <ThemeSwitcher />
         <button
-          className="relative rounded-full border border-slate-800 p-2 text-slate-400 hover:text-white"
+          className="relative rounded-full border border-border bg-card p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
           aria-label="Notifications"
         >
           <Bell className="h-4 w-4" />
@@ -52,8 +54,8 @@ export function Navbar() {
           )}
         </button>
         <div className="hidden text-right lg:block">
-          <p className="text-sm font-semibold text-white">{data?.user?.name ?? "User"}</p>
-          <p className="text-xs text-slate-400">{data?.user?.email}</p>
+          <p className="text-sm font-semibold text-foreground">{data?.user?.name ?? "User"}</p>
+          <p className="text-xs text-muted-foreground">{data?.user?.email}</p>
         </div>
         <Button variant="ghost" onClick={() => signOut({ callbackUrl: "/" })}>
           <LogOut className="h-4 w-4" />
@@ -66,13 +68,13 @@ export function Navbar() {
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
-            className="absolute left-0 right-0 top-14 z-40 border-b border-slate-900 bg-slate-950/95 px-4 py-3 shadow-xl lg:hidden"
+            className="absolute left-0 right-0 top-14 z-40 border-b border-border bg-background px-4 py-3 shadow-xl lg:hidden"
           >
-            <div className="mb-3 flex items-center gap-2 text-slate-200">
+            <div className="mb-3 flex items-center gap-2 text-foreground">
               <User2 className="h-4 w-4" />
               <div>
                 <p className="text-sm font-semibold">{data?.user?.name ?? "User"}</p>
-                <p className="text-xs text-slate-400">{data?.user?.email}</p>
+                <p className="text-xs text-muted-foreground">{data?.user?.email}</p>
               </div>
             </div>
             <nav className="flex flex-col gap-2 text-sm">
@@ -88,7 +90,7 @@ export function Navbar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="rounded-lg px-3 py-2 text-slate-200 hover:bg-slate-900"
+                  className="rounded-lg px-3 py-2 text-foreground hover:bg-muted"
                   onClick={() => setMenuOpen(false)}
                 >
                   {item.label}

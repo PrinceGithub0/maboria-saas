@@ -40,8 +40,8 @@ export default function PaymentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-indigo-300">Payments</p>
-          <h1 className="text-3xl font-semibold text-white">Billing + subscriptions</h1>
+          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Payments</p>
+          <h1 className="text-3xl font-semibold text-foreground">Billing + subscriptions</h1>
         </div>
         <div className="flex gap-2">
           <Button onClick={payWithStripe}>Stripe (USD/EUR)</Button>

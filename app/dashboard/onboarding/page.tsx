@@ -6,11 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 
-const suggestions = [
-  "Invoice reminder sequence",
-  "Customer onboarding automation",
-  "Weekly summary report",
-];
+const suggestions = ["Invoice reminder sequence", "Customer onboarding automation", "Weekly summary report"];
 
 export default function OnboardingWizard() {
   const [step, setStep] = useState(1);
@@ -29,9 +25,10 @@ export default function OnboardingWizard() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-indigo-300">Onboarding</p>
-        <h1 className="text-3xl font-semibold text-white">Let’s set up your workspace</h1>
+        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Onboarding</p>
+        <h1 className="text-3xl font-semibold text-foreground">Let&#39;s set up your workspace</h1>
       </div>
+
       {step === 1 && (
         <Card title="Business profile">
           <div className="grid gap-4 md:grid-cols-2">
@@ -58,6 +55,7 @@ export default function OnboardingWizard() {
           </Button>
         </Card>
       )}
+
       {step === 2 && (
         <Card title="Suggested automations">
           <div className="grid gap-3 md:grid-cols-3">
@@ -67,9 +65,10 @@ export default function OnboardingWizard() {
           </div>
         </Card>
       )}
+
       {step === 3 && (
         <Card title="Tutorial">
-          <p className="text-sm text-slate-300">Explore dashboard, AI assistant, and billing.</p>
+          <p className="text-sm text-muted-foreground">Explore dashboard, AI assistant, and billing.</p>
           <Button className="mt-4" onClick={finish}>
             Finish
           </Button>
@@ -78,3 +77,4 @@ export default function OnboardingWizard() {
     </div>
   );
 }
+
