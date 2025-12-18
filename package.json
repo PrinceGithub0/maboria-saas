@@ -12,7 +12,7 @@
     "db:migrate": "prisma migrate dev --name init",
     "db:seed": "prisma db seed",
     "db:push": "prisma db push",
-    "postinstall": "prisma generate",
+    "postinstall": "node scripts/postinstall.js",
     "db:backup": "node scripts/db-backup.js",
     "analyze": "ANALYZE=true next build",
     "check:prelaunch": "npm run lint && npm run build && npm run db:generate"
@@ -32,6 +32,7 @@
     "openai": "^6.10.0",
     "pdfkit": "^0.17.2",
     "prisma": "^5.19.0",
+    "qrcode": "^1.5.4",
     "react": "19.2.1",
     "react-dom": "19.2.1",
     "recharts": "^3.5.1",

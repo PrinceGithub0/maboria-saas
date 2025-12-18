@@ -4,6 +4,8 @@ import Credentials from "next-auth/providers/credentials";
 import type { NextAuthOptions } from "next-auth";
 import { prisma } from "./prisma";
 import { verifyTotp } from "./totp";
+import { assertRateLimit } from "./rate-limit";
+import { safeDecryptSecret } from "./crypto";
 
 type StoredBackupCode = { hash: string; usedAt: string | null };
 
@@ -46,13 +48,26 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
         otp: { label: "2FA code", type: "text" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials.password) {
           return null;
         }
 
+        const email = credentials.email.toLowerCase().trim();
+        const rawForwardedFor =
+          // NextRequest (App Router)
+          (req as any)?.headers?.get?.("x-forwarded-for") ||
+          // Node request (fallback)
+          (req as any)?.headers?.["x-forwarded-for"] ||
+          "";
+        const ip = String(rawForwardedFor).split(",")[0]?.trim() || "unknown";
+
+        // Basic abuse prevention. Keep limits strict for auth + 2FA attempts.
+        assertRateLimit(`auth:login:ip:${ip}`, 30, 60_000);
+        assertRateLimit(`auth:login:email:${email}`, 10, 60_000);
+
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email },
         });
 
         if (!user) {
@@ -70,14 +85,16 @@ export const authOptions: NextAuthOptions = {
 
         // If TOTP 2FA is enabled, require either a valid 6-digit code or an unused backup code.
         if (user.twoFactorEnabled) {
+          assertRateLimit(`auth:2fa:email:${email}`, 5, 60_000);
           const otp = (credentials as any)?.otp as string | undefined;
           if (!otp) return null;
 
           const trimmed = otp.trim();
           let verified = false;
 
-          if (user.twoFactorSecret && /^\d{6}$/.test(trimmed.replace(/\s+/g, ""))) {
-            verified = verifyTotp({ secret: user.twoFactorSecret, token: trimmed });
+          const secret = safeDecryptSecret(user.twoFactorSecret);
+          if (secret && /^\d{6}$/.test(trimmed.replace(/\s+/g, ""))) {
+            verified = verifyTotp({ secret, token: trimmed });
           }
 
           if (!verified) {

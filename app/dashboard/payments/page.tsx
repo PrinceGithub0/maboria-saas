@@ -17,8 +17,8 @@ export default function PaymentsPage() {
     const res = await fetch("/api/payments/stripe", {
       method: "POST",
       body: JSON.stringify({
-        priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER || "price_starter",
-        currency: "usd",
+        plan: "starter",
+        currency: "USD",
       }),
     });
     const data = await res.json();
@@ -29,7 +29,7 @@ export default function PaymentsPage() {
   const payWithPaystack = async () => {
     const res = await fetch("/api/payments/paystack", {
       method: "POST",
-      body: JSON.stringify({ amount: 4900, currency: "NGN" }),
+      body: JSON.stringify({ plan: "starter", currency: "NGN" }),
     });
     const data = await res.json();
     if (data?.data?.authorization_url) window.location.href = data.data.authorization_url;

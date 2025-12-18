@@ -17,6 +17,9 @@ export const GET = withErrorHandling(async () => {
 export const POST = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (session.user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { plan, status, renewalDate, trialEndsAt, usageLimit, usagePeriod } =
     subscriptionSchema.parse(await req.json());
@@ -38,6 +41,9 @@ export const POST = withErrorHandling(async (req: Request) => {
 export const PUT = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (session.user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
   const { id, status, plan, trialEndsAt, usageLimit, usagePeriod } = await req.json();
   const sub = await prisma.subscription.update({
     where: { id, userId: session.user.id },

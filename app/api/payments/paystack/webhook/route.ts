@@ -12,20 +12,8 @@ export const POST = withErrorHandling(async (req: Request) => {
   const valid = verifyPaystackWebhook(signature, body);
   if (!valid) return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   const data = JSON.parse(body).data;
-  const existing = await prisma.payment.findFirst({ where: { reference: data.reference } });
-  if (existing) return NextResponse.json({ received: true, idempotent: true });
+
   await recordPaystackPayment(data);
-  await prisma.payment.create({
-    data: {
-      userId: data.metadata?.userId || "",
-      amount: data.amount / 100,
-      currency: data.currency || "NGN",
-      provider: "PAYSTACK",
-      status: data.status === "success" ? "SUCCEEDED" : "PENDING",
-      reference: data.reference,
-      metadata: data,
-    },
-  }).catch((e) => log("error", "Paystack payment write failed", { error: e }));
 
   if (data.metadata?.userId) {
     const user = await prisma.user.findUnique({ where: { id: data.metadata.userId } });
@@ -40,6 +28,21 @@ export const POST = withErrorHandling(async (req: Request) => {
 
   if (data.status !== "success") {
     await createAdminNotification("Paystack payment failed");
+  }
+
+  // If payment was for a plan purchase, sync/extend subscription (simplified monthly renewal).
+  if (data.status === "success" && data.metadata?.userId && (data.metadata?.plan === "STARTER" || data.metadata?.plan === "GROWTH")) {
+    const renewalDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    await prisma.subscription.create({
+      data: {
+        userId: data.metadata.userId,
+        plan: data.metadata.plan,
+        status: "ACTIVE",
+        renewalDate,
+        currency: "NGN",
+        interval: "monthly",
+      },
+    }).catch((e) => log("warn", "Paystack subscription sync skipped", { error: e?.message }));
   }
 
   if (data.event === "invoice.create") {

@@ -44,18 +44,27 @@ export function verifyPaystackWebhook(signature: string | undefined, rawBody: st
 
 export async function recordPaystackPayment(data: any) {
   const userId = data?.metadata?.userId as string | undefined;
-  if (!userId) return;
+  const reference = data?.reference as string | undefined;
+  if (!userId || !reference) return;
+
+  const existing = await prisma.payment.findFirst({ where: { reference } });
+  if (existing) return;
+
+  const amount = typeof data.amount === "number" ? data.amount / 100 : 0;
+  const currency = (data.currency || "NGN").toUpperCase();
+  const status = data.status === "success" ? "SUCCEEDED" : "FAILED";
 
   await prisma.payment.create({
     data: {
       userId,
-      amount: data.amount,
-      currency: data.currency,
+      amount,
+      currency,
       provider: "PAYSTACK",
-      status: data.status === "success" ? "SUCCEEDED" : "FAILED",
+      status,
+      reference,
       metadata: data,
     },
   });
 
-  log("info", "Paystack payment recorded", { userId, amount: data.amount });
+  log("info", "Paystack payment recorded", { userId, amount, currency, reference });
 }

@@ -13,12 +13,14 @@ export async function createStripeCheckoutSession({
   successUrl,
   cancelUrl,
   currency = "USD",
+  plan,
 }: {
   userId: string;
   priceId: string;
   successUrl: string;
   cancelUrl: string;
   currency?: string;
+  plan?: string;
 }) {
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
@@ -28,8 +30,10 @@ export async function createStripeCheckoutSession({
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: successUrl,
     cancel_url: cancelUrl,
-    metadata: { userId },
-    currency,
+    metadata: { userId, plan: plan ?? "" },
+    subscription_data: {
+      metadata: { userId, plan: plan ?? "" },
+    },
   });
 
   return session;
@@ -54,9 +58,14 @@ export async function recordStripePayment(event: Stripe.Event) {
   if (event.type !== "checkout.session.completed") return;
   const session = event.data.object as Stripe.Checkout.Session;
   const userId = session.metadata?.userId;
+  const plan = session.metadata?.plan || undefined;
   if (!userId) return;
 
-  const amount = session.amount_total || 0;
+  const reference = session.id;
+  const existing = await prisma.payment.findFirst({ where: { reference } });
+  if (existing) return;
+
+  const amount = (session.amount_total || 0) / 100;
   const currency = session.currency?.toUpperCase() || "USD";
 
   await prisma.payment.create({
@@ -66,8 +75,8 @@ export async function recordStripePayment(event: Stripe.Event) {
       currency,
       provider: "STRIPE",
       status: "SUCCEEDED",
-      metadata: { sessionId: session.id },
-      reference: session.id,
+      metadata: { sessionId: session.id, plan, event: event as any },
+      reference,
     },
   });
 

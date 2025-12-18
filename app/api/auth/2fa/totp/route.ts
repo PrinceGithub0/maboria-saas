@@ -6,6 +6,9 @@ import { hashPassword, verifyPassword } from "@/lib/auth";
 import { buildOtpauthUrl, generateBackupCodes, generateTotpSecret, verifyTotp } from "@/lib/totp";
 import { withErrorHandling } from "@/lib/api-handler";
 import { Prisma } from "@prisma/client";
+import { assertRateLimit } from "@/lib/rate-limit";
+import { encryptSecret, isEncryptedSecret, safeDecryptSecret } from "@/lib/crypto";
+import { log } from "@/lib/logger";
 
 type StoredBackupCode = { hash: string; usedAt: string | null };
 
@@ -39,6 +42,7 @@ export const GET = withErrorHandling(async () => {
 export const POST = withErrorHandling(async () => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  assertRateLimit(`2fa:setup:${session.user.id}`, 5, 60_000);
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
@@ -47,13 +51,12 @@ export const POST = withErrorHandling(async () => {
   if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (user.twoFactorEnabled) return NextResponse.json({ enabled: true });
 
-  const secret = user.twoFactorSecret || generateTotpSecret();
-  if (!user.twoFactorSecret) {
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: { twoFactorSecret: secret },
-    });
-  }
+  // Always generate a fresh secret for setup (shown once) and store it encrypted.
+  const secret = generateTotpSecret();
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { twoFactorSecret: encryptSecret(secret) },
+  });
 
   const uri = buildOtpauthUrl({
     secret,
@@ -61,13 +64,23 @@ export const POST = withErrorHandling(async () => {
     label: user.email,
   });
 
-  return NextResponse.json({ enabled: false, secret, uri });
+  let qr: string | null = null;
+  try {
+    const QRCode: any = await import("qrcode");
+    const svg = await QRCode.toString(uri, { type: "svg", margin: 1, errorCorrectionLevel: "M" });
+    qr = `data:image/svg+xml;base64,${Buffer.from(svg, "utf8").toString("base64")}`;
+  } catch (error: any) {
+    log("warn", "QR generation unavailable", { error: error?.message });
+  }
+
+  return NextResponse.json({ enabled: false, secret, uri, qr });
 });
 
 // Confirm setup: verify code and enable 2FA + generate backup codes (returned once)
 export const PUT = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  assertRateLimit(`2fa:enable:${session.user.id}`, 5, 60_000);
   const { code } = await req.json();
   if (typeof code !== "string" || !code.trim()) {
     return NextResponse.json({ error: "2FA code is required" }, { status: 400 });
@@ -83,8 +96,19 @@ export const PUT = withErrorHandling(async (req: Request) => {
     return NextResponse.json({ error: "Start setup first" }, { status: 400 });
   }
 
-  const ok = verifyTotp({ secret: user.twoFactorSecret, token: code });
+  const secret = safeDecryptSecret(user.twoFactorSecret);
+  if (!secret) return NextResponse.json({ error: "2FA setup is invalid. Restart setup." }, { status: 400 });
+
+  const ok = verifyTotp({ secret, token: code });
   if (!ok) return NextResponse.json({ error: "Invalid code" }, { status: 400 });
+
+  // Migrate legacy plaintext secrets to encrypted storage.
+  if (!isEncryptedSecret(user.twoFactorSecret)) {
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: { twoFactorSecret: encryptSecret(secret) },
+    });
+  }
 
   const backupCodes = generateBackupCodes(10);
   const storedCodes: StoredBackupCode[] = [];
@@ -108,6 +132,7 @@ export const PUT = withErrorHandling(async (req: Request) => {
 export const DELETE = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  assertRateLimit(`2fa:disable:${session.user.id}`, 5, 60_000);
   const { code } = await req.json();
   if (typeof code !== "string" || !code.trim()) {
     return NextResponse.json({ error: "2FA code or backup code is required" }, { status: 400 });
@@ -122,8 +147,10 @@ export const DELETE = withErrorHandling(async (req: Request) => {
 
   let verified = false;
 
-  if (user.twoFactorSecret && /^\d{6}$/.test(code.replace(/\s+/g, ""))) {
-    verified = verifyTotp({ secret: user.twoFactorSecret, token: code });
+  const secret = safeDecryptSecret(user.twoFactorSecret);
+
+  if (secret && /^\d{6}$/.test(code.replace(/\s+/g, ""))) {
+    verified = verifyTotp({ secret, token: code });
   }
 
   if (!verified) {

@@ -18,6 +18,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (session.user.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { amount, currency, status, reference, metadata } = await req.json();
   const txn = await prisma.transaction.create({
     data: { userId: session.user.id, amount, currency, status, reference, metadata },

@@ -6,6 +6,7 @@ import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
 import { addDays } from "date-fns";
+import { log } from "@/lib/logger";
 
 // Credentials signup endpoint: validates payload, hashes password, prevents duplicates, returns clear errors.
 export const POST = withRequestLogging(
@@ -44,7 +45,7 @@ export const POST = withRequestLogging(
           interval: "monthly",
         },
       })
-      .catch(() => undefined);
+      .catch((error) => log("warn", "Trial subscription create failed", { userId: created.id, error: error?.message }));
 
     return NextResponse.json({ success: true }, { status: 201 });
   })

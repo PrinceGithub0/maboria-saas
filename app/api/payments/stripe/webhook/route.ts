@@ -7,18 +7,37 @@ import { log } from "@/lib/logger";
 import { sendTemplateEmail } from "@/lib/email";
 import { createAdminNotification } from "@/lib/notifications";
 
+function stripeStatusToSubscriptionStatus(status: Stripe.Subscription.Status) {
+  switch (status) {
+    case "active":
+      return "ACTIVE";
+    case "trialing":
+      return "TRIALING";
+    case "past_due":
+      return "PAST_DUE";
+    case "canceled":
+      return "CANCELED";
+    default:
+      return "INACTIVE";
+  }
+}
+
+function stripePriceIdToPlan(priceId: string | null | undefined) {
+  const starter = process.env.STRIPE_PRICE_STARTER || process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER;
+  const growth = process.env.STRIPE_PRICE_GROWTH || process.env.NEXT_PUBLIC_STRIPE_PRICE_GROWTH;
+  const enterprise = process.env.STRIPE_PRICE_ENTERPRISE || process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE;
+
+  if (!priceId) return null;
+  if (starter && priceId === starter) return "STARTER";
+  if (growth && priceId === growth) return "GROWTH";
+  if (enterprise && priceId === enterprise) return "ENTERPRISE";
+  return null;
+}
+
 export const POST = withErrorHandling(async (req: Request) => {
   const signature = req.headers.get("stripe-signature") || undefined;
   const payload = await req.text();
   const event = verifyStripeWebhook(signature, payload);
-
-  // idempotency check
-  const existing = await prisma.payment.findFirst({
-    where: { reference: event.id },
-  });
-  if (existing) {
-    return NextResponse.json({ received: true, idempotent: true });
-  }
 
   if (
     event.type === "checkout.session.completed" ||
@@ -63,40 +82,34 @@ export const POST = withErrorHandling(async (req: Request) => {
     event.type === "customer.subscription.deleted"
   ) {
     const sub = event.data.object as Stripe.Subscription;
-    const userId = sub.metadata?.userId;
-    if (userId) {
+    const userId = (sub.metadata?.userId as string | undefined) || undefined;
+    const planFromMeta = stripePriceIdToPlan(sub.items.data?.[0]?.price?.id) || (sub.metadata?.plan as any) || null;
+    if (userId && planFromMeta) {
       await prisma.subscription.upsert({
         where: { id: sub.id },
         update: {
-          status: sub.status.toUpperCase() as any,
+          plan: planFromMeta,
+          status: stripeStatusToSubscriptionStatus(sub.status) as any,
           renewalDate: new Date(((sub as any).current_period_end || 0) * 1000),
         },
         create: {
           id: sub.id,
           userId,
-          plan: "GROWTH",
-          status: sub.status.toUpperCase() as any,
+          plan: planFromMeta,
+          status: stripeStatusToSubscriptionStatus(sub.status) as any,
           renewalDate: new Date(((sub as any).current_period_end || 0) * 1000),
         },
+      });
+    } else {
+      log("warn", "Stripe subscription missing metadata for sync", {
+        subscriptionId: sub.id,
+        hasUserId: Boolean(userId),
+        hasPlan: Boolean(planFromMeta),
       });
     }
   } else {
     log("warn", "Unhandled Stripe event", { type: event.type });
   }
-
-  await prisma.payment
-    .create({
-      data: {
-        userId: (event.data.object as any)?.metadata?.userId || "",
-        amount: ((event.data.object as any)?.amount_total || 0) / 100,
-        currency: (event.data.object as any)?.currency || "usd",
-        provider: "STRIPE",
-        status: "PENDING",
-        reference: event.id,
-        metadata: event as any,
-      },
-    })
-    .catch(() => undefined);
 
   return NextResponse.json({ received: true });
 });

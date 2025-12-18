@@ -22,7 +22,10 @@ export function assertRateLimit(identifier: string, limit = 50, windowMs = 60_00
     import("./prisma").then(({ prisma }) =>
       prisma.rateLimitLog.create({
         data: { key: identifier, count: hit.count + 1, window: `${windowMs}ms` },
-      }).catch(() => undefined)
+      }).catch(async (error) => {
+        const { log } = await import("./logger");
+        log("warn", "Rate limit log write failed", { identifier, error: error?.message });
+      })
     );
   }
 }

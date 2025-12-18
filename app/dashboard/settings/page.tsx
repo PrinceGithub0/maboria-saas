@@ -12,7 +12,7 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 export default function SettingsPage() {
   const [status, setStatus] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
-  const [setup, setSetup] = useState<{ secret: string; uri: string } | null>(null);
+  const [setup, setSetup] = useState<{ secret: string; uri: string; qr?: string | null } | null>(null);
   const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
   const [disableCode, setDisableCode] = useState("");
 
@@ -28,7 +28,7 @@ export default function SettingsPage() {
       setStatus(data.error || "Could not start 2FA setup.");
       return;
     }
-    setSetup({ secret: data.secret, uri: data.uri });
+    setSetup({ secret: data.secret, uri: data.uri, qr: data.qr });
     setStatus("Scan the setup in your authenticator app (or enter the secret), then confirm with a code.");
   };
 
@@ -112,6 +112,15 @@ export default function SettingsPage() {
           {!enabled && setup && (
             <div className="mt-4 space-y-3">
               <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3 text-sm text-slate-200">
+                {setup.qr ? (
+                  <div className="mb-3 flex items-center justify-center">
+                    <img
+                      src={setup.qr}
+                      alt="Authenticator setup QR code"
+                      className="h-44 w-44 rounded-xl border border-slate-800 bg-white p-2"
+                    />
+                  </div>
+                ) : null}
                 <p className="font-semibold text-white">Setup secret</p>
                 <p className="mt-1 break-all font-mono text-xs text-slate-300">{setup.secret}</p>
                 <p className="mt-2 font-semibold text-white">Setup link (otpauth)</p>
