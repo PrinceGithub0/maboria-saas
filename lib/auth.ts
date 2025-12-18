@@ -63,8 +63,13 @@ export const authOptions: NextAuthOptions = {
         const ip = String(rawForwardedFor).split(",")[0]?.trim() || "unknown";
 
         // Basic abuse prevention. Keep limits strict for auth + 2FA attempts.
-        assertRateLimit(`auth:login:ip:${ip}`, 30, 60_000);
-        assertRateLimit(`auth:login:email:${email}`, 10, 60_000);
+        // Do not throw from NextAuth authorize (keeps auth flow stable); treat as failed signin.
+        try {
+          assertRateLimit(`auth:login:ip:${ip}`, 30, 60_000);
+          assertRateLimit(`auth:login:email:${email}`, 10, 60_000);
+        } catch {
+          return null;
+        }
 
         const user = await prisma.user.findUnique({
           where: { email },
@@ -85,7 +90,11 @@ export const authOptions: NextAuthOptions = {
 
         // If TOTP 2FA is enabled, require either a valid 6-digit code or an unused backup code.
         if (user.twoFactorEnabled) {
-          assertRateLimit(`auth:2fa:email:${email}`, 5, 60_000);
+          try {
+            assertRateLimit(`auth:2fa:email:${email}`, 5, 60_000);
+          } catch {
+            return null;
+          }
           const otp = (credentials as any)?.otp as string | undefined;
           if (!otp) return null;
 
