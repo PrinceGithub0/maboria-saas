@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { log } from "@/lib/logger";
 
 export type UserPlan = "free" | "starter" | "pro" | "enterprise";
 
@@ -33,15 +34,32 @@ export async function getUserPlan(userId: string): Promise<UserPlan> {
     orderBy: { createdAt: "desc" },
   });
 
-  if (!sub) return "free";
+  if (!sub) {
+    log("info", "plan_resolved", { userId, plan: "free", reason: "no_active_subscription" });
+    return "free";
+  }
   if (sub.status === "TRIALING" && sub.trialEndsAt && sub.trialEndsAt.getTime() < Date.now()) {
+    log("info", "plan_resolved", { userId, plan: "free", reason: "trial_expired", subId: sub.id });
     return "free";
   }
 
-  return subscriptionPlanToUserPlan(sub.plan);
+  const plan = subscriptionPlanToUserPlan(sub.plan);
+  if ((sub.status === "ACTIVE" || sub.status === "TRIALING") && plan === "free") {
+    log("warn", "plan_invariant_violation", {
+      userId,
+      status: sub.status,
+      plan: sub.plan,
+      subId: sub.id,
+      reason: "active_subscription_resolved_to_free",
+    });
+  }
+  log("info", "plan_resolved", { userId, plan, status: sub.status, subId: sub.id });
+  return plan;
 }
 
 export type UsageCategory = "automationRuns" | "invoices" | "aiRequests";
+
+export type FlowCategory = "automations" | "workflows";
 
 export const planLimits: Record<
   UserPlan,
@@ -66,6 +84,28 @@ export const planLimits: Record<
     automationRuns: null,
     invoices: null,
     aiRequests: null,
+  },
+};
+
+export const flowLimits: Record<
+  UserPlan,
+  Partial<Record<FlowCategory, number | null>>
+> = {
+  free: {
+    automations: 3,
+    workflows: 3,
+  },
+  starter: {
+    automations: 25,
+    workflows: 25,
+  },
+  pro: {
+    automations: 200,
+    workflows: 200,
+  },
+  enterprise: {
+    automations: null,
+    workflows: null,
   },
 };
 
@@ -107,3 +147,60 @@ export async function enforceUsageLimit(userId: string, category: UsageCategory)
   return { ok: true as const, plan, limit, used };
 }
 
+async function getFlowCount(userId: string, category: FlowCategory) {
+  const workflowFilter = {
+    OR: [{ triggers: { some: {} } }, { actions: { some: {} } }],
+  };
+
+  if (category === "workflows") {
+    return prisma.automationFlow.count({ where: { userId, ...workflowFilter } });
+  }
+
+  return prisma.automationFlow.count({
+    where: {
+      userId,
+      NOT: workflowFilter,
+    },
+  });
+}
+
+export async function enforceFlowLimit(userId: string, category: FlowCategory) {
+  const plan = await getUserPlan(userId);
+  const limit = flowLimits[plan][category];
+  if (limit == null) return { ok: true as const, plan, limit, used: 0 };
+
+  const used = await getFlowCount(userId, category);
+  if (used >= limit) {
+    return { ok: false as const, plan, limit, used };
+  }
+  return { ok: true as const, plan, limit, used };
+}
+
+type StepLike = { type?: unknown; config?: Record<string, any>; requiresPlan?: unknown };
+
+function stepRequiresPlan(step: StepLike | null | undefined) {
+  if (!step) return null;
+  const rawType = typeof step.type === "string" ? step.type.toLowerCase() : "";
+  const required =
+    (typeof step.requiresPlan === "string" ? step.requiresPlan : undefined) ||
+    (typeof step.config?.requiresPlan === "string" ? step.config.requiresPlan : undefined);
+
+  if (required === "enterprise") return { plan: "enterprise" as const, reason: "Enterprise-only feature" };
+  if (required === "pro") return { plan: "pro" as const, reason: "Pro-only feature" };
+
+  if (rawType.includes("whatsapp")) {
+    return { plan: "pro" as const, reason: "WhatsApp automation is a Pro feature" };
+  }
+  if (rawType.startsWith("ai")) {
+    return { plan: "pro" as const, reason: "AI steps are a Pro feature" };
+  }
+  return null;
+}
+
+export function requiredPlanForSteps(steps: StepLike[]) {
+  for (const step of steps) {
+    const requirement = stepRequiresPlan(step);
+    if (requirement) return requirement;
+  }
+  return null;
+}

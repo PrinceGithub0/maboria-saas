@@ -80,11 +80,13 @@ export function Navbar() {
             <nav className="flex flex-col gap-2 text-sm">
               {[
                 { label: "Dashboard", href: "/dashboard" },
+                { label: "Website", href: "/" },
                 { label: "Automations", href: "/dashboard/automations" },
                 { label: "AI Assistant", href: "/dashboard/assistant" },
                 { label: "Invoices", href: "/dashboard/invoices" },
                 { label: "Subscription", href: "/dashboard/subscription" },
                 { label: "Usage", href: "/dashboard/usage" },
+                { label: "Support", href: "/dashboard/support" },
                 { label: "Settings", href: "/dashboard/settings" },
               ].map((item) => (
                 <Link

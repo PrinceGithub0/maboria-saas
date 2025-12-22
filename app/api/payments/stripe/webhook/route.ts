@@ -4,6 +4,7 @@ import { verifyStripeWebhook, recordStripePayment } from "@/lib/payments/stripe"
 import { withErrorHandling } from "@/lib/api-handler";
 import { prisma } from "@/lib/prisma";
 import { log } from "@/lib/logger";
+import { subscriptionPlanToUserPlan } from "@/lib/entitlements";
 import { sendTemplateEmail } from "@/lib/email";
 import { createAdminNotification } from "@/lib/notifications";
 
@@ -38,6 +39,7 @@ export const POST = withErrorHandling(async (req: Request) => {
   const signature = req.headers.get("stripe-signature") || undefined;
   const payload = await req.text();
   const event = verifyStripeWebhook(signature, payload);
+  log("info", "stripe_webhook_received", { type: event.type, id: event.id });
 
   if (
     event.type === "checkout.session.completed" ||
@@ -48,6 +50,20 @@ export const POST = withErrorHandling(async (req: Request) => {
     const userId = sessionObj.metadata?.userId;
     const amount = (sessionObj.amount_total || 0) / 100;
     const currency = sessionObj.currency || "usd";
+    if (userId) {
+      const existing = await prisma.subscription.findFirst({
+        where: { userId, status: { in: ["ACTIVE", "TRIALING", "PAST_DUE"] } },
+        orderBy: { createdAt: "desc" },
+      });
+      const oldPlan = existing ? subscriptionPlanToUserPlan(existing.plan) : "free";
+      log("info", "billing_plan_transition", {
+        provider: "stripe",
+        event: event.type,
+        userId,
+        oldPlan,
+        newPlan: oldPlan,
+      });
+    }
     await recordStripePayment(event);
     if (userId) {
       const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -84,21 +100,71 @@ export const POST = withErrorHandling(async (req: Request) => {
     const sub = event.data.object as Stripe.Subscription;
     const userId = (sub.metadata?.userId as string | undefined) || undefined;
     const planFromMeta = stripePriceIdToPlan(sub.items.data?.[0]?.price?.id) || (sub.metadata?.plan as any) || null;
+    const status = stripeStatusToSubscriptionStatus(sub.status) as any;
+    const renewalDate = new Date(((sub as any).current_period_end || 0) * 1000);
+    const existing = userId
+      ? await prisma.subscription.findFirst({
+          where: { userId, status: { in: ["ACTIVE", "TRIALING", "PAST_DUE", "CANCELED", "INACTIVE"] } },
+          orderBy: { createdAt: "desc" },
+        })
+      : null;
+    const oldPlan = existing ? subscriptionPlanToUserPlan(existing.plan) : "free";
+    const newPlan =
+      status === "CANCELED" || status === "INACTIVE"
+        ? "free"
+        : planFromMeta
+          ? subscriptionPlanToUserPlan(planFromMeta)
+          : oldPlan;
+
     if (userId && planFromMeta) {
       await prisma.subscription.upsert({
         where: { id: sub.id },
         update: {
           plan: planFromMeta,
-          status: stripeStatusToSubscriptionStatus(sub.status) as any,
-          renewalDate: new Date(((sub as any).current_period_end || 0) * 1000),
+          status,
+          renewalDate,
         },
         create: {
           id: sub.id,
           userId,
           plan: planFromMeta,
-          status: stripeStatusToSubscriptionStatus(sub.status) as any,
-          renewalDate: new Date(((sub as any).current_period_end || 0) * 1000),
+          status,
+          renewalDate,
         },
+      });
+      log("info", "stripe_subscription_synced", {
+        userId,
+        subscriptionId: sub.id,
+        plan: planFromMeta,
+        status,
+      });
+      log("info", "billing_plan_transition", {
+        provider: "stripe",
+        event: event.type,
+        userId,
+        oldPlan,
+        newPlan,
+      });
+    } else if (userId) {
+      await prisma.subscription
+        .update({
+          where: { id: sub.id },
+          data: { status, renewalDate },
+        })
+        .catch((error) =>
+          log("warn", "Stripe subscription status sync skipped", { subscriptionId: sub.id, error: error?.message })
+        );
+      log("info", "stripe_subscription_status_updated", {
+        userId,
+        subscriptionId: sub.id,
+        status,
+      });
+      log("info", "billing_plan_transition", {
+        provider: "stripe",
+        event: event.type,
+        userId,
+        oldPlan,
+        newPlan,
       });
     } else {
       log("warn", "Stripe subscription missing metadata for sync", {

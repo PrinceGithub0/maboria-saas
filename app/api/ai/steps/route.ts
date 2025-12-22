@@ -12,12 +12,15 @@ export const POST = withErrorHandling(async (req: Request) => {
 
   const plan = await getUserPlan(session.user.id);
   if (!isPlanAtLeast(plan, "pro")) {
-    return NextResponse.json({ error: "Upgrade required", requiredPlan: "pro", plan }, { status: 402 });
+    return NextResponse.json(
+      { error: "Upgrade required", type: "upgrade_required", requiredPlan: "pro", plan },
+      { status: 402 }
+    );
   }
   const usage = await enforceUsageLimit(session.user.id, "aiRequests");
   if (!usage.ok) {
     return NextResponse.json(
-      { error: "Upgrade required", reason: "AI usage limit reached", requiredPlan: "pro", ...usage },
+      { error: "Upgrade required", type: "limit_reached", reason: "AI usage limit reached", requiredPlan: "pro", ...usage },
       { status: 402 }
     );
   }

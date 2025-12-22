@@ -16,15 +16,39 @@ export default function NewAutomationPage() {
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const formatPlan = (value?: string) => {
+    switch ((value || "").toLowerCase()) {
+      case "starter":
+        return "Starter";
+      case "pro":
+        return "Pro";
+      case "enterprise":
+        return "Enterprise";
+      default:
+        return value || "Upgrade";
+    }
+  };
+
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     const res = await fetch("/api/automation", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...form, status: "ACTIVE" }),
     });
     const json = await res.json();
-    setStatus(json.error || "Saved");
+    if (!res.ok) {
+      if (json.type === "upgrade_required") {
+        setStatus(`${json.reason || "Upgrade required."} Required plan: ${formatPlan(json.requiredPlan)}.`);
+      } else if (json.type === "limit_reached") {
+        setStatus(`${json.reason || "Limit reached."} Required plan: ${formatPlan(json.requiredPlan)}.`);
+      } else {
+        setStatus(json.reason || json.error || "Could not save automation.");
+      }
+    } else {
+      setStatus("Saved");
+    }
     setLoading(false);
   };
 

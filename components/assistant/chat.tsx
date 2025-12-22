@@ -13,6 +13,7 @@ export function AssistantChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -26,15 +27,26 @@ export function AssistantChat() {
     const message: Message = { role: "user", content: input, ts: Date.now() };
     setMessages((prev) => [...prev, message]);
     setLoading(true);
+    setStatus(null);
     const res = await fetch("/api/ai/assistant", {
       method: "POST",
       body: JSON.stringify({ mode: "assistant", prompt: input }),
     });
     const data = await res.json();
-    setMessages((prev) => [
-      ...prev,
-      { role: "assistant", content: data.answer || "...", ts: Date.now() },
-    ]);
+    if (!res.ok) {
+      if (data.type === "upgrade_required") {
+        setStatus(`${data.error || "Upgrade required."} Required plan: Pro.`);
+      } else if (data.type === "limit_reached") {
+        setStatus(`${data.error || "AI limit reached."} Required plan: Pro.`);
+      } else {
+        setStatus(data.error || "Assistant is unavailable right now.");
+      }
+    } else {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: data.answer || "...", ts: Date.now() },
+      ]);
+    }
     setInput("");
     setLoading(false);
   };
@@ -42,6 +54,7 @@ export function AssistantChat() {
   return (
     <Card title="AI Assistant">
       <div className="space-y-4">
+        {status && <p className="text-sm text-foreground">{status}</p>}
         <div
           ref={listRef}
           className="max-h-96 space-y-2 overflow-y-auto rounded-xl border border-border bg-background p-4"

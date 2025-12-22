@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { automationFlowSchema } from "@/lib/validators";
 import { withErrorHandling } from "@/lib/api-handler";
+import { getUserPlan, isPlanAtLeast, requiredPlanForSteps } from "@/lib/entitlements";
 
 type Params = { params: { id: string } };
 
@@ -24,6 +25,23 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
 
   const body = await req.json();
   const parsed = automationFlowSchema.partial().parse(body);
+
+  if (parsed.steps) {
+    const plan = await getUserPlan(session.user.id);
+    const required = requiredPlanForSteps((parsed.steps as any[]) || []);
+    if (required && !isPlanAtLeast(plan, required.plan)) {
+      return NextResponse.json(
+        {
+          error: "Upgrade required",
+          type: "upgrade_required",
+          requiredPlan: required.plan,
+          plan,
+          reason: required.reason,
+        },
+        { status: 402 }
+      );
+    }
+  }
 
   const updated = await prisma.automationFlow.update({
     where: { id: params.id, userId: session.user.id },

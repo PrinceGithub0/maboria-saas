@@ -19,6 +19,7 @@ export const automationStepSchema = z.object({
     "generateInvoice",
     "sendEmail",
     "generateReport",
+    "sendWhatsApp",
     "aiTransform",
   ]),
   config: z.record(z.string(), z.any()).optional(),

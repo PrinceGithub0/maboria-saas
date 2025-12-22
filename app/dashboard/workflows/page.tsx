@@ -5,14 +5,50 @@ import { WorkflowBuilder } from "@/components/workflows/builder";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/alert";
+import { useState } from "react";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 export default function WorkflowsPage() {
   const { data: workflows, mutate } = useSWR("/api/workflows", fetcher);
+  const [status, setStatus] = useState<string | null>(null);
+
+  const formatPlan = (value?: string) => {
+    switch ((value || "").toLowerCase()) {
+      case "starter":
+        return "Starter";
+      case "pro":
+        return "Pro";
+      case "enterprise":
+        return "Enterprise";
+      default:
+        return value || "Upgrade";
+    }
+  };
 
   const save = async (payload: any) => {
-    await fetch("/api/workflows", { method: "POST", body: JSON.stringify(payload) });
+    try {
+      const res = await fetch("/api/workflows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        if (json.type === "upgrade_required") {
+          setStatus(`${json.reason || "Upgrade required."} Required plan: ${formatPlan(json.requiredPlan)}.`);
+        } else if (json.type === "limit_reached") {
+          setStatus(`${json.reason || "Limit reached."} Required plan: ${formatPlan(json.requiredPlan)}.`);
+        } else {
+          setStatus(json.reason || json.error || "Could not save workflow.");
+        }
+      } else {
+        setStatus(null);
+      }
+    } catch {
+      setStatus("Could not save workflow. Please try again.");
+    }
     mutate();
   };
 
@@ -25,6 +61,7 @@ export default function WorkflowsPage() {
         </div>
         <Badge variant="success">Drag &amp; drop ready</Badge>
       </div>
+      {status && <Alert variant="info">{status}</Alert>}
 
       <WorkflowBuilder onSave={save} />
 
@@ -49,4 +86,3 @@ export default function WorkflowsPage() {
     </div>
   );
 }
-

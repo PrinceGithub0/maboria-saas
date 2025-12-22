@@ -17,6 +17,7 @@ export default function InvoicesPage() {
     status: "SENT",
     items: [{ name: "Service", quantity: 1, price: 10000 }],
   });
+  const [status, setStatus] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -25,11 +26,35 @@ export default function InvoicesPage() {
 
   const createInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
-    await fetch("/api/invoice", {
-      method: "POST",
-      body: JSON.stringify(form),
-    });
-    mutate();
+    try {
+      const res = await fetch("/api/invoice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        const required = json.requiredPlan
+          ? json.requiredPlan === "starter"
+            ? "Starter"
+            : json.requiredPlan === "pro"
+              ? "Pro"
+              : json.requiredPlan === "enterprise"
+                ? "Enterprise"
+                : json.requiredPlan
+          : null;
+        if (json.type === "upgrade_required" || json.type === "limit_reached") {
+          setStatus(`${json.reason || "Upgrade required."}${required ? ` Required plan: ${required}.` : ""}`);
+        } else {
+          setStatus(json.error || "Could not create invoice.");
+        }
+      } else {
+        setStatus(null);
+        mutate();
+      }
+    } catch {
+      setStatus("Could not create invoice. Please try again.");
+    }
   };
 
   return (
@@ -38,6 +63,7 @@ export default function InvoicesPage() {
         <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Invoices</p>
         <h1 className="text-3xl font-semibold text-foreground">Generator</h1>
       </div>
+      {status && <p className="text-sm text-foreground">{status}</p>}
       <Card title="Create invoice">
         <form className="grid grid-cols-2 gap-4" onSubmit={createInvoice}>
           <Input

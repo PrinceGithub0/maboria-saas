@@ -25,12 +25,14 @@ export function Sidebar({ role }: Props) {
   const { data } = useSession();
   const userRole = role || data?.user?.role;
   const navItems = [
-    { href: "/dashboard", label: "Dashboard", icon: Home },
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/", label: "Website", icon: Home },
     { href: "/dashboard/automations", label: "Automations", icon: Bot },
     { href: "/dashboard/assistant", label: "AI Assistant", icon: Sparkles },
     { href: "/dashboard/invoices", label: "Invoices", icon: FileText },
     { href: "/dashboard/subscription", label: "Subscription", icon: CreditCard },
     { href: "/dashboard/usage", label: "Usage", icon: Gauge },
+    { href: "/dashboard/support", label: "Support", icon: Activity },
     { href: "/dashboard/settings", label: "Settings", icon: Settings },
     ...(userRole === "ADMIN"
       ? [
@@ -56,7 +58,7 @@ export function Sidebar({ role }: Props) {
       <nav className="flex flex-col gap-2">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const active = pathname.startsWith(item.href);
+          const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           return (
             <Link
               key={item.href}

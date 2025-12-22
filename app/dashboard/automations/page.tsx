@@ -7,17 +7,49 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Alert } from "@/components/ui/alert";
+import { useState } from "react";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function AutomationsPage() {
   const { data: flows, mutate, isLoading } = useSWR("/api/automation", fetcher);
+  const [status, setStatus] = useState<string | null>(null);
+
+  const formatPlan = (value?: string) => {
+    switch ((value || "").toLowerCase()) {
+      case "starter":
+        return "Starter";
+      case "pro":
+        return "Pro";
+      case "enterprise":
+        return "Enterprise";
+      default:
+        return value || "Upgrade";
+    }
+  };
 
   const runFlow = async (id: string) => {
-    await fetch("/api/automation/run", {
-      method: "POST",
-      body: JSON.stringify({ flowId: id, input: { text: "Run from dashboard" } }),
-    });
+    try {
+      const res = await fetch("/api/automation/run", {
+        method: "POST",
+        body: JSON.stringify({ flowId: id, input: { text: "Run from dashboard" } }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        if (json.type === "upgrade_required") {
+          setStatus(`${json.reason || "Upgrade required."} Required plan: ${formatPlan(json.requiredPlan)}.`);
+        } else if (json.type === "limit_reached") {
+          setStatus(`${json.reason || "Limit reached."} Required plan: ${formatPlan(json.requiredPlan)}.`);
+        } else {
+          setStatus(json.reason || json.error || "Could not run automation.");
+        }
+      } else {
+        setStatus(null);
+      }
+    } catch {
+      setStatus("Could not run automation. Please try again.");
+    }
     mutate();
   };
 
@@ -32,6 +64,7 @@ export default function AutomationsPage() {
           <Button>Create automation</Button>
         </Link>
       </div>
+      {status && <Alert variant="info">{status}</Alert>}
       <div className="grid gap-4 md:grid-cols-2">
         {isLoading &&
           Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-36 w-full" />)}

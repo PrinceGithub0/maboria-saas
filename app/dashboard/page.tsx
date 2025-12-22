@@ -44,6 +44,30 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      {automations === 0 && invoices === 0 && (
+        <Card title="Quick start">
+          <p className="text-sm text-muted-foreground">
+            Start by creating your first automation or sending an invoice. Pro unlocks AI workflows and WhatsApp
+            automations.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link href="/dashboard/automations/new">
+              <Button size="sm">Create automation</Button>
+            </Link>
+            <Link href="/dashboard/invoices">
+              <Button size="sm" variant="secondary">
+                Create invoice
+              </Button>
+            </Link>
+            <Link href="/dashboard/subscription">
+              <Button size="sm" variant="ghost">
+                Upgrade to Pro
+              </Button>
+            </Link>
+          </div>
+        </Card>
+      )}
+
       <div className="grid gap-4 md:grid-cols-4">
         <Card title="Total revenue">
           <p className="text-3xl font-semibold text-foreground">${(revenue / 100).toFixed(2)}</p>
@@ -82,4 +106,3 @@ export default async function DashboardPage() {
     </div>
   );
 }
-

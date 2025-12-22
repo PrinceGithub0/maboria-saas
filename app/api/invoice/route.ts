@@ -30,6 +30,7 @@ export const POST = withErrorHandling(async (req: Request) => {
     return NextResponse.json(
       {
         error: "Upgrade required",
+        type: "limit_reached",
         reason: "Invoice limit reached for this month",
         requiredPlan: usage.plan === "free" ? "starter" : "pro",
         plan: usage.plan,

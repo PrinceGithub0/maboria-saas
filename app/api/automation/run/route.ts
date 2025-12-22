@@ -20,6 +20,7 @@ export const POST = withErrorHandling(async (req: Request) => {
     return NextResponse.json(
       {
         error: "Upgrade required",
+        type: "limit_reached",
         reason: "Automation run limit reached for this month",
         requiredPlan: usage.plan === "free" ? "starter" : "pro",
         plan: usage.plan,
@@ -44,6 +45,7 @@ export const POST = withErrorHandling(async (req: Request) => {
     return NextResponse.json(
       {
         error: "Upgrade required",
+        type: "upgrade_required",
         requiredPlan: "pro",
         plan,
         reason: usesWhatsApp ? "WhatsApp automation is a Pro feature" : "AI steps are a Pro feature",
