@@ -18,10 +18,12 @@ export default function RunsPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Automation</p>
-        <h1 className="text-3xl font-semibold text-foreground">Runs</h1>
+    <div className="space-y-4 max-md:space-y-6">
+      <div className="md:contents max-md:rounded-[28px] max-md:border max-md:border-border/60 max-md:bg-card max-md:p-4 max-md:shadow-[0_16px_36px_rgba(15,23,42,0.18)]">
+        <div>
+          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Automation</p>
+          <h1 className="text-3xl font-semibold text-foreground">Runs</h1>
+        </div>
       </div>
       <Card>
         <Table

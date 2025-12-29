@@ -53,12 +53,14 @@ export default function NewAutomationPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Automations</p>
-        <h1 className="text-3xl font-semibold text-foreground">Create automation</h1>
+    <div className="space-y-4 max-md:space-y-6">
+      <div className="md:contents max-md:rounded-[28px] max-md:border max-md:border-border/60 max-md:bg-card max-md:p-4 max-md:shadow-[0_16px_36px_rgba(15,23,42,0.18)]">
+        <div>
+          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Automations</p>
+          <h1 className="text-3xl font-semibold text-foreground">Create automation</h1>
+        </div>
+        {status && <div className="mt-4"><Alert variant="info">{status}</Alert></div>}
       </div>
-      {status && <Alert variant="info">{status}</Alert>}
       <Card>
         <form className="space-y-3" onSubmit={save}>
           <Input
@@ -83,7 +85,7 @@ export default function NewAutomationPage() {
               placeholder="Explain what this automation does..."
             />
           </label>
-          <Button type="submit" loading={loading}>
+          <Button type="submit" loading={loading} className="max-md:w-full">
             Save automation
           </Button>
         </form>

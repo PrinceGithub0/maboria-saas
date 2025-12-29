@@ -1,11 +1,11 @@
 export default function DocsPage() {
   return (
-    <div className="mx-auto max-w-5xl space-y-6 px-6 py-10 text-foreground">
+    <div className="mx-auto max-w-5xl space-y-6 px-6 py-10 text-foreground max-md:mx-0 max-md:w-full max-md:max-w-none">
       <h1 className="text-3xl font-semibold">Maboria Internal Docs</h1>
       <section>
         <h2 className="text-xl font-semibold">Architecture overview</h2>
         <p className="text-sm text-muted-foreground">
-          Next.js App Router, Prisma/Postgres, NextAuth, Stripe/Paystack, OpenAI. Clean architecture with lib/
+          Next.js App Router, Prisma/Postgres, NextAuth, Flutterwave/Paystack, OpenAI. Clean architecture with lib/
           services, app/ routes, and shared UI components. Automation engine executes JSON-defined steps with AI augmentation.
         </p>
       </section>
@@ -41,7 +41,7 @@ export default function DocsPage() {
       <section>
         <h2 className="text-xl font-semibold">Payment system</h2>
         <p className="text-sm text-muted-foreground">
-          Stripe for USD/EUR, Paystack for NGN. Webhooks with idempotency, dual-currency storage, subscriptions table, billing history API.
+          Flutterwave for USD/Intl, Paystack for NGN. Webhooks with idempotency, dual-currency storage, subscriptions table, billing history API.
         </p>
       </section>
       <section>
@@ -49,7 +49,7 @@ export default function DocsPage() {
         <ol className="text-sm text-muted-foreground list-decimal pl-4">
           <li>Set env vars from .env.production.example</li>
           <li>Provision Postgres + run prisma migrate deploy</li>
-          <li>Configure Stripe/Paystack webhooks</li>
+          <li>Configure Flutterwave/Paystack webhooks</li>
           <li>Deploy Next.js (Vercel) and verify /api/health</li>
           <li>Run pre-launch checklist UI/API</li>
         </ol>

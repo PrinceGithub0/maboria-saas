@@ -41,7 +41,7 @@ export default function ResetPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-2xl">
+      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-2xl max-md:max-w-none">
         <h1 className="text-2xl font-semibold text-foreground">Reset password</h1>
         {status && <Alert variant="info">{status}</Alert>}
         <form className="mt-4 space-y-4" onSubmit={handleSubmit}>

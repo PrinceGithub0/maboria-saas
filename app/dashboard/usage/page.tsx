@@ -13,15 +13,18 @@ export default function UsagePage() {
   const { data: usage, isLoading } = useSWR("/api/usage", fetcher);
   const { data: aiLogs } = useSWR("/api/ai/usage", fetcher);
 
-  const chartData =
-    aiLogs?.slice(0, 12).map((log: any, idx: number) => ({ name: idx.toString(), value: log.tokens })) ||
-    [];
+  const aiLogList = Array.isArray(aiLogs) ? aiLogs : [];
+  const chartData = aiLogList
+    .slice(0, 12)
+    .map((log: any, idx: number) => ({ name: idx.toString(), value: log.tokens }));
 
   return (
-    <div className="space-y-4">
-      <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Usage</p>
-        <h1 className="text-3xl font-semibold text-foreground">Analytics</h1>
+    <div className="space-y-4 max-md:space-y-6">
+      <div className="md:contents max-md:rounded-[28px] max-md:border max-md:border-border/60 max-md:bg-card max-md:p-4 max-md:shadow-[0_16px_36px_rgba(15,23,42,0.18)]">
+        <div>
+          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Usage</p>
+          <h1 className="text-3xl font-semibold text-foreground">Analytics</h1>
+        </div>
       </div>
       <Card title="AI token usage">
         <MiniAreaChart data={chartData} />

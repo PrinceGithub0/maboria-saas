@@ -5,11 +5,34 @@ import { prisma } from "@/lib/prisma";
 import { automationFlowSchema } from "@/lib/validators";
 import { withErrorHandling } from "@/lib/api-handler";
 import { assertRateLimit } from "@/lib/rate-limit";
-import { flowLimits, getUserPlan, isPlanAtLeast, requiredPlanForSteps } from "@/lib/entitlements";
+import {
+  enforceEntitlement,
+  flowLimits,
+  getUserPlan,
+  isPlanAtLeast,
+  requiredPlanForSteps,
+} from "@/lib/entitlements";
 
 export const GET = withErrorHandling(async () => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const entitlement = await enforceEntitlement(session.user.id, {
+    feature: "automations",
+    requiredPlan: "starter",
+    allowTrial: true,
+  });
+  if (!entitlement.ok) {
+    return NextResponse.json(
+      {
+        error: "Access denied",
+        type: entitlement.type,
+        requiredPlan: entitlement.requiredPlan,
+        reason: entitlement.reason,
+      },
+      { status: 403 }
+    );
+  }
 
   const flows = await prisma.automationFlow.findMany({
     where: { userId: session.user.id },
@@ -21,6 +44,23 @@ export const GET = withErrorHandling(async () => {
 export const POST = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const entitlement = await enforceEntitlement(session.user.id, {
+    feature: "automations",
+    requiredPlan: "starter",
+    allowTrial: true,
+  });
+  if (!entitlement.ok) {
+    return NextResponse.json(
+      {
+        error: "Access denied",
+        type: entitlement.type,
+        requiredPlan: entitlement.requiredPlan,
+        reason: entitlement.reason,
+      },
+      { status: 403 }
+    );
+  }
 
   const body = await req.json();
   const parsed = automationFlowSchema.parse(body);

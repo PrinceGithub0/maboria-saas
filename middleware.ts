@@ -1,10 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { securityHeaders } from "./lib/security";
 
-export async function middleware(req: Request) {
-  // @ts-ignore
-  const { pathname } = (req as any).nextUrl as { pathname: string };
+export async function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
   const isProtected =
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/admin") ||
@@ -16,9 +15,9 @@ export async function middleware(req: Request) {
     return res;
   }
 
-  const token = await getToken({ req: req as any, secret: process.env.NEXTAUTH_SECRET });
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   if (!token) {
-    return NextResponse.redirect(new URL("/login", (req as any).url));
+    return NextResponse.redirect(new URL("/login", req.url));
   }
 
   if (pathname.startsWith("/admin") && (token as any).role !== "ADMIN") {

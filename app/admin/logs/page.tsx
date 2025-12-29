@@ -13,10 +13,12 @@ export default function AdminLogsPage() {
   const { data: webhooks, isLoading: loadingWebhooks } = useSWR("/api/admin/logs/webhooks", fetcher);
 
   return (
-    <div className="space-y-4 px-6 py-6">
-      <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Admin</p>
-        <h1 className="text-3xl font-semibold text-foreground">System logs</h1>
+    <div className="space-y-4 px-6 py-6 max-md:px-4 max-md:py-4 max-md:space-y-6">
+      <div className="md:contents max-md:rounded-[28px] max-md:border max-md:border-border/60 max-md:bg-card max-md:p-4 max-md:shadow-[0_16px_36px_rgba(15,23,42,0.18)]">
+        <div>
+          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Admin</p>
+          <h1 className="text-3xl font-semibold text-foreground">System logs</h1>
+        </div>
       </div>
       <Tabs
         tabs={[
@@ -57,7 +59,7 @@ export default function AdminLogsPage() {
                     data={webhooks || []}
                     keyExtractor={(row: any) => row.id}
                     columns={[
-                      { key: "provider", label: "Provider", render: () => "Stripe/Paystack" },
+                      { key: "provider", label: "Provider", render: () => "Flutterwave/Paystack" },
                       { key: "status", label: "Status" },
                       { key: "reference", label: "Reference" },
                       {
@@ -77,7 +79,7 @@ export default function AdminLogsPage() {
                               Replay
                             </button>
                             <button
-                              className="text-xs text-emerald-300"
+                              className="text-xs text-emerald-700 dark:text-emerald-300"
                               onClick={() => fetch(`/api/admin/webhooks/${row.id}/resolve`, { method: "POST" })}
                             >
                               Resolve

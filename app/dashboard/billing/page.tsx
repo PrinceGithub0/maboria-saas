@@ -7,6 +7,7 @@ import { Table } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { pricingTableDualCurrency } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
+import { formatCurrency } from "@/lib/currency";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -24,14 +25,16 @@ export default function BillingPage() {
   const plans = pricingTableDualCurrency();
 
   return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Billing</p>
-        <h1 className="text-3xl font-semibold text-foreground">Billing history</h1>
+    <div className="space-y-6 max-md:space-y-7">
+      <div className="md:contents max-md:rounded-[28px] max-md:border max-md:border-border/60 max-md:bg-card max-md:p-4 max-md:shadow-[0_16px_36px_rgba(15,23,42,0.18)]">
+        <div>
+          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Billing</p>
+          <h1 className="text-3xl font-semibold text-foreground">Billing history</h1>
+        </div>
       </div>
 
       <Card title="Plans">
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-3 max-md:grid-cols-1 max-md:gap-5">
           {plans.map((p) => {
             const isEnterprise = p.plan === "ENTERPRISE";
             const href = isEnterprise ? "/contact" : "/dashboard/subscription";
@@ -87,8 +90,16 @@ export default function BillingPage() {
             columns={[
               { key: "provider", label: "Provider" },
               { key: "status", label: "Status" },
-              { key: "currency", label: "Currency" },
-              { key: "amount", label: "Amount", render: (row: any) => Number(row.amount).toFixed(2) },
+              {
+                key: "currency",
+                label: "Currency",
+                render: (row: any) => String(row.currency || "").toUpperCase(),
+              },
+              {
+                key: "amount",
+                label: "Amount",
+                render: (row: any) => formatCurrency(Number(row.amount || 0), row.currency),
+              },
             ]}
           />
         )}
@@ -104,8 +115,16 @@ export default function BillingPage() {
             columns={[
               { key: "invoiceNumber", label: "Invoice" },
               { key: "status", label: "Status" },
-              { key: "currency", label: "Currency" },
-              { key: "total", label: "Total", render: (row: any) => Number(row.total).toFixed(2) },
+              {
+                key: "currency",
+                label: "Currency",
+                render: (row: any) => String(row.currency || "").toUpperCase(),
+              },
+              {
+                key: "total",
+                label: "Total",
+                render: (row: any) => formatCurrency(Number(row.total || 0), row.currency),
+              },
             ]}
           />
         )}

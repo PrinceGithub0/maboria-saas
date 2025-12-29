@@ -21,7 +21,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
-      <div className="w-full max-w-xl rounded-2xl border border-border bg-card p-8 shadow-sm">
+      <div className="w-full max-w-xl rounded-2xl border border-border bg-card p-8 shadow-sm max-md:max-w-none">
         <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Onboarding</p>
         <h1 className="text-3xl font-semibold text-foreground">Create your business</h1>
         <p className="text-sm text-muted-foreground">

@@ -164,5 +164,17 @@ export const authOptions: NextAuthOptions = {
         },
       });
     },
+    async signOut(message) {
+      const userId =
+        ((message as any)?.token?.id as string | undefined) ||
+        ((message as any)?.session?.user?.id as string | undefined);
+      if (!userId) return;
+      await prisma.activityLog.create({
+        data: {
+          userId,
+          action: "USER_SIGNOUT",
+        },
+      });
+    },
   },
 };

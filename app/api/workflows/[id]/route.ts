@@ -4,13 +4,30 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { workflowSchema } from "@/lib/validators";
 import { withErrorHandling } from "@/lib/api-handler";
-import { getUserPlan, isPlanAtLeast, requiredPlanForSteps } from "@/lib/entitlements";
+import { enforceEntitlement, getUserPlan, isPlanAtLeast, requiredPlanForSteps } from "@/lib/entitlements";
 
 type Params = { params: { id: string } };
 
 export const GET = withErrorHandling(async (_req: Request, { params }: Params) => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const entitlement = await enforceEntitlement(session.user.id, {
+    feature: "workflows",
+    requiredPlan: "starter",
+    allowTrial: true,
+  });
+  if (!entitlement.ok) {
+    return NextResponse.json(
+      {
+        error: "Access denied",
+        type: entitlement.type,
+        requiredPlan: entitlement.requiredPlan,
+        reason: entitlement.reason,
+      },
+      { status: 403 }
+    );
+  }
 
   const workflow = await prisma.automationFlow.findFirst({
     where: { id: params.id, userId: session.user.id },
@@ -23,6 +40,23 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
 export const PUT = withErrorHandling(async (req: Request, { params }: Params) => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const entitlement = await enforceEntitlement(session.user.id, {
+    feature: "workflows",
+    requiredPlan: "starter",
+    allowTrial: true,
+  });
+  if (!entitlement.ok) {
+    return NextResponse.json(
+      {
+        error: "Access denied",
+        type: entitlement.type,
+        requiredPlan: entitlement.requiredPlan,
+        reason: entitlement.reason,
+      },
+      { status: 403 }
+    );
+  }
 
   const body = await req.json();
   const parsed = workflowSchema.parse(body);
@@ -66,6 +100,23 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
 export const DELETE = withErrorHandling(async (_req: Request, { params }: Params) => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const entitlement = await enforceEntitlement(session.user.id, {
+    feature: "workflows",
+    requiredPlan: "starter",
+    allowTrial: true,
+  });
+  if (!entitlement.ok) {
+    return NextResponse.json(
+      {
+        error: "Access denied",
+        type: entitlement.type,
+        requiredPlan: entitlement.requiredPlan,
+        reason: entitlement.reason,
+      },
+      { status: 403 }
+    );
+  }
 
   await prisma.automationFlow.delete({
     where: { id: params.id, userId: session.user.id },

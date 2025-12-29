@@ -54,18 +54,20 @@ export default function AutomationsPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Automations</p>
-          <h1 className="text-3xl font-semibold text-foreground">Your flows</h1>
+    <div className="space-y-4 max-md:space-y-6">
+      <div className="md:contents max-md:rounded-[28px] max-md:border max-md:border-border/60 max-md:bg-card max-md:p-4 max-md:shadow-[0_16px_36px_rgba(15,23,42,0.18)]">
+        <div className="flex items-center justify-between max-md:flex-col max-md:items-start max-md:gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Automations</p>
+            <h1 className="text-3xl font-semibold text-foreground">Your flows</h1>
+          </div>
+          <Link href="/dashboard/automations/new" className="max-md:w-full">
+            <Button className="max-md:w-full">Create automation</Button>
+          </Link>
         </div>
-        <Link href="/dashboard/automations/new">
-          <Button>Create automation</Button>
-        </Link>
+        {status && <div className="mt-4"><Alert variant="info">{status}</Alert></div>}
       </div>
-      {status && <Alert variant="info">{status}</Alert>}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 max-md:gap-5">
         {isLoading &&
           Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-36 w-full" />)}
         {flows?.map((flow: any) => (
@@ -75,13 +77,13 @@ export default function AutomationsPage() {
             actions={<Badge variant="default">{flow.status}</Badge>}
           >
             <p className="text-sm text-muted-foreground">{flow.description}</p>
-            <div className="mt-3 flex gap-2">
-              <Link href={`/dashboard/automations/${flow.id}`}>
-                <Button size="sm" variant="secondary">
+            <div className="mt-3 flex gap-2 max-md:flex-col max-md:items-stretch">
+              <Link href={`/dashboard/automations/${flow.id}`} className="max-md:w-full">
+                <Button size="sm" variant="secondary" className="max-md:w-full">
                   Details
                 </Button>
               </Link>
-              <Button size="sm" variant="ghost" onClick={() => runFlow(flow.id)}>
+              <Button size="sm" variant="ghost" className="max-md:w-full" onClick={() => runFlow(flow.id)}>
                 Run
               </Button>
             </div>

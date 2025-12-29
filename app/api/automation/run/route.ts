@@ -6,7 +6,12 @@ import { executeAutomationRun } from "@/lib/automation/engine";
 import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { aiRouter } from "@/lib/ai/router";
-import { enforceUsageLimit, getUserPlan, isPlanAtLeast } from "@/lib/entitlements";
+import {
+  enforceEntitlement,
+  enforceUsageLimit,
+  getUserPlan,
+  isPlanAtLeast,
+} from "@/lib/entitlements";
 
 export const POST = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
@@ -15,8 +20,36 @@ export const POST = withErrorHandling(async (req: Request) => {
   const { flowId, input } = await req.json();
   assertRateLimit(`run:${session.user.id}`);
 
+  const entitlement = await enforceEntitlement(session.user.id, {
+    feature: "automations",
+    requiredPlan: "starter",
+    allowTrial: true,
+  });
+  if (!entitlement.ok) {
+    return NextResponse.json(
+      {
+        error: "Access denied",
+        type: entitlement.type,
+        requiredPlan: entitlement.requiredPlan,
+        reason: entitlement.reason,
+      },
+      { status: 403 }
+    );
+  }
+
   const usage = await enforceUsageLimit(session.user.id, "automationRuns");
   if (!usage.ok) {
+    if (usage.code === "payment_required") {
+      return NextResponse.json(
+        {
+          error: "Payment required",
+          type: "payment_required",
+          reason: "Active subscription required to run automations",
+          plan: usage.plan,
+        },
+        { status: 403 }
+      );
+    }
     return NextResponse.json(
       {
         error: "Upgrade required",
@@ -41,17 +74,44 @@ export const POST = withErrorHandling(async (req: Request) => {
   const usesAi = steps.some((s) => s?.type === "aiTransform");
   const usesWhatsApp = steps.some((s) => s?.type === "sendWhatsApp");
 
-  if ((usesAi || usesWhatsApp) && !isPlanAtLeast(plan, "pro")) {
-    return NextResponse.json(
-      {
-        error: "Upgrade required",
-        type: "upgrade_required",
-        requiredPlan: "pro",
-        plan,
-        reason: usesWhatsApp ? "WhatsApp automation is a Pro feature" : "AI steps are a Pro feature",
-      },
-      { status: 402 }
-    );
+  if (usesAi) {
+    const aiEntitlement = await enforceEntitlement(session.user.id, {
+      feature: "ai",
+      requiredPlan: "pro",
+      allowTrial: false,
+    });
+    if (!aiEntitlement.ok) {
+      return NextResponse.json(
+        {
+          error: "Upgrade required",
+          type: aiEntitlement.type,
+          requiredPlan: "pro",
+          plan,
+          reason: "AI steps are a Pro feature",
+        },
+        { status: 403 }
+      );
+    }
+  }
+
+  if (usesWhatsApp) {
+    const whatsappEntitlement = await enforceEntitlement(session.user.id, {
+      feature: "whatsapp",
+      requiredPlan: "pro",
+      allowTrial: false,
+    });
+    if (!whatsappEntitlement.ok) {
+      return NextResponse.json(
+        {
+          error: "Upgrade required",
+          type: whatsappEntitlement.type,
+          requiredPlan: "pro",
+          plan,
+          reason: "WhatsApp automation is a Pro feature",
+        },
+        { status: 403 }
+      );
+    }
   }
 
   const result = await executeAutomationRun(flow, input || {});

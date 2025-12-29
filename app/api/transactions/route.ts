@@ -20,8 +20,9 @@ export async function POST(req: Request) {
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (session.user.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { amount, currency, status, reference, metadata } = await req.json();
+  const normalizedCurrency = (currency || "USD").toUpperCase();
   const txn = await prisma.transaction.create({
-    data: { userId: session.user.id, amount, currency, status, reference, metadata },
+    data: { userId: session.user.id, amount, currency: normalizedCurrency, status, reference, metadata },
   });
   return NextResponse.json({ ...txn, amount: Number(txn.amount) }, { status: 201 });
 }

@@ -9,14 +9,14 @@ export const TRIAL_DAYS = 7;
 // "GROWTH" maps to the "Pro" plan label in the UI to avoid breaking existing SubscriptionPlan values.
 const pricingTable: Record<Plan, PricingMeta> = {
   STARTER: {
-    usd: 10,
-    ngn: 7000,
+    usd: 10.35,
+    ngn: 15000,
     displayName: "Starter",
     features: ["Core automations", "Invoices", "Email notifications", "Team-ready basics"],
   },
   GROWTH: {
-    usd: 22,
-    ngn: 15000,
+    usd: 27.59,
+    ngn: 40000,
     displayName: "Pro",
     features: ["AI assistant", "WhatsApp automation", "Higher usage limits", "Priority support"],
   },

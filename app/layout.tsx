@@ -1,25 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SessionProviderWrapper } from "@/components/providers/session-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
-import { Navbar } from "@/components/ui/navbar";
-import { Sidebar } from "@/components/ui/sidebar";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { Announcement } from "@/components/ui/announcement";
-import { TourOverlay } from "@/components/ui/tour";
 import { cookies } from "next/headers";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import { AppShell } from "@/components/layouts/app-shell";
 
 export const metadata: Metadata = {
   title: "Maboria SaaS Platform",
@@ -40,12 +26,12 @@ export default async function RootLayout({
   const initialTheme =
     themeExplicit && (themePref === "light" || themePref === "dark" || themePref === "system")
       ? themePref
-      : "dark";
+      : "light";
   const initialResolvedTheme =
     resolvedPref === "light" || resolvedPref === "dark"
       ? resolvedPref
       : initialTheme === "system"
-        ? "dark"
+        ? "light"
         : initialTheme;
 
   const htmlClass = initialResolvedTheme === "dark" ? "dark" : "";
@@ -59,21 +45,15 @@ export default async function RootLayout({
       data-theme={initialTheme}
       data-resolved-theme={initialResolvedTheme}
     >
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} bg-background text-foreground antialiased`}
-        suppressHydrationWarning
-      >
+      <body className="bg-background text-foreground antialiased" suppressHydrationWarning>
         <SessionProviderWrapper>
           <ThemeProvider initialTheme={initialTheme} initialResolvedTheme={initialResolvedTheme}>
-            <Announcement message={process.env.NEXT_PUBLIC_ANNOUNCEMENT} />
-            <div className="flex min-h-screen">
-              <Sidebar role={session?.user?.role} />
-              <div className="flex min-h-screen flex-1 flex-col bg-background">
-                <Navbar />
-                <main className="flex-1 overflow-y-auto px-6 py-6">{children}</main>
-              </div>
-            </div>
-            <TourOverlay />
+            <AppShell
+              role={session?.user?.role}
+              announcement={process.env.NEXT_PUBLIC_ANNOUNCEMENT}
+            >
+              {children}
+            </AppShell>
           </ThemeProvider>
         </SessionProviderWrapper>
       </body>

@@ -11,7 +11,7 @@ const steps = [
   { title: "AI Assistant", desc: "Chat, create flows, and diagnose errors with AI.", href: "/dashboard/assistant" },
   { title: "Billing", desc: "Manage plans, invoices, and payment methods.", href: "/dashboard/subscription" },
   { title: "Analytics", desc: "Review usage, automation runs, and quotas.", href: "/dashboard/usage" },
-  { title: "Settings", desc: "Profile, security, 2FA, API keys, webhooks.", href: "/dashboard/settings" },
+  { title: "Settings", desc: "Profile, security, and 2FA preferences.", href: "/dashboard/settings" },
 ];
 
 export function TourOverlay() {
@@ -51,7 +51,7 @@ export function TourOverlay() {
 
   return (
     <div className="fixed bottom-4 right-4 z-40 max-w-sm rounded-2xl border border-indigo-500/40 bg-card p-4 shadow-xl">
-      <p className="text-xs uppercase tracking-[0.2em] text-indigo-300">Product tour</p>
+      <p className="text-xs uppercase tracking-[0.2em] text-indigo-700 dark:text-indigo-300">Product tour</p>
       <h4 className="mt-1 text-lg font-semibold text-foreground">{step.title}</h4>
       <p className="text-sm text-muted-foreground">{step.desc}</p>
       <div className="mt-3 flex items-center justify-between">

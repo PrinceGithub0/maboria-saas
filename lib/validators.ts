@@ -4,6 +4,10 @@ export const signupSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(8),
+  planIntent: z.enum(["trial", "starter", "pro"]),
+  autoRenew: z.boolean().refine((val) => val === true, {
+    message: "Auto-renew consent is required",
+  }),
 });
 
 export const loginSchema = z.object({
@@ -48,12 +52,15 @@ export const invoiceSchema = z.object({
   items: z.array(invoiceItemSchema),
   tax: z.number().nonnegative().optional(),
   discount: z.number().nonnegative().optional(),
+  customerName: z.string().min(2).optional(),
+  customerEmail: z.string().email().optional(),
+  customerAddress: z.string().optional(),
 });
 
 export const paymentSchema = z.object({
   amount: z.number().positive(),
   currency: z.string().length(3),
-  provider: z.enum(["STRIPE", "PAYSTACK"]),
+  provider: z.enum(["PAYSTACK", "FLUTTERWAVE"]),
 });
 
 export const supportTicketSchema = z.object({
@@ -63,11 +70,48 @@ export const supportTicketSchema = z.object({
   attachments: z.array(z.string()).optional(),
 });
 
+export const contactSalesSchema = z.object({
+  name: z.string().min(2),
+  email: z.string().email(),
+  company: z.string().optional(),
+  message: z.string().min(10),
+});
+
+export const profileUpdateSchema = z.object({
+  name: z.string().min(2),
+  email: z.string().email(),
+});
+
+export const passwordUpdateSchema = z.object({
+  password: z.string().min(8),
+  confirm: z.string().min(8),
+});
+
 export type AutomationStepInput = z.infer<typeof automationStepSchema>;
 
 export const businessSchema = z.object({
   name: z.string().min(2),
   domain: z.string().optional(),
+});
+
+export const businessProfileCreateSchema = z.object({
+  businessName: z.string().min(2),
+  country: z.string().length(2),
+  defaultCurrency: z.string().length(3),
+  businessAddress: z.string().min(3).optional(),
+  businessEmail: z.string().email().optional(),
+  businessPhone: z.string().min(6).optional(),
+  taxId: z.string().min(3).optional(),
+});
+
+export const businessProfileUpdateSchema = z.object({
+  businessName: z.string().min(2).optional(),
+  country: z.string().length(2).optional(),
+  defaultCurrency: z.string().length(3).optional(),
+  businessAddress: z.string().min(3).optional(),
+  businessEmail: z.string().email().optional(),
+  businessPhone: z.string().min(6).optional(),
+  taxId: z.string().min(3).optional(),
 });
 
 export const triggerSchema = z.object({

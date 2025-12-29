@@ -1,3 +1,5 @@
+import "server-only";
+
 import OpenAI from "openai";
 import { prisma } from "../prisma";
 import { systemPrompt, flowGenerationPrompt, flowImprovementPrompt, stepGeneratorPrompt, insightPrompt, errorDiagnosisPrompt } from "./templates";
@@ -48,6 +50,13 @@ export async function aiRouter({
     const output = res.output_text;
     await prisma.aiUsageLog.create({
       data: { userId, model: "gpt-4.1-mini", tokens: 0, prompt: input },
+    });
+    await prisma.activityLog.create({
+      data: {
+        userId,
+        action: "AI_CALL",
+        metadata: { mode },
+      },
     });
     return output;
   } catch (error: any) {

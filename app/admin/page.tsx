@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/card";
 import { Table } from "@/components/ui/table";
 import { MiniAreaChart } from "@/components/charts/area-chart";
+import { formatCurrency } from "@/lib/currency";
 
 export default async function AdminPage() {
   const session = await getServerSession(authOptions);
@@ -12,30 +13,41 @@ export default async function AdminPage() {
     redirect("/dashboard");
   }
 
-  const [users, payments, runs, tickets, revenueAgg, activeSubs, userCount, aiMemories, failed30] = await Promise.all([
+  const [users, payments, runs, tickets, revenueByCurrency, activeSubs, userCount, aiMemories, failed30] = await Promise.all([
     prisma.user.findMany({ take: 5, orderBy: { createdAt: "desc" } }),
     prisma.payment.findMany({ take: 5, orderBy: { createdAt: "desc" } }),
     prisma.automationRun.findMany({ take: 5, orderBy: { createdAt: "desc" }, include: { flow: true } }),
     prisma.supportTicket.findMany({ take: 5, orderBy: { createdAt: "desc" } }),
-    prisma.payment.aggregate({ _sum: { amount: true } }),
+    prisma.payment.groupBy({ by: ["currency"], _sum: { amount: true } }),
     prisma.subscription.count({ where: { status: "ACTIVE" } }),
     prisma.user.count(),
     prisma.aiMemory.count(),
     prisma.payment.count({ where: { status: "FAILED", createdAt: { gt: new Date(Date.now() - 30 * 86400000) } } }),
   ]);
-  const totalRevenue = Number(revenueAgg._sum.amount || 0) / 100;
   const totalUsers = userCount;
 
   return (
-    <div className="space-y-6 px-6 py-6">
-      <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Admin</p>
-        <h1 className="text-3xl font-semibold text-foreground">Platform health</h1>
+    <div className="space-y-6 px-6 py-6 max-md:px-4 max-md:py-4 max-md:space-y-7">
+      <div className="md:contents max-md:rounded-[28px] max-md:border max-md:border-border/60 max-md:bg-card max-md:p-4 max-md:shadow-[0_16px_36px_rgba(15,23,42,0.18)]">
+        <div>
+          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Admin</p>
+          <h1 className="text-3xl font-semibold text-foreground">Platform health</h1>
+        </div>
       </div>
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-4 max-md:grid-cols-1 max-md:gap-5">
         <Card title="Total revenue">
-          <p className="text-3xl font-semibold text-foreground">${totalRevenue.toFixed(2)}</p>
-          <p className="text-xs text-muted-foreground">Stripe + Paystack</p>
+          {revenueByCurrency.length ? (
+            <div className="space-y-1">
+              {revenueByCurrency.map((row) => (
+                <p key={row.currency} className="text-2xl font-semibold text-foreground">
+                  {formatCurrency(Number(row._sum.amount || 0), row.currency)}
+                </p>
+              ))}
+            </div>
+          ) : (
+            <p className="text-2xl font-semibold text-foreground">--</p>
+          )}
+          <p className="text-xs text-muted-foreground">Flutterwave + Paystack</p>
         </Card>
         <Card title="Active subscriptions">
           <p className="text-3xl font-semibold text-foreground">{activeSubs}</p>
@@ -46,7 +58,7 @@ export default async function AdminPage() {
           <p className="text-xs text-muted-foreground">Latest signups</p>
         </Card>
         <Card title="Automation errors">
-          <p className="text-3xl font-semibold text-rose-200">
+          <p className="text-3xl font-semibold text-rose-600 dark:text-rose-200">
             {runs.filter((r) => r.runStatus === "FAILED").length}
           </p>
           <p className="text-xs text-muted-foreground">Last 5 runs</p>
@@ -56,7 +68,7 @@ export default async function AdminPage() {
           <p className="text-xs text-muted-foreground">Total stored interactions</p>
         </Card>
         <Card title="Failed payments (30d)">
-          <p className="text-3xl font-semibold text-rose-200">{failed30}</p>
+          <p className="text-3xl font-semibold text-rose-600 dark:text-rose-200">{failed30}</p>
           <p className="text-xs text-muted-foreground">Watch churn risk</p>
         </Card>
       </div>
@@ -70,7 +82,7 @@ export default async function AdminPage() {
           ]}
         />
       </Card>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 max-md:grid-cols-1 max-md:gap-5">
         <Card title="Latest users">
           <Table
             data={users}
@@ -88,11 +100,15 @@ export default async function AdminPage() {
             keyExtractor={(row) => row.id}
             columns={[
               { key: "provider", label: "Provider" },
-              { key: "currency", label: "Currency" },
+              {
+                key: "currency",
+                label: "Currency",
+                render: (row) => String(row.currency || "").toUpperCase(),
+              },
               {
                 key: "amount",
                 label: "Amount",
-                render: (row) => `$${(Number(row.amount) / 100).toFixed(2)}`,
+                render: (row) => formatCurrency(Number(row.amount || 0), row.currency),
               },
             ]}
           />

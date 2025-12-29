@@ -37,7 +37,7 @@ export function ThemeSwitcher() {
   const ButtonIcon = resolvedTheme === "dark" ? Moon : Sun;
 
   return (
-    <div ref={wrapperRef} className="relative">
+    <div ref={wrapperRef} className="relative z-[60]">
       <button
         type="button"
         aria-label="Theme"
@@ -53,7 +53,7 @@ export function ThemeSwitcher() {
         <div
           role="menu"
           aria-label="Theme menu"
-          className="absolute right-0 mt-2 w-44 overflow-hidden rounded-xl border border-border bg-card shadow-xl"
+          className="absolute right-0 mt-2 w-44 overflow-hidden rounded-xl border border-border bg-card shadow-xl z-50"
         >
           <div className="px-3 py-2 text-xs font-semibold text-muted-foreground">Appearance</div>
           <div className="border-t border-border">
@@ -89,4 +89,3 @@ export function ThemeSwitcher() {
     </div>
   );
 }
-

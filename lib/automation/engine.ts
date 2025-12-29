@@ -1,3 +1,5 @@
+import "server-only";
+
 import { AutomationFlow, AutomationRunStatus, Prisma } from "@prisma/client";
 import OpenAI from "openai";
 import { prisma } from "../prisma";
@@ -7,6 +9,7 @@ import { log } from "../logger";
 import { meterUsage, autoInvoiceFromUsage, recoverFailedPayment } from "../billing";
 import { enqueueJob } from "../jobs";
 import { env } from "../env";
+import { normalizeCurrency } from "../payments/currency-allowlist";
 
 type Context = Record<string, any>;
 
@@ -17,6 +20,15 @@ export async function executeAutomationRun(
   const logs: any[] = [];
   let status: AutomationRunStatus = "RUNNING";
   const openai = new OpenAI({ apiKey: env.openaiKey });
+  let businessProfile: {
+    businessName: string;
+    country: string;
+    defaultCurrency: string;
+    businessAddress?: string | null;
+    businessEmail?: string | null;
+    businessPhone?: string | null;
+    taxId?: string | null;
+  } | null = null;
 
   try {
     const steps = (flow.steps as Prisma.JsonValue as any[]) ?? [];
@@ -126,8 +138,30 @@ export async function executeAutomationRun(
           break;
         }
         case "sendWhatsApp": {
+          if (!businessProfile) {
+            businessProfile = await prisma.businessProfile.findUnique({
+              where: { userId: flow.userId },
+              select: {
+                businessName: true,
+                country: true,
+                defaultCurrency: true,
+                businessAddress: true,
+                businessEmail: true,
+                businessPhone: true,
+                taxId: true,
+              },
+            });
+          }
+          if (!businessProfile) {
+            throw new Error("Business profile required before sending WhatsApp messages");
+          }
           logs.push({ step: type, result: "queued-whatsapp" });
-          enqueueJob("send-notification", { channel: "whatsapp", to: config.to, text: config.text });
+          enqueueJob("send-notification", {
+            channel: "whatsapp",
+            to: config.to,
+            text: config.text,
+            businessProfile,
+          });
           break;
         }
         case "meterUsage": {
@@ -141,7 +175,7 @@ export async function executeAutomationRun(
           break;
         }
         case "autoInvoice": {
-          const invoice = await autoInvoiceFromUsage(flow.userId, config.currency || "USD");
+          const invoice = await autoInvoiceFromUsage(flow.userId, normalizeCurrency(config.currency || "USD"));
           logs.push({ step: type, result: invoice?.invoiceNumber });
           break;
         }

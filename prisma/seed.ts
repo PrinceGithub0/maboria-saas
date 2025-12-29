@@ -79,7 +79,7 @@ async function main() {
         userId: user.id,
         amount: 4900,
         currency: "USD",
-        provider: PaymentProvider.STRIPE,
+        provider: PaymentProvider.FLUTTERWAVE,
         status: PaymentStatus.SUCCEEDED,
       },
       {

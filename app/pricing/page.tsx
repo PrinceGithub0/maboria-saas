@@ -18,9 +18,9 @@ function formatMoney(amount: number, currency: "NGN" | "USD") {
 export default function PricingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto max-w-5xl space-y-10 px-6 py-16">
+      <div className="mx-auto max-w-5xl space-y-10 px-6 py-16 max-md:mx-0 max-md:w-full max-md:max-w-none">
         <div className="space-y-3 text-center">
-          <Badge variant="success">Stripe + Paystack</Badge>
+          <Badge variant="success">Flutterwave + Paystack</Badge>
           <h1 className="text-4xl font-semibold text-foreground">Pricing</h1>
           <p className="text-muted-foreground">
             Prices are shown in NGN and USD. Free trial is available only from the top CTA; subscribe directly below.
@@ -45,7 +45,20 @@ export default function PricingPage() {
                   featured ? "border-indigo-500/60 shadow-lg shadow-indigo-500/20" : ""
                 }`}
                 title={plan.label}
-                actions={featured ? <Badge variant="success">Popular</Badge> : undefined}
+                actions={
+                  featured ? (
+                    <span
+                      className="rounded-full px-3 py-1 text-xs font-semibold dark:border-emerald-500/40 dark:bg-emerald-500/20 dark:text-emerald-200"
+                      style={{
+                        color: "#000000",
+                        backgroundColor: "#d1fae5",
+                        border: "1px solid #6ee7b7",
+                      }}
+                    >
+                      Popular
+                    </span>
+                  ) : undefined
+                }
               >
                 <div className="space-y-4">
                   <div className="text-3xl font-semibold text-foreground">
@@ -74,7 +87,7 @@ export default function PricingPage() {
                   </ul>
 
                   <Link href={href}>
-                    <Button variant={featured ? "primary" : "secondary"} className="w-full">
+                    <Button variant="primary" className="w-full">
                       {cta}
                     </Button>
                   </Link>

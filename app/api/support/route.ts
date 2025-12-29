@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { supportTicketSchema } from "@/lib/validators";
 import { sendEmail } from "@/lib/email";
 import { log } from "@/lib/logger";
+import { ensureUserPublicId } from "@/lib/public-id";
+import { assertRateLimit } from "@/lib/rate-limit";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -22,13 +24,16 @@ export async function POST(req: Request) {
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
+    assertRateLimit(`support:${session.user.id}`);
     const body = await req.json();
     const parsed = supportTicketSchema.parse(body);
+    const publicId = await ensureUserPublicId(session.user.id);
     const ticket = await prisma.supportTicket.create({
       data: {
         userId: session.user.id,
         title: parsed.title,
         message: parsed.message,
+        metadata: { userId: session.user.id, publicId, publicUserId: publicId, public_user_id: publicId },
       },
     });
 
@@ -38,9 +43,10 @@ export async function POST(req: Request) {
     try {
       await sendEmail({
         to: supportRecipient,
-        subject: `New support ticket: ${parsed.title}`,
+        subject: `New support ticket: ${parsed.title} (User ID: ${publicId})`,
         html: `<p>A new support ticket was submitted.</p>
 <p><strong>User:</strong> ${session.user.email}</p>
+<p><strong>User ID:</strong> ${publicId}</p>
 <p><strong>Title:</strong> ${parsed.title}</p>
 <p><strong>Message:</strong></p>
 <pre style="white-space:pre-wrap;">${parsed.message}</pre>`,

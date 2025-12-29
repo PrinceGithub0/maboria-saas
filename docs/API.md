@@ -14,8 +14,8 @@ Base: `/api`
 - `invoice` – GET list, POST create invoice.
 - `invoice/[id]` – GET single, DELETE invoice.
 - `payments` – GET user payments history.
-- `payments/stripe` – POST { priceId, currency } -> checkout session.
-- `payments/stripe/webhook` – Stripe webhook (raw body, signature required).
+- `payments/flutterwave` – POST { plan, currency } -> checkout session.
+- `payments/flutterwave/webhook` – Flutterwave webhook (signature required).
 - `payments/paystack` – POST { amount, currency } -> init Paystack.
 - `payments/paystack/webhook` – Paystack webhook (HMAC signature).
 - `ai/assistant` – POST { mode: "automation"|"assistant", prompt } -> AI response.

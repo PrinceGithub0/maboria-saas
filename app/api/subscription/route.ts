@@ -35,6 +35,15 @@ export const POST = withErrorHandling(async (req: Request) => {
       usagePeriod,
     },
   });
+  await prisma.activityLog.create({
+    data: {
+      userId: session.user.id,
+      action: "SUBSCRIPTION_CREATED",
+      resourceType: "subscription",
+      resourceId: sub.id,
+      metadata: { plan, status },
+    },
+  });
   return NextResponse.json(sub, { status: 201 });
 });
 
@@ -48,6 +57,15 @@ export const PUT = withErrorHandling(async (req: Request) => {
   const sub = await prisma.subscription.update({
     where: { id, userId: session.user.id },
     data: { status, plan, trialEndsAt, usageLimit, usagePeriod },
+  });
+  await prisma.activityLog.create({
+    data: {
+      userId: session.user.id,
+      action: "SUBSCRIPTION_UPDATED",
+      resourceType: "subscription",
+      resourceId: sub.id,
+      metadata: { plan: sub.plan, status: sub.status },
+    },
   });
   return NextResponse.json(sub);
 });

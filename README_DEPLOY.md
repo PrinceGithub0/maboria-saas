@@ -3,7 +3,7 @@
 1) Environment
 - Copy `.env.production.example` to hosting env.
 - Set DATABASE_URL (managed Postgres), NEXTAUTH_SECRET, NEXTAUTH_URL.
-- Stripe keys + webhook secret, Paystack keys + webhook secret.
+- Flutterwave keys + webhook secret, Paystack keys + webhook secret.
 - OPENAI_API_KEY, EMAIL_*.
 - NEXT_PUBLIC_ANNOUNCEMENT (optional), SENTRY_DSN/LOGTAIL token.
 
@@ -14,7 +14,7 @@
 - Verify indices (see prisma/migrations).
 
 3) Webhooks
-- Stripe: point to `/api/payments/stripe/webhook`
+- Flutterwave: point to `/api/payments/flutterwave/webhook`
 - Paystack: point to `/api/payments/paystack/webhook`
 - Test events in live mode.
 
@@ -33,6 +33,6 @@
 - Rotate secrets regularly.
 
 7) Post-deploy
-- Validate billing (Stripe USD, Paystack NGN)
+- Validate billing (Flutterwave USD/Intl, Paystack NGN)
 - Run smoke tests: signup, onboarding, automation run, invoice create, AI assistant, admin pages.
 - Announce via NEXT_PUBLIC_ANNOUNCEMENT if needed.

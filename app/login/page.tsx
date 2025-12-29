@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert } from "@/components/ui/alert";
+import Image from "next/image";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -16,6 +17,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const params = useSearchParams();
+  const logoSrc = "/branding/Maboria%20Company%20logo.png";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,8 +38,13 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-2xl">
-        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Maboria</p>
+      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-2xl max-md:max-w-none">
+        <div className="flex items-center gap-2">
+          <div className="relative h-9 w-9 overflow-hidden rounded-xl border border-border bg-card">
+            <Image src={logoSrc} alt="Maboria" fill className="object-contain p-0 scale-110" priority />
+          </div>
+          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Maboria</p>
+        </div>
         <h1 className="mt-2 text-2xl font-semibold text-foreground">Welcome back</h1>
         <p className="text-sm text-muted-foreground">Sign in to manage automations and billing.</p>
         {params.get("message") && <Alert variant="success">{params.get("message")}</Alert>}

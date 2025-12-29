@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Bank transfer">
+  <title>Bank transfer</title>
+  <path
+    d="M10 24L32 12l22 12"
+    fill="none"
+    stroke="#94a3b8"
+    stroke-width="3"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <rect x="14" y="26" width="36" height="22" rx="4" fill="none" stroke="#94a3b8" stroke-width="3" />
+  <path d="M22 32v12M32 32v12M42 32v12" stroke="#94a3b8" stroke-width="3" stroke-linecap="round" />
+  <path d="M18 52h28" stroke="#94a3b8" stroke-width="3" stroke-linecap="round" />
+</svg>

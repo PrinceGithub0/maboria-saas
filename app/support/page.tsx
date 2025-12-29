@@ -8,7 +8,7 @@ import { useState } from "react";
 
 const faqs = [
   { q: "How do I create automations?", a: "Use the dashboard Automations tab or AI flow generator." },
-  { q: "How does billing work?", a: "Choose USD (Stripe) or NGN (Paystack); subscriptions renew monthly." },
+  { q: "How does billing work?", a: "Choose USD/Intl (Flutterwave) or NGN (Paystack); subscriptions renew monthly." },
   { q: "Where can I see logs?", a: "Admins can view system logs in the Admin panel; users see run logs in dashboard." },
 ];
 
@@ -16,20 +16,28 @@ export default function SupportPage() {
   const [status, setStatus] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [form, setForm] = useState({ email: "", subject: "", message: "" });
+  const [errors, setErrors] = useState<{ subject?: string; message?: string }>({});
 
   const submit = async () => {
     setStatus(null);
-    if (!form.subject.trim() || !form.message.trim()) {
-      setStatus("Subject and message are required.");
+    const subject = form.subject.trim();
+    const message = form.message.trim();
+    const nextErrors: { subject?: string; message?: string } = {};
+    if (subject.length < 5) nextErrors.subject = "Subject must be at least 5 characters.";
+    if (message.length < 10) nextErrors.message = "Message must be at least 10 characters.";
+    if (Object.keys(nextErrors).length) {
+      setErrors(nextErrors);
+      setStatus("Please fix the highlighted fields.");
       return;
     }
+    setErrors({});
     if (sending) return;
     setSending(true);
     try {
       const res = await fetch("/api/support", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: form.subject, message: `${form.message}\n\nFrom: ${form.email || "N/A"}` }),
+        body: JSON.stringify({ title: subject, message: `${message}\n\nFrom: ${form.email || "N/A"}` }),
       });
       const data = await res.json();
       if (res.status === 401) {
@@ -43,6 +51,7 @@ export default function SupportPage() {
           setStatus("Ticket submitted. We'll respond to your email.");
         }
         setForm({ email: "", subject: "", message: "" });
+        setErrors({});
       }
     } catch {
       setStatus("Could not submit ticket. Please try again.");
@@ -52,7 +61,7 @@ export default function SupportPage() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8 px-6 py-12 text-foreground">
+    <div className="mx-auto max-w-5xl space-y-8 px-6 py-12 text-foreground max-md:mx-0 max-md:w-full max-md:max-w-none">
       <h1 className="text-3xl font-semibold">Support Center</h1>
       <div className="grid gap-6 md:grid-cols-3">
         <Card title="FAQ">
@@ -97,13 +106,25 @@ export default function SupportPage() {
             label="Subject"
             placeholder="Billing, automation, AI..."
             value={form.subject}
-            onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
+            onChange={(e) => {
+              setForm((f) => ({ ...f, subject: e.target.value }));
+              if (errors.subject) setErrors((prev) => ({ ...prev, subject: undefined }));
+            }}
+            minLength={5}
+            required
+            error={errors.subject}
           />
           <div className="md:col-span-2">
             <Textarea
               placeholder="Describe the issue"
               value={form.message}
-              onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
+              onChange={(e) => {
+                setForm((f) => ({ ...f, message: e.target.value }));
+                if (errors.message) setErrors((prev) => ({ ...prev, message: undefined }));
+              }}
+              minLength={10}
+              required
+              error={errors.message}
             />
           </div>
           <div className="md:col-span-2">

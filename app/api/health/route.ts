@@ -10,7 +10,7 @@ export async function GET() {
     return NextResponse.json({
       status: "ok",
       db: "connected",
-      stripe: env.stripeKey ? "configured" : "missing",
+      flutterwave: env.flutterwaveSecret ? "configured" : "missing",
       paystack: env.paystackSecret ? "configured" : "missing",
       uptime,
       load: os.loadavg(),

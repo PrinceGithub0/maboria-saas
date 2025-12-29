@@ -1,3 +1,5 @@
+import "server-only";
+
 import crypto from "crypto";
 import { prisma } from "../prisma";
 import { log } from "../logger";
@@ -33,6 +35,19 @@ export async function initializePaystackTransaction({
     throw new Error(`Paystack init failed: ${err}`);
   }
 
+  return res.json();
+}
+
+export async function verifyPaystackTransaction(reference: string) {
+  const res = await fetch(`${PAYSTACK_BASE}/transaction/verify/${reference}`, {
+    headers: {
+      Authorization: `Bearer ${PAYSTACK_SECRET}`,
+    },
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Paystack verify failed: ${err}`);
+  }
   return res.json();
 }
 

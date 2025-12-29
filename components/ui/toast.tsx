@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 
-export function Toast({ message, show }: { message: string; show: boolean }) {
+export function Toast({ message, show }: { message: React.ReactNode; show: boolean }) {
   return (
     <AnimatePresence>
       {show && (

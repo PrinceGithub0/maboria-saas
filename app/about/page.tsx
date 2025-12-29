@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto max-w-5xl px-6 py-16 space-y-8">
+      <div className="mx-auto max-w-5xl px-6 py-16 space-y-8 max-md:mx-0 max-md:w-full max-md:max-w-none">
         <div>
           <Badge variant="success">Built for operators</Badge>
           <h1 className="mt-3 text-4xl font-semibold text-foreground">Why Maboria</h1>
@@ -21,7 +21,7 @@ export default function AboutPage() {
           </Card>
           <Card title="Financial ops">
             <p className="text-sm text-muted-foreground">
-              Stripe (USD/EUR) and Paystack (NGN) in one control plane. Subscriptions, one-time, and
+              Flutterwave (USD/Intl) and Paystack (NGN) in one control plane. Subscriptions, one-time, and
               audits.
             </p>
           </Card>

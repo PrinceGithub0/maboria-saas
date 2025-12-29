@@ -26,32 +26,40 @@ function setCookie(name: string, value: string) {
   document.cookie = `${encName}=${encValue}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
 }
 
+function setStoredTheme(value: ThemePreference) {
+  try {
+    window.localStorage.setItem(THEME_COOKIE, value);
+  } catch {
+    // Ignore storage failures (private mode, disabled storage).
+  }
+}
+
 const ThemeCtx = createContext<{
   theme: ThemePreference;
   resolvedTheme: ResolvedTheme;
   setTheme: (theme: ThemePreference) => void;
   toggle: () => void;
 }>({
-  theme: "dark",
-  resolvedTheme: "dark",
+  theme: "light",
+  resolvedTheme: "light",
   setTheme: () => {},
   toggle: () => {},
 });
 
 export function ThemeProvider({
   children,
-  initialTheme = "dark",
+  initialTheme = "light",
   initialResolvedTheme,
 }: {
   children: React.ReactNode;
   initialTheme?: ThemePreference;
   initialResolvedTheme?: ResolvedTheme;
 }) {
-  const safeInitialTheme = isThemePreference(initialTheme) ? initialTheme : "dark";
+  const safeInitialTheme = isThemePreference(initialTheme) ? initialTheme : "light";
   const safeInitialResolved: ResolvedTheme = isResolvedTheme(initialResolvedTheme)
     ? initialResolvedTheme
     : safeInitialTheme === "system"
-      ? "dark"
+      ? "light"
       : safeInitialTheme;
 
   const [theme, setThemeState] = useState<ThemePreference>(safeInitialTheme);
@@ -61,12 +69,29 @@ export function ThemeProvider({
 
   useEffect(() => {
     const root = document.documentElement;
+    const fromData = root.dataset.theme;
+    const fromStorage = window.localStorage.getItem(THEME_COOKIE);
+    const next = isThemePreference(fromStorage)
+      ? fromStorage
+      : isThemePreference(fromData)
+        ? fromData
+        : undefined;
+    if (next && next !== theme) {
+      setThemeState(next);
+    }
+    // Only sync once on mount to avoid overriding user toggles.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
     root.dataset.theme = theme;
     root.dataset.resolvedTheme = resolvedTheme;
     root.classList.toggle("dark", resolvedTheme === "dark");
 
     setCookie(THEME_COOKIE, theme);
     setCookie(RESOLVED_COOKIE, resolvedTheme);
+    setStoredTheme(theme);
   }, [theme, resolvedTheme]);
 
   useEffect(() => {
@@ -80,12 +105,14 @@ export function ThemeProvider({
 
   const setTheme = (next: ThemePreference) => {
     setCookie(EXPLICIT_COOKIE, "1");
+    setStoredTheme(next);
     setThemeState(next);
   };
   const toggle = () => {
     setCookie(EXPLICIT_COOKIE, "1");
     setThemeState((prev) => {
       const next: ThemePreference = prev === "dark" ? "light" : "dark";
+      setStoredTheme(next);
       return next;
     });
   };
