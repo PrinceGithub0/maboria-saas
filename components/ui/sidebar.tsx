@@ -16,6 +16,7 @@ import {
   Sparkles,
   Activity,
   Shield,
+  MessageSquare,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 
@@ -31,6 +32,7 @@ export function Sidebar({ role }: Props) {
     { href: "/", label: "Website", icon: Home },
     { href: "/dashboard/automations", label: "Automations", icon: Bot },
     { href: "/dashboard/assistant", label: "AI Assistant", icon: Sparkles },
+    { href: "/dashboard/inbox", label: "Inbox", icon: MessageSquare },
     { href: "/dashboard/invoices", label: "Invoices", icon: FileText },
     { href: "/dashboard/subscription", label: "Subscription", icon: CreditCard },
     { href: "/dashboard/usage", label: "Usage", icon: Gauge },

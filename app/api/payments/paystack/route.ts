@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { initializePaystackTransaction } from "@/lib/payments/paystack";
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
@@ -28,7 +29,12 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
 
   const currency = normalizeCurrency(parsed.currency || "NGN");
   if (!isAllowedCurrency(currency) || !isProviderCurrency("PAYSTACK", currency)) {
-    return NextResponse.json({ error: "Paystack only supports NGN in this app" }, { status: 400 });
+    return NextResponse.json(
+      {
+        error: "Paystack only supports NGN in this app.",
+      },
+      { status: 400 }
+    );
   }
   if (parsed.plan === "enterprise") {
     return NextResponse.json({ error: "Enterprise is contact sales" }, { status: 400 });
@@ -56,11 +62,15 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
       ? process.env.APP_URL || process.env.NEXTAUTH_URL || origin
       : origin;
 
+  const reference = `mb_${Date.now().toString(36).slice(-6)}_${crypto.randomBytes(2).toString("hex")}`;
   const init = await initializePaystackTransaction({
+    reference,
     amount: amountKobo,
     currency,
     email: user.email,
-    callback_url: `${appUrl}/dashboard?payment=success&provider=paystack&amount=${planNgn}&currency=${currency}`,
+    callback_url: `${appUrl}/dashboard?payment=success&provider=paystack&amount=${planNgn}&currency=${currency}&reference=${encodeURIComponent(
+      reference
+    )}`,
     metadata: { userId: user.id, plan: plan === "pro" ? "GROWTH" : "STARTER" },
   });
   return NextResponse.json(init);

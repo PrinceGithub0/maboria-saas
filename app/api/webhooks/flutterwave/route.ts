@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { SubscriptionPlan } from "@prisma/client";
 import { withErrorHandling } from "@/lib/api-handler";
 import { log } from "@/lib/logger";
-import { recordFlutterwavePayment } from "@/lib/payments/flutterwave";
+import {
+  recordFlutterwavePayment,
+  verifyFlutterwaveTransactionByReference,
+} from "@/lib/payments/flutterwave";
+import { recordInvoicePayment } from "@/lib/invoice-payments";
 import { pricingTableDualCurrency } from "@/lib/pricing";
 import {
   beginWebhookEvent,
@@ -53,28 +58,90 @@ export const POST = withErrorHandling(async (req: Request) => {
       return NextResponse.json({ received: true, ignored: true });
     }
 
+    if (data?.meta?.type === "invoice_payment") {
+      if (!txRef) {
+        await markWebhookFailed(webhookEvent.id, "Missing invoice reference");
+        return NextResponse.json({ error: "Missing invoice reference" }, { status: 400 });
+      }
+      const verification = await verifyFlutterwaveTransactionByReference(txRef);
+      const verified = verification?.data;
+      if (!verification?.status || !verified) {
+        await markWebhookFailed(webhookEvent.id, "Verification failed");
+        return NextResponse.json({ error: "Verification failed" }, { status: 400 });
+      }
+      if (verified?.status !== "successful") {
+        await markWebhookFailed(webhookEvent.id, "Payment not successful");
+        return NextResponse.json({ error: "Payment not successful" }, { status: 400 });
+      }
+      const meta = verified?.meta || {};
+      if (meta?.type !== "invoice_payment") {
+        await markWebhookProcessed(webhookEvent.id);
+        return NextResponse.json({ received: true, ignored: true });
+      }
+      await recordInvoicePayment({
+        provider: "FLUTTERWAVE",
+        reference: verified.tx_ref || txRef,
+        amount: Number(verified.amount || 0),
+        currency: (verified.currency || "NGN").toUpperCase(),
+        status: "SUCCEEDED",
+        invoiceId: meta?.invoice_id || meta?.invoiceId,
+        invoiceNumber: meta?.invoiceNumber,
+        userId: meta?.user_id || meta?.userId,
+        organizationId: meta?.organization_id || meta?.organizationId,
+        verified: true,
+        verifiedAt: verified?.charged_at || verified?.created_at,
+        rawPayload: verified,
+      });
+      await markWebhookProcessed(webhookEvent.id);
+      return NextResponse.json({ received: true, invoice: true });
+    }
+
     const amount = typeof data?.amount === "number" ? data.amount : Number(data?.amount || 0);
     const currency = normalizeCurrency(data?.currency || "USD");
     const userId = data?.meta?.userId as string | undefined;
-    const plan = data?.meta?.plan as string | undefined;
+    const customerEmail = data?.customer?.email as string | undefined;
+    const rawPlan = String(data?.meta?.plan || "").toUpperCase();
+    let plan = (["STARTER", "GROWTH", "PREMIUM", "ENTERPRISE"].includes(rawPlan)
+      ? (rawPlan as SubscriptionPlan)
+      : null);
 
-    if (!txRef || !userId || !plan) {
+    let resolvedUserId = userId;
+    if (!resolvedUserId && customerEmail) {
+      const user = await prisma.user.findUnique({ where: { email: customerEmail }, select: { id: true } });
+      resolvedUserId = user?.id;
+    }
+
+    const priceTable = pricingTableDualCurrency();
+    const starter = priceTable.find((p) => p.plan === "STARTER");
+    const pro = priceTable.find((p) => p.plan === "GROWTH");
+    if (!plan) {
+      if (currency === "NGN") {
+        if (starter?.ngn === amount) plan = "STARTER";
+        if (pro?.ngn === amount) plan = "GROWTH";
+      } else if (currency === "USD") {
+        if (starter?.usd === amount) plan = "STARTER";
+        if (pro?.usd === amount) plan = "GROWTH";
+      }
+    }
+
+    if (!txRef || !resolvedUserId || !plan) {
       await markWebhookFailed(webhookEvent.id, "Missing payment metadata");
       return NextResponse.json({ error: "Missing payment metadata" }, { status: 400 });
     }
 
     const existingPayment = await prisma.payment.findFirst({ where: { reference: txRef } });
     if (existingPayment) {
-      log("info", "flutterwave_webhook_duplicate", { txRef, userId });
+      log("info", "flutterwave_webhook_duplicate", { txRef, userId: resolvedUserId });
+      await recordFlutterwavePayment({ ...data, meta: { ...(data?.meta || {}), userId: resolvedUserId, plan } });
       await markWebhookProcessed(webhookEvent.id);
       return NextResponse.json({ received: true, duplicate: true });
     }
 
     if (!isAllowedCurrency(currency) || !isProviderCurrency("FLUTTERWAVE", currency)) {
-      log("warn", "flutterwave_currency_unsupported", { userId, txRef, currency });
+      log("warn", "flutterwave_currency_unsupported", { userId: resolvedUserId, txRef, currency });
       await prisma.payment.create({
         data: {
-          userId,
+          userId: resolvedUserId,
           amount,
           currency,
           provider: "FLUTTERWAVE",
@@ -87,25 +154,23 @@ export const POST = withErrorHandling(async (req: Request) => {
       return NextResponse.json({ received: true, needsReview: true });
     }
 
-    const priceTable = pricingTableDualCurrency();
-    const planRow =
-      plan === "GROWTH" ? priceTable.find((p) => p.plan === "GROWTH") : priceTable.find((p) => p.plan === "STARTER");
+    const planRow = plan === "GROWTH" ? pro : starter;
     const expected = currency === "NGN" ? planRow?.ngn : planRow?.usd;
     if (expected == null || amount !== expected) {
-      log("warn", "flutterwave_amount_mismatch", { userId, txRef, currency, amount, expected });
+      log("warn", "flutterwave_amount_mismatch", { userId: resolvedUserId, txRef, currency, amount, expected });
       await markWebhookFailed(webhookEvent.id, "Amount verification failed");
       return NextResponse.json({ error: "Amount verification failed" }, { status: 400 });
     }
 
-    const oldPlan = await getUserPlan(userId);
-    await recordFlutterwavePayment({ ...data, meta: data?.meta });
+    const oldPlan = await getUserPlan(resolvedUserId);
+    await recordFlutterwavePayment({ ...data, meta: { ...(data?.meta || {}), userId: resolvedUserId, plan } });
 
     const renewalDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     let subscriptionId: string | null = null;
     await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${resolvedUserId}))`;
       const existingForPlan = await tx.subscription.findFirst({
-        where: { userId, plan },
+        where: { userId: resolvedUserId, plan },
         orderBy: { createdAt: "desc" },
       });
       if (existingForPlan) {
@@ -117,7 +182,7 @@ export const POST = withErrorHandling(async (req: Request) => {
       } else {
         const created = await tx.subscription.create({
           data: {
-            userId,
+            userId: resolvedUserId,
             plan,
             status: "ACTIVE",
             renewalDate,
@@ -133,7 +198,7 @@ export const POST = withErrorHandling(async (req: Request) => {
     if (subscriptionId) {
       await prisma.activityLog.create({
         data: {
-          userId,
+          userId: resolvedUserId,
           action: "SUBSCRIPTION_UPDATED",
           resourceType: "subscription",
           resourceId: subscriptionId,
@@ -144,11 +209,11 @@ export const POST = withErrorHandling(async (req: Request) => {
     log("info", "billing_plan_transition", {
       provider: "flutterwave",
       event,
-      userId,
+      userId: resolvedUserId,
       oldPlan,
       newPlan,
     });
-    log("info", "flutterwave_webhook_processed", { txRef, userId, plan });
+    log("info", "flutterwave_webhook_processed", { txRef, userId: resolvedUserId, plan });
     await markWebhookProcessed(webhookEvent.id);
     return NextResponse.json({ received: true });
   } catch (error) {

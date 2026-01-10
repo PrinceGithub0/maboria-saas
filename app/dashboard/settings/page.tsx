@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import useSWR from "swr";
+import Image from "next/image";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { allowedCurrencies } from "@/lib/payments/currency-allowlist";
+import { getTaxIdLabel } from "@/lib/tax-labels";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 const profileFetcher = async (url: string) => {
@@ -29,6 +31,12 @@ export default function SettingsPage() {
   const [disableCode, setDisableCode] = useState("");
   const [businessStatus, setBusinessStatus] = useState<string | null>(null);
   const [businessError, setBusinessError] = useState<string | null>(null);
+  const [payoutStatus, setPayoutStatus] = useState<string | null>(null);
+  const [payoutError, setPayoutError] = useState<string | null>(null);
+  const [payoutProvider, setPayoutProvider] = useState<"PAYSTACK" | "FLUTTERWAVE">("PAYSTACK");
+  const [payoutBankCode, setPayoutBankCode] = useState("");
+  const [payoutAccountNumber, setPayoutAccountNumber] = useState("");
+  const [payoutAccountName, setPayoutAccountName] = useState("");
   const [businessForm, setBusinessForm] = useState({
     businessName: "",
     country: "NG",
@@ -48,6 +56,9 @@ export default function SettingsPage() {
   const enabled = Boolean(totpStatus?.enabled);
   const businessProfile = businessProfileResponse?.data;
   const businessExists = Boolean(businessProfile?.id);
+  const taxLabel = getTaxIdLabel(businessForm.country);
+  const payoutBankUrl = `/api/merchant-account/banks?provider=${payoutProvider}&country=${businessForm.country}&currency=${businessForm.defaultCurrency}`;
+  const { data: payoutBanks } = useSWR(payoutBankUrl, fetcher);
 
   const businessCountryOptions = [
     { code: "NG", label: "Nigeria (NG)" },
@@ -92,6 +103,13 @@ export default function SettingsPage() {
     businessProfile?.businessPhone,
     businessProfile?.taxId,
   ]);
+
+
+  useEffect(() => {
+    const banks = payoutBanks?.banks || [];
+    if (!banks.length) return;
+    setPayoutBankCode((prev) => prev || banks[0].code);
+  }, [payoutBanks?.banks]);
 
   const saveProfile = async () => {
     setProfileStatus(null);
@@ -193,6 +211,49 @@ export default function SettingsPage() {
     refreshBusinessProfile();
   };
 
+  const createPayoutAccount = async () => {
+    setPayoutStatus(null);
+    setPayoutError(null);
+    const businessEmail = businessForm.businessEmail || profile.email;
+    if (!businessForm.businessName) {
+      setPayoutError("Business name is required.");
+      return;
+    }
+    if (!businessEmail) {
+      setPayoutError("Business email is required.");
+      return;
+    }
+    if (!businessForm.businessPhone) {
+      setPayoutError("Business phone is required.");
+      return;
+    }
+    if (!payoutAccountName || !payoutAccountNumber || !payoutBankCode) {
+      setPayoutError("Bank name and account details are required.");
+      return;
+    }
+    const res = await fetch("/api/merchant-account/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        provider: payoutProvider,
+        businessName: businessForm.businessName,
+        businessEmail,
+        accountName: payoutAccountName,
+        accountNumber: payoutAccountNumber,
+        bankCode: payoutBankCode,
+        country: businessForm.country,
+        currency: businessForm.defaultCurrency,
+        phone: businessForm.businessPhone,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setPayoutError(data.error || "Could not create payout account.");
+      return;
+    }
+    setPayoutStatus("Payout account created.");
+  };
+
   return (
     <div className="space-y-6 max-md:space-y-7">
       <div className="md:contents max-md:rounded-[28px] max-md:border max-md:border-border/60 max-md:bg-card max-md:p-4 max-md:shadow-[0_16px_36px_rgba(15,23,42,0.18)]">
@@ -286,7 +347,7 @@ export default function SettingsPage() {
             onChange={(e) => setBusinessForm({ ...businessForm, businessAddress: e.target.value })}
           />
           <Input
-            label="Tax/VAT ID (optional)"
+            label={`${taxLabel.long} (optional)`}
             value={businessForm.taxId}
             onChange={(e) => setBusinessForm({ ...businessForm, taxId: e.target.value })}
           />
@@ -294,6 +355,64 @@ export default function SettingsPage() {
             <Button className="max-md:w-full" onClick={saveBusinessProfile}>
               {businessExists ? "Update business profile" : "Save business profile"}
             </Button>
+          </div>
+        </div>
+      </Card>
+      <Card title="Invoice payout setup">
+        <p className="text-xs text-muted-foreground">
+          Add your Paystack or Flutterwave subaccount so customer invoice payments settle directly to you.
+        </p>
+        <div className="mt-6 rounded-2xl border border-border bg-background/60 p-4">
+          <p className="text-sm font-semibold text-foreground">Create payout account</p>
+          <p className="text-xs text-muted-foreground">
+            We will create a subaccount on your behalf using the bank details below.
+          </p>
+          {payoutStatus && <div className="mt-3"><Alert variant="success">{payoutStatus}</Alert></div>}
+          {payoutError && <div className="mt-3"><Alert variant="error">{payoutError}</Alert></div>}
+          <div className="mt-4 grid grid-cols-2 gap-4 max-md:grid-cols-1 max-md:gap-3">
+            <label className="flex flex-col gap-1 text-sm text-foreground">
+              Provider
+              <select
+                value={payoutProvider}
+                onChange={(e) => {
+                  setPayoutProvider(e.target.value as "PAYSTACK" | "FLUTTERWAVE");
+                  setPayoutBankCode("");
+                }}
+                className="rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:border-indigo-400 focus:outline-none"
+              >
+                <option value="PAYSTACK">Paystack</option>
+                <option value="FLUTTERWAVE">Flutterwave</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-foreground">
+              Bank
+              <select
+                value={payoutBankCode}
+                onChange={(e) => setPayoutBankCode(e.target.value)}
+                className="rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:border-indigo-400 focus:outline-none"
+              >
+                {(payoutBanks?.banks || []).map((bank: any, index: number) => (
+                  <option key={`${bank.code}-${bank.name}-${index}`} value={bank.code}>
+                    {bank.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Input
+              label="Account name"
+              value={payoutAccountName}
+              onChange={(e) => setPayoutAccountName(e.target.value)}
+            />
+            <Input
+              label="Account number"
+              value={payoutAccountNumber}
+              onChange={(e) => setPayoutAccountNumber(e.target.value)}
+            />
+            <div className="col-span-2 max-md:col-span-1">
+              <Button className="max-md:w-full" onClick={createPayoutAccount}>
+                Create payout account
+              </Button>
+            </div>
           </div>
         </div>
       </Card>
@@ -344,9 +463,11 @@ export default function SettingsPage() {
               <div className="rounded-xl border border-border bg-background/70 p-3 text-sm text-foreground">
                 {setup.qr ? (
                   <div className="mb-3 flex items-center justify-center">
-                    <img
+                    <Image
                       src={setup.qr}
                       alt="Authenticator setup QR code"
+                      width={176}
+                      height={176}
                       className="h-44 w-44 rounded-xl border border-border bg-white p-2"
                     />
                   </div>
@@ -385,22 +506,22 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {backupCodes?.length ? (
-            <div className="mt-4 rounded-xl border border-amber-500 bg-amber-200/70 p-4 dark:border-amber-500/40 dark:bg-amber-500/10">
-              <p className="text-sm font-semibold text-amber-950 dark:text-amber-200">Backup codes</p>
-              <p className="mt-1 text-xs text-amber-900 dark:text-amber-100/90">
-                Save these now. Each code can be used once if you lose access to your authenticator app.
-              </p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                {backupCodes.map((c) => (
-                  <div
-                    key={c}
-                    className="rounded-lg border border-amber-500 bg-background/70 px-3 py-2 font-mono text-xs text-amber-950 dark:border-amber-500/40 dark:text-amber-100"
-                  >
-                    {c}
-                  </div>
-                ))}
-              </div>
+            {backupCodes?.length ? (
+              <div className="mt-4 rounded-xl border border-amber-400 bg-amber-100 p-4 text-slate-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100">
+                <p className="text-sm font-semibold text-slate-900 dark:text-amber-200">Backup codes</p>
+                <p className="mt-1 text-xs text-slate-800 dark:text-amber-100/90">
+                  Save these now. Each code can be used once if you lose access to your authenticator app.
+                </p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {backupCodes.map((c) => (
+                    <div
+                      key={c}
+                      className="rounded-lg border border-slate-900 bg-slate-900 px-3 py-2 font-mono text-xs text-white dark:border-slate-700"
+                    >
+                      {c}
+                    </div>
+                  ))}
+                </div>
             </div>
           ) : null}
         </div>

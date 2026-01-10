@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import useSWR from "swr";
 import Link from "next/link";
 import { useState } from "react";
@@ -14,8 +14,13 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function AutomationDetailsPage() {
   const params = useParams();
+  const pathname = usePathname();
   const router = useRouter();
-  const id = params?.id as string | undefined;
+  const rawId = params?.id;
+  const paramId = Array.isArray(rawId) ? rawId[0] : rawId;
+  const pathId = pathname?.split("/").filter(Boolean).pop();
+  const candidateId = paramId || pathId;
+  const id = candidateId && candidateId !== "automations" ? candidateId : undefined;
   const { data: flow, isLoading } = useSWR(id ? `/api/automation/${id}` : null, fetcher);
   const [status, setStatus] = useState<string | null>(null);
 
@@ -57,7 +62,10 @@ export default function AutomationDetailsPage() {
   };
 
   const deleteFlow = async () => {
-    if (!id) return;
+    if (!id || id === "undefined") {
+      setStatus("Missing automation id.");
+      return;
+    }
     const res = await fetch(`/api/automation/${id}`, { method: "DELETE" });
     if (res.ok) {
       router.push("/dashboard/automations");

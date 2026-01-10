@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  MessageSquare,
   Search,
   Settings,
   Shield,
@@ -21,12 +22,13 @@ import {
 } from "lucide-react";
 import { Button } from "./button";
 import useSWR from "swr";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThemeSwitcher } from "@/components/ui/theme-switcher";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
+import { CommandPalette, CommandItem } from "@/components/ui/command-palette";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -43,6 +45,7 @@ export function Navbar() {
     ? notifications.filter((n: any) => !n.read).length
     : 0;
   const [menuOpen, setMenuOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
   const pathname = usePathname();
   const displayName = me?.name ?? data?.user?.name ?? "User";
   const displayEmail = me?.email ?? data?.user?.email ?? "";
@@ -52,6 +55,7 @@ export function Navbar() {
     { label: "Website", href: "/", icon: Home },
     { label: "Automations", href: "/dashboard/automations", icon: Bot },
     { label: "AI Assistant", href: "/dashboard/assistant", icon: Sparkles },
+    { label: "Inbox", href: "/dashboard/inbox", icon: MessageSquare },
     { label: "Invoices", href: "/dashboard/invoices", icon: FileText },
     { label: "Subscription", href: "/dashboard/subscription", icon: CreditCard },
     { label: "Usage", href: "/dashboard/usage", icon: Gauge },
@@ -66,6 +70,56 @@ export function Navbar() {
         ]
       : []),
   ];
+  const commandItems: CommandItem[] = useMemo(() => {
+    const nav = navItems.map((item) => ({
+      id: `nav-${item.href}`,
+      label: item.label,
+      description: "Navigate",
+      href: item.href,
+      icon: item.icon,
+      group: "Navigate",
+      keywords: [item.label, item.href],
+    }));
+    return [
+      ...nav,
+      {
+        id: "create-automation",
+        label: "Create automation",
+        description: "Build a new flow",
+        href: "/dashboard/automations/new",
+        icon: Bot,
+        group: "Create",
+        keywords: ["automation", "flow", "new"],
+      },
+      {
+        id: "create-invoice",
+        label: "Create invoice",
+        description: "Generate a new invoice",
+        href: "/dashboard/invoices",
+        icon: FileText,
+        group: "Create",
+        keywords: ["invoice", "billing"],
+      },
+      {
+        id: "open-ai",
+        label: "Open AI assistant",
+        description: "Ask Maboria AI",
+        href: "/dashboard/assistant",
+        icon: Sparkles,
+        group: "Create",
+        keywords: ["ai", "assistant", "copilot"],
+      },
+      {
+        id: "support",
+        label: "Contact support",
+        description: "Submit a ticket",
+        href: "/dashboard/support",
+        icon: Activity,
+        group: "Help",
+        keywords: ["support", "help", "ticket"],
+      },
+    ];
+  }, [navItems]);
   const handleLogout = async () => {
     try {
       await signOut({ redirect: false });
@@ -93,9 +147,22 @@ export function Navbar() {
     setMenuOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handler = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      if ((event.metaKey || event.ctrlKey) && key === "k") {
+        event.preventDefault();
+        setCommandOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
   return (
     <>
-      <header className="relative z-40 flex items-center justify-between border-b border-border bg-background px-4 py-3 backdrop-blur lg:px-6 overflow-visible max-md:mx-4 max-md:mt-3 max-md:rounded-[28px] max-md:border max-md:bg-card max-md:shadow-[0_16px_36px_rgba(15,23,42,0.12)]">
+      <header className="relative z-40 flex items-center justify-between border-b border-border bg-background px-4 py-3 backdrop-blur lg:px-6 overflow-visible max-md:mx-4 max-md:mt-3 max-md:rounded-[28px] max-md:border max-md:bg-background max-md:shadow-[0_16px_36px_rgba(15,23,42,0.12)]">
         <div className="flex flex-1 items-center gap-3">
           <button
             className="rounded-lg border border-border bg-card p-2 text-muted-foreground hover:bg-muted lg:hidden"
@@ -105,14 +172,29 @@ export function Navbar() {
             <Menu className="h-5 w-5" />
           </button>
           <div className="relative hidden w-80 lg:block">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <input
-              placeholder="Search automations, invoices, payments..."
-              className="w-full rounded-lg border border-input bg-muted px-10 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-indigo-400 focus:outline-none"
-            />
+            <button
+              type="button"
+              onClick={() => setCommandOpen(true)}
+              className="flex w-full items-center gap-2 rounded-lg border border-input bg-muted px-3 py-2 text-sm text-muted-foreground hover:bg-muted/80"
+              aria-label="Open command palette"
+            >
+              <Search className="h-4 w-4" />
+              <span className="flex-1 text-left text-sm">Search automations, invoices, payments</span>
+              <span className="hidden items-center gap-1 rounded-md border border-border bg-background px-2 py-0.5 text-[11px] text-muted-foreground md:flex">
+                Ctrl K
+              </span>
+            </button>
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setCommandOpen(true)}
+            className="rounded-full border border-border bg-card p-2 text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden"
+            aria-label="Open command palette"
+          >
+            <Search className="h-4 w-4" />
+          </button>
           <ThemeSwitcher />
           <button
             className="relative rounded-full border border-border bg-card p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -135,6 +217,7 @@ export function Navbar() {
           </Button>
         </div>
       </header>
+      <CommandPalette open={commandOpen} onOpenChange={setCommandOpen} items={commandItems} />
       <AnimatePresence>
         {menuOpen && (
           <motion.div

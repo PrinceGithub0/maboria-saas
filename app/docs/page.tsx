@@ -6,7 +6,8 @@ export default function DocsPage() {
         <h2 className="text-xl font-semibold">Architecture overview</h2>
         <p className="text-sm text-muted-foreground">
           Next.js App Router, Prisma/Postgres, NextAuth, Flutterwave/Paystack, OpenAI. Clean architecture with lib/
-          services, app/ routes, and shared UI components. Automation engine executes JSON-defined steps with AI augmentation.
+          services, app/ routes, and shared UI components.
+          Automation engine executes JSON-defined steps with AI augmentation.
         </p>
       </section>
       <section>
@@ -41,7 +42,8 @@ export default function DocsPage() {
       <section>
         <h2 className="text-xl font-semibold">Payment system</h2>
         <p className="text-sm text-muted-foreground">
-          Flutterwave for USD/Intl, Paystack for NGN. Webhooks with idempotency, dual-currency storage, subscriptions table, billing history API.
+          Flutterwave for USD/Intl, Paystack for NGN. Webhooks with idempotency, dual-currency storage, subscriptions table,
+          billing history API.
         </p>
       </section>
       <section>

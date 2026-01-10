@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { SubscriptionPlan } from "@prisma/client";
 import { withErrorHandling } from "@/lib/api-handler";
 import { log } from "@/lib/logger";
-import { verifyPaystackWebhook, recordPaystackPayment } from "@/lib/payments/paystack";
+import {
+  verifyPaystackWebhook,
+  verifyPaystackTransaction,
+  recordPaystackPayment,
+} from "@/lib/payments/paystack";
+import { recordInvoicePayment } from "@/lib/invoice-payments";
 import { pricingTableDualCurrency } from "@/lib/pricing";
 import {
   beginWebhookEvent,
@@ -52,28 +58,88 @@ export const POST = withErrorHandling(async (req: Request) => {
       return NextResponse.json({ received: true, ignored: true });
     }
 
+    if (data?.metadata?.type === "invoice_payment") {
+      if (!reference) {
+        await markWebhookFailed(webhookEvent.id, "Missing invoice reference");
+        return NextResponse.json({ error: "Missing invoice reference" }, { status: 400 });
+      }
+      const verification = await verifyPaystackTransaction(reference);
+      const verified = verification?.data;
+      if (!verification?.status || !verified) {
+        await markWebhookFailed(webhookEvent.id, "Verification failed");
+        return NextResponse.json({ error: "Verification failed" }, { status: 400 });
+      }
+      if (verified?.status !== "success") {
+        await markWebhookFailed(webhookEvent.id, "Payment not successful");
+        return NextResponse.json({ error: "Payment not successful" }, { status: 400 });
+      }
+      const meta = verified?.metadata || {};
+      if (meta?.type !== "invoice_payment") {
+        await markWebhookProcessed(webhookEvent.id);
+        return NextResponse.json({ received: true, ignored: true });
+      }
+      await recordInvoicePayment({
+        provider: "PAYSTACK",
+        reference: verified.reference || reference,
+        amount: Number(verified.amount || 0) / 100,
+        currency: (verified.currency || "NGN").toUpperCase(),
+        status: "SUCCEEDED",
+        invoiceId: meta?.invoice_id || meta?.invoiceId,
+        invoiceNumber: meta?.invoiceNumber,
+        userId: meta?.user_id || meta?.userId,
+        organizationId: meta?.organization_id || meta?.organizationId,
+        verified: true,
+        verifiedAt: verified?.paid_at || verified?.paidAt || verified?.transaction_date,
+        rawPayload: verified,
+      });
+      await markWebhookProcessed(webhookEvent.id);
+      return NextResponse.json({ received: true, invoice: true });
+    }
+
     const userId = data?.metadata?.userId as string | undefined;
-    const plan = data?.metadata?.plan as string | undefined;
+    const customerEmail = data?.customer?.email as string | undefined;
+    const rawPlan = String(data?.metadata?.plan || "").toUpperCase();
+    let plan = (["STARTER", "GROWTH", "PREMIUM", "ENTERPRISE"].includes(rawPlan)
+      ? (rawPlan as SubscriptionPlan)
+      : null);
     const currency = normalizeCurrency(data?.currency || "NGN");
     const amountKobo = typeof data?.amount === "number" ? data.amount : Number(data?.amount || 0);
 
-    if (!reference || !userId || !plan) {
+    let resolvedUserId = userId;
+    if (!resolvedUserId && customerEmail) {
+      const user = await prisma.user.findUnique({ where: { email: customerEmail }, select: { id: true } });
+      resolvedUserId = user?.id;
+    }
+
+    const priceTable = pricingTableDualCurrency();
+    const starter = priceTable.find((p) => p.plan === "STARTER");
+    const pro = priceTable.find((p) => p.plan === "GROWTH");
+    const amountNgn = amountKobo / 100;
+    if (!plan && currency === "NGN") {
+      if (starter?.ngn === amountNgn) plan = "STARTER";
+      if (pro?.ngn === amountNgn) plan = "GROWTH";
+    }
+
+    if (!reference || !resolvedUserId || !plan) {
       await markWebhookFailed(webhookEvent.id, "Missing payment metadata");
       return NextResponse.json({ error: "Missing payment metadata" }, { status: 400 });
     }
 
+    data.metadata = { ...(data?.metadata || {}), userId: resolvedUserId, plan };
+
     const existingPayment = await prisma.payment.findFirst({ where: { reference } });
     if (existingPayment) {
-      log("info", "paystack_webhook_duplicate", { reference, userId });
+      log("info", "paystack_webhook_duplicate", { reference, userId: resolvedUserId });
+      await recordPaystackPayment(data);
       await markWebhookProcessed(webhookEvent.id);
       return NextResponse.json({ received: true, duplicate: true });
     }
 
     if (!isAllowedCurrency(currency) || !isProviderCurrency("PAYSTACK", currency)) {
-      log("warn", "paystack_currency_unsupported", { userId, reference, currency });
+      log("warn", "paystack_currency_unsupported", { userId: resolvedUserId, reference, currency });
       await prisma.payment.create({
         data: {
-          userId,
+          userId: resolvedUserId,
           amount: amountKobo / 100,
           currency,
           provider: "PAYSTACK",
@@ -86,27 +152,31 @@ export const POST = withErrorHandling(async (req: Request) => {
       return NextResponse.json({ received: true, needsReview: true });
     }
 
-    const priceTable = pricingTableDualCurrency();
-    const planRow =
-      plan === "GROWTH" ? priceTable.find((p) => p.plan === "GROWTH") : priceTable.find((p) => p.plan === "STARTER");
+    const planRow = plan === "GROWTH" ? pro : starter;
     const expectedNgn = planRow?.ngn;
     const expectedKobo = expectedNgn ? expectedNgn * 100 : null;
 
     if (currency !== "NGN" || expectedKobo == null || amountKobo !== expectedKobo) {
-      log("warn", "paystack_amount_mismatch", { userId, reference, currency, amount: amountKobo, expectedKobo });
+      log("warn", "paystack_amount_mismatch", {
+        userId: resolvedUserId,
+        reference,
+        currency,
+        amount: amountKobo,
+        expectedKobo,
+      });
       await markWebhookFailed(webhookEvent.id, "Amount verification failed");
       return NextResponse.json({ error: "Amount verification failed" }, { status: 400 });
     }
 
-    const oldPlan = await getUserPlan(userId);
+    const oldPlan = await getUserPlan(resolvedUserId);
     await recordPaystackPayment(data);
 
     const renewalDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     let subscriptionId: string | null = null;
     await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${resolvedUserId}))`;
       const existingForPlan = await tx.subscription.findFirst({
-        where: { userId, plan },
+        where: { userId: resolvedUserId, plan },
         orderBy: { createdAt: "desc" },
       });
       if (existingForPlan) {
@@ -118,7 +188,7 @@ export const POST = withErrorHandling(async (req: Request) => {
       } else {
         const created = await tx.subscription.create({
           data: {
-            userId,
+            userId: resolvedUserId,
             plan,
             status: "ACTIVE",
             renewalDate,
@@ -134,7 +204,7 @@ export const POST = withErrorHandling(async (req: Request) => {
     if (subscriptionId) {
       await prisma.activityLog.create({
         data: {
-          userId,
+          userId: resolvedUserId,
           action: "SUBSCRIPTION_UPDATED",
           resourceType: "subscription",
           resourceId: subscriptionId,
@@ -145,11 +215,11 @@ export const POST = withErrorHandling(async (req: Request) => {
     log("info", "billing_plan_transition", {
       provider: "paystack",
       event,
-      userId,
+      userId: resolvedUserId,
       oldPlan,
       newPlan,
     });
-    log("info", "paystack_webhook_processed", { reference, userId, plan });
+    log("info", "paystack_webhook_processed", { reference, userId: resolvedUserId, plan });
     await markWebhookProcessed(webhookEvent.id);
     return NextResponse.json({ received: true });
   } catch (error) {

@@ -6,44 +6,48 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Table } from "@/components/ui/table";
 import { Alert } from "@/components/ui/alert";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency } from "@/lib/currency";
 import { pricingTableDualCurrency } from "@/lib/pricing";
+import { marketingCountries } from "@/lib/payments/currency-allowlist";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function PaymentsPage() {
   const { data: payments } = useSWR("/api/payments", fetcher, { revalidateOnFocus: false });
   const [message, setMessage] = useState<string | null>(null);
-  const [preferPaystack, setPreferPaystack] = useState(false);
   const [plan, setPlan] = useState<"starter" | "pro">("starter");
   const [currency, setCurrency] = useState<string>("NGN");
   const [provider, setProvider] = useState<"paystack" | "flutterwave">("flutterwave");
+  const [paystackCountry, setPaystackCountry] = useState<string>(
+    marketingCountries.PAYSTACK[0] || "Nigeria"
+  );
 
   useEffect(() => {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
     if (["Africa/Lagos", "Africa/Accra", "Africa/Johannesburg"].includes(tz)) {
-      setPreferPaystack(true);
       setCurrency("NGN");
       setProvider("paystack");
+      setPaystackCountry(marketingCountries.PAYSTACK[0] || "Nigeria");
     }
   }, []);
 
   const plans = useMemo(() => pricingTableDualCurrency(), []);
   const selectedPlan = plans.find((p) => (plan === "starter" ? p.plan === "STARTER" : p.plan === "GROWTH"));
-  const paystackCountries = ["Nigeria", "Ghana", "Kenya", "South Africa", "Cote d'Ivoire"];
-  const flutterwaveCountries = [
-    "Nigeria",
-    "Ghana",
-    "Kenya",
-    "South Africa",
-    "Uganda",
-    "Tanzania",
-    "Rwanda",
-    "Zambia",
-    "Mozambique",
-    "Egypt",
-  ];
-  const paystackCurrencies = [{ code: "NGN", label: "NGN (Nigeria)" }];
+  const paystackCountries = marketingCountries.PAYSTACK;
+  const paystackCountryLabels: Record<string, string> = {
+    Nigeria: "NGN",
+    Ghana: "GHS",
+    Kenya: "KES",
+    "South Africa": "ZAR",
+    "Cote d'Ivoire": "XOF",
+  };
+  const paystackCountryOptions = paystackCountries.map((country) => ({
+    value: country,
+    label: paystackCountryLabels[country]
+      ? `${paystackCountryLabels[country]} (${country})`
+      : country,
+  }));
   const flutterwaveCurrencies = [
     { code: "NGN", label: "NGN (Nigeria)" },
     { code: "GHS", label: "GHS (Ghana)" },
@@ -60,7 +64,8 @@ export default function PaymentsPage() {
     { code: "GBP", label: "GBP (United Kingdom)" },
     { code: "EUR", label: "EUR (Europe)" },
   ];
-  const availableCurrencies = provider === "paystack" ? paystackCurrencies : flutterwaveCurrencies;
+  const availableCurrencies = provider === "paystack" ? [] : flutterwaveCurrencies;
+  const paymentRows = Array.isArray(payments) ? payments : [];
 
   const payWithFlutterwave = async () => {
     setMessage(null);
@@ -165,25 +170,37 @@ export default function PaymentsPage() {
                 Flutterwave
               </button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {provider === "paystack"
-                ? `Paystack supported countries: ${paystackCountries.join(", ")}.`
-                : `Flutterwave supported countries: ${flutterwaveCountries.join(", ")}.`}
-            </p>
-            <label className="flex items-center justify-between rounded-xl border border-border bg-card/60 px-3 py-2 text-sm max-md:flex-col max-md:items-start max-md:gap-2">
-              <span className="text-muted-foreground">Billing currency</span>
-              <select
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-                className="rounded-lg border border-input bg-background px-2 py-1 text-sm text-foreground"
-              >
-                {availableCurrencies.map((item) => (
-                  <option key={item.code} value={item.code}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {provider === "paystack" ? (
+              <label className="flex items-center justify-between rounded-xl border border-border bg-card/60 px-3 py-2 text-sm max-md:flex-col max-md:items-start max-md:gap-2">
+                <span className="text-muted-foreground">Paystack country</span>
+                <select
+                  value={paystackCountry}
+                  onChange={(e) => setPaystackCountry(e.target.value)}
+                  className="rounded-lg border border-input bg-background px-2 py-1 text-sm text-foreground"
+                >
+                  {paystackCountryOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <label className="flex items-center justify-between rounded-xl border border-border bg-card/60 px-3 py-2 text-sm max-md:flex-col max-md:items-start max-md:gap-2">
+                <span className="text-muted-foreground">Billing currency</span>
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  className="rounded-lg border border-input bg-background px-2 py-1 text-sm text-foreground"
+                >
+                  {availableCurrencies.map((item) => (
+                    <option key={item.code} value={item.code}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <div className="grid gap-2 max-md:gap-3">
               <Button onClick={payWithPaystack} className="max-md:w-full">
                 Continue with Paystack
@@ -205,24 +222,31 @@ export default function PaymentsPage() {
         </Card>
       </div>
       <Card title="Recent payments">
-        <Table
-          data={payments || []}
-          keyExtractor={(row: any) => row.id}
-          columns={[
-            { key: "provider", label: "Provider" },
-            {
-              key: "currency",
-              label: "Currency",
-              render: (row: any) => String(row.currency || "").toUpperCase(),
-            },
-            {
-              key: "amount",
-              label: "Amount",
-              render: (row: any) => formatCurrency(Number(row.amount || 0), row.currency),
-            },
-            { key: "status", label: "Status" },
-          ]}
-        />
+        {paymentRows.length === 0 ? (
+          <EmptyState
+            title="No payments yet"
+            description="Your subscription payments will appear here once completed."
+          />
+        ) : (
+          <Table
+            data={paymentRows}
+            keyExtractor={(row: any) => row.id}
+            columns={[
+              { key: "provider", label: "Provider" },
+              {
+                key: "currency",
+                label: "Currency",
+                render: (row: any) => String(row.currency || "").toUpperCase(),
+              },
+              {
+                key: "amount",
+                label: "Amount",
+                render: (row: any) => formatCurrency(Number(row.amount || 0), row.currency),
+              },
+              { key: "status", label: "Status" },
+            ]}
+          />
+        )}
       </Card>
     </div>
   );

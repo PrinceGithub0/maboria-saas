@@ -4,14 +4,13 @@ import {
   verifyFlutterwaveTransaction,
   verifyFlutterwaveWebhook,
 } from "@/lib/payments/flutterwave";
+import { recordInvoicePayment } from "@/lib/invoice-payments";
 import { withErrorHandling } from "@/lib/api-handler";
 import { prisma } from "@/lib/prisma";
 import { log } from "@/lib/logger";
 import { subscriptionPlanToUserPlan } from "@/lib/entitlements";
-import { sendTemplateEmail } from "@/lib/email";
 import { createAdminNotification } from "@/lib/notifications";
 import { pricingTableDualCurrency } from "@/lib/pricing";
-import { formatCurrency } from "@/lib/currency";
 import {
   beginWebhookEvent,
   hashWebhookPayload,
@@ -63,6 +62,26 @@ export const POST = withErrorHandling(async (req: Request) => {
     const amount = Number(verified?.amount || 0);
     const currency = (verified?.currency || "USD").toUpperCase();
     const txRef = verified?.tx_ref;
+
+    if (verified?.meta?.type === "invoice_payment") {
+      const meta = verified?.meta || {};
+      await recordInvoicePayment({
+        provider: "FLUTTERWAVE",
+        reference: verified?.tx_ref || String(verified?.id),
+        amount: Number(verified?.amount || 0),
+        currency: (verified?.currency || "NGN").toUpperCase(),
+        status: verified?.status === "successful" ? "SUCCEEDED" : "FAILED",
+        invoiceId: meta?.invoice_id || meta?.invoiceId,
+        invoiceNumber: meta?.invoiceNumber,
+        userId: meta?.user_id || meta?.userId,
+        organizationId: meta?.organization_id || meta?.organizationId,
+        verified: true,
+        verifiedAt: verified?.charged_at || verified?.created_at,
+        rawPayload: verified,
+      });
+      await markWebhookProcessed(webhookEvent.id);
+      return NextResponse.json({ received: true, invoice: true });
+    }
 
     if (plan) {
       const priceTable = pricingTableDualCurrency();
@@ -135,15 +154,7 @@ export const POST = withErrorHandling(async (req: Request) => {
             newPlan,
           });
         }
-        const user = await prisma.user.findUnique({ where: { id: userId } });
-        if (user) {
-          await sendTemplateEmail(
-            user.email,
-            "Payment received",
-            `<p>Your payment was successful for ${formatCurrency(amount, currency)}. Thank you.</p>`
-          );
-        }
-      }
+    }
     } else {
       await createAdminNotification("Flutterwave payment failed");
     }

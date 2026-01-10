@@ -7,7 +7,11 @@ import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
 import { recordPaystackPayment, verifyPaystackTransaction } from "@/lib/payments/paystack";
-import { recordFlutterwavePayment, verifyFlutterwaveTransaction } from "@/lib/payments/flutterwave";
+import {
+  recordFlutterwavePayment,
+  verifyFlutterwaveTransaction,
+  verifyFlutterwaveTransactionByReference,
+} from "@/lib/payments/flutterwave";
 import { subscriptionPlanToUserPlan } from "@/lib/entitlements";
 import { pricingTableDualCurrency } from "@/lib/pricing";
 import { log } from "@/lib/logger";
@@ -16,6 +20,7 @@ const payloadSchema = z.object({
   provider: z.enum(["paystack", "flutterwave"]),
   reference: z.string().optional(),
   transactionId: z.union([z.string(), z.number()]).optional(),
+  txRef: z.string().optional(),
 });
 
 export const POST = withRequestLogging(withErrorHandling(async (req: Request) => {
@@ -34,11 +39,24 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     if (!data || data.status !== "success") {
       return NextResponse.json({ status: "pending" });
     }
-    const userId = data?.metadata?.userId as string | undefined;
-    const plan = data?.metadata?.plan as string | undefined;
-    if (!userId || userId !== session.user.id) {
+    const priceTable = pricingTableDualCurrency();
+    const starter = priceTable.find((p) => p.plan === "STARTER");
+    const pro = priceTable.find((p) => p.plan === "GROWTH");
+    const amountNgn = Number(data?.amount || 0) / 100;
+    const currency = (data?.currency || "NGN").toUpperCase();
+    const inferredPlan =
+      currency === "NGN" && starter?.ngn === amountNgn
+        ? "STARTER"
+        : currency === "NGN" && pro?.ngn === amountNgn
+          ? "GROWTH"
+          : undefined;
+    const userId = (data?.metadata?.userId as string | undefined) || session.user.id;
+    const plan = (data?.metadata?.plan as string | undefined) || inferredPlan;
+    if (data?.metadata?.userId && data?.metadata?.userId !== session.user.id) {
       return NextResponse.json({ error: "Invalid user for payment" }, { status: 403 });
     }
+
+    data.metadata = { ...(data?.metadata || {}), userId, plan };
 
     await recordPaystackPayment(data);
     if (plan === "STARTER" || plan === "GROWTH") {
@@ -78,27 +96,42 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     return NextResponse.json({ status: "synced" });
   }
 
-  if (!parsed.transactionId) {
+  if (!parsed.transactionId && !parsed.txRef) {
     return NextResponse.json({ error: "Missing transactionId" }, { status: 400 });
   }
 
-  const verification = await verifyFlutterwaveTransaction(parsed.transactionId);
+  const verification = parsed.transactionId
+    ? await verifyFlutterwaveTransaction(parsed.transactionId)
+    : await verifyFlutterwaveTransactionByReference(parsed.txRef as string);
   const verified = verification?.data;
   if (!verified || verification?.status !== "success" || verified?.status !== "successful") {
     return NextResponse.json({ status: "pending" });
   }
 
-  const userId = verified?.meta?.userId as string | undefined;
-  const plan = verified?.meta?.plan as string | undefined;
+  const priceTable = pricingTableDualCurrency();
+  const starter = priceTable.find((p) => p.plan === "STARTER");
+  const pro = priceTable.find((p) => p.plan === "GROWTH");
   const amount = Number(verified?.amount || 0);
   const currency = (verified?.currency || "USD").toUpperCase();
-  if (!userId || userId !== session.user.id) {
+  const inferredPlan =
+    currency === "NGN" && starter?.ngn === amount
+      ? "STARTER"
+      : currency === "NGN" && pro?.ngn === amount
+        ? "GROWTH"
+        : currency === "USD" && starter?.usd === amount
+          ? "STARTER"
+          : currency === "USD" && pro?.usd === amount
+            ? "GROWTH"
+            : undefined;
+  const userId = (verified?.meta?.userId as string | undefined) || session.user.id;
+  const plan = (verified?.meta?.plan as string | undefined) || inferredPlan;
+  if (verified?.meta?.userId && verified?.meta?.userId !== session.user.id) {
     return NextResponse.json({ error: "Invalid user for payment" }, { status: 403 });
   }
 
   if (plan) {
-    const priceTable = pricingTableDualCurrency();
-    const planRow = plan === "GROWTH" ? priceTable.find((p) => p.plan === "GROWTH") : priceTable.find((p) => p.plan === "STARTER");
+    const planRow =
+      plan === "GROWTH" ? priceTable.find((p) => p.plan === "GROWTH") : priceTable.find((p) => p.plan === "STARTER");
     const expected = currency === "NGN" ? planRow?.ngn : planRow?.usd;
     if (expected && amount !== expected) {
       log("warn", "flutterwave_amount_mismatch", { userId, plan, amount, expected, source: "verify" });
@@ -106,7 +139,7 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     }
   }
 
-  await recordFlutterwavePayment({ ...verified, meta: verified?.meta });
+  await recordFlutterwavePayment({ ...verified, meta: { ...(verified?.meta || {}), userId, plan } });
   if (plan === "STARTER" || plan === "GROWTH") {
     const renewalDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     const existingForPlan = await prisma.subscription.findFirst({

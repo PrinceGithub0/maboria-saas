@@ -25,7 +25,7 @@ export const POST = withErrorHandling(async () => {
       status: "CANCELED",
       trialEndsAt: now,
       renewalDate: now,
-      cancellationReason: "Trial canceled by user",
+      cancellationReason: "Trial cancelled by user",
     },
   });
 

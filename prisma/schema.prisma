@@ -59,6 +59,7 @@ enum InvoiceStatus {
   DRAFT
   SENT
   PAID
+  FAILED
   OVERDUE
   CANCELED
 }
@@ -68,6 +69,26 @@ enum SupportStatus {
   IN_PROGRESS
   RESOLVED
   CLOSED
+}
+
+enum ConversationStatus {
+  OPEN
+  CLOSED
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageSource {
+  WHATSAPP
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  FAILED
 }
 
 model User {
@@ -87,18 +108,23 @@ model User {
   twoFactorBackupCodes Json?
   subscriptions  Subscription[]
   payments       Payment[]
+  invoicePayments InvoicePayment[]
   automationFlows AutomationFlow[]
   automationRuns AutomationRun[]    @relation("UserAutomationRuns")
   invoices       Invoice[]
-  activityLogs   ActivityLog[]
+    activityLogs   ActivityLog[]
+    auditLogs      AuditLog[]
   supportTickets SupportTicket[]
   sessions       Session[]
   accounts       Account[]
   resetTokens    PasswordResetToken[]
   businesses     BusinessMember[]
   businessProfile BusinessProfile?
+  merchantAccount MerchantAccount?
   notifications  Notification[]
   aiMemories     AiMemory[]
+  aiConversations AiConversation[]
+  aiMessages     AiMessage[]
   twoFactorTokens TwoFactorToken[]
   aiUsageLogs    AiUsageLog[]
   ticketMessages TicketMessage[]
@@ -143,6 +169,7 @@ model Payment {
   originalCurrency String?
   amountUsd Decimal?         @db.Decimal(14, 2)
   amountNgn Decimal?         @db.Decimal(14, 2)
+  conversations Conversation[] @relation("PaymentConversations")
 }
 
 model AutomationFlow {
@@ -193,10 +220,31 @@ model Invoice {
   discount      Decimal?      @db.Decimal(14, 2)
   metadata      Json?
   pdfUrl        String?
+  invoicePayments InvoicePayment[]
   subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
   subscriptionId String?
   customerId    String?
   plan          SubscriptionPlan?
+  conversations Conversation[] @relation("InvoiceConversations")
+}
+
+model InvoicePayment {
+  id        String         @id @default(cuid())
+  invoice   Invoice        @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId String
+  user      User           @relation(fields: [userId], references: [id])
+  userId    String
+  provider  PaymentProvider
+  status    PaymentStatus
+  amount    Decimal        @db.Decimal(14, 2)
+  currency  String
+  reference String         @unique
+  metadata  Json?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([invoiceId])
+  @@index([userId])
 }
 
 model ActivityLog {
@@ -306,11 +354,13 @@ model Business {
   id          String             @id @default(cuid())
   name        String
   domain      String?
+  whatsappPhoneNumberId String?  @unique
   owner       User               @relation("OwnedBusinesses", fields: [ownerId], references: [id])
   ownerId     String
   createdAt   DateTime           @default(now())
   members     BusinessMember[]
   workflows   AutomationFlow[]
+  conversations Conversation[]
 }
 
 model BusinessMember {
@@ -336,6 +386,52 @@ model BusinessProfile {
   taxId            String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+}
+
+model MerchantAccount {
+  id                     String   @id @default(cuid())
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId                 String   @unique
+  paystackSubaccountCode String?  @unique
+  flutterwaveSubaccountId String? @unique
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+model Conversation {
+  id            String            @id @default(cuid())
+  business      Business          @relation(fields: [businessId], references: [id])
+  businessId    String
+  customerPhone String
+  channel       String
+  status        ConversationStatus @default(OPEN)
+  lastMessageAt DateTime?
+  lastReadAt    DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  customerId    String?
+  invoice       Invoice?          @relation("InvoiceConversations", fields: [invoiceId], references: [id])
+  invoiceId     String?
+  payment       Payment?          @relation("PaymentConversations", fields: [paymentId], references: [id])
+  paymentId     String?
+  messages      Message[]
+
+  @@unique([businessId, customerPhone, channel])
+  @@index([businessId, lastMessageAt])
+}
+
+model Message {
+  id             String           @id @default(cuid())
+  conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  direction      MessageDirection
+  source         MessageSource
+  content        String
+  status         MessageStatus
+  metaMessageId  String?
+  createdAt      DateTime         @default(now())
+
+  @@index([conversationId, createdAt])
 }
 
 model Trigger {
@@ -366,6 +462,33 @@ model Notification {
   message   String
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
+}
+
+model AiConversation {
+  id            String   @id @default(cuid())
+  user          User     @relation(fields: [userId], references: [id])
+  userId        String
+  title         String
+  lastMessageAt DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  messages      AiMessage[]
+
+  @@index([userId, lastMessageAt])
+}
+
+model AiMessage {
+  id             String         @id @default(cuid())
+  conversation   AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  user           User           @relation(fields: [userId], references: [id])
+  userId         String
+  role           String
+  content        String
+  createdAt      DateTime       @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([userId, createdAt])
 }
 
 model AiMemory {

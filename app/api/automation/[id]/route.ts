@@ -9,6 +9,11 @@ import { enforceEntitlement, getUserPlan, isPlanAtLeast, requiredPlanForSteps } 
 type Params = { params: { id: string } };
 
 export const GET = withErrorHandling(async (_req: Request, { params }: Params) => {
+  const flowId = params?.id;
+  if (!flowId || flowId === "undefined") {
+    return NextResponse.json({ error: "Invalid automation id" }, { status: 400 });
+  }
+
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -30,13 +35,18 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
   }
 
   const flow = await prisma.automationFlow.findFirst({
-    where: { id: params.id, userId: session.user.id },
+    where: { id: flowId, userId: session.user.id },
   });
   if (!flow) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(flow);
 });
 
 export const PUT = withErrorHandling(async (req: Request, { params }: Params) => {
+  const flowId = params?.id;
+  if (!flowId || flowId === "undefined") {
+    return NextResponse.json({ error: "Invalid automation id" }, { status: 400 });
+  }
+
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -78,7 +88,7 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
   }
 
   const updated = await prisma.automationFlow.update({
-    where: { id: params.id, userId: session.user.id },
+    where: { id: flowId, userId: session.user.id },
     data: {
       title: parsed.title ?? undefined,
       description: parsed.description ?? undefined,
@@ -92,6 +102,11 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
 });
 
 export const DELETE = withErrorHandling(async (_req: Request, { params }: Params) => {
+  const flowId = params?.id;
+  if (!flowId || flowId === "undefined") {
+    return NextResponse.json({ error: "Invalid automation id" }, { status: 400 });
+  }
+
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -112,8 +127,13 @@ export const DELETE = withErrorHandling(async (_req: Request, { params }: Params
     );
   }
 
-  await prisma.automationFlow.delete({
-    where: { id: params.id, userId: session.user.id },
+  await prisma.$transaction(async (tx) => {
+    await tx.automationRun.deleteMany({ where: { flowId, userId: session.user.id } });
+    await tx.trigger.deleteMany({ where: { flowId } });
+    await tx.action.deleteMany({ where: { flowId } });
+    await tx.automationFlow.delete({
+      where: { id: flowId, userId: session.user.id },
+    });
   });
   return NextResponse.json({ success: true });
 });

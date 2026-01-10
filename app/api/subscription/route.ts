@@ -10,6 +10,29 @@ export const GET = withErrorHandling(async () => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  if (session.user.role === "ADMIN") {
+    return NextResponse.json([
+      {
+        id: "admin-override",
+        userId: session.user.id,
+        plan: "ENTERPRISE",
+        status: "ACTIVE",
+        renewalDate: new Date().toISOString(),
+        trialEndsAt: null,
+        usageLimit: null,
+        usagePeriod: "monthly",
+        currency: "USD",
+        graceEndsAt: null,
+        cancellationReason: null,
+        overageUsed: 0,
+        interval: "monthly",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        invoices: [],
+      },
+    ]);
+  }
+
   const subs = await prisma.subscription.findMany({ where: { userId: session.user.id } });
   return NextResponse.json(subs);
 });

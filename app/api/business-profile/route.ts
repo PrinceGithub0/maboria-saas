@@ -23,7 +23,15 @@ export const GET = withRequestLogging(withErrorHandling(async () => {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const profile = await prisma.businessProfile.findUnique({
+  const profileClient = (prisma as any).businessProfile;
+  if (!profileClient) {
+    return NextResponse.json(
+      { error: "BusinessProfile model not available. Run `npx prisma generate` and restart." },
+      { status: 500 }
+    );
+  }
+
+  const profile = await profileClient.findUnique({
     where: { userId: session.user.id },
   });
 
@@ -40,7 +48,15 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const existing = await prisma.businessProfile.findUnique({
+  const profileClient = (prisma as any).businessProfile;
+  if (!profileClient) {
+    return NextResponse.json(
+      { error: "BusinessProfile model not available. Run `npx prisma generate` and restart." },
+      { status: 500 }
+    );
+  }
+
+  const existing = await profileClient.findUnique({
     where: { userId: session.user.id },
     select: { id: true },
   });
@@ -59,7 +75,7 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     return NextResponse.json({ error: "Unsupported currency" }, { status: 400 });
   }
 
-  const created = await prisma.businessProfile.create({
+  const created = await profileClient.create({
     data: {
       userId: session.user.id,
       businessName: parsed.businessName.trim(),
@@ -96,7 +112,15 @@ export const PUT = withRequestLogging(withErrorHandling(async (req: Request) => 
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const existing = await prisma.businessProfile.findUnique({
+  const profileClient = (prisma as any).businessProfile;
+  if (!profileClient) {
+    return NextResponse.json(
+      { error: "BusinessProfile model not available. Run `npx prisma generate` and restart." },
+      { status: 500 }
+    );
+  }
+
+  const existing = await profileClient.findUnique({
     where: { userId: session.user.id },
   });
   if (!existing) {
@@ -130,7 +154,7 @@ export const PUT = withRequestLogging(withErrorHandling(async (req: Request) => 
     return NextResponse.json({ error: "No updates provided" }, { status: 400 });
   }
 
-  const updated = await prisma.businessProfile.update({
+  const updated = await profileClient.update({
     where: { userId: session.user.id },
     data: updateData,
   });

@@ -38,8 +38,32 @@ export const GET = withRequestLogging(withErrorHandling(async () => {
     publicId = await ensureUserPublicId(session.user.id);
   }
 
+  const adminSubscription =
+    user.role === "ADMIN"
+      ? [
+          {
+            id: "admin-override",
+            userId: user.id,
+            plan: "ENTERPRISE",
+            status: "ACTIVE",
+            renewalDate: new Date().toISOString(),
+            trialEndsAt: null,
+            usageLimit: null,
+            usagePeriod: "monthly",
+            currency: user.preferredCurrency || "USD",
+            graceEndsAt: null,
+            cancellationReason: null,
+            overageUsed: 0,
+            interval: "monthly",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            invoices: [],
+          },
+        ]
+      : user.subscriptions;
+
   const plan = await getUserPlan(session.user.id);
-  return NextResponse.json({ ...user, publicId, publicUserId: publicId, plan });
+  return NextResponse.json({ ...user, publicId, publicUserId: publicId, plan, subscriptions: adminSubscription });
 }));
 
 export const PUT = withRequestLogging(withErrorHandling(async (req: Request) => {

@@ -20,7 +20,7 @@ export function PaystackNotice({ dismissed }: { dismissed: boolean }) {
   };
 
   return (
-    <div className="relative flex w-full items-center justify-between gap-3 rounded-xl border border-teal-300 bg-teal-50 px-4 py-3 text-sm text-slate-900 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-100">
+    <div className="paystack-notice relative flex w-full items-center justify-between gap-3 rounded-xl border border-emerald-600 bg-emerald-300 px-4 py-3 text-sm text-slate-900 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-100">
       <div className="flex items-center gap-2">
         <Info className="h-4 w-4 text-slate-950 dark:text-emerald-200" />
         <span className="font-semibold text-slate-900 dark:text-emerald-100">

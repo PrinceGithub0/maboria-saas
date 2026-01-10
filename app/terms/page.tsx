@@ -28,7 +28,7 @@ export default function TermsPage() {
       </p>
       <p>
         Trials may be offered for a limited period. If a trial is started, it will convert to a paid subscription unless
-        canceled. Refunds are handled fairly on a case-by-case basis and where required by law.
+        cancelled. Refunds are handled fairly on a case-by-case basis and where required by law.
       </p>
 
       <h2 className="text-xl font-semibold">4. AI Features</h2>

@@ -143,7 +143,7 @@ export function MarketingCta({ variant }: { variant: Variant }) {
           </Link>
         </div>
         <p className="text-sm text-muted-foreground max-md:text-xs">
-          Your trial ended or your subscription was canceled. Choose a plan to continue.
+          Your trial ended or your subscription was cancelled. Choose a plan to continue.
         </p>
       </>
     );

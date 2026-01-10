@@ -37,7 +37,7 @@ export async function runJobLoop() {
     try {
       await processJob(job);
       queue.splice(queue.indexOf(job), 1);
-    } catch (err) {
+    } catch {
       if (job.attempts >= job.maxAttempts) {
         queue.splice(queue.indexOf(job), 1);
       } else {

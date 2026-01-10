@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { Table } from "@/components/ui/table";
 import { MiniAreaChart } from "@/components/charts/area-chart";
 import { formatCurrency } from "@/lib/currency";
@@ -94,7 +96,14 @@ export default async function AdminPage() {
             ]}
           />
         </Card>
-        <Card title="Recent payments">
+        <Card
+          title="Recent payments"
+          actions={
+            <Link href="/api/payments/receipt/preview" prefetch={false}>
+              <Button size="sm" variant="secondary">Preview latest receipt</Button>
+            </Link>
+          }
+        >
           <Table
             data={payments}
             keyExtractor={(row) => row.id}

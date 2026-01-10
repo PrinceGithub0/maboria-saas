@@ -158,7 +158,7 @@ export default function SignupPage() {
                 />
                 <div>
                   <p className="text-sm font-medium text-foreground">Start 7-day free trial</p>
-                  <p className="text-xs text-muted-foreground">Auto-renews to a paid plan unless canceled.</p>
+                  <p className="text-xs text-muted-foreground">Auto-renews to a paid plan unless cancelled.</p>
                 </div>
               </label>
               <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-muted/40 p-3">

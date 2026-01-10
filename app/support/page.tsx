@@ -8,7 +8,10 @@ import { useState } from "react";
 
 const faqs = [
   { q: "How do I create automations?", a: "Use the dashboard Automations tab or AI flow generator." },
-  { q: "How does billing work?", a: "Choose USD/Intl (Flutterwave) or NGN (Paystack); subscriptions renew monthly." },
+  {
+    q: "How does billing work?",
+    a: "Choose USD/Intl (Flutterwave) or NGN (Paystack); subscriptions renew monthly.",
+  },
   { q: "Where can I see logs?", a: "Admins can view system logs in the Admin panel; users see run logs in dashboard." },
 ];
 

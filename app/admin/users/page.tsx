@@ -103,7 +103,7 @@ export default function AdminUsersPage() {
           </div>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          Cancellation is restricted to admins. Active/trialing subscriptions are set to canceled immediately.
+          Cancellation is restricted to admins. Active/trialing subscriptions are set to cancelled immediately.
         </p>
       </Card>
       <Card title="Users">

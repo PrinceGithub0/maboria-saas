@@ -43,3 +43,23 @@ export function formatCurrencyWithCode(
   const formatted = formatCurrency(amount, iso, options);
   return `${iso} ${formatted.replace(iso, "").trim()}`;
 }
+
+export function formatCurrencyCode(
+  amount: number,
+  currency: string,
+  options: Intl.NumberFormatOptions & { locale?: string } = {}
+) {
+  const iso = (currency || "USD").toUpperCase();
+  const { locale, ...fmtOptions } = options;
+  const resolvedLocale = locale || localeMap[iso] || "en-US";
+  try {
+    return new Intl.NumberFormat(resolvedLocale, {
+      style: "currency",
+      currency: iso,
+      currencyDisplay: "code",
+      ...fmtOptions,
+    }).format(Number(amount) || 0);
+  } catch {
+    return `${iso} ${Number(amount || 0).toFixed(2)}`;
+  }
+}

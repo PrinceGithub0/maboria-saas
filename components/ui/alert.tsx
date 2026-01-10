@@ -8,10 +8,21 @@ export function Alert({
   variant?: "info" | "success" | "warning" | "error";
 }) {
   const variants: Record<string, string> = {
-    info: "bg-slate-100 text-slate-900 border border-slate-300 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600",
-    success: "bg-emerald-100 text-slate-900 border border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-200 dark:border-emerald-500/40",
-    warning: "bg-amber-100 text-slate-900 border border-amber-300 dark:bg-amber-500/20 dark:text-amber-200 dark:border-amber-500/40",
-    error: "bg-rose-100 text-slate-900 border border-rose-300 dark:bg-rose-500/20 dark:text-rose-200 dark:border-rose-500/40",
+    info: "border border-slate-200 bg-slate-50 text-slate-900 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-100",
+    success: "alert-success",
+    warning:
+      "border border-amber-300 bg-amber-100 text-slate-900 dark:border-amber-900/40 dark:bg-amber-900/30 dark:text-amber-100",
+    error: "alert-error",
   };
-  return <div className={clsx("rounded-xl p-4 text-sm", variants[variant])}>{children}</div>;
+  return (
+    <div
+      className={clsx(
+        "rounded-xl p-4 text-sm leading-relaxed",
+        variants[variant],
+        variant === "error" && "alert-error"
+      )}
+    >
+      {children}
+    </div>
+  );
 }

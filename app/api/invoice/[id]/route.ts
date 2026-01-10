@@ -4,11 +4,19 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { withErrorHandling } from "@/lib/api-handler";
 import { invoiceSchema } from "@/lib/validators";
+import { parseDateInput } from "@/lib/date";
 import { enforceEntitlement } from "@/lib/entitlements";
-import { generateAndStoreInvoicePdf, sendInvoiceEmailToCustomer } from "@/lib/invoice";
+import {
+  generateAndStoreInvoicePdf,
+  resolveInvoiceCustomer,
+  sendInvoiceEmailToCustomer,
+} from "@/lib/invoice";
 import { isAllowedCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
+import { triggerInvoiceStatusAutomations } from "@/lib/automation/events";
 
 type Params = { params: { id: string } };
+
+export const runtime = "nodejs";
 
 export const GET = withErrorHandling(async (_req: Request, { params }: Params) => {
   const session = await getServerSession(authOptions);
@@ -69,33 +77,84 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
     }
     nextCurrency = normalized;
   }
+  const issueDate = parsed.issueDate ? parseDateInput(parsed.issueDate) : undefined;
+  if (issueDate === null) {
+    return NextResponse.json({ error: "Invalid issue date" }, { status: 400 });
+  }
+  const dueDate = parsed.dueDate ? parseDateInput(parsed.dueDate) : undefined;
+  if (dueDate === null) {
+    return NextResponse.json({ error: "Invalid due date" }, { status: 400 });
+  }
 
+  const rawId = params?.id?.trim();
+  const lookupNumber = parsed.invoiceNumber?.trim();
   const existing = await prisma.invoice.findFirst({
-    where: { id: params.id, userId: session.user.id },
-    select: { status: true, invoiceNumber: true, metadata: true },
+    where: {
+      userId: session.user.id,
+      OR: [
+        rawId ? { id: rawId } : undefined,
+        rawId ? { invoiceNumber: rawId } : undefined,
+        lookupNumber ? { invoiceNumber: lookupNumber } : undefined,
+      ].filter(Boolean) as any,
+    },
+    select: { id: true, status: true, invoiceNumber: true, metadata: true },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  if (existing.status === "PAID") {
+    return NextResponse.json(
+      { error: "Paid invoices cannot be edited." },
+      { status: 403 }
+    );
+  }
+
+  if (parsed.status === "PAID" || parsed.status === "FAILED") {
+    return NextResponse.json(
+      { error: "Invoice status is managed by payment verification." },
+      { status: 400 }
+    );
+  }
+
+  if (parsed.status === "SENT") {
+    const existingCustomerEmail = (existing.metadata as any)?.customer?.email;
+    if (!parsed.customerEmail && !existingCustomerEmail) {
+      return NextResponse.json(
+        { error: "Customer email is required to send an invoice." },
+        { status: 400 }
+      );
+    }
+  }
+
+  const existingMeta = (existing.metadata as any) || {};
+  const existingCustomer = resolveInvoiceCustomer(existingMeta) || {};
+  const shouldUpdateCustomer =
+    parsed.customerEmail !== undefined ||
+    parsed.customerName !== undefined ||
+    parsed.customerAddress !== undefined;
+  const shouldUpdateDates = parsed.issueDate !== undefined || parsed.dueDate !== undefined;
   const updated = await prisma.invoice.update({
-    where: { id: params.id, userId: session.user.id },
+    where: { id: existing.id },
     data: {
       invoiceNumber: parsed.invoiceNumber ?? undefined,
       items: parsed.items ?? undefined,
       currency: nextCurrency,
       status: parsed.status as any,
+      generatedAt: issueDate ?? undefined,
       tax: parsed.tax as any,
       discount: parsed.discount as any,
-      metadata:
-        parsed.customerEmail || parsed.customerName || parsed.customerAddress
-          ? {
-              ...(existing.metadata as any),
-              customer: {
-                name: parsed.customerName,
-                email: parsed.customerEmail,
-                address: parsed.customerAddress,
-              },
-            }
-          : undefined,
+      metadata: shouldUpdateCustomer || shouldUpdateDates
+        ? {
+            ...existingMeta,
+            customer: shouldUpdateCustomer
+              ? {
+                  name: parsed.customerName ?? existingCustomer.name ?? undefined,
+                  email: parsed.customerEmail ?? existingCustomer.email ?? undefined,
+                  address: parsed.customerAddress ?? existingCustomer.address ?? undefined,
+                }
+              : existingMeta?.customer,
+            dueDate: parsed.dueDate ? dueDate?.toISOString() : existingMeta?.dueDate,
+          }
+        : undefined,
     },
   });
   await prisma.activityLog.create({
@@ -110,9 +169,20 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
   if (existing.status !== updated.status && updated.status === "SENT") {
     const businessProfile = (updated.metadata as any)?.businessProfile;
     if (businessProfile?.businessName) {
-      const customer = (updated.metadata as any)?.customer || null;
-      const { pdfBuffer } = await generateAndStoreInvoicePdf(updated as any, businessProfile, customer);
-      await sendInvoiceEmailToCustomer(updated as any, businessProfile, customer, pdfBuffer);
+      const customer = resolveInvoiceCustomer(updated.metadata as any);
+      try {
+        const { pdfBuffer } = await generateAndStoreInvoicePdf(updated as any, businessProfile, customer);
+        await sendInvoiceEmailToCustomer(updated as any, businessProfile, customer, pdfBuffer);
+      } catch (error: any) {
+        await prisma.invoice.update({
+          where: { id: updated.id },
+          data: { status: "DRAFT" },
+        });
+        return NextResponse.json(
+          { error: error?.message || "Could not send invoice." },
+          { status: (error as any)?.status || 500 }
+        );
+      }
     }
     await prisma.activityLog.create({
       data: {
@@ -122,6 +192,16 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
         resourceId: updated.id,
         metadata: { invoiceNumber: updated.invoiceNumber },
       },
+    });
+  }
+  if (existing.status !== updated.status && ["SENT", "OVERDUE"].includes(updated.status)) {
+    triggerInvoiceStatusAutomations({
+      userId: session.user.id,
+      invoiceId: updated.id,
+      invoiceNumber: updated.invoiceNumber,
+      status: updated.status,
+    }).catch((error) => {
+      console.error("invoice_status_trigger_failed", error);
     });
   }
   return NextResponse.json(updated);

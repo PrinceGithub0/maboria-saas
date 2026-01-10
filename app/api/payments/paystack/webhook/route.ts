@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
-import { verifyPaystackWebhook, recordPaystackPayment } from "@/lib/payments/paystack";
+import {
+  verifyPaystackWebhook,
+  verifyPaystackTransaction,
+  recordPaystackPayment,
+} from "@/lib/payments/paystack";
+import { recordInvoicePayment } from "@/lib/invoice-payments";
 import { withErrorHandling } from "@/lib/api-handler";
 import { prisma } from "@/lib/prisma";
 import { log } from "@/lib/logger";
-import { sendTemplateEmail } from "@/lib/email";
 import { createAdminNotification } from "@/lib/notifications";
 import { subscriptionPlanToUserPlan } from "@/lib/entitlements";
 import {
@@ -12,7 +16,6 @@ import {
   markWebhookFailed,
   markWebhookProcessed,
 } from "@/lib/webhook-events";
-import { formatCurrency } from "@/lib/currency";
 
 export const POST = withErrorHandling(async (req: Request) => {
   const signature = req.headers.get("x-paystack-signature") || undefined;
@@ -25,6 +28,7 @@ export const POST = withErrorHandling(async (req: Request) => {
   const data = payload.data;
   log("info", "paystack_webhook_received", { event });
   const userIdFromMeta = data?.metadata?.userId as string | undefined;
+  const isInvoicePayment = data?.metadata?.type === "invoice_payment";
 
   const eventId = String(data?.id || data?.reference || `${event}:${payloadHash}`);
   const webhookEvent = await beginWebhookEvent({
@@ -37,6 +41,45 @@ export const POST = withErrorHandling(async (req: Request) => {
   }
 
   try {
+    if (isInvoicePayment) {
+      const reference = data?.reference as string | undefined;
+      if (!reference) {
+        await markWebhookFailed(webhookEvent.id, "Missing invoice reference");
+        return NextResponse.json({ error: "Missing invoice reference" }, { status: 400 });
+      }
+      const verification = await verifyPaystackTransaction(reference);
+      const verified = verification?.data;
+      if (!verification?.status || !verified) {
+        await markWebhookFailed(webhookEvent.id, "Verification failed");
+        return NextResponse.json({ error: "Verification failed" }, { status: 400 });
+      }
+      if (verified?.status !== "success") {
+        await markWebhookFailed(webhookEvent.id, "Payment not successful");
+        return NextResponse.json({ error: "Payment not successful" }, { status: 400 });
+      }
+      const meta = verified?.metadata || {};
+      if (meta?.type !== "invoice_payment") {
+        await markWebhookProcessed(webhookEvent.id);
+        return NextResponse.json({ received: true, ignored: true });
+      }
+      await recordInvoicePayment({
+        provider: "PAYSTACK",
+        reference: verified.reference || reference,
+        amount: Number(verified.amount || 0) / 100,
+        currency: (verified.currency || "NGN").toUpperCase(),
+        status: "SUCCEEDED",
+        invoiceId: meta?.invoice_id || meta?.invoiceId,
+        invoiceNumber: meta?.invoiceNumber,
+        userId: meta?.user_id || meta?.userId,
+        organizationId: meta?.organization_id || meta?.organizationId,
+        verified: true,
+        verifiedAt: verified?.paid_at || verified?.paidAt || verified?.transaction_date,
+        rawPayload: verified,
+      });
+      await markWebhookProcessed(webhookEvent.id);
+      return NextResponse.json({ received: true, invoice: true });
+    }
+
     await recordPaystackPayment(data);
     if (event === "charge.success" && userIdFromMeta) {
       const existing = await prisma.subscription.findFirst({
@@ -51,17 +94,6 @@ export const POST = withErrorHandling(async (req: Request) => {
         oldPlan,
         newPlan: oldPlan,
       });
-    }
-
-    if (userIdFromMeta) {
-      const user = await prisma.user.findUnique({ where: { id: userIdFromMeta } });
-      if (user) {
-        await sendTemplateEmail(
-          user.email,
-          "Payment received",
-          `<p>Your payment was successful for ${formatCurrency((data.amount || 0) / 100, data.currency)}. Thank you.</p>`
-        );
-      }
     }
 
     if (data.status !== "success") {

@@ -25,9 +25,35 @@ async function run() {
 
   console.log(`Running entitlement checks against ${BASE_URL}`);
 
-  await expect("/api/automation", 403);
-  await expect("/api/invoice", 403);
-  await expect("/api/ai/assistant", 403);
+  const me = await request("/api/user/me");
+  if (me.status !== 200) {
+    throw new Error(`Expected 200 for /api/user/me, got ${me.status}. Body: ${me.body.slice(0, 200)}`);
+  }
+  const meJson = JSON.parse(me.body || "{}");
+  const plan = String(meJson.plan || "free").toLowerCase();
+  const subscriptions = Array.isArray(meJson.subscriptions) ? meJson.subscriptions : [];
+  const trialActive = subscriptions.some((sub) => {
+    if (!sub || sub.status !== "TRIALING") return false;
+    if (!sub.trialEndsAt) return true;
+    return new Date(sub.trialEndsAt).getTime() > Date.now();
+  });
+
+  const canAutomation = trialActive || ["starter", "pro", "enterprise"].includes(plan);
+  const canInvoices = canAutomation;
+  const canAI = !trialActive && ["pro", "enterprise"].includes(plan);
+
+  await expect("/api/automation", canAutomation ? 200 : 403);
+  await expect("/api/invoice", canInvoices ? 200 : 403);
+  const aiResponse = await request("/api/ai/assistant", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt: "test" }),
+  });
+  if (aiResponse.status !== (canAI ? 200 : 403)) {
+    throw new Error(
+      `Expected ${canAI ? 200 : 403} for /api/ai/assistant, got ${aiResponse.status}. Body: ${aiResponse.body.slice(0, 200)}`
+    );
+  }
 
   console.log("Entitlement checks passed (expected blocked statuses).");
 }

@@ -23,6 +23,17 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const sanitizeEmailError = (message: string) => {
+    const lower = message.toLowerCase();
+    if (lower.includes("self-signed certificate")) {
+      return "Support email delivery failed due to SMTP certificate. Ticket saved.";
+    }
+    if (lower.includes("econnreset") || lower.includes("timeout")) {
+      return "Support email delivery failed due to a temporary connection issue. Ticket saved.";
+    }
+    return "Support email delivery failed. Ticket saved.";
+  };
+
   try {
     assertRateLimit(`support:${session.user.id}`);
     const body = await req.json();
@@ -52,8 +63,9 @@ export async function POST(req: Request) {
 <pre style="white-space:pre-wrap;">${parsed.message}</pre>`,
       });
     } catch (err: any) {
-      emailError = err?.message || "Failed to send support email";
-      log("error", "support_email_failed", { error: emailError });
+      const rawMessage = err?.message || "Failed to send support email";
+      emailError = sanitizeEmailError(rawMessage);
+      log("error", "support_email_failed", { error: rawMessage });
     }
 
     return NextResponse.json({ ticket, emailError }, { status: emailError ? 202 : 201 });

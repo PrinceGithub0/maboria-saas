@@ -4,11 +4,13 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { invoiceSchema } from "@/lib/validators";
 import { createInvoiceRecord } from "@/lib/invoice";
+import { parseDateInput } from "@/lib/date";
 import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
-import { env } from "@/lib/env";
 import { enforceEntitlement, enforceUsageLimit } from "@/lib/entitlements";
 import { isAllowedCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
+
+export const runtime = "nodejs";
 
 export const GET = withErrorHandling(async () => {
   const session = await getServerSession(authOptions);
@@ -101,6 +103,14 @@ export const POST = withErrorHandling(async (req: Request) => {
           address: parsed.customerAddress,
         }
       : null;
+  const issueDate = parsed.issueDate ? parseDateInput(parsed.issueDate) : undefined;
+  if (issueDate === null) {
+    return NextResponse.json({ error: "Invalid issue date" }, { status: 400 });
+  }
+  const dueDate = parsed.dueDate ? parseDateInput(parsed.dueDate) : undefined;
+  if (dueDate === null) {
+    return NextResponse.json({ error: "Invalid due date" }, { status: 400 });
+  }
   assertRateLimit(`invoice:${session.user.id}`, 50, 60_000);
   const invoice = await createInvoiceRecord({
     userId: session.user.id,
@@ -111,6 +121,8 @@ export const POST = withErrorHandling(async (req: Request) => {
     tax: parsed.tax,
     discount: parsed.discount,
     customer,
+    issueDate,
+    dueDate,
   });
   await prisma.activityLog.create({
     data: {

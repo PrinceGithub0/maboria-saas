@@ -44,6 +44,12 @@ export function subscriptionPlanToUserPlan(plan?: string | null): UserPlan {
 }
 
 export async function getUserPlan(userId: string): Promise<UserPlan> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  if (user?.role === "ADMIN") {
+    log("info", "plan_resolved", { userId, plan: "enterprise", reason: "admin_override" });
+    return "enterprise";
+  }
+
   const sub = await prisma.subscription.findFirst({
     where: { userId, status: { in: ["ACTIVE", "TRIALING"] } },
     orderBy: { createdAt: "desc" },
@@ -73,6 +79,21 @@ export async function getUserPlan(userId: string): Promise<UserPlan> {
 }
 
 export async function getEntitlementForUser(userId: string): Promise<UserEntitlement> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  if (user?.role === "ADMIN") {
+    return {
+      plan: "enterprise",
+      status: "ACTIVE",
+      isTrialActive: false,
+      canDashboard: true,
+      canAutomations: true,
+      canWorkflows: true,
+      canInvoices: true,
+      canAI: true,
+      canWhatsapp: true,
+    };
+  }
+
   const sub = await prisma.subscription.findFirst({
     where: { userId },
     orderBy: { createdAt: "desc" },

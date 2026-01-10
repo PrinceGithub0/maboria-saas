@@ -52,7 +52,7 @@ const faqs: FaqItem[] = [
     category: "What Maboria Is",
     question: "What is Maboria?",
     answer:
-      "Maboria is a web app for managing workflows, customers, invoices, payments, subscriptions, and notifications in one place. It's built for African businesses, starting with Nigeria. You use it from a dashboard after signing in.",
+      "Maboria is a web app for managing workflows, customers, invoices, payments, subscriptions, and notifications in one place. It's built for African businesses. You use it from a dashboard after signing in.",
   },
   {
     id: "who-for",
@@ -276,4 +276,3 @@ export function FAQSection() {
     </section>
   );
 }
-

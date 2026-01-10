@@ -49,7 +49,7 @@ export default function SubscriptionPage() {
       return;
     }
     setActionStatus({
-      message: "Trial canceled. Your account is now on the free plan.",
+      message: "Trial cancelled. Your account is now on the free plan.",
       variant: "success",
     });
     mutate();
@@ -98,7 +98,10 @@ export default function SubscriptionPage() {
               {
                 key: "renewalDate",
                 label: "Renews",
-                render: (row: any) => new Date(row.renewalDate).toLocaleDateString(),
+                render: (row: any) =>
+                  row?.id === "admin-override"
+                    ? "Unlimited"
+                    : new Date(row.renewalDate).toLocaleDateString(),
               },
               { key: "usageLimit", label: "Usage limit" },
             ]}

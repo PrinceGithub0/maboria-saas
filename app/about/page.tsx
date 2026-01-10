@@ -21,8 +21,7 @@ export default function AboutPage() {
           </Card>
           <Card title="Financial ops">
             <p className="text-sm text-muted-foreground">
-              Flutterwave (USD/Intl) and Paystack (NGN) in one control plane. Subscriptions, one-time, and
-              audits.
+              Flutterwave (USD/Intl) and Paystack (NGN) in one control plane. Subscriptions, one-time, and audits.
             </p>
           </Card>
           <Card title="AI copilots">

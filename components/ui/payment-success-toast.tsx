@@ -17,9 +17,26 @@ export function PaymentSuccessToast() {
     const status = searchParams.get("payment");
     const provider = searchParams.get("provider");
     const reference = searchParams.get("reference");
+    const trxRef = searchParams.get("trxref");
     const transactionId = searchParams.get("transaction_id");
+    const txRef = searchParams.get("tx_ref");
+    const source = searchParams.get("source");
     if (status === "success") {
       handledRef.current = true;
+      if (provider && source !== "callback") {
+        const params = new URLSearchParams();
+        params.set("provider", provider);
+        if (provider === "paystack") {
+          const payRef = reference || trxRef;
+          if (payRef) params.set("reference", payRef);
+        } else {
+          if (txRef) params.set("tx_ref", txRef);
+          if (transactionId) params.set("transaction_id", transactionId);
+        }
+        window.location.replace(`/api/payments/callback?${params.toString()}`);
+        return;
+      }
+
       const currency = searchParams.get("currency")?.toUpperCase();
       const amountRaw = searchParams.get("amount");
       const amount = amountRaw ? Number(amountRaw) : null;
@@ -37,11 +54,15 @@ export function PaymentSuccessToast() {
       );
       setShow(true);
       const timer = setTimeout(() => setShow(false), 4000);
-      if (provider && (reference || transactionId)) {
+      if (provider && (reference || trxRef || transactionId || txRef)) {
         const payload =
           provider === "paystack"
-            ? { provider, reference }
-            : { provider, transactionId: transactionId ? Number(transactionId) || transactionId : transactionId };
+            ? { provider, reference: reference || trxRef }
+            : {
+                provider,
+                transactionId: transactionId ? Number(transactionId) || transactionId : transactionId,
+                txRef: txRef || undefined,
+              };
         fetch("/api/payments/verify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

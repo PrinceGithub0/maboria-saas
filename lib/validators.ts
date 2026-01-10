@@ -45,16 +45,36 @@ export const invoiceItemSchema = z.object({
   description: z.string().optional(),
 });
 
+const optionalEmail = z.preprocess(
+  (value) => {
+    if (typeof value !== "string") return value;
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : undefined;
+  },
+  z.string().email().optional()
+);
+
+const optionalString = z.preprocess(
+  (value) => {
+    if (typeof value !== "string") return value;
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : undefined;
+  },
+  z.string().optional()
+);
+
 export const invoiceSchema = z.object({
   invoiceNumber: z.string().min(3),
   currency: z.string().length(3),
-  status: z.enum(["DRAFT", "SENT", "PAID", "OVERDUE", "CANCELED"]).default("DRAFT"),
+  status: z.enum(["DRAFT", "SENT", "PAID", "FAILED", "OVERDUE", "CANCELED"]).default("DRAFT"),
   items: z.array(invoiceItemSchema),
   tax: z.number().nonnegative().optional(),
   discount: z.number().nonnegative().optional(),
-  customerName: z.string().min(2).optional(),
-  customerEmail: z.string().email().optional(),
-  customerAddress: z.string().optional(),
+  customerName: optionalString,
+  customerEmail: optionalEmail,
+  customerAddress: optionalString,
+  issueDate: z.string().optional(),
+  dueDate: z.string().optional(),
 });
 
 export const paymentSchema = z.object({
@@ -112,6 +132,23 @@ export const businessProfileUpdateSchema = z.object({
   businessEmail: z.string().email().optional(),
   businessPhone: z.string().min(6).optional(),
   taxId: z.string().min(3).optional(),
+});
+
+export const merchantAccountSchema = z.object({
+  paystackSubaccountCode: optionalString,
+  flutterwaveSubaccountId: optionalString,
+});
+
+export const merchantAccountCreateSchema = z.object({
+  provider: z.enum(["PAYSTACK", "FLUTTERWAVE"]),
+  businessName: z.string().min(2),
+  businessEmail: z.string().email(),
+  accountName: z.string().min(2),
+  accountNumber: z.string().min(6),
+  bankCode: z.string().min(2),
+  country: z.string().length(2),
+  currency: z.string().length(3),
+  phone: z.string().min(6),
 });
 
 export const triggerSchema = z.object({

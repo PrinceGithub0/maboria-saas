@@ -4,7 +4,6 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
-import { log } from "@/lib/logger";
 
 export const GET = withRequestLogging(withErrorHandling(async () => {
   const session = await getServerSession(authOptions);

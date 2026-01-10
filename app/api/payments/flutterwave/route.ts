@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { initializeFlutterwavePayment } from "@/lib/payments/flutterwave";
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
@@ -61,7 +62,7 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     return NextResponse.json({ error: "Invalid amount for selected plan" }, { status: 400 });
   }
 
-  const txRef = `maboria_${session.user.id}_${Date.now()}`;
+  const txRef = `mb_${Date.now().toString(36).slice(-6)}_${crypto.randomBytes(2).toString("hex")}`;
   const origin = new URL(req.url).origin;
   const appUrl =
     process.env.NODE_ENV === "production"
@@ -73,7 +74,9 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     email: user.email,
     name: user.name,
     txRef,
-    redirectUrl: `${appUrl}/dashboard?payment=success&provider=flutterwave&amount=${planAmount}&currency=${currency}`,
+    redirectUrl: `${appUrl}/dashboard?payment=success&provider=flutterwave&amount=${planAmount}&currency=${currency}&tx_ref=${encodeURIComponent(
+      txRef
+    )}`,
     metadata: {
       userId: session.user.id,
       plan: plan === "pro" ? "GROWTH" : "STARTER",

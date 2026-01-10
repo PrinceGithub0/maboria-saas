@@ -1,6 +1,16 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronDown, Menu } from "lucide-react";
+import {
+  BarChart3,
+  Bell,
+  CheckCircle2,
+  ChevronDown,
+  Gauge,
+  Lock,
+  Menu,
+  MessageSquare,
+  Sparkles,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,14 +19,14 @@ import { MarketingCta } from "@/components/ui/marketing-cta";
 import { marketingCountries } from "@/lib/payments/currency-allowlist";
 
 const planMeta: Record<string, { desc: string; cta: string; href: string; featured?: boolean }> = {
-  STARTER: { desc: "For founders and solo operators", cta: "Subscribe", href: "/dashboard/subscription?plan=starter" },
+  STARTER: { desc: "Simple invoicing + basic reminders", cta: "Subscribe", href: "/dashboard/subscription?plan=starter" },
   GROWTH: {
-    desc: "For teams running automation daily",
+    desc: "AI suggestions, WhatsApp nudges, advanced automations",
     cta: "Subscribe",
     href: "/dashboard/subscription?plan=pro",
     featured: true,
   },
-  ENTERPRISE: { desc: "For advanced controls and support", cta: "Contact sales", href: "/contact" },
+  ENTERPRISE: { desc: "Full automation control, team access, deeper governance", cta: "Contact sales", href: "/contact" },
 };
 
 const plans = pricingTableDualCurrency().map((p) => ({ ...p, ...planMeta[p.plan] }));
@@ -26,6 +36,96 @@ const paystackMethods = [
   { label: "Cards", icon: "/payment-method-icons/card.svg" },
   { label: "Bank transfer", icon: "/payment-method-icons/bank-transfer.svg" },
   { label: "Local methods", icon: "/payment-method-icons/wallet.svg" },
+];
+const highlights = [
+  {
+    title: "Get paid faster",
+    description: "Automatic reminders before and after due dates keep cashflow moving.",
+    icon: Sparkles,
+  },
+  {
+    title: "Send receipts instantly",
+    description: "Customers receive invoices and receipts without manual follow-up.",
+    icon: CheckCircle2,
+  },
+  {
+    title: "Stay on top of collections",
+    description: "Track paid and unpaid invoices in a clear, shared view.",
+    icon: BarChart3,
+  },
+];
+const whyMaboria = [
+  {
+    title: "Built for African operations",
+    description: "Run local and multi-currency billing with Paystack and Flutterwave.",
+    icon: Gauge,
+  },
+  {
+    title: "Team visibility",
+    description: "Keep activity history and approvals visible as your team scales.",
+    icon: BarChart3,
+  },
+  {
+    title: "Privacy-first by default",
+    description: "Your business records stay private and under your control.",
+    icon: Lock,
+  },
+];
+const playbooks = [
+  {
+    title: "Invoice reminders",
+    description: "Automatically remind customers before due dates.",
+    icon: Bell,
+  },
+  {
+    title: "Payment receipts",
+    description: "Send receipts instantly after payment is confirmed.",
+    icon: CheckCircle2,
+  },
+  {
+    title: "Follow-up nudges",
+    description: "Get paid faster with WhatsApp and email nudges.",
+    icon: MessageSquare,
+  },
+  {
+    title: "Weekly summaries",
+    description: "See what was paid and what needs a follow-up.",
+    icon: BarChart3,
+  },
+];
+const howItWorks = [
+  {
+    step: "01",
+    title: "Create invoice",
+    description: "Generate an invoice with your business details in minutes.",
+  },
+  {
+    step: "02",
+    title: "Customer pays",
+    description: "Share the invoice and accept payments via Paystack or Flutterwave.",
+  },
+  {
+    step: "03",
+    title: "Automatic follow-up",
+    description: "Maboria sends reminders and receipts without manual chasing.",
+  },
+];
+const securityItems = [
+  {
+    title: "Audit-ready activity logs",
+    description: "Track key activity across billing, invoices, and automations.",
+    icon: BarChart3,
+  },
+  {
+    title: "Role-based access control",
+    description: "Keep sensitive operations restricted to the right people.",
+    icon: Lock,
+  },
+  {
+    title: "Operational monitoring",
+    description: "System visibility across usage, limits, and payment events.",
+    icon: CheckCircle2,
+  },
 ];
 
 function formatMoney(amount: number, currency: "NGN" | "USD") {
@@ -40,7 +140,11 @@ function formatMoney(amount: number, currency: "NGN" | "USD") {
 export default function LandingPage() {
   const logoSrc = "/branding/Maboria%20Company%20logo.png";
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-muted to-background text-foreground max-md:overflow-x-hidden">
+    <div className="relative min-h-screen bg-gradient-to-br from-background via-muted to-background text-foreground max-md:overflow-x-hidden">
+      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute -left-24 top-24 h-56 w-56 rounded-full bg-indigo-500/10 blur-[90px]" />
+        <div className="absolute right-0 top-0 h-72 w-72 rounded-full bg-slate-500/10 blur-[110px]" />
+      </div>
       <div className="fixed inset-x-0 top-0 z-50 border-b border-border bg-background/90 px-4 py-3 backdrop-blur md:hidden">
         <div className="flex w-full max-w-none items-center justify-between">
           <div className="flex items-center gap-3">
@@ -92,25 +196,44 @@ export default function LandingPage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-6 pb-12 pt-20 md:pb-16 md:pt-0 max-md:mx-0 max-md:w-full max-md:max-w-none max-md:px-4 max-md:pt-16 max-md:pb-24">
-        <section className="grid gap-8 md:gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center max-md:gap-5">
+        <section className="grid gap-8 md:gap-10 lg:grid-cols-[1.12fr_0.88fr] lg:items-center max-md:gap-5">
           <div className="space-y-6 text-left max-md:space-y-5 max-md:text-center">
-            <Badge variant="success" className="max-md:mx-auto max-md:w-fit font-semibold text-slate-900 dark:text-emerald-200">
-              {"Global payments \u2022 AI automation"}
+            <Badge
+              variant="success"
+              className="max-md:mx-auto max-md:w-fit border border-emerald-400/60 bg-emerald-100 text-xs font-semibold text-emerald-900 dark:bg-emerald-500/10 dark:text-emerald-200"
+            >
+              {"Get paid faster \u2022 Automatic follow-ups"}
             </Badge>
-            <h1 className="text-3xl font-semibold leading-tight text-foreground sm:text-4xl md:text-5xl max-md:text-2xl max-[480px]:text-[22px]">
-              Automate revenue operations with AI-native workflows.
+            <h1 className="text-3xl font-semibold leading-[1.1] tracking-tight text-foreground sm:text-4xl md:text-6xl max-md:text-3xl max-[480px]:text-[24px]">
+              Automate invoicing, follow-ups, and receipts to get paid on time.
             </h1>
             <p className="text-lg text-slate-900 dark:text-slate-300 max-md:text-base max-[480px]:text-sm">
-              Maboria unifies automations, billing, invoicing, and AI insights. Build flows in seconds, accept local and
-              international payments, and keep admins in control with a full audit stack.
+              Maboria helps you send invoices, collect payments, and follow up automatically across email and WhatsApp.
+              Keep customers informed and cashflow predictable from one dashboard.
             </p>
             <MarketingCta variant="hero" />
-            <div className="flex flex-wrap gap-4 text-sm text-slate-900 dark:text-slate-300 max-md:grid max-md:gap-2">
-              <div className="rounded-xl border border-border bg-card/60 px-4 py-3">
-                Dual payments: Flutterwave + Paystack
+          <div className="flex flex-wrap gap-4 text-sm text-slate-900 dark:text-slate-300 max-md:grid max-md:gap-2">
+              <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card/70 px-4 py-3 shadow-sm">
+                <span className="text-sm text-slate-900 dark:text-slate-300">Payments:</span>
+                <div className="flex items-center gap-3">
+                  <Image
+                    src="/payment-logos/paystack.svg"
+                    alt="Paystack"
+                    width={96}
+                    height={28}
+                    className="payment-logo-color h-6 w-auto"
+                  />
+                  <Image
+                    src="/payment-logos/flutterwave.png"
+                    alt="Flutterwave"
+                    width={144}
+                    height={40}
+                    className="payment-logo-color h-9 w-auto"
+                  />
+                </div>
               </div>
-              <div className="rounded-xl border border-border bg-card/60 px-4 py-3">
-                AI automations with diagnosis & insights
+              <div className="rounded-xl border border-border bg-card/70 px-4 py-3 shadow-sm">
+                Automatic reminders and receipts
               </div>
             </div>
           </div>
@@ -118,21 +241,21 @@ export default function LandingPage() {
             <div className="glass rounded-2xl border border-indigo-500/30 p-4 shadow-2xl max-md:border-border max-md:bg-card/70 max-md:shadow-none">
               <div className="rounded-xl bg-card/80 p-4 max-md:bg-transparent max-md:p-0">
                 <div className="flex items-center justify-between text-xs text-slate-900 dark:text-slate-300">
-                  <span>Automation Builder</span>
-                  <span>Live</span>
+                  <span>Invoice follow-ups</span>
+                  <span>Auto</span>
                 </div>
                 <div className="mt-3 space-y-2">
                   <div className="rounded-lg border border-border bg-muted/60 p-3">
-                    <p className="text-sm text-foreground">Trigger: Invoice overdue</p>
-                    <p className="text-xs text-slate-900 dark:text-slate-300">Wait 3 days, send reminder, log payment status</p>
+                    <p className="text-sm text-foreground">Before due date reminder</p>
+                    <p className="text-xs text-slate-900 dark:text-slate-300">Nudge customers 3 days before a payment is due.</p>
                   </div>
                   <div className="rounded-lg border border-border bg-muted/60 p-3">
-                    <p className="text-sm text-foreground">AI: Suggest improvements</p>
-                    <p className="text-xs text-slate-900 dark:text-slate-300">&quot;Add WhatsApp nudge and retry twice&quot;</p>
+                    <p className="text-sm text-foreground">Receipt after payment</p>
+                    <p className="text-xs text-slate-900 dark:text-slate-300">Send a thank-you + receipt instantly.</p>
                   </div>
                   <div className="rounded-lg border border-border bg-muted/60 p-3">
-                    <p className="text-sm text-foreground">Billing</p>
-                    <p className="text-xs text-slate-900 dark:text-slate-300">Flutterwave + Paystack in sync - PDF invoices</p>
+                    <p className="text-sm text-foreground">Overdue follow-up</p>
+                    <p className="text-xs text-slate-900 dark:text-slate-300">Escalate with WhatsApp and email nudges.</p>
                   </div>
                 </div>
               </div>
@@ -150,7 +273,64 @@ export default function LandingPage() {
         </section>
 
         <section className="mt-10 space-y-6 md:mt-12">
-          <div className="space-y-2">
+          <div className="grid gap-3 md:grid-cols-3 md:gap-4">
+            {highlights.map((item) => (
+              <Card
+                key={item.title}
+                className="group flex items-start gap-3 border border-border bg-card/80 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-muted/70 text-indigo-700 dark:text-indigo-200">
+                  <item.icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                  <p className="mt-1 text-xs text-slate-900 dark:text-slate-300">{item.description}</p>
+                </div>
+              </Card>
+            ))}
+          </div>
+          <div className="mt-6 space-y-4">
+            <div className="flex flex-col gap-2">
+              <p className="text-xs uppercase tracking-[0.25em] text-indigo-800 dark:text-indigo-300">
+                Prebuilt automations
+              </p>
+              <h2 className="text-2xl font-semibold text-foreground max-md:text-xl">
+                Prebuilt automations included
+              </h2>
+              <p className="text-sm text-slate-900 dark:text-slate-300">
+                Start with ready-made reminders and receipts, then tailor them as you grow.
+              </p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              {playbooks.map((item) => (
+                <Card key={item.title} className="border border-border bg-card/80 p-4 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-muted/70 text-indigo-700 dark:text-indigo-200">
+                      <item.icon className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                      <p className="mt-1 text-xs text-slate-900 dark:text-slate-300">{item.description}</p>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs text-slate-900 dark:text-slate-300">
+              {["Email notifications", "WhatsApp automation", "Payment updates", "Team activity logs"].map((item) => (
+                <div
+                  key={item}
+                  className="rounded-full border border-border bg-card/70 px-4 py-2 font-medium"
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-slate-900 dark:text-slate-300">
+              Advanced automation is available on Pro & Enterprise plans.
+            </p>
+          </div>
+          <div className="mt-10 space-y-2">
             <p className="text-xs uppercase tracking-[0.25em] text-indigo-800 dark:text-indigo-300">
               Payment coverage
             </p>
@@ -345,6 +525,101 @@ export default function LandingPage() {
         </section>
 
         <section className="mt-12 space-y-6 md:mt-16">
+          <div className="flex flex-col gap-2">
+            <p className="text-xs uppercase tracking-[0.25em] text-indigo-800 dark:text-indigo-300">
+              Why Maboria
+            </p>
+            <h2 className="text-2xl font-semibold text-foreground max-md:text-xl">
+              Built for teams that care about reliability
+            </h2>
+            <p className="text-sm text-slate-900 dark:text-slate-300 max-md:text-xs">
+              Everything you need to automate revenue operations while staying in control.
+            </p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {whyMaboria.map((item) => (
+              <Card key={item.title} className="border border-border bg-card/80 p-5 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-muted/70 text-indigo-700 dark:text-indigo-200">
+                    <item.icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                    <p className="mt-1 text-xs text-slate-900 dark:text-slate-300">{item.description}</p>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-12 space-y-6 md:mt-16">
+          <div className="flex flex-col gap-2">
+            <p className="text-xs uppercase tracking-[0.25em] text-indigo-800 dark:text-indigo-300">
+              How it works
+            </p>
+            <h2 className="text-2xl font-semibold text-foreground max-md:text-xl">
+              From signup to payment in minutes
+            </h2>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {howItWorks.map((item) => (
+              <Card key={item.step} className="border border-border bg-card/80 p-5 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-muted/70 text-sm font-semibold text-indigo-700 dark:text-indigo-200">
+                    {item.step}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                    <p className="mt-1 text-xs text-slate-900 dark:text-slate-300">{item.description}</p>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-3 text-sm text-slate-900 dark:text-slate-300">
+            {["No credit card required for trial", "7-day trial access", "Cancel anytime"].map((item) => (
+              <div
+                key={item}
+                className="flex items-center gap-2 rounded-full border border-border bg-card/70 px-4 py-2 text-xs font-medium"
+              >
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+                {item}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-12 space-y-6 md:mt-16">
+          <div className="flex flex-col gap-2">
+            <p className="text-xs uppercase tracking-[0.25em] text-indigo-800 dark:text-indigo-300">
+              Security & reliability
+            </p>
+            <h2 className="text-2xl font-semibold text-foreground max-md:text-xl">
+              Built for trust from day one
+            </h2>
+            <p className="text-sm text-slate-900 dark:text-slate-300">
+              Keep teams accountable while protecting revenue operations.
+            </p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {securityItems.map((item) => (
+              <Card key={item.title} className="border border-border bg-card/80 p-5 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-muted/70 text-indigo-700 dark:text-indigo-200">
+                    <item.icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                    <p className="mt-1 text-xs text-slate-900 dark:text-slate-300">{item.description}</p>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-12 space-y-6 md:mt-16">
           <h2 className="text-2xl font-semibold text-foreground max-md:text-xl">Pricing</h2>
 
           <div className="grid gap-4 md:grid-cols-3 max-md:gap-3">
@@ -352,7 +627,7 @@ export default function LandingPage() {
               <Card
                 key={plan.plan}
                 title={plan.label}
-                className={`relative h-full p-5 md:p-6 max-md:p-4 ${plan.featured ? "border-indigo-500/60 shadow-lg shadow-indigo-500/20" : ""}`}
+                className={`relative h-full p-5 md:p-6 max-md:p-4 ${plan.featured ? "border-indigo-500/60 shadow-lg shadow-indigo-500/20" : "shadow-sm"}`}
               >
                 {plan.featured && (
                   <div className="absolute right-4 top-4">
@@ -391,12 +666,12 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="mt-12 rounded-2xl border border-border bg-card/60 p-6 md:mt-16 md:p-8 max-md:p-4">
+        <section className="mt-12 rounded-2xl border border-border bg-card/70 p-6 md:mt-16 md:p-8 max-md:p-4 shadow-sm">
           <div className="grid gap-5 md:gap-6 lg:grid-cols-2">
             <div>
               <h3 className="text-xl font-semibold text-foreground">Loved by operators</h3>
               <p className="text-sm text-slate-900 dark:text-slate-300 max-md:text-xs">
-                Maboria replaced 4 tools. Billing, automations, AI insights, and admin observability just work.
+                Maboria replaced 4 tools. Billing, automations, AI insights, and admin visibility just work.
               </p>
             </div>
             <div className="space-y-3">

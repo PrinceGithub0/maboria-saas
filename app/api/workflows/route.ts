@@ -19,8 +19,8 @@ export const GET = withErrorHandling(async () => {
 
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "workflows",
-    requiredPlan: "starter",
-    allowTrial: true,
+    requiredPlan: "enterprise",
+    allowTrial: false,
   });
   if (!entitlement.ok) {
     return NextResponse.json(
@@ -48,8 +48,8 @@ export const POST = withErrorHandling(async (req: Request) => {
 
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "workflows",
-    requiredPlan: "starter",
-    allowTrial: true,
+    requiredPlan: "enterprise",
+    allowTrial: false,
   });
   if (!entitlement.ok) {
     return NextResponse.json(

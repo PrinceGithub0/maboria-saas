@@ -9,7 +9,7 @@ import { Alert } from "@/components/ui/alert";
 
 export default function DashboardSupportPage() {
   const [form, setForm] = useState({ subject: "", message: "" });
-  const [status, setStatus] = useState<string | null>(null);
+  const [status, setStatus] = useState<{ message: string; variant: "info" | "success" | "warning" | "error" } | null>(null);
   const [sending, setSending] = useState(false);
   const [errors, setErrors] = useState<{ subject?: string; message?: string }>({});
 
@@ -23,7 +23,7 @@ export default function DashboardSupportPage() {
     if (message.length < 10) nextErrors.message = "Message must be at least 10 characters.";
     if (Object.keys(nextErrors).length) {
       setErrors(nextErrors);
-      setStatus("Please fix the highlighted fields.");
+      setStatus({ message: "Please fix the highlighted fields.", variant: "warning" });
       return;
     }
     setErrors({});
@@ -36,20 +36,26 @@ export default function DashboardSupportPage() {
       });
       const data = await res.json();
       if (res.status === 401) {
-        setStatus("Please sign in to submit a support ticket.");
+        setStatus({ message: "Please sign in to submit a support ticket.", variant: "error" });
       } else if (!res.ok) {
-        setStatus(data.error || `Could not submit ticket (status ${res.status}).`);
+        setStatus({ message: data.error || `Could not submit ticket (status ${res.status}).`, variant: "error" });
       } else {
         if (data.emailError) {
-          setStatus(`Ticket submitted, but email could not be sent: ${data.emailError}`);
+          setStatus({
+            message: `Ticket submitted, but email could not be sent: ${data.emailError}`,
+            variant: "error",
+          });
         } else {
-          setStatus("Ticket submitted. We'll respond to your email.");
+          setStatus({ message: "Ticket submitted. We'll respond to your email.", variant: "success" });
         }
         setForm({ subject: "", message: "" });
         setErrors({});
       }
     } catch (err: any) {
-      setStatus(`Could not submit ticket. ${err?.message || "Please try again."}`);
+      setStatus({
+        message: `Could not submit ticket. ${err?.message || "Please try again."}`,
+        variant: "error",
+      });
     } finally {
       setSending(false);
     }
@@ -64,7 +70,11 @@ export default function DashboardSupportPage() {
           <p className="text-sm text-muted-foreground">Send a ticket directly from your dashboard.</p>
         </div>
 
-        {status && <div className="mt-4"><Alert variant="info">{status}</Alert></div>}
+        {status && (
+          <div className="mt-4">
+            <Alert variant={status.variant}>{status.message}</Alert>
+          </div>
+        )}
       </div>
 
       <Card title="Submit a ticket">

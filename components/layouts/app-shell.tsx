@@ -72,7 +72,7 @@ export function AppShell({
           <Navbar />
           <main className="flex-1 overflow-y-auto px-6 py-6 max-md:px-4 max-md:pt-4 max-md:pb-28 max-md:space-y-6 max-md:overflow-x-hidden">
             {isMarketingHome && billingLocked && isCanceledOnly ? (
-              <div className="mb-6 rounded-2xl border border-amber-500 bg-amber-200 px-5 py-4 text-sm text-amber-950 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-100">
+              <div className="mb-6 rounded-2xl border border-amber-400 bg-amber-100 px-5 py-4 text-sm text-slate-900 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-100">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
                     <p className="text-xs uppercase tracking-[0.2em] text-slate-900 dark:text-amber-200">
@@ -115,7 +115,7 @@ export function AppShell({
                       Dashboard is locked until you resubscribe
                     </h1>
                     <p className="mt-2 text-sm text-muted-foreground">
-                      Your subscription is canceled or your trial has ended. You can view the dashboard, but actions are disabled
+                      Your subscription is cancelled or your trial has ended. You can view the dashboard, but actions are disabled
                       until you choose a new plan.
                     </p>
                     <div className="mt-4 flex flex-wrap justify-center gap-3">

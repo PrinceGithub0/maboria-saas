@@ -8,7 +8,7 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 function StatusItem({ label, status }: { label: string; status: "green" | "yellow" | "red" }) {
   const color =
-    status === "green" ? "text-emerald-600" : status === "yellow" ? "text-amber-600" : "text-rose-600";
+    status === "green" ? "text-emerald-700" : status === "yellow" ? "text-amber-800" : "text-rose-700";
   return (
     <div className="flex items-center gap-2 text-sm text-foreground">
       <Circle className={`h-3 w-3 ${color}`} />
