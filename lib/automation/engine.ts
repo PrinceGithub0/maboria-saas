@@ -35,20 +35,30 @@ export async function executeAutomationRun(
     const context: Context = { input };
 
     for (const step of steps) {
-      const { type, config } = step;
-      log("info", "Running step", { type, flowId: flow.id });
-      switch (type) {
+      const stepType = typeof step === "string" ? step : step?.type;
+      const config =
+        step && typeof step === "object" && !Array.isArray(step) ? (step as any).config || {} : {};
+      if (!stepType) {
+        logs.push({ step: "unknown", error: "Invalid step configuration" });
+        continue;
+      }
+      log("info", "Running step", { type: stepType, flowId: flow.id });
+      switch (stepType) {
         case "parseText": {
           const text: string = input.text || "";
           context.parsed = { length: text.length, preview: text.slice(0, 120) };
-          logs.push({ step: type, result: context.parsed });
+          logs.push({ step: stepType, result: context.parsed });
           break;
         }
         case "condition": {
           const field = config.field;
           const equals = config.equals;
+          if (!field) {
+            logs.push({ step: stepType, skipped: true, reason: "Missing condition field" });
+            break;
+          }
           if (context[field] !== equals) {
-            logs.push({ step: type, skipped: true });
+            logs.push({ step: stepType, skipped: true });
             continue;
           }
           break;
@@ -57,10 +67,14 @@ export async function executeAutomationRun(
           const text: string = input.text || "";
           const email = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
           context.extracted = { email };
-          logs.push({ step: type, result: context.extracted });
+          logs.push({ step: stepType, result: context.extracted });
           break;
         }
         case "callApi": {
+          if (!config.url) {
+            logs.push({ step: stepType, skipped: true, reason: "Missing API url" });
+            break;
+          }
           const response = await fetch(config.url, {
             method: config.method || "GET",
             headers: config.headers,
@@ -68,28 +82,34 @@ export async function executeAutomationRun(
           });
           const data = await response.json();
           context.api = data;
-          logs.push({ step: type, result: data });
+          logs.push({ step: stepType, result: data });
           break;
         }
         case "databaseWrite": {
           await prisma.activityLog.create({
             data: { action: config.action || "DB_WRITE", metadata: config.payload },
           });
-          logs.push({ step: type, result: "written" });
+          logs.push({ step: stepType, result: "written" });
           break;
         }
         case "webhook": {
+          if (!config.url) {
+            logs.push({ step: stepType, skipped: true, reason: "Missing webhook url" });
+            break;
+          }
           await fetch(config.url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(context),
           });
-          logs.push({ step: type, result: "webhook-sent" });
+          logs.push({ step: stepType, result: "webhook-sent" });
           break;
         }
         case "generateInvoice": {
           const invoiceNumber = `INV-${Date.now()}`;
-          const items = config.items || [{ name: "Automation Service", quantity: 1, price: 10000 }];
+          const items = Array.isArray(config.items)
+            ? config.items
+            : [{ name: "Automation Service", quantity: 1, price: 10000 }];
           const invoice = await createInvoiceRecord({
             userId: flow.userId,
             invoiceNumber,
@@ -100,17 +120,21 @@ export async function executeAutomationRun(
             discount: config.discount ?? 0,
           });
           context.invoice = invoice;
-          logs.push({ step: type, result: { invoiceNumber } });
+          logs.push({ step: stepType, result: { invoiceNumber } });
           break;
         }
         case "sendEmail": {
           const to = context.extracted?.email || config.to;
+          if (!to) {
+            logs.push({ step: stepType, skipped: true, reason: "Missing recipient email" });
+            break;
+          }
           await sendEmail({
             to,
             subject: config.subject || "Automation Update",
             html: config.html || `<p>Automation ${flow.title} completed.</p>`,
           });
-          logs.push({ step: type, result: { to } });
+          logs.push({ step: stepType, result: { to } });
           break;
         }
         case "generateReport": {
@@ -122,7 +146,7 @@ export async function executeAutomationRun(
             metrics: { totalInvoices: 1, totalValue: totals.total },
           };
           context.report = report;
-          logs.push({ step: type, result: report });
+          logs.push({ step: stepType, result: report });
           break;
         }
         case "aiTransform": {
@@ -134,10 +158,14 @@ export async function executeAutomationRun(
           });
           const aiResult = completion.output_text;
           context.ai = aiResult;
-          logs.push({ step: type, result: aiResult });
+          logs.push({ step: stepType, result: aiResult });
           break;
         }
         case "sendWhatsApp": {
+          if (!config.to || !config.text) {
+            logs.push({ step: stepType, skipped: true, reason: "Missing WhatsApp message details" });
+            break;
+          }
           if (!businessProfile) {
             businessProfile = await prisma.businessProfile.findUnique({
               where: { userId: flow.userId },
@@ -166,21 +194,21 @@ export async function executeAutomationRun(
         }
         case "meterUsage": {
           await meterUsage(flow.userId, config.category || "automation", config.amount || 1, "monthly");
-          logs.push({ step: type, result: "usage-metered" });
+          logs.push({ step: stepType, result: "usage-metered" });
           break;
         }
         case "recoverPayment": {
           await recoverFailedPayment(flow.userId);
-          logs.push({ step: type, result: "recovery-triggered" });
+          logs.push({ step: stepType, result: "recovery-triggered" });
           break;
         }
         case "autoInvoice": {
           const invoice = await autoInvoiceFromUsage(flow.userId, normalizeCurrency(config.currency || "USD"));
-          logs.push({ step: type, result: invoice?.invoiceNumber });
+          logs.push({ step: stepType, result: invoice?.invoiceNumber });
           break;
         }
         default:
-          logs.push({ step: type, error: "Unknown step" });
+          logs.push({ step: stepType, error: "Unknown step" });
       }
     }
 

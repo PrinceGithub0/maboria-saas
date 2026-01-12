@@ -45,6 +45,21 @@ function isRetryableSmtpError(err: unknown) {
   );
 }
 
+function normalizeEmailError(err: unknown) {
+  const message = String((err as Error | undefined)?.message || "");
+  const lower = message.toLowerCase();
+  if (lower.includes("self-signed certificate") || lower.includes("certificate")) {
+    return "Email server certificate error. Please verify SMTP security settings.";
+  }
+  if (lower.includes("spam") || lower.includes("5.7.1") || lower.includes("jfe")) {
+    return "Email rejected by the mail server. Please verify sender identity and try again.";
+  }
+  if (lower.includes("econnreset") || lower.includes("etimedout") || lower.includes("econnrefused")) {
+    return "Email server connection failed. Please try again.";
+  }
+  return "Email delivery failed. Please try again.";
+}
+
 export async function sendEmail({
   to,
   subject,
@@ -91,7 +106,9 @@ export async function sendEmail({
     }
   }
 
-  throw lastError;
+  const safeError = new Error(normalizeEmailError(lastError));
+  (safeError as any).status = 502;
+  throw safeError;
 }
 
 export async function sendTemplateEmail(to: string, subject: string, html: string) {

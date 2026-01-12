@@ -10,6 +10,7 @@
 
   --card: #ffffff;
   --card-foreground: #0f172a;
+  --coverage-card-bg: #ffffff;
 
   --muted: #f1f5f9;
   --muted-foreground: #111827;
@@ -30,6 +31,7 @@
 
   --card: #111827;
   --card-foreground: #e2e8f0;
+  --coverage-card-bg: var(--card);
 
   --muted: #0f172a;
   --muted-foreground: #cbd5f5;
@@ -74,6 +76,18 @@ html:not(.dark) .bg-card {
 
 html:not(.dark) .text-muted-foreground {
   color: var(--muted-foreground) !important;
+}
+
+.coverage-card {
+  background-color: #ffffff !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+  color: var(--foreground) !important;
+}
+
+.dark .coverage-card {
+  background-color: var(--card) !important;
+  color: var(--card-foreground) !important;
 }
 
 html:not(.dark) .text-slate-100,
@@ -147,10 +161,28 @@ html:not(.dark) .text-rose-700 {
   font-weight: 600 !important;
 }
 
-html:not(.dark) .payment-logo,
+html:not(.dark) .payment-logo {
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+html:not(.dark) .payment-logo-boost {
+  filter: brightness(1.15) contrast(1.2) saturate(1.1) !important;
+}
+
 html:not(.dark) .payment-method-icon {
   opacity: 1 !important;
-  filter: brightness(0.15) !important;
+  filter: none !important;
+}
+
+html:not(.dark) .payment-card-logo {
+  mix-blend-mode: normal;
+  filter: none;
+}
+
+html:not(.dark) .payment-icon-blend {
+  mix-blend-mode: multiply;
+  filter: contrast(1.1) saturate(1.05);
 }
 
 html:not(.dark) .payment-logo-color,
@@ -262,4 +294,12 @@ html:not(.dark) .assistant-header .assistant-control.bg-indigo-700 {
   background-color: #4f46e5 !important;
   color: #ffffff !important;
   border-color: #4f46e5 !important;
+}
+
+html:not(.dark) .automation-throughput-card {
+  background: #ffffff !important;
+}
+
+html.dark .automation-throughput-card {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), #0b1222 55%, #0b1222 100%) !important;
 }

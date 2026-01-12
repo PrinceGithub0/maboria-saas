@@ -12,7 +12,7 @@ import { Modal } from "@/components/ui/modal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrencyWithCode } from "@/lib/currency";
 import { parseDateInput } from "@/lib/date";
-import { allowedCurrencies } from "@/lib/payments/currency-allowlist";
+import { allowedCurrencies, formatCurrencyOption } from "@/lib/payments/currency-allowlist";
 import { useSession } from "next-auth/react";
 import { getTaxIdLabel } from "@/lib/tax-labels";
 
@@ -216,7 +216,7 @@ export default function InvoicesPage() {
     }
   };
 
-  const currencyOptions = allowedCurrencies.map((code) => ({ code, label: code }));
+  const currencyOptions = allowedCurrencies.map((code) => ({ code, label: formatCurrencyOption(code) }));
   const businessCurrencyOptions = allowedCurrencies.map((code) => ({ code, label: code }));
   const businessCountryOptions = [
     { code: "NG", label: "Nigeria (NG)" },

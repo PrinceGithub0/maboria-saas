@@ -8,6 +8,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ensureUserPublicId } from "@/lib/public-id";
 import { PaystackNotice } from "@/components/ui/paystack-notice";
+import { RestartTourButton } from "@/components/ui/tour";
 import { formatCurrency } from "@/lib/currency";
 import { PaymentSuccessToast } from "@/components/ui/payment-success-toast";
 import { format } from "date-fns";
@@ -103,6 +104,8 @@ export default async function DashboardPage({
   const revenueRows = paymentsByCurrency || [];
   const successRuns = runs.find((r) => r.runStatus === "SUCCESS")?._count._all || 0;
   const failedRuns = runs.find((r) => r.runStatus === "FAILED")?._count._all || 0;
+  const totalRuns = successRuns + failedRuns;
+  const successRate = totalRuns ? Math.round((successRuns / totalRuns) * 100) : 0;
   const publicId = userId ? user?.publicId || (await ensureUserPublicId(userId)) : null;
   const systemStatus = [
     { label: "API", status: "ok" },
@@ -224,9 +227,10 @@ export default async function DashboardPage({
             </Badge>
             <Link href="/dashboard/onboarding">
               <Button variant="secondary" size="sm">
-                Product tour
+                Set up workspace
               </Button>
             </Link>
+            <RestartTourButton />
           </div>
         </div>
 
@@ -429,28 +433,10 @@ export default async function DashboardPage({
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4 max-md:gap-5">
-        <Card title="Total revenue">
-          {revenueRows.length ? (
-            <div className="space-y-1">
-              {revenueRows.map((row) => (
-                <p key={row.currency} className="text-2xl font-semibold text-foreground">
-                  {formatCurrency(Number(row._sum.amount || 0), row.currency)}
-                </p>
-              ))}
-            </div>
-          ) : (
-            <p className="text-2xl font-semibold text-foreground">--</p>
-          )}
-          <p className="text-xs text-muted-foreground">Flutterwave + Paystack</p>
-        </Card>
+      <div className="grid gap-4 md:grid-cols-2 max-md:gap-5">
         <Card title="Invoices">
           <p className="text-3xl font-semibold text-foreground">{invoices}</p>
           <p className="text-xs text-muted-foreground">Generated across all currencies</p>
-        </Card>
-        <Card title="Automations">
-          <p className="text-3xl font-semibold text-foreground">{automations}</p>
-          <p className="text-xs text-muted-foreground">Active and draft flows</p>
         </Card>
         <Card title="Run health">
           <p className="text-3xl font-semibold text-foreground">
@@ -461,18 +447,51 @@ export default async function DashboardPage({
         </Card>
       </div>
 
-      <Card title="Automation throughput">
-        <MiniAreaChart
-          data={[
-            { name: "Mon", value: 40 },
-            { name: "Tue", value: 56 },
-            { name: "Wed", value: 62 },
-            { name: "Thu", value: 58 },
-            { name: "Fri", value: 80 },
-            { name: "Sat", value: 76 },
-            { name: "Sun", value: 90 },
-          ]}
-        />
+      <Card
+        title="Automation throughput"
+        actions={
+          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-muted-foreground">
+            <span className="rounded-full border border-border/60 bg-muted/60 px-2 py-1">
+              {successRate}% success
+            </span>
+            <span className="rounded-full border border-border/60 bg-muted/60 px-2 py-1">
+              {totalRuns} runs
+            </span>
+          </div>
+        }
+      >
+        <div className="automation-throughput-card rounded-2xl border border-slate-200 p-4 shadow-[0_18px_32px_rgba(15,23,42,0.08)] dark:border-border/70">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-indigo-700 dark:text-indigo-300">
+                Last 7 days
+              </p>
+              <p className="text-lg font-semibold text-foreground">Automation activity</p>
+            </div>
+          </div>
+          <div className="mb-3 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              {successRuns} successful runs
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-rose-500" />
+              {failedRuns} failed runs
+            </span>
+          </div>
+          <MiniAreaChart
+            className="[--chart-primary:#2563eb] dark:[--chart-primary:#6366f1]"
+            data={[
+              { name: "Mon", value: 40 },
+              { name: "Tue", value: 56 },
+              { name: "Wed", value: 62 },
+              { name: "Thu", value: 58 },
+              { name: "Fri", value: 80 },
+              { name: "Sat", value: 76 },
+              { name: "Sun", value: 90 },
+            ]}
+          />
+        </div>
       </Card>
 
       <Card title="System status">

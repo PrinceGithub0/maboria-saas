@@ -42,29 +42,57 @@ export default function PaymentsPage() {
     "South Africa": "ZAR",
     "Cote d'Ivoire": "XOF",
   };
+  const countryFlags: Record<string, string> = {
+    Nigeria: "\u{1F1F3}\u{1F1EC}",
+    Ghana: "\u{1F1EC}\u{1F1ED}",
+    Kenya: "\u{1F1F0}\u{1F1EA}",
+    "South Africa": "\u{1F1FF}\u{1F1E6}",
+    "Cote d'Ivoire": "\u{1F1E8}\u{1F1EE}",
+    Uganda: "\u{1F1FA}\u{1F1EC}",
+    Tanzania: "\u{1F1F9}\u{1F1FF}",
+    Rwanda: "\u{1F1F7}\u{1F1FC}",
+    Zambia: "\u{1F1FF}\u{1F1F2}",
+    Mozambique: "\u{1F1F2}\u{1F1FF}",
+    Egypt: "\u{1F1EA}\u{1F1EC}",
+    "United States": "\u{1F1FA}\u{1F1F8}",
+    "United Kingdom": "\u{1F1EC}\u{1F1E7}",
+    Europe: "\u{1F1EA}\u{1F1FA}",
+  };
+  const formatCountryLabel = (country: string, currencyCode?: string) => {
+    const flag = countryFlags[country] || "";
+    const base = currencyCode ? `${currencyCode} (${country})` : country;
+    return flag ? `${flag} ${base}` : base;
+  };
   const paystackCountryOptions = paystackCountries.map((country) => ({
     value: country,
     label: paystackCountryLabels[country]
-      ? `${paystackCountryLabels[country]} (${country})`
-      : country,
+      ? formatCountryLabel(country, paystackCountryLabels[country])
+      : formatCountryLabel(country),
   }));
   const flutterwaveCurrencies = [
-    { code: "NGN", label: "NGN (Nigeria)" },
-    { code: "GHS", label: "GHS (Ghana)" },
-    { code: "KES", label: "KES (Kenya)" },
-    { code: "ZAR", label: "ZAR (South Africa)" },
-    { code: "XOF", label: "XOF (Côte d’Ivoire)" },
-    { code: "UGX", label: "UGX (Uganda)" },
-    { code: "TZS", label: "TZS (Tanzania)" },
-    { code: "RWF", label: "RWF (Rwanda)" },
-    { code: "ZMW", label: "ZMW (Zambia)" },
-    { code: "MZN", label: "MZN (Mozambique)" },
-    { code: "EGP", label: "EGP (Egypt)" },
-    { code: "USD", label: "USD (United States)" },
-    { code: "GBP", label: "GBP (United Kingdom)" },
-    { code: "EUR", label: "EUR (Europe)" },
+    { code: "NGN", country: "Nigeria" },
+    { code: "GHS", country: "Ghana" },
+    { code: "KES", country: "Kenya" },
+    { code: "ZAR", country: "South Africa" },
+    { code: "XOF", country: "Cote d'Ivoire" },
+    { code: "UGX", country: "Uganda" },
+    { code: "TZS", country: "Tanzania" },
+    { code: "RWF", country: "Rwanda" },
+    { code: "ZMW", country: "Zambia" },
+    { code: "MZN", country: "Mozambique" },
+    { code: "EGP", country: "Egypt" },
+    { code: "USD", country: "United States" },
+    { code: "GBP", country: "United Kingdom" },
+    { code: "EUR", country: "Europe" },
   ];
-  const availableCurrencies = provider === "paystack" ? [] : flutterwaveCurrencies;
+  const availableCurrencies =
+    provider === "paystack"
+      ? []
+      : flutterwaveCurrencies.map((item) => ({
+          code: item.code,
+          label: formatCountryLabel(item.country, item.code),
+        }));
+
   const paymentRows = Array.isArray(payments) ? payments : [];
 
   const payWithFlutterwave = async () => {

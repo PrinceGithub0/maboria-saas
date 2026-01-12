@@ -178,8 +178,14 @@ export async function aiRouter({
       }
       output = output.replace(/^\"+|\"+$/g, "").trim();
     }
+    const usageTokens =
+      typeof res.usage?.total_tokens === "number"
+        ? res.usage.total_tokens
+        : (res.usage?.input_tokens ?? 0) + (res.usage?.output_tokens ?? 0);
+    const fallbackTokens = Math.max(1, Math.ceil((input.length + output.length) / 4));
+    const resolvedTokens = usageTokens > 0 ? usageTokens : fallbackTokens;
     await prisma.aiUsageLog.create({
-      data: { userId, model: "gpt-4.1-mini", tokens: 0, prompt: input },
+      data: { userId, model: "gpt-4.1-mini", tokens: resolvedTokens, prompt: input },
     });
     await prisma.activityLog.create({
       data: {

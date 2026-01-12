@@ -18,6 +18,9 @@ export const POST = withErrorHandling(async (req: Request) => {
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { flowId, input } = await req.json();
+  if (!flowId || typeof flowId !== "string" || flowId === "undefined" || flowId === "null") {
+    return NextResponse.json({ error: "Invalid automation id" }, { status: 400 });
+  }
   assertRateLimit(`run:${session.user.id}`);
 
   const entitlement = await enforceEntitlement(session.user.id, {

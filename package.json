@@ -16,6 +16,8 @@
     "db:backup": "node scripts/db-backup.js",
     "analyze": "ANALYZE=true next build",
     "check:prelaunch": "npm run lint && npm run build && npm run db:generate",
+    "backfill:ai-tokens": "ts-node scripts/backfill-ai-tokens.ts",
+    "backfill:usage": "ts-node scripts/backfill-usage.ts",
     "dev:plan-cycle": "DEV_PLAN_SIMULATION=true ts-node scripts/dev-plan-cycle.ts",
     "test:security": "node scripts/security-check.js",
     "test:entitlements": "node scripts/entitlement-check.js"

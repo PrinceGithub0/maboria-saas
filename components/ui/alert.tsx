@@ -3,9 +3,11 @@ import clsx from "clsx";
 export function Alert({
   children,
   variant = "info",
+  className,
 }: {
   children: React.ReactNode;
   variant?: "info" | "success" | "warning" | "error";
+  className?: string;
 }) {
   const variants: Record<string, string> = {
     info: "border border-slate-200 bg-slate-50 text-slate-900 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-100",
@@ -19,7 +21,8 @@ export function Alert({
       className={clsx(
         "rounded-xl p-4 text-sm leading-relaxed",
         variants[variant],
-        variant === "error" && "alert-error"
+        variant === "error" && "alert-error",
+        className
       )}
     >
       {children}

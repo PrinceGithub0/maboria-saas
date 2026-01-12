@@ -5,14 +5,16 @@ export function Card({
   children,
   className,
   actions,
+  ...props
 }: {
   title?: string;
   children: React.ReactNode;
   className?: string;
   actions?: React.ReactNode;
-}) {
+} & React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
+      {...props}
       className={clsx(
         "rounded-2xl border border-border bg-card p-6 text-card-foreground max-md:rounded-[32px] max-md:p-4 max-md:shadow-[0_24px_48px_rgba(15,23,42,0.12)] dark:max-md:shadow-[0_28px_60px_rgba(0,0,0,0.45)]",
         className

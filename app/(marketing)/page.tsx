@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { pricingTableDualCurrency } from "@/lib/pricing";
 import { MarketingCta } from "@/components/ui/marketing-cta";
 import { marketingCountries } from "@/lib/payments/currency-allowlist";
+import { PaystackLogo } from "@/components/ui/paystack-logo";
 
 const planMeta: Record<string, { desc: string; cta: string; href: string; featured?: boolean }> = {
   STARTER: { desc: "Simple invoicing + basic reminders", cta: "Subscribe", href: "/dashboard/subscription?plan=starter" },
@@ -32,11 +33,6 @@ const planMeta: Record<string, { desc: string; cta: string; href: string; featur
 const plans = pricingTableDualCurrency().map((p) => ({ ...p, ...planMeta[p.plan] }));
 const paystackCountries = marketingCountries.PAYSTACK;
 const flutterwaveCountries = marketingCountries.FLUTTERWAVE;
-const paystackMethods = [
-  { label: "Cards", icon: "/payment-method-icons/card.svg" },
-  { label: "Bank transfer", icon: "/payment-method-icons/bank-transfer.svg" },
-  { label: "Local methods", icon: "/payment-method-icons/wallet.svg" },
-];
 const highlights = [
   {
     title: "Get paid faster",
@@ -216,13 +212,7 @@ export default function LandingPage() {
               <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card/70 px-4 py-3 shadow-sm">
                 <span className="text-sm text-slate-900 dark:text-slate-300">Payments:</span>
                 <div className="flex items-center gap-3">
-                  <Image
-                    src="/payment-logos/paystack.svg"
-                    alt="Paystack"
-                    width={96}
-                    height={28}
-                    className="payment-logo-color h-6 w-auto"
-                  />
+                  <PaystackLogo className="payment-logo-color h-6 w-auto" />
                   <Image
                     src="/payment-logos/flutterwave.png"
                     alt="Flutterwave"
@@ -349,7 +339,7 @@ export default function LandingPage() {
           {/* Source: Paystack and Flutterwave official coverage docs (client-provided lists). */}
           <div className="mx-auto w-full max-w-7xl max-md:mx-0 max-md:max-w-none">
             <div className="grid gap-3 md:hidden">
-              <details className="group rounded-2xl border border-border/70 bg-background/70 p-3 sm:p-4 [&>summary::-webkit-details-marker]:hidden">
+              <details className="coverage-card group rounded-2xl border border-border/70 bg-white p-3 sm:p-4 [&>summary::-webkit-details-marker]:hidden dark:bg-slate-950/60">
                 <summary className="flex cursor-pointer items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold text-foreground">Paystack coverage</p>
@@ -368,29 +358,80 @@ export default function LandingPage() {
                       ))}
                     </div>
                     <p>Beta programs: Egypt, Rwanda.</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {paystackMethods.map((item) => (
-                        <div
-                          key={item.label}
-                          className="flex items-center gap-2 rounded-xl border border-border/60 bg-background/60 px-2 py-2"
-                        >
+                    <div className="flex flex-wrap items-center justify-center gap-4 text-center">
+                      <div className="flex flex-col items-center">
+                        <div className="flex h-10 items-center justify-center">
                           <Image
-                            src={item.icon}
-                            alt={item.label}
-                            width={22}
-                            height={22}
-                            className="payment-method-icon h-5 w-5"
+                            src="/payment-logos/visa-10.svg"
+                            alt="Visa"
+                            width={52}
+                            height={18}
+                            className="payment-logo h-5 w-auto"
                           />
-                          <span className="text-[11px] font-medium text-slate-900 dark:text-slate-300">{item.label}</span>
                         </div>
-                      ))}
+                        <span className="mt-1 text-[11px] font-medium text-slate-900 dark:text-slate-300">Visa</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <div className="flex h-10 items-center justify-center">
+                          <Image
+                            src="/payment-logos/mastercardnew.png"
+                            alt="Mastercard"
+                            width={78}
+                            height={28}
+                            className="payment-logo payment-logo-boost h-7 w-auto"
+                          />
+                        </div>
+                        <span className="mt-1 text-[11px] font-medium text-slate-900 dark:text-slate-300">
+                          Mastercard
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <div className="flex h-10 items-center justify-center">
+                          <Image
+                            src="/payment-logos/verve.png"
+                            alt="Verve"
+                            width={52}
+                            height={18}
+                            className="payment-logo payment-logo-boost h-5 w-auto"
+                          />
+                        </div>
+                        <span className="mt-1 text-[11px] font-medium text-slate-900 dark:text-slate-300">
+                          Verve
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <div className="flex h-10 items-center justify-center">
+                          <Image
+                            src="/payment-logos/america%20express.svg"
+                            alt="American Express"
+                            width={98}
+                            height={34}
+                            className="payment-logo payment-logo-boost h-8 w-auto"
+                          />
+                        </div>
+                        <span className="mt-1 text-[11px] font-medium text-slate-900 dark:text-slate-300">Amex</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <div className="flex h-10 items-center justify-center">
+                          <Image
+                            src="/payment-logos/bank%20transfer.png"
+                            alt="Bank transfer"
+                            width={80}
+                            height={80}
+                            className="payment-method-icon payment-icon-blend h-14 w-14 object-contain"
+                          />
+                        </div>
+                        <span className="mt-1 text-[11px] font-medium text-slate-900 dark:text-slate-300">
+                          Bank transfer
+                        </span>
+                      </div>
                     </div>
                     <p>USD support available in Nigeria and Kenya.</p>
                   </div>
                 </div>
               </details>
 
-              <details className="group rounded-2xl border border-border/70 bg-background/70 p-3 sm:p-4 [&>summary::-webkit-details-marker]:hidden">
+              <details className="coverage-card group rounded-2xl border border-border/70 bg-white p-3 sm:p-4 [&>summary::-webkit-details-marker]:hidden dark:bg-slate-950/60">
                 <summary className="flex cursor-pointer items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold text-foreground">Flutterwave coverage</p>
@@ -409,27 +450,27 @@ export default function LandingPage() {
                       ))}
                     </div>
                     <p>Accept payments from Customers in the US, UK, and Europe (Germany, France, Spain).</p>
-                    <div className="flex items-center justify-center gap-3">
+                    <div className="flex items-center justify-center gap-6">
                       <Image
-                        src="/payment-logos/visa.svg"
+                        src="/payment-logos/visa-10.svg"
                         alt="Visa"
-                        width={96}
-                        height={28}
-                        className="payment-logo h-6 w-auto"
+                        width={120}
+                        height={32}
+                        className="payment-logo h-7 w-auto"
                       />
                       <Image
-                        src="/payment-logos/mastercard.svg"
+                        src="/payment-logos/mastercardnew.png"
                         alt="Mastercard"
-                        width={140}
-                        height={28}
-                        className="payment-logo h-6 w-auto"
+                        width={320}
+                        height={60}
+                        className="payment-logo payment-logo-boost h-11 w-auto"
                       />
                       <Image
-                        src="/payment-logos/verve.svg"
+                        src="/payment-logos/verve.png"
                         alt="Verve"
-                        width={96}
-                        height={28}
-                        className="payment-logo h-6 w-auto"
+                        width={150}
+                        height={40}
+                        className="payment-logo payment-logo-boost h-8 w-auto"
                       />
                     </div>
                     <p>Supports USD plus local African currencies where available.</p>
@@ -439,11 +480,8 @@ export default function LandingPage() {
             </div>
 
             <div className="hidden gap-6 md:grid md:grid-cols-2 xl:gap-8">
-              <Card
-                title="Paystack coverage"
-                className="relative flex aspect-square flex-col overflow-hidden border border-border/70 bg-gradient-to-br from-background via-muted/40 to-background p-8 ring-1 ring-slate-200/40 shadow-[0_0_24px_rgba(148,163,184,0.12)] dark:ring-slate-800/40 xl:p-10"
-              >
-                <div className="absolute -right-16 -top-16 h-32 w-32 rounded-full bg-slate-500/10 blur-3xl" />
+              <div className="coverage-card relative flex aspect-square flex-col overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-8 text-card-foreground shadow-[0_18px_48px_rgba(15,23,42,0.08)] ring-1 ring-white/70 dark:border-slate-800/70 dark:bg-slate-950/60 dark:text-slate-100 dark:ring-slate-800/60 dark:shadow-[0_18px_48px_rgba(0,0,0,0.35)] dark:backdrop-blur-sm xl:p-10">
+                <div className="absolute -right-16 -top-16 hidden h-32 w-32 rounded-full bg-slate-500/10 blur-3xl dark:block" />
                 <div className="relative space-y-4 text-sm text-slate-900 dark:text-slate-300">
                   <p>Countries where Paystack operates fully:</p>
                   <div className="flex flex-wrap gap-2">
@@ -454,32 +492,78 @@ export default function LandingPage() {
                     ))}
                   </div>
                   <p>Beta programs: Egypt, Rwanda.</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {paystackMethods.map((item) => (
-                      <div
-                        key={item.label}
-                        className="group flex flex-col items-center gap-2 rounded-xl border border-border/60 bg-background/60 px-3 py-2 transition hover:border-indigo-400/50"
-                      >
-                        <Image
-                          src={item.icon}
-                          alt={item.label}
-                          width={26}
-                          height={26}
-                          className="payment-method-icon h-5 w-5 transition"
-                        />
-                        <span className="text-[11px] font-medium text-slate-900 dark:text-slate-300">{item.label}</span>
+                    <div className="flex flex-wrap items-center justify-center gap-6 text-center">
+                      <div className="flex flex-col items-center">
+                        <div className="flex h-12 items-center justify-center">
+                          <Image
+                            src="/payment-logos/visa-10.svg"
+                            alt="Visa"
+                            width={72}
+                            height={26}
+                            className="payment-logo h-7 w-auto"
+                          />
+                        </div>
+                        <span className="mt-1 text-[11px] font-medium text-slate-900 dark:text-slate-300">Visa</span>
                       </div>
-                    ))}
-                  </div>
+                      <div className="flex flex-col items-center">
+                        <div className="flex h-12 items-center justify-center">
+                          <Image
+                            src="/payment-logos/mastercardnew.png"
+                            alt="Mastercard"
+                            width={100}
+                            height={36}
+                            className="payment-logo payment-logo-boost h-9 w-auto"
+                          />
+                        </div>
+                        <span className="mt-1 text-[11px] font-medium text-slate-900 dark:text-slate-300">
+                          Mastercard
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <div className="flex h-12 items-center justify-center">
+                          <Image
+                            src="/payment-logos/verve.png"
+                            alt="Verve"
+                            width={72}
+                            height={26}
+                            className="payment-logo payment-logo-boost h-7 w-auto"
+                          />
+                        </div>
+                        <span className="mt-1 text-[11px] font-medium text-slate-900 dark:text-slate-300">Verve</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <div className="flex h-12 items-center justify-center">
+                          <Image
+                            src="/payment-logos/america%20express.svg"
+                            alt="American Express"
+                            width={120}
+                            height={42}
+                            className="payment-logo payment-logo-boost h-10 w-auto"
+                          />
+                        </div>
+                        <span className="mt-1 text-[11px] font-medium text-slate-900 dark:text-slate-300">Amex</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <div className="flex h-12 items-center justify-center">
+                          <Image
+                            src="/payment-logos/bank%20transfer.png"
+                            alt="Bank transfer"
+                            width={104}
+                            height={104}
+                            className="payment-method-icon payment-icon-blend h-16 w-16 object-contain transition"
+                          />
+                        </div>
+                        <span className="mt-1 text-[11px] font-medium text-slate-900 dark:text-slate-300">
+                          Bank transfer
+                        </span>
+                      </div>
+                    </div>
                   <p>USD support available in Nigeria and Kenya.</p>
                 </div>
-              </Card>
+              </div>
 
-              <Card
-                title="Flutterwave coverage"
-                className="relative flex aspect-square flex-col overflow-hidden border border-border/70 bg-gradient-to-br from-background via-muted/40 to-background p-8 ring-1 ring-slate-200/40 shadow-[0_0_24px_rgba(148,163,184,0.12)] dark:ring-slate-800/40 xl:p-10"
-              >
-                <div className="absolute -right-16 -top-16 h-32 w-32 rounded-full bg-slate-500/10 blur-3xl" />
+              <div className="coverage-card relative flex aspect-square flex-col overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-8 text-card-foreground shadow-[0_18px_48px_rgba(15,23,42,0.08)] ring-1 ring-white/70 dark:border-slate-800/70 dark:bg-slate-950/60 dark:text-slate-100 dark:ring-slate-800/60 dark:shadow-[0_18px_48px_rgba(0,0,0,0.35)] dark:backdrop-blur-sm xl:p-10">
+                <div className="absolute -right-16 -top-16 hidden h-32 w-32 rounded-full bg-slate-500/10 blur-3xl dark:block" />
                 <div className="relative space-y-4 text-sm text-slate-900 dark:text-slate-300">
                   <p>Selected countries where Flutterwave enables merchant payments:</p>
                   <div className="flex flex-wrap gap-2">
@@ -492,34 +576,34 @@ export default function LandingPage() {
                   <p>Accept payments from Customers in the US, UK, and Europe (Germany, France, Spain).</p>
                   <div className="flex flex-col gap-3">
                     <div className="h-px w-full bg-border/40" />
-                    <div className="flex flex-wrap items-center justify-start gap-6">
+                    <div className="flex flex-wrap items-center justify-start gap-8">
                       <Image
-                        src="/payment-logos/visa.svg"
+                        src="/payment-logos/visa-10.svg"
                         alt="Visa"
-                        width={96}
-                        height={28}
-                        className="payment-logo h-6 w-auto"
+                        width={120}
+                        height={32}
+                        className="payment-logo h-7 w-auto"
                       />
                       <Image
-                        src="/payment-logos/mastercard.svg"
+                        src="/payment-logos/mastercardnew.png"
                         alt="Mastercard"
-                        width={140}
-                        height={28}
-                        className="payment-logo h-6 w-auto"
+                        width={320}
+                        height={60}
+                        className="payment-logo payment-logo-boost h-11 w-auto"
                       />
                       <Image
-                        src="/payment-logos/verve.svg"
+                        src="/payment-logos/verve.png"
                         alt="Verve"
-                        width={96}
-                        height={28}
-                        className="payment-logo h-6 w-auto"
+                        width={150}
+                        height={40}
+                        className="payment-logo payment-logo-boost h-8 w-auto"
                       />
                     </div>
                     <div className="h-px w-full bg-border/40" />
                   </div>
                   <p>Supports USD plus local African currencies where available.</p>
                 </div>
-              </Card>
+              </div>
             </div>
           </div>
         </section>

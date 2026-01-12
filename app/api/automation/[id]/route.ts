@@ -6,10 +6,28 @@ import { automationFlowSchema } from "@/lib/validators";
 import { withErrorHandling } from "@/lib/api-handler";
 import { enforceEntitlement, getUserPlan, isPlanAtLeast, requiredPlanForSteps } from "@/lib/entitlements";
 
-type Params = { params: { id: string } };
+type Params = { params?: { id?: string } };
 
-export const GET = withErrorHandling(async (_req: Request, { params }: Params) => {
-  const flowId = params?.id;
+const resolveFlowId = (req: Request, params?: { id?: string }) => {
+  const fromParams = params?.id;
+  if (fromParams && fromParams !== "undefined" && fromParams !== "null") {
+    return fromParams;
+  }
+  try {
+    const url = new URL(req.url);
+    const segments = url.pathname.split("/").filter(Boolean);
+    const fallback = segments[segments.length - 1];
+    if (fallback && fallback !== "undefined" && fallback !== "null") {
+      return fallback;
+    }
+  } catch {
+    // ignore parsing errors
+  }
+  return "";
+};
+
+export const GET = withErrorHandling(async (req: Request, { params }: Params) => {
+  const flowId = resolveFlowId(req, params);
   if (!flowId || flowId === "undefined") {
     return NextResponse.json({ error: "Invalid automation id" }, { status: 400 });
   }
@@ -42,7 +60,7 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
 });
 
 export const PUT = withErrorHandling(async (req: Request, { params }: Params) => {
-  const flowId = params?.id;
+  const flowId = resolveFlowId(req, params);
   if (!flowId || flowId === "undefined") {
     return NextResponse.json({ error: "Invalid automation id" }, { status: 400 });
   }
@@ -101,8 +119,8 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
   return NextResponse.json(updated);
 });
 
-export const DELETE = withErrorHandling(async (_req: Request, { params }: Params) => {
-  const flowId = params?.id;
+export const DELETE = withErrorHandling(async (req: Request, { params }: Params) => {
+  const flowId = resolveFlowId(req, params);
   if (!flowId || flowId === "undefined") {
     return NextResponse.json({ error: "Invalid automation id" }, { status: 400 });
   }
@@ -127,12 +145,20 @@ export const DELETE = withErrorHandling(async (_req: Request, { params }: Params
     );
   }
 
+  const existing = await prisma.automationFlow.findFirst({
+    where: { id: flowId, userId: session.user.id },
+    select: { id: true },
+  });
+  if (!existing) {
+    return NextResponse.json({ success: true, message: "Already deleted" });
+  }
+
   await prisma.$transaction(async (tx) => {
     await tx.automationRun.deleteMany({ where: { flowId, userId: session.user.id } });
     await tx.trigger.deleteMany({ where: { flowId } });
     await tx.action.deleteMany({ where: { flowId } });
     await tx.automationFlow.delete({
-      where: { id: flowId, userId: session.user.id },
+      where: { id: existing.id },
     });
   });
   return NextResponse.json({ success: true });

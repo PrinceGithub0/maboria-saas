@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
-import { allowedCurrencies } from "@/lib/payments/currency-allowlist";
+import { allowedCurrencies, formatCurrencyOption } from "@/lib/payments/currency-allowlist";
 import { getTaxIdLabel } from "@/lib/tax-labels";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -73,7 +73,7 @@ export default function SettingsPage() {
     { code: "ZM", label: "Zambia (ZM)" },
     { code: "MZ", label: "Mozambique (MZ)" },
   ];
-  const businessCurrencyOptions = allowedCurrencies.map((code) => ({ code, label: code }));
+  const businessCurrencyOptions = allowedCurrencies.map((code) => ({ code, label: formatCurrencyOption(code) }));
 
   useEffect(() => {
     if (me?.name || me?.email) {

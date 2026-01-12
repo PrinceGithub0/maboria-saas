@@ -5,10 +5,10 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { allowedCurrencies } from "@/lib/payments/currency-allowlist";
+import { allowedCurrencies, formatCurrencyOption } from "@/lib/payments/currency-allowlist";
 
 const suggestions = ["Invoice reminder sequence", "Customer onboarding automation", "Weekly summary report"];
-const currencyOptions = allowedCurrencies.map((code) => ({ code, label: code }));
+const currencyOptions = allowedCurrencies.map((code) => ({ code, label: formatCurrencyOption(code) }));
 const countryOptions = [
   { code: "NG", label: "Nigeria (NG)" },
   { code: "GH", label: "Ghana (GH)" },

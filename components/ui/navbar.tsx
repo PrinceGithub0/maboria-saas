@@ -1,6 +1,7 @@
 "use client";
 
 import { signOut, useSession } from "next-auth/react";
+import clsx from "clsx";
 import {
   Activity,
   Bell,
@@ -22,7 +23,7 @@ import {
 } from "lucide-react";
 import { Button } from "./button";
 import useSWR from "swr";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThemeSwitcher } from "@/components/ui/theme-switcher";
@@ -37,7 +38,7 @@ export function Navbar() {
   const { data: me } = useSWR(data ? "/api/user/me" : null, fetcher, {
     shouldRetryOnError: false,
   });
-  const { data: notifications } = useSWR("/api/notifications", fetcher, {
+  const { data: notifications, mutate: mutateNotifications } = useSWR("/api/notifications", fetcher, {
     shouldRetryOnError: false,
     fallbackData: [],
   });
@@ -46,6 +47,8 @@ export function Navbar() {
     : 0;
   const [menuOpen, setMenuOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const notificationsRef = useRef<HTMLDivElement | null>(null);
   const pathname = usePathname();
   const displayName = me?.name ?? data?.user?.name ?? "User";
   const displayEmail = me?.email ?? data?.user?.email ?? "";
@@ -54,11 +57,12 @@ export function Navbar() {
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "Website", href: "/", icon: Home },
     { label: "Automations", href: "/dashboard/automations", icon: Bot },
+    { label: "Runs", href: "/dashboard/runs", icon: Activity },
     { label: "AI Assistant", href: "/dashboard/assistant", icon: Sparkles },
     { label: "Inbox", href: "/dashboard/inbox", icon: MessageSquare },
     { label: "Invoices", href: "/dashboard/invoices", icon: FileText },
     { label: "Subscription", href: "/dashboard/subscription", icon: CreditCard },
-    { label: "Usage", href: "/dashboard/usage", icon: Gauge },
+    { label: "Reports", href: "/dashboard/usage", icon: Gauge },
     { label: "Support", href: "/dashboard/support", icon: Activity },
     { label: "Settings", href: "/dashboard/settings", icon: Settings },
     ...(data?.user?.role === "ADMIN"
@@ -148,6 +152,34 @@ export function Navbar() {
   }, [pathname]);
 
   useEffect(() => {
+    if (!notificationsOpen || typeof document === "undefined") return;
+    const handler = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (notificationsRef.current && !notificationsRef.current.contains(target)) {
+        setNotificationsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [notificationsOpen]);
+
+  const markNotificationRead = async (id: string) => {
+    await fetch("/api/notifications", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    mutateNotifications();
+  };
+
+  const markAllRead = async () => {
+    const items = Array.isArray(notifications) ? notifications : [];
+    const unreadItems = items.filter((item: any) => !item.read);
+    if (!unreadItems.length) return;
+    await Promise.all(unreadItems.map((item: any) => markNotificationRead(item.id)));
+  };
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
     const handler = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
@@ -196,17 +228,60 @@ export function Navbar() {
             <Search className="h-4 w-4" />
           </button>
           <ThemeSwitcher />
-          <button
-            className="relative rounded-full border border-border bg-card p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Notifications"
-          >
-            <Bell className="h-4 w-4" />
-            {unread > 0 && (
-              <span className="absolute -right-1 -top-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] text-white">
-                {unread}
-              </span>
+          <div ref={notificationsRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setNotificationsOpen((open) => !open)}
+              className="relative rounded-full border border-border bg-card p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Notifications"
+              aria-expanded={notificationsOpen}
+            >
+              <Bell className="h-4 w-4" />
+              {unread > 0 && (
+                <span className="absolute -right-1 -top-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] text-white">
+                  {unread}
+                </span>
+              )}
+            </button>
+            {notificationsOpen && (
+              <div className="absolute right-0 top-12 z-50 w-72 rounded-2xl border border-border bg-background shadow-2xl">
+                <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                  <p className="text-sm font-semibold text-foreground">Notifications</p>
+                  <button
+                    type="button"
+                    onClick={markAllRead}
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-500"
+                  >
+                    Mark all read
+                  </button>
+                </div>
+                <div className="max-h-72 overflow-y-auto">
+                  {Array.isArray(notifications) && notifications.length > 0 ? (
+                    notifications.map((item: any) => (
+                      <button
+                        type="button"
+                        key={item.id}
+                        onClick={() => markNotificationRead(item.id)}
+                        className={clsx(
+                          "flex w-full flex-col gap-1 px-4 py-3 text-left text-sm transition",
+                          item.read ? "bg-background" : "bg-indigo-500/10"
+                        )}
+                      >
+                        <span className="text-sm font-semibold text-foreground">{item.message}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(item.createdAt).toLocaleString()}
+                        </span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-4 py-6 text-sm text-muted-foreground">
+                      No notifications yet.
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
-          </button>
+          </div>
           <div className="hidden text-right lg:block">
             <p className="text-sm font-semibold text-foreground">{displayName}</p>
             <p className="text-xs text-muted-foreground">{displayEmail}</p>
