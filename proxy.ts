@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { securityHeaders } from "./lib/security";
 
-export async function middleware(req: NextRequest) {
+async function handleProxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const isProtected =
     pathname.startsWith("/dashboard") ||
@@ -11,7 +11,7 @@ export async function middleware(req: NextRequest) {
 
   if (!isProtected) {
     const res = NextResponse.next();
-    Object.entries(securityHeaders).forEach(([k, v]) => res.headers.set(k, v));
+    Object.entries(securityHeaders).forEach(([key, value]) => res.headers.set(key, value));
     return res;
   }
 
@@ -20,13 +20,22 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  if (pathname.startsWith("/admin") && (token as any).role !== "ADMIN") {
+  if (pathname.startsWith("/admin") && (token as { role?: string }).role !== "ADMIN") {
     return new Response("Forbidden", { status: 403 });
   }
 
   const res = NextResponse.next();
-  Object.entries(securityHeaders).forEach(([k, v]) => res.headers.set(k, v));
+  Object.entries(securityHeaders).forEach(([key, value]) => res.headers.set(key, value));
   return res;
+}
+
+export async function proxy(req: NextRequest) {
+  return handleProxy(req);
+}
+
+// Backwards compatibility if Next.js expects middleware export.
+export async function middleware(req: NextRequest) {
+  return handleProxy(req);
 }
 
 export const config = {

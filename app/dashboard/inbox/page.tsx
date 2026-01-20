@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Send, Phone, RefreshCw } from "lucide-react";
+import { useLanguage } from "@/components/providers/language-provider";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -31,6 +32,8 @@ type Message = {
 };
 
 export default function InboxPage() {
+  const { language } = useLanguage();
+  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState("");
@@ -77,7 +80,7 @@ export default function InboxPage() {
   const selected = filtered.find((c) => c.id === activeId) || (Array.isArray(conversations) ? conversations.find((c) => c.id === activeId) : undefined);
 
   const formatTime = (value?: string | null) => {
-    if (!value) return "—";
+    if (!value) return "";
     return new Date(value).toLocaleString();
   };
 
@@ -101,17 +104,17 @@ export default function InboxPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setStatus({ message: data?.error || "Failed to send message.", variant: "error" });
+        setStatus({ message: data?.error || t("Failed to send message.", "Echec de l envoi du message."), variant: "error" });
       } else if (data?.skipped) {
-        setStatus({ message: "WhatsApp sending is disabled.", variant: "warning" });
+        setStatus({ message: t("WhatsApp sending is disabled.", "Envoi WhatsApp desactive."), variant: "warning" });
       } else {
-        setStatus({ message: "Message sent.", variant: "success" });
+        setStatus({ message: t("Message sent.", "Message envoye."), variant: "success" });
         setDraft("");
         await mutateThread();
         await mutate();
       }
     } catch (err: any) {
-      setStatus({ message: err?.message || "Failed to send message.", variant: "error" });
+      setStatus({ message: err?.message || t("Failed to send message.", "Echec de l envoi du message."), variant: "error" });
     } finally {
       setSending(false);
     }
@@ -120,36 +123,43 @@ export default function InboxPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Inbox</p>
-        <h1 className="text-3xl font-semibold text-foreground">WhatsApp conversations</h1>
+        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
+          {t("Inbox", "Boite de reception")}
+        </p>
+        <h1 className="text-3xl font-semibold text-foreground">
+          {t("WhatsApp conversations", "Conversations WhatsApp")}
+        </h1>
         <p className="text-sm text-muted-foreground">
-          Review customer messages, reply instantly, and keep a clean audit trail.
+          {t(
+            "Review customer messages, reply instantly, and keep a clean audit trail.",
+            "Consultez les messages clients, repondez instantanement et gardez un suivi clair."
+          )}
         </p>
       </div>
 
       {(error || threadError) && (
         <Alert variant="error">
-          {error?.message || threadError?.message || "Could not load WhatsApp inbox."}
+          {error?.message || threadError?.message || t("Could not load WhatsApp inbox.", "Impossible de charger la boite WhatsApp.")}
         </Alert>
       )}
 
       {status && <Alert variant={status.variant}>{status.message}</Alert>}
 
       <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-        <Card title="Conversations">
+        <Card title={t("Conversations", "Conversations")}>
           <div className="space-y-3">
             <Input
-              label="Search"
-              placeholder="Search by phone or message"
+              label={t("Search", "Recherche")}
+              placeholder={t("Search by phone or message", "Rechercher par numero ou message")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
             <div className="space-y-2">
               {isLoading ? (
-                <div className="text-sm text-muted-foreground">Loading conversations...</div>
+                <div className="text-sm text-muted-foreground">{t("Loading conversations...", "Chargement des conversations...")}</div>
               ) : filtered.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-                  No conversations yet.
+                  {t("No conversations yet.", "Aucune conversation pour le moment.")}
                 </div>
               ) : (
                 filtered.map((conv) => {
@@ -175,7 +185,7 @@ export default function InboxPage() {
                         <div>
                           <p className="text-sm font-semibold text-foreground">{conv.customerPhone}</p>
                           <p className="text-xs text-muted-foreground line-clamp-1">
-                            {conv.lastMessage?.content || "No messages yet"}
+                            {conv.lastMessage?.content || t("No messages yet", "Pas encore de messages")}
                           </p>
                         </div>
                         <div className="flex flex-col items-end gap-2">
@@ -185,7 +195,7 @@ export default function InboxPage() {
                       </div>
                       <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
                         <Phone className="h-3 w-3" />
-                        Last message {formatTime(conv.lastMessageAt)}
+                        {t("Last message", "Dernier message")} {formatTime(conv.lastMessageAt)}
                       </div>
                     </button>
                   );
@@ -196,12 +206,16 @@ export default function InboxPage() {
         </Card>
 
         <Card
-          title={selected ? `Conversation with ${selected.customerPhone}` : "Select a conversation"}
+          title={
+            selected
+              ? t("Conversation with", "Conversation avec") + ` ${selected.customerPhone}`
+              : t("Select a conversation", "Selectionner une conversation")
+          }
           actions={
             selected ? (
               <div className="flex items-center gap-2">
                 <Button variant="secondary" size="sm" onClick={markRead}>
-                  Mark read
+                  {t("Mark read", "Marquer lu")}
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => mutateThread()}>
                   <RefreshCw className="h-4 w-4" />
@@ -212,15 +226,15 @@ export default function InboxPage() {
         >
           {!selected ? (
             <div className="rounded-xl border border-dashed border-border bg-muted/40 p-6 text-sm text-muted-foreground">
-              Choose a conversation to view messages.
+              {t("Choose a conversation to view messages.", "Choisissez une conversation pour voir les messages.")}
             </div>
           ) : (
             <div className="space-y-4">
               <div className="max-h-[520px] space-y-3 overflow-y-auto rounded-2xl border border-border bg-muted/40 p-4">
                 {threadLoading ? (
-                  <p className="text-sm text-muted-foreground">Loading messages...</p>
+                  <p className="text-sm text-muted-foreground">{t("Loading messages...", "Chargement des messages...")}</p>
                 ) : messages.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No messages yet.</p>
+                  <p className="text-sm text-muted-foreground">{t("No messages yet.", "Pas encore de messages.")}</p>
                 ) : (
                   messages.map((msg) => {
                     const outbound = msg.direction === "OUTBOUND";
@@ -235,7 +249,7 @@ export default function InboxPage() {
                       >
                         <p className="whitespace-pre-wrap">{msg.content}</p>
                         <div className={`mt-2 text-[11px] ${outbound ? "text-white/70" : "text-muted-foreground"}`}>
-                          {msg.status.toLowerCase()} · {formatTime(msg.createdAt)}
+                          {msg.status.toLowerCase()} - {formatTime(msg.createdAt)}
                         </div>
                       </div>
                     );
@@ -245,17 +259,17 @@ export default function InboxPage() {
 
               <div className="space-y-3">
                 <Textarea
-                  placeholder="Write a reply"
+                  placeholder={t("Write a reply", "Ecrire une reponse")}
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                 />
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="text-xs text-muted-foreground">
-                    Replies are sent via WhatsApp Cloud API.
+                    {t("Replies are sent via WhatsApp Cloud API.", "Les reponses sont envoyees via WhatsApp Cloud API.")}
                   </div>
                   <Button onClick={sendReply} loading={sending} disabled={!draft.trim()}>
                     <Send className="h-4 w-4" />
-                    Send reply
+                    {t("Send reply", "Envoyer")}
                   </Button>
                 </div>
               </div>

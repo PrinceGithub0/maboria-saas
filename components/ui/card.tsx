@@ -7,7 +7,7 @@ export function Card({
   actions,
   ...props
 }: {
-  title?: string;
+  title?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
   actions?: React.ReactNode;

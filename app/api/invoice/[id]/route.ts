@@ -13,6 +13,7 @@ import {
 } from "@/lib/invoice";
 import { isAllowedCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
 import { triggerInvoiceStatusAutomations } from "@/lib/automation/events";
+import { STANDARD_VAT_RATE, applyVatToSubtotal } from "@/lib/vat";
 
 type Params = { params: { id: string } };
 
@@ -132,6 +133,15 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
     parsed.customerName !== undefined ||
     parsed.customerAddress !== undefined;
   const shouldUpdateDates = parsed.issueDate !== undefined || parsed.dueDate !== undefined;
+  const nextItems = (parsed.items ?? (existing as any).items) as any[];
+  const subtotal = Array.isArray(nextItems)
+    ? nextItems.reduce((sum, item: any) => sum + Number(item.quantity || 0) * Number(item.price || 0), 0)
+    : 0;
+  const discountAmount =
+    typeof parsed.discount === "number" ? parsed.discount : Number((existing as any).discount || 0);
+  const vatTotals = applyVatToSubtotal(subtotal, STANDARD_VAT_RATE);
+  const total = Math.max(0, vatTotals.total - discountAmount);
+
   const updated = await prisma.invoice.update({
     where: { id: existing.id },
     data: {
@@ -140,8 +150,9 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
       currency: nextCurrency,
       status: parsed.status as any,
       generatedAt: issueDate ?? undefined,
-      tax: parsed.tax as any,
-      discount: parsed.discount as any,
+      tax: vatTotals.vat,
+      discount: discountAmount,
+      total,
       metadata: shouldUpdateCustomer || shouldUpdateDates
         ? {
             ...existingMeta,

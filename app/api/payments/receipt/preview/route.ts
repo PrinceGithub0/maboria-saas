@@ -46,7 +46,8 @@ export const GET = async (req: Request) => {
     reference: payment.reference || undefined,
   });
 
-  return new NextResponse(pdfBuffer, {
+  const pdfBytes = new Uint8Array(pdfBuffer);
+  return new NextResponse(pdfBytes, {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",

@@ -178,7 +178,9 @@ export const subscriptionSchema = z.object({
   trialEndsAt: z.string().optional(),
   usageLimit: z.number().optional(),
   usagePeriod: z.string().optional(),
-  currency: z.enum(["USD", "NGN"]).default("USD"),
+  currency: z
+    .enum(["NGN", "USD", "GHS", "KES", "ZAR", "XOF", "UGX", "TZS", "RWF", "ZMW", "MZN", "EGP", "GBP", "EUR"])
+    .default("USD"),
   graceEndsAt: z.string().optional(),
   cancellationReason: z.string().optional(),
   overageUsed: z.number().optional(),

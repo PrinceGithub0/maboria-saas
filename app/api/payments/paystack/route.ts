@@ -8,8 +8,15 @@ import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
 import { z } from "zod";
-import { pricingTableDualCurrency } from "@/lib/pricing";
-import { isAllowedCurrency, isProviderCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
+import { getPlanPriceForCurrency } from "@/lib/pricing";
+import {
+  isAllowedCurrency,
+  isProviderCurrency,
+  getPaystackEnabledCurrencies,
+  isPaystackCurrencyEnabled,
+  normalizeCurrency,
+  toMinorUnits,
+} from "@/lib/payments/currency-allowlist";
 
 export const POST = withRequestLogging(withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
@@ -27,32 +34,29 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-  const currency = normalizeCurrency(parsed.currency || "NGN");
+  const paystackEnabled = getPaystackEnabledCurrencies();
+  let currency = normalizeCurrency(parsed.currency || paystackEnabled[0] || "NGN");
   if (!isAllowedCurrency(currency) || !isProviderCurrency("PAYSTACK", currency)) {
-    return NextResponse.json(
-      {
-        error: "Paystack only supports NGN in this app.",
-      },
-      { status: 400 }
-    );
+    currency = paystackEnabled[0] || "NGN";
+  }
+  if (!isPaystackCurrencyEnabled(currency)) {
+    currency = paystackEnabled[0] || "NGN";
   }
   if (parsed.plan === "enterprise") {
     return NextResponse.json({ error: "Enterprise is contact sales" }, { status: 400 });
   }
 
   const plan = parsed.plan ?? "starter";
-  const priceTable = pricingTableDualCurrency();
-  const starter = priceTable.find((p) => p.plan === "STARTER");
-  const pro = priceTable.find((p) => p.plan === "GROWTH");
-  const planNgn = plan === "pro" ? pro?.ngn : starter?.ngn;
+  const planCurrency = plan === "pro" ? "GROWTH" : "STARTER";
+  const price = getPlanPriceForCurrency(planCurrency, currency);
 
-  if (!planNgn) {
-    return NextResponse.json({ error: "Pricing not configured for NGN" }, { status: 500 });
+  if (!price) {
+    return NextResponse.json({ error: "Pricing not configured for currency" }, { status: 500 });
   }
 
-  // Paystack expects amount in kobo (NGN * 100). Never trust the client-provided amount.
-  const amountKobo = planNgn * 100;
-  if (typeof parsed.amount === "number" && parsed.amount !== amountKobo) {
+  // Paystack expects amount in minor units (kobo/pesewa/etc). Never trust the client-provided amount.
+  const amountMinor = toMinorUnits(price, currency);
+  if (typeof parsed.amount === "number" && parsed.amount !== amountMinor) {
     return NextResponse.json({ error: "Invalid amount for selected plan" }, { status: 400 });
   }
 
@@ -65,13 +69,13 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
   const reference = `mb_${Date.now().toString(36).slice(-6)}_${crypto.randomBytes(2).toString("hex")}`;
   const init = await initializePaystackTransaction({
     reference,
-    amount: amountKobo,
+    amount: amountMinor,
     currency,
     email: user.email,
-    callback_url: `${appUrl}/dashboard?payment=success&provider=paystack&amount=${planNgn}&currency=${currency}&reference=${encodeURIComponent(
+    callback_url: `${appUrl}/dashboard?payment=success&provider=paystack&amount=${price}&currency=${currency}&reference=${encodeURIComponent(
       reference
     )}`,
-    metadata: { userId: user.id, plan: plan === "pro" ? "GROWTH" : "STARTER" },
+    metadata: { userId: user.id, plan: planCurrency },
   });
   return NextResponse.json(init);
 }));

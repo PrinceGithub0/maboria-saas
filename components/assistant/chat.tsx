@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Card } from "../ui/card";
 import { Alert } from "../ui/alert";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bot, MessageSquare, PencilLine, Plus, ThumbsDown, ThumbsUp, Trash2, User } from "lucide-react";
+import { useLanguage } from "../providers/language-provider";
 
 type Message = {
   id: string;
@@ -31,6 +32,8 @@ const LEGACY_ID = "legacy";
 const LEGACY_TITLE_KEY = "maboria_ai_legacy_title";
 
 export function AssistantChat() {
+  const { language } = useLanguage();
+  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [loadingConversations, setLoadingConversations] = useState(true);
@@ -49,7 +52,7 @@ export function AssistantChat() {
   const lastAssistantRef = useRef<HTMLDivElement>(null);
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
 
-  const loadMessages = async (conversationId: string) => {
+  const loadMessages = useCallback(async (conversationId: string) => {
     setLoadingMessages(true);
     try {
       const res = await fetch(`/api/ai/conversations/${conversationId}?limit=200`);
@@ -66,9 +69,19 @@ export function AssistantChat() {
     } finally {
       setLoadingMessages(false);
     }
-  };
+  }, []);
 
-  const loadConversations = async () => {
+  const uniqueById = useCallback((items: Conversation[]) => {
+    const seen = new Set<string>();
+    return items.filter((item) => {
+      if (!item?.id) return false;
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
+  }, []);
+
+  const loadConversations = useCallback(async () => {
     setLoadingConversations(true);
     try {
       const res = await fetch("/api/ai/conversations");
@@ -85,14 +98,11 @@ export function AssistantChat() {
     } finally {
       setLoadingConversations(false);
     }
-  };
+  }, [loadMessages, uniqueById]);
 
   useEffect(() => {
-    const load = async () => {
-      await loadConversations();
-    };
-    load();
-  }, []);
+    loadConversations();
+  }, [loadConversations]);
 
   useEffect(() => {
     const last = messages[messages.length - 1];
@@ -239,16 +249,6 @@ export function AssistantChat() {
     return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-  const uniqueById = (items: Conversation[]) => {
-    const seen = new Set<string>();
-    return items.filter((item) => {
-      if (!item?.id) return false;
-      if (seen.has(item.id)) return false;
-      seen.add(item.id);
-      return true;
-    });
-  };
-
   const getLegacyTitle = () => {
     if (typeof window === "undefined") return null;
     try {
@@ -267,16 +267,16 @@ export function AssistantChat() {
     }
   };
 
-  const withLegacyTitle = (items: Conversation[]) => {
+  const withLegacyTitle = useCallback((items: Conversation[]) => {
     const legacyTitle = getLegacyTitle();
     return items.map((item) =>
       item.id === LEGACY_ID && legacyTitle ? { ...item, title: legacyTitle } : item
     );
-  };
+  }, []);
 
   const dedupedConversations = useMemo(
     () => withLegacyTitle(uniqueById(conversations)),
-    [conversations]
+    [conversations, uniqueById, withLegacyTitle]
   );
 
   const createConversation = async () => {
@@ -304,7 +304,7 @@ export function AssistantChat() {
   const handleRename = async (conversationId: string, title: string) => {
     const nextTitle = toTitle(title);
     if (!nextTitle || nextTitle.length < 2) {
-      setStatus("Chat title must be at least 2 characters.");
+      setStatus(t("Chat title must be at least 2 characters.", "Le titre doit avoir au moins 2 caracteres."));
       setStatusVariant("error");
       return;
     }
@@ -323,7 +323,7 @@ export function AssistantChat() {
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setStatus(data?.error || "Unable to rename chat right now.");
+      setStatus(data?.error || t("Unable to rename chat right now.", "Impossible de renommer le chat."));
       setStatusVariant("error");
       return;
     }
@@ -336,12 +336,14 @@ export function AssistantChat() {
   };
 
   const handleDelete = async (conversationId: string) => {
-    const confirmDelete = window.confirm("Delete this chat? This cannot be undone.");
+    const confirmDelete = window.confirm(
+      t("Delete this chat? This cannot be undone.", "Supprimer ce chat? Action irreversible.")
+    );
     if (!confirmDelete) return;
     const res = await fetch(`/api/ai/conversations/${conversationId}`, { method: "DELETE" });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setStatus(data?.error || "Unable to delete chat right now.");
+      setStatus(data?.error || t("Unable to delete chat right now.", "Impossible de supprimer le chat."));
       setStatusVariant("error");
       return;
     }
@@ -372,7 +374,12 @@ export function AssistantChat() {
         setActiveConversationId(created.id);
         conversationId = created.id;
       } else {
-        setStatus("Chat history is unavailable right now. Sending without history.");
+        setStatus(
+          t(
+            "Chat history is unavailable right now. Sending without history.",
+            "Historique indisponible. Envoi sans historique."
+          )
+        );
         setStatusVariant("error");
       }
     }
@@ -395,16 +402,26 @@ export function AssistantChat() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         if (res.status === 401) {
-          setStatus("Session expired. Please sign in again.");
+          setStatus(t("Session expired. Please sign in again.", "Session expiree. Reconnectez-vous."));
           setStatusVariant("error");
         } else if (data.type === "upgrade_required") {
-          setStatus(`${data.error || "Upgrade required."} Required plan: Pro.`);
+          setStatus(
+            `${data.error || t("Upgrade required.", "Mise a niveau requise.")} ${t(
+              "Required plan: Pro.",
+              "Plan requis: Pro."
+            )}`
+          );
           setStatusVariant("error");
         } else if (data.type === "limit_reached") {
-          setStatus(`${data.error || "AI limit reached."} Required plan: Pro.`);
+          setStatus(
+            `${data.error || t("AI limit reached.", "Limite IA atteinte.")} ${t(
+              "Required plan: Pro.",
+              "Plan requis: Pro."
+            )}`
+          );
           setStatusVariant("error");
         } else {
-          setStatus(data.error || "Assistant is unavailable right now.");
+          setStatus(data.error || t("Assistant is unavailable right now.", "Assistant indisponible."));
           setStatusVariant("error");
         }
         return;
@@ -433,7 +450,7 @@ export function AssistantChat() {
       }
       setInput("");
     } catch (err: any) {
-      setStatus(err?.message || "Assistant is unavailable right now.");
+      setStatus(err?.message || t("Assistant is unavailable right now.", "Assistant indisponible."));
       setStatusVariant("error");
     } finally {
       setLoading(false);
@@ -463,9 +480,12 @@ export function AssistantChat() {
     -1
   );
 
+  const formatTitle = (value: string) =>
+    value === "New chat" ? t("New chat", "Nouveau chat") : value;
+
   return (
     <Card
-      title="AI Assistant"
+      title={t("AI Assistant", "Assistant IA")}
       className="border-border/80 bg-card shadow-[0_28px_70px_rgba(15,23,42,0.2)] ring-1 ring-border/40"
     >
       <div className="space-y-4">
@@ -475,8 +495,12 @@ export function AssistantChat() {
               <div className="flex items-center gap-2">
                 <MessageSquare className="h-4 w-4 text-indigo-600 dark:text-indigo-300" />
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">Conversations</p>
-                  <p className="text-sm font-semibold text-foreground">Maboria AI</p>
+                  <p className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">
+                    {t("Conversations", "Conversations")}
+                  </p>
+                  <p className="text-sm font-semibold text-foreground">
+                    {t("Maboria AI", "Maboria IA")}
+                  </p>
                 </div>
               </div>
               <Button
@@ -486,18 +510,18 @@ export function AssistantChat() {
                 onClick={handleNewChat}
               >
                 <Plus className="mr-1 h-3 w-3" />
-                New
+                {t("New", "Nouveau")}
               </Button>
             </div>
             <div className="mt-3 max-h-[360px] space-y-2 overflow-y-auto pr-1">
               {loadingConversations && (
                 <div className="rounded-xl border border-dashed border-border bg-background/60 p-3 text-xs text-muted-foreground">
-                  Loading chats...
+                  {t("Loading chats...", "Chargement des chats...")}
                 </div>
               )}
               {!loadingConversations && dedupedConversations.length === 0 && (
                 <div className="rounded-xl border border-dashed border-border bg-background/60 p-3 text-xs text-muted-foreground">
-                  Start a new chat to see history here.
+                  {t("Start a new chat to see history here.", "Demarrez un nouveau chat pour voir l'historique.")}
                 </div>
               )}
               {dedupedConversations.map((conversation, idx) => {
@@ -524,7 +548,7 @@ export function AssistantChat() {
                             className="h-7 rounded-full px-3 text-[11px]"
                             onClick={() => handleRename(conversation.id, editTitle)}
                           >
-                            Save
+                            {t("Save", "Enregistrer")}
                           </Button>
                           <Button
                             size="sm"
@@ -532,7 +556,7 @@ export function AssistantChat() {
                             className="h-7 rounded-full px-3 text-[11px]"
                             onClick={() => setEditingId(null)}
                           >
-                            Cancel
+                            {t("Cancel", "Annuler")}
                           </Button>
                         </div>
                       </div>
@@ -555,12 +579,12 @@ export function AssistantChat() {
                       >
                         <div className="space-y-1">
                           <p className={`text-sm font-semibold ${isActive ? "text-white" : "text-foreground"}`}>
-                            {conversation.title}
+                            {formatTitle(conversation.title)}
                           </p>
                           <p className={`text-[11px] ${isActive ? "text-indigo-100" : "text-muted-foreground"}`}>
                             {conversation.lastMessageAt
                               ? new Date(conversation.lastMessageAt).toLocaleDateString()
-                              : "No messages yet"}
+                              : t("No messages yet", "Pas de messages")}
                           </p>
                         </div>
                         <div className="flex items-center gap-1">
@@ -569,14 +593,14 @@ export function AssistantChat() {
                             onClick={(event) => {
                               event.preventDefault();
                               setEditingId(conversation.id);
-                              setEditTitle(conversation.title);
+                              setEditTitle(formatTitle(conversation.title));
                             }}
                             className={`rounded-full border p-1 text-muted-foreground hover:text-foreground ${
                               isActive
                                 ? "border-white/30 bg-white/10 text-white hover:text-white"
                                 : "border-border bg-background"
                             }`}
-                            aria-label="Rename chat"
+                            aria-label={t("Rename chat", "Renommer le chat")}
                           >
                             <PencilLine className="h-3 w-3" />
                           </button>
@@ -591,7 +615,7 @@ export function AssistantChat() {
                                 ? "border-white/30 bg-white/10 text-white hover:text-white"
                                 : "border-border bg-background"
                             }`}
-                            aria-label="Delete chat"
+                            aria-label={t("Delete chat", "Supprimer le chat")}
                           >
                             <Trash2 className="h-3 w-3" />
                           </button>
@@ -609,59 +633,74 @@ export function AssistantChat() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="assistant-muted text-[11px] uppercase tracking-[0.32em] text-slate-700 dark:text-muted-foreground">
-                Private assistant
+                {t("Private assistant", "Assistant prive")}
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <span className="assistant-label text-sm font-semibold text-slate-900 dark:text-foreground">
-                  Response style
+                  {t("Response style", "Style de reponse")}
                 </span>
                 <Button
                   size="sm"
                   variant={style === "brief" ? "primary" : "secondary"}
                   onClick={() => savePreferences({ style: "brief" })}
-                  title="Brief - concise, executive summary"
+                  title={t("Brief - concise, executive summary", "Bref - resume concis")}
                   className="assistant-control rounded-full px-4 text-xs font-semibold"
                 >
-                  Brief
+                  {t("Brief", "Bref")}
                 </Button>
                 <Button
                   size="sm"
                   variant={style === "detailed" ? "primary" : "secondary"}
                   onClick={() => savePreferences({ style: "detailed" })}
-                  title="Detailed - step-by-step guidance + example"
+                  title={t(
+                    "Detailed - step-by-step guidance + example",
+                    "Detaille - etapes + exemple"
+                  )}
                   className="assistant-control rounded-full px-4 text-xs font-semibold"
                 >
-                  Detailed
+                  {t("Detailed", "Detaille")}
                 </Button>
                 <span className="assistant-label ml-2 text-sm font-semibold text-slate-900 dark:text-foreground">
-                  Response tone
+                  {t("Response tone", "Ton de reponse")}
                 </span>
                 <select
                   className="assistant-control assistant-select rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-900 dark:border-border dark:bg-background dark:text-foreground"
                   value={tone}
                   onChange={(e) => savePreferences({ tone: e.target.value as AiTone })}
-                  title="Balanced - neutral, Direct - crisp, Warm - friendly"
+                  title={t(
+                    "Balanced - neutral, Direct - crisp, Warm - friendly",
+                    "Equilibre - neutre, Direct - precis, Chaleureux - amical"
+                  )}
                 >
-                  <option value="balanced">Balanced</option>
-                  <option value="direct">Direct</option>
-                  <option value="warm">Warm</option>
+                  <option value="balanced">{t("Balanced", "Equilibre")}</option>
+                  <option value="direct">{t("Direct", "Direct")}</option>
+                  <option value="warm">{t("Warm", "Chaleureux")}</option>
                 </select>
               </div>
               <p className="assistant-muted mt-3 text-xs text-slate-800 dark:text-muted-foreground">
-                <span className="assistant-label font-semibold text-slate-900 dark:text-foreground">Brief:</span> executive summary
+                <span className="assistant-label font-semibold text-slate-900 dark:text-foreground">
+                  {t("Brief:", "Bref:")}
+                </span>{" "}
+                {t("executive summary", "resume executif")}
                 <span className="mx-2 font-semibold text-slate-900 dark:text-foreground" aria-hidden="true">
                   &bull;
                 </span>
-                <span className="assistant-label font-semibold text-slate-900 dark:text-foreground">Detailed:</span> step-by-step + example
+                <span className="assistant-label font-semibold text-slate-900 dark:text-foreground">
+                  {t("Detailed:", "Detaille:")}
+                </span>{" "}
+                {t("step-by-step + example", "etapes + exemple")}
                 <span className="mx-2 font-semibold text-slate-900 dark:text-foreground" aria-hidden="true">
                   &bull;
                 </span>
-                <span className="assistant-label font-semibold text-slate-900 dark:text-foreground">Tone:</span> Balanced / Direct / Warm
+                <span className="assistant-label font-semibold text-slate-900 dark:text-foreground">
+                  {t("Tone:", "Ton:")}
+                </span>{" "}
+                {t("Balanced / Direct / Warm", "Equilibre / Direct / Chaleureux")}
               </p>
             </div>
             <div className="assistant-status inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1 text-[11px] font-semibold text-slate-900 shadow-sm dark:border-border dark:bg-background dark:text-foreground">
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              Online
+              {t("Online", "En ligne")}
             </div>
           </div>
         </div>
@@ -672,7 +711,7 @@ export function AssistantChat() {
         >
           {loadingMessages && (
             <div className="rounded-xl border border-dashed border-border bg-background/60 px-4 py-3 text-xs text-muted-foreground">
-              Loading messages...
+              {t("Loading messages...", "Chargement des messages...")}
             </div>
           )}
           <AnimatePresence>
@@ -718,7 +757,7 @@ export function AssistantChat() {
                               ? "border-emerald-500 text-emerald-600"
                               : "border-border text-muted-foreground hover:text-foreground"
                           }`}
-                          aria-label="Helpful"
+                          aria-label={t("Helpful", "Utile")}
                         >
                           <ThumbsUp className="h-4 w-4" />
                         </button>
@@ -731,12 +770,14 @@ export function AssistantChat() {
                               ? "border-rose-500 text-rose-600"
                               : "border-border text-muted-foreground hover:text-foreground"
                           }`}
-                          aria-label="Not helpful"
+                          aria-label={t("Not helpful", "Pas utile")}
                         >
                           <ThumbsDown className="h-4 w-4" />
                         </button>
                         {m.feedback && (
-                          <span className="text-[11px] text-muted-foreground">Thanks for the feedback.</span>
+                          <span className="text-[11px] text-muted-foreground">
+                            {t("Thanks for the feedback.", "Merci pour votre retour.")}
+                          </span>
                         )}
                       </div>
                     )}
@@ -752,12 +793,12 @@ export function AssistantChat() {
           {loading && (
             <div className="flex items-center gap-2 rounded-full border border-border bg-background px-3 py-2 text-xs text-muted-foreground">
               <span className="flex h-2 w-2 animate-pulse rounded-full bg-indigo-500" />
-              Maboria is typing...
+              {t("Maboria is typing...", "Maboria ecrit...")}
             </div>
           )}
           {messages.length === 0 && !loading && (
             <div className="rounded-2xl border border-dashed border-border bg-background/60 px-4 py-6 text-center text-sm text-muted-foreground">
-              Ask about automations, revenue, or invoices to get started.
+              {t("Ask about automations, revenue, or invoices to get started.", "Demandez sur automatisations, revenus ou factures pour commencer.")}
             </div>
           )}
         </div>
@@ -766,7 +807,7 @@ export function AssistantChat() {
             <Input
               id="assistant-input"
               className="flex-1"
-              placeholder="Ask the Maboria assistant..."
+              placeholder={t("Ask the Maboria assistant...", "Demandez a l assistant Maboria...")}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
@@ -774,11 +815,14 @@ export function AssistantChat() {
               }}
             />
             <Button className="w-full sm:w-auto" onClick={send} loading={loading}>
-              Send
+              {t("Send", "Envoyer")}
             </Button>
           </div>
           <p className="mt-2 text-[11px] text-muted-foreground">
-            Responses are generated automatically. Verify important details before acting.
+            {t(
+              "Responses are generated automatically. Verify important details before acting.",
+              "Les reponses sont generees automatiquement. Verifiez les details avant d agir."
+            )}
           </p>
         </div>
           </div>

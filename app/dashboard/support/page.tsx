@@ -6,8 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
+import { useLanguage } from "@/components/providers/language-provider";
 
 export default function DashboardSupportPage() {
+  const { language } = useLanguage();
+  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
   const [form, setForm] = useState({ subject: "", message: "" });
   const [status, setStatus] = useState<{ message: string; variant: "info" | "success" | "warning" | "error" } | null>(null);
   const [sending, setSending] = useState(false);
@@ -19,11 +22,11 @@ export default function DashboardSupportPage() {
     const subject = form.subject.trim();
     const message = form.message.trim();
     const nextErrors: { subject?: string; message?: string } = {};
-    if (subject.length < 5) nextErrors.subject = "Subject must be at least 5 characters.";
-    if (message.length < 10) nextErrors.message = "Message must be at least 10 characters.";
+    if (subject.length < 5) nextErrors.subject = t("Subject must be at least 5 characters.", "Le sujet doit comporter au moins 5 caracteres.");
+    if (message.length < 10) nextErrors.message = t("Message must be at least 10 characters.", "Le message doit comporter au moins 10 caracteres.");
     if (Object.keys(nextErrors).length) {
       setErrors(nextErrors);
-      setStatus({ message: "Please fix the highlighted fields.", variant: "warning" });
+      setStatus({ message: t("Please fix the highlighted fields.", "Corrigez les champs en surbrillance."), variant: "warning" });
       return;
     }
     setErrors({});
@@ -36,24 +39,36 @@ export default function DashboardSupportPage() {
       });
       const data = await res.json();
       if (res.status === 401) {
-        setStatus({ message: "Please sign in to submit a support ticket.", variant: "error" });
+        setStatus({ message: t("Please sign in to submit a support ticket.", "Connectez-vous pour soumettre un ticket."), variant: "error" });
       } else if (!res.ok) {
-        setStatus({ message: data.error || `Could not submit ticket (status ${res.status}).`, variant: "error" });
+        setStatus({
+          message: data.error || t(`Could not submit ticket (status ${res.status}).`, `Impossible de soumettre le ticket (statut ${res.status}).`),
+          variant: "error",
+        });
       } else {
         if (data.emailError) {
           setStatus({
-            message: `Ticket submitted, but email could not be sent: ${data.emailError}`,
+            message: t(
+              `Ticket submitted, but email could not be sent: ${data.emailError}`,
+              `Ticket envoye, mais l'email n'a pas pu etre envoye: ${data.emailError}`
+            ),
             variant: "error",
           });
         } else {
-          setStatus({ message: "Ticket submitted. We'll respond to your email.", variant: "success" });
+          setStatus({
+            message: t("Ticket submitted. We'll respond to your email.", "Ticket envoye. Nous repondrons par email."),
+            variant: "success",
+          });
         }
         setForm({ subject: "", message: "" });
         setErrors({});
       }
     } catch (err: any) {
       setStatus({
-        message: `Could not submit ticket. ${err?.message || "Please try again."}`,
+        message: t(
+          `Could not submit ticket. ${err?.message || "Please try again."}`,
+          `Impossible de soumettre le ticket. ${err?.message || "Veuillez reessayer."}`
+        ),
         variant: "error",
       });
     } finally {
@@ -65,9 +80,11 @@ export default function DashboardSupportPage() {
     <div className="space-y-6 max-md:space-y-7">
       <div className="md:contents max-md:rounded-[28px] max-md:border max-md:border-border/60 max-md:bg-card max-md:p-4 max-md:shadow-[0_16px_36px_rgba(15,23,42,0.18)]">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Support</p>
-          <h1 className="text-3xl font-semibold text-foreground">Contact support</h1>
-          <p className="text-sm text-muted-foreground">Send a ticket directly from your dashboard.</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">{t("Support", "Support")}</p>
+          <h1 className="text-3xl font-semibold text-foreground">{t("Contact support", "Contacter le support")}</h1>
+          <p className="text-sm text-muted-foreground">
+            {t("Send a ticket directly from your dashboard.", "Envoyez un ticket directement depuis votre tableau.")}
+          </p>
         </div>
 
         {status && (
@@ -77,11 +94,11 @@ export default function DashboardSupportPage() {
         )}
       </div>
 
-      <Card title="Submit a ticket">
+      <Card title={t("Submit a ticket", "Soumettre un ticket")}>
         <div className="space-y-4">
           <Input
-            label="Subject"
-            placeholder="Billing, automation, AI..."
+            label={t("Subject", "Sujet")}
+            placeholder={t("Billing, automation, AI...", "Facturation, automatisation, IA...")}
             value={form.subject}
             onChange={(e) => {
               setForm((f) => ({ ...f, subject: e.target.value }));
@@ -92,7 +109,7 @@ export default function DashboardSupportPage() {
             error={errors.subject}
           />
           <Textarea
-            placeholder="Describe the issue"
+            placeholder={t("Describe the issue", "Decrivez le probleme")}
             value={form.message}
             onChange={(e) => {
               setForm((f) => ({ ...f, message: e.target.value }));
@@ -103,7 +120,7 @@ export default function DashboardSupportPage() {
             error={errors.message}
           />
           <Button onClick={submit} loading={sending} className="w-full sm:w-auto">
-            Submit ticket
+            {t("Submit ticket", "Envoyer le ticket")}
           </Button>
         </div>
       </Card>

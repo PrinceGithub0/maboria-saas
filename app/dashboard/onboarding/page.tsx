@@ -6,8 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { allowedCurrencies, formatCurrencyOption } from "@/lib/payments/currency-allowlist";
+import { useLanguage } from "@/components/providers/language-provider";
 
-const suggestions = ["Invoice reminder sequence", "Customer onboarding automation", "Weekly summary report"];
 const currencyOptions = allowedCurrencies.map((code) => ({ code, label: formatCurrencyOption(code) }));
 const countryOptions = [
   { code: "NG", label: "Nigeria (NG)" },
@@ -24,6 +24,8 @@ const countryOptions = [
 ];
 
 export default function OnboardingWizard() {
+  const { language } = useLanguage();
+  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
     businessName: "",
@@ -32,6 +34,11 @@ export default function OnboardingWizard() {
     country: "NG",
     currency: "USD",
   });
+  const suggestions = [
+    t("Invoice reminder sequence", "Sequence de rappel de facture"),
+    t("Customer onboarding automation", "Automatisation d'onboarding client"),
+    t("Weekly summary report", "Rapport hebdomadaire"),
+  ];
 
   const next = () => setStep((s) => s + 1);
 
@@ -47,34 +54,34 @@ export default function OnboardingWizard() {
     <div className="space-y-6 max-md:space-y-7">
       <div className="md:contents max-md:rounded-[28px] max-md:border max-md:border-border/60 max-md:bg-card max-md:p-4 max-md:shadow-[0_16px_36px_rgba(15,23,42,0.18)]">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Onboarding</p>
-          <h1 className="text-3xl font-semibold text-foreground">Let&#39;s set up your workspace</h1>
+          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">{t("Onboarding", "Onboarding")}</p>
+          <h1 className="text-3xl font-semibold text-foreground">{t("Let's set up your workspace", "Configurons votre espace")}</h1>
         </div>
       </div>
 
       {step === 1 && (
-        <Card title="Business profile">
+        <Card title={t("Business profile", "Profil entreprise")}>
           <div className="grid gap-4 md:grid-cols-2 max-md:grid-cols-1 max-md:gap-3">
             <Input
-              label="Business name"
-              placeholder="Your company name"
+              label={t("Business name", "Nom de l'entreprise")}
+              placeholder={t("Your company name", "Nom de votre entreprise")}
               value={form.businessName}
               onChange={(e) => setForm({ ...form, businessName: e.target.value })}
             />
             <Input
-              label="Business type"
-              placeholder="SaaS, agency, ecommerce..."
+              label={t("Business type", "Type d'entreprise")}
+              placeholder={t("SaaS, agency, ecommerce...", "SaaS, agence, ecommerce...")}
               value={form.businessType}
               onChange={(e) => setForm({ ...form, businessType: e.target.value })}
             />
             <Input
-              label="Goals"
-              placeholder="Collect payments faster"
+              label={t("Goals", "Objectifs")}
+              placeholder={t("Collect payments faster", "Encaisser plus vite")}
               value={form.goals}
               onChange={(e) => setForm({ ...form, goals: e.target.value })}
             />
             <label className="flex flex-col gap-1 text-sm text-foreground">
-              Country
+              {t("Country", "Pays")}
               <select
                 value={form.country}
                 onChange={(e) => setForm({ ...form, country: e.target.value })}
@@ -88,7 +95,7 @@ export default function OnboardingWizard() {
               </select>
             </label>
             <label className="flex flex-col gap-1 text-sm text-foreground">
-              Preferred currency
+              {t("Preferred currency", "Devise preferee")}
               <select
                 value={form.currency}
                 onChange={(e) => setForm({ ...form, currency: e.target.value })}
@@ -103,26 +110,32 @@ export default function OnboardingWizard() {
             </label>
           </div>
           <Button className="mt-4 max-md:w-full" onClick={next}>
-            Next
+            {t("Next", "Suivant")}
           </Button>
         </Card>
       )}
 
       {step === 2 && (
-        <Card title="Suggested automations">
+        <Card title={t("Suggested automations", "Automatisations suggerees")}>
           <div className="grid gap-3 md:grid-cols-3 max-md:grid-cols-1">
             {suggestions.map((s) => (
-              <EmptyState key={s} title={s} description="Add to your workspace" actionLabel="Add" onAction={next} />
+              <EmptyState
+                key={s}
+                title={s}
+                description={t("Add to your workspace", "Ajouter a votre espace")}
+                actionLabel={t("Add", "Ajouter")}
+                onAction={next}
+              />
             ))}
           </div>
         </Card>
       )}
 
       {step === 3 && (
-        <Card title="Tutorial">
-          <p className="text-sm text-muted-foreground">Explore dashboard, AI assistant, and billing.</p>
+        <Card title={t("Tutorial", "Tutoriel")}>
+          <p className="text-sm text-muted-foreground">{t("Explore dashboard, AI assistant, and billing.", "Explorez le tableau, l'assistant IA et la facturation.")}</p>
           <Button className="mt-4 max-md:w-full" onClick={finish}>
-            Finish
+            {t("Finish", "Terminer")}
           </Button>
         </Card>
       )}

@@ -69,7 +69,7 @@ export const POST = withRequestLogging(
             status: "TRIALING",
             renewalDate: trialEndsAt,
             trialEndsAt,
-            currency: "NGN",
+            currency: "USD",
             interval: "monthly",
           },
         });

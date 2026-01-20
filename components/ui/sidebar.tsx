@@ -17,10 +17,11 @@ import {
   Activity,
   Shield,
   MessageSquare,
-  Plus,
+  Bell,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
+import { useLanguage } from "@/components/providers/language-provider";
 
 type Props = { role?: string };
 
@@ -29,6 +30,7 @@ type NavItem = { href: string; label: string; icon: any; badge?: string };
 export function Sidebar({ role }: Props) {
   const pathname = usePathname();
   const { data } = useSession();
+  const { language } = useLanguage();
   const userRole = role || data?.user?.role;
   const fetcher = (url: string) => fetch(url).then((res) => res.json());
   const { data: notifications } = useSWR("/api/notifications", fetcher);
@@ -37,36 +39,66 @@ export function Sidebar({ role }: Props) {
     : 0;
   const logoSrc = "/branding/Maboria%20Company%20logo.png";
   const unreadBadge = unreadCount > 99 ? "99+" : unreadCount > 0 ? String(unreadCount) : undefined;
+  const labelMap = {
+    Dashboard: language === "fr" ? "Tableau" : "Dashboard",
+    Website: language === "fr" ? "Site" : "Website",
+    Automations: language === "fr" ? "Automatisations" : "Automations",
+    Runs: language === "fr" ? "Executions" : "Runs",
+    "AI Assistant": language === "fr" ? "Assistant IA" : "AI Assistant",
+    Inbox: language === "fr" ? "Boite de reception" : "Inbox",
+    Invoices: language === "fr" ? "Factures" : "Invoices",
+    Subscription: language === "fr" ? "Abonnement" : "Subscription",
+    Payments: language === "fr" ? "Paiements" : "Payments",
+    Reports: language === "fr" ? "Rapports" : "Reports",
+    Support: language === "fr" ? "Support" : "Support",
+    Settings: language === "fr" ? "Parametres" : "Settings",
+    Admin: language === "fr" ? "Administration" : "Admin",
+    "Admin Metrics": language === "fr" ? "Mesures admin" : "Admin Metrics",
+    "System Logs": language === "fr" ? "Journaux systeme" : "System Logs",
+    Users: language === "fr" ? "Utilisateurs" : "Users",
+    Notifications: language === "fr" ? "Notifications" : "Notifications",
+    "Automation Errors": language === "fr" ? "Erreurs automatisation" : "Automation Errors",
+    Prelaunch: language === "fr" ? "Prelaunch" : "Prelaunch",
+    "System Flags": language === "fr" ? "Drapeaux systeme" : "System Flags",
+    Core: language === "fr" ? "Principal" : "Core",
+    Billing: language === "fr" ? "Facturation" : "Billing",
+    SupportSettings: language === "fr" ? "Support et parametres" : "Support & Settings",
+  };
   const coreItems: NavItem[] = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/", label: "Website", icon: Home },
-    { href: "/dashboard/automations", label: "Automations", icon: Bot },
-    { href: "/dashboard/runs", label: "Runs", icon: Activity },
-    { href: "/dashboard/assistant", label: "AI Assistant", icon: Sparkles },
+    { href: "/dashboard", label: labelMap.Dashboard, icon: LayoutDashboard },
+    { href: "/", label: labelMap.Website, icon: Home },
+    { href: "/dashboard/automations", label: labelMap.Automations, icon: Bot },
+    { href: "/dashboard/runs", label: labelMap.Runs, icon: Activity },
+    { href: "/dashboard/assistant", label: labelMap["AI Assistant"], icon: Sparkles },
     {
       href: "/dashboard/inbox",
-      label: "Inbox",
+      label: labelMap.Inbox,
       icon: MessageSquare,
       badge: unreadBadge,
     },
   ];
   const billingItems: NavItem[] = [
-    { href: "/dashboard/invoices", label: "Invoices", icon: FileText },
-    { href: "/dashboard/subscription", label: "Subscription", icon: CreditCard },
-    { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
-    { href: "/dashboard/usage", label: "Reports", icon: Gauge },
+    { href: "/dashboard/invoices", label: labelMap.Invoices, icon: FileText },
+    { href: "/dashboard/subscription", label: labelMap.Subscription, icon: CreditCard },
+    { href: "/dashboard/payments", label: labelMap.Payments, icon: CreditCard },
+    { href: "/dashboard/usage", label: labelMap.Reports, icon: Gauge },
   ];
   const supportItems: NavItem[] = [
-    { href: "/dashboard/support", label: "Support", icon: Activity },
-    { href: "/dashboard/settings", label: "Settings", icon: Settings },
+    { href: "/dashboard/support", label: labelMap.Support, icon: Activity },
+    { href: "/dashboard/settings", label: labelMap.Settings, icon: Settings },
   ];
   const adminItems =
     userRole === "ADMIN"
       ? [
-          { href: "/admin", label: "Admin", icon: Users },
-          { href: "/admin/metrics", label: "Admin Metrics", icon: Activity },
-          { href: "/admin/logs", label: "System Logs", icon: LayoutDashboard },
-          { href: "/admin/users", label: "Users", icon: Shield },
+          { href: "/admin", label: labelMap.Admin, icon: Users },
+          { href: "/admin/metrics", label: labelMap["Admin Metrics"], icon: Activity },
+          { href: "/admin/logs", label: labelMap["System Logs"], icon: LayoutDashboard },
+          { href: "/admin/users", label: labelMap.Users, icon: Shield },
+          { href: "/admin/support", label: labelMap.Support, icon: MessageSquare },
+          { href: "/admin/notifications", label: labelMap.Notifications, icon: Bell },
+          { href: "/admin/automation/errors", label: labelMap["Automation Errors"], icon: Bot },
+          { href: "/admin/prelaunch", label: labelMap.Prelaunch, icon: Gauge },
+          { href: "/admin/system-flags", label: labelMap["System Flags"], icon: Settings },
         ]
       : [];
 
@@ -107,7 +139,7 @@ export function Sidebar({ role }: Props) {
   const renderBillingSection = () => (
     <div>
       <p className="px-3 text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">
-        Billing
+        {labelMap.Billing}
       </p>
       <div className="mt-2 flex flex-col gap-2">
         {billingItems.map((item) => {
@@ -131,7 +163,7 @@ export function Sidebar({ role }: Props) {
         })}
         <div className="my-1 h-px bg-border/50" />
         <p className="px-3 text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">
-          Support & Settings
+          {labelMap.SupportSettings}
         </p>
         {supportItems.map((item) => {
           const Icon = item.icon;
@@ -164,17 +196,19 @@ export function Sidebar({ role }: Props) {
         </div>
         <div>
           <p className="text-sm text-slate-700 dark:text-muted-foreground">Maboria</p>
-          <p className="text-lg font-semibold text-foreground">Control</p>
+          <p className="text-lg font-semibold text-foreground">
+            {language === "fr" ? "Controle" : "Control"}
+          </p>
         </div>
       </div>
       <nav className="flex flex-col gap-4">
-        {renderSection("Core", coreItems)}
+        {renderSection(labelMap.Core, coreItems)}
         <div className="h-px bg-border/70" />
         {renderBillingSection()}
         {adminItems.length ? (
           <>
             <div className="h-px bg-border/70" />
-            {renderSection("Admin", adminItems)}
+            {renderSection(labelMap.Admin, adminItems)}
           </>
         ) : null}
       </nav>

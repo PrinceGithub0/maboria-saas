@@ -9,6 +9,14 @@ import {
   listAiConversations,
 } from "@/lib/assistant-conversations";
 
+type ConversationItem = {
+  id: string;
+  title: string;
+  lastMessageAt?: string | Date | null;
+  updatedAt?: string | Date | null;
+  createdAt?: string | Date | null;
+};
+
 export const GET = withErrorHandling(async () => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -32,7 +40,9 @@ export const GET = withErrorHandling(async () => {
 
   const conversations = await listAiConversations(session.user.id);
   if (conversations.length === 0) {
-    const fallback = await ensureDefaultAiConversation(session.user.id);
+    const fallback = (await ensureDefaultAiConversation(
+      session.user.id
+    )) as ConversationItem;
     return NextResponse.json({
       items: [
         {

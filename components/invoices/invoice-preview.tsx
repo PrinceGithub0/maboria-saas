@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/card";
+import { LangText } from "@/components/ui/lang-text";
 import { formatCurrencyCode } from "@/lib/currency";
 import { formatDateDMY } from "@/lib/date";
 import { InvoiceItem } from "@/lib/invoice";
@@ -31,7 +32,16 @@ export function InvoicePreview(props: InvoicePreviewProps) {
       : normalizedStatus === "CANCELED"
         ? "CANCELLED"
         : normalizedStatus;
+  const statusFrMap: Record<string, string> = {
+    UNPAID: "IMPAYE",
+    PAID: "PAYE",
+    CANCELLED: "ANNULE",
+    FAILED: "ECHEC",
+    DRAFT: "BROUILLON",
+  };
+  const statusFr = statusFrMap[displayStatus] ?? displayStatus;
   const taxLabel = getTaxIdLabel(props.business.country);
+  const t = (en: string, fr: string) => <LangText en={en} fr={fr} />;
   return (
     <Card className="p-0">
       <div className="flex flex-col gap-6 p-7 max-md:p-5">
@@ -41,26 +51,28 @@ export function InvoicePreview(props: InvoicePreviewProps) {
           </div>
           <div className="space-y-3 text-right">
             <p className="text-base font-semibold uppercase tracking-[0.18em] text-foreground">
-              INVOICE
+              {t("INVOICE", "FACTURE")}
             </p>
             <div className="grid gap-1 text-xs text-muted-foreground">
               <div className="flex items-center justify-end gap-3">
-                <span>Status</span>
-                <span className="font-semibold text-foreground">{displayStatus}</span>
+                <span>{t("Status", "Statut")}</span>
+                <span className="font-semibold text-foreground">
+                  <LangText en={displayStatus} fr={statusFr} />
+                </span>
               </div>
               <div className="flex items-center justify-end gap-3">
-                <span>Invoice Number</span>
+                <span>{t("Invoice Number", "Numero de facture")}</span>
                 <span className="font-semibold text-foreground">{props.invoiceNumber}</span>
               </div>
               <div className="flex items-center justify-end gap-3">
-                <span>Invoice Date</span>
+                <span>{t("Invoice Date", "Date de facture")}</span>
                 <span className="font-semibold text-foreground">
                   {formatDateDMY(props.issuedAt)}
                 </span>
               </div>
               {props.dueDate && (
                 <div className="flex items-center justify-end gap-3">
-                  <span>Due Date</span>
+                  <span>{t("Due Date", "Date d echeance")}</span>
                   <span className="font-semibold text-foreground">{formatDateDMY(props.dueDate)}</span>
                 </div>
               )}
@@ -72,7 +84,9 @@ export function InvoicePreview(props: InvoicePreviewProps) {
 
         <div className="grid gap-6 text-sm text-foreground md:grid-cols-3">
           <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Seller</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {t("Seller", "Vendeur")}
+            </p>
             <p className="font-semibold">{props.business.businessName}</p>
             {props.business.businessAddress && <p>{props.business.businessAddress}</p>}
             {props.business.businessEmail && <p>{props.business.businessEmail}</p>}
@@ -84,16 +98,22 @@ export function InvoicePreview(props: InvoicePreviewProps) {
             )}
           </div>
           <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Bill To</p>
-            <p className="font-semibold">{props.billTo?.name || "Customer"}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {t("Bill To", "Facturer a")}
+            </p>
+            <p className="font-semibold">
+              {props.billTo?.name ?? <LangText en="Customer" fr="Client" />}
+            </p>
             {props.billTo?.address && <p>{props.billTo.address}</p>}
             {props.billTo?.email && <p>{props.billTo.email}</p>}
           </div>
           <div className="space-y-1">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Payment Details
+              {t("Payment Details", "Details de paiement")}
             </p>
-            <p className="text-muted-foreground">Provided via checkout or bank transfer.</p>
+            <p className="text-muted-foreground">
+              {t("Provided via checkout or bank transfer.", "Fournis via paiement ou virement bancaire.")}
+            </p>
           </div>
         </div>
 
@@ -102,11 +122,11 @@ export function InvoicePreview(props: InvoicePreviewProps) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-foreground text-left text-[11px] uppercase tracking-[0.2em] text-background">
-                  <th className="px-4 py-3">Description</th>
-                  <th className="px-4 py-3 text-right">Qty</th>
-                  <th className="px-4 py-3 text-right">Unit price</th>
-                  <th className="px-4 py-3 text-right">Subtotal</th>
-                  <th className="px-4 py-3 text-right">VAT</th>
+                  <th className="px-4 py-3">{t("Description", "Description")}</th>
+                  <th className="px-4 py-3 text-right">{t("Qty", "Qt")}</th>
+                  <th className="px-4 py-3 text-right">{t("Unit price", "Prix unitaire")}</th>
+                  <th className="px-4 py-3 text-right">{t("Subtotal", "Sous-total")}</th>
+                  <th className="px-4 py-3 text-right">{t("VAT", "TVA")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -142,17 +162,17 @@ export function InvoicePreview(props: InvoicePreviewProps) {
               >
                 <p className="text-sm font-semibold text-foreground">{item.name}</p>
                 <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                  <span>Qty</span>
+                  <span>{t("Qty", "Qt")}</span>
                   <span className="text-right text-foreground">{item.quantity}</span>
-                  <span>Unit price</span>
+                  <span>{t("Unit price", "Prix unitaire")}</span>
                   <span className="text-right text-foreground">
                     {formatCurrencyCode(item.price, props.currency)}
                   </span>
-                  <span>Subtotal</span>
+                  <span>{t("Subtotal", "Sous-total")}</span>
                   <span className="text-right text-foreground">
                     {formatCurrencyCode(item.price * item.quantity, props.currency)}
                   </span>
-                  <span>VAT</span>
+                  <span>{t("VAT", "TVA")}</span>
                   <span className="text-right text-muted-foreground">
                     {props.totals.taxAmount > 0
                       ? formatCurrencyCode(
@@ -171,30 +191,32 @@ export function InvoicePreview(props: InvoicePreviewProps) {
         <div className="flex justify-end">
           <div className="w-full max-w-sm space-y-2 border-t border-border/60 pt-4 text-sm text-foreground">
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Subtotal</span>
+              <span className="text-muted-foreground">{t("Subtotal", "Sous-total")}</span>
               <span>{formatCurrencyCode(props.totals.subtotal, props.currency)}</span>
             </div>
             {props.totals.taxAmount > 0 && (
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">VAT</span>
+                <span className="text-muted-foreground">{t("VAT", "TVA")}</span>
                 <span>{formatCurrencyCode(props.totals.taxAmount, props.currency)}</span>
               </div>
             )}
             {props.totals.discountAmount > 0 && (
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Discount</span>
+                <span className="text-muted-foreground">{t("Discount", "Remise")}</span>
                 <span>-{formatCurrencyCode(props.totals.discountAmount, props.currency)}</span>
               </div>
             )}
             <div className="mt-4 flex items-center justify-between text-lg font-semibold text-foreground">
-              <span>Total to Pay</span>
+              <span>{t("Total to Pay", "Total a payer")}</span>
               <span>{formatCurrencyCode(props.totals.total, props.currency)}</span>
             </div>
           </div>
         </div>
 
         <div className="h-px w-full bg-border/70" />
-        <p className="text-center text-xs text-muted-foreground">Generated with Maboria</p>
+        <p className="text-center text-xs text-muted-foreground">
+          {t("Generated with Maboria", "Genere par Maboria")}
+        </p>
       </div>
     </Card>
   );

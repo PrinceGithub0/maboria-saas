@@ -8,7 +8,7 @@ import {
   verifyFlutterwaveTransactionByReference,
 } from "@/lib/payments/flutterwave";
 import { recordInvoicePayment } from "@/lib/invoice-payments";
-import { pricingTableDualCurrency } from "@/lib/pricing";
+import { getPlanFromAmount, getPlanPriceForCurrency } from "@/lib/pricing";
 import {
   beginWebhookEvent,
   hashWebhookPayload,
@@ -111,17 +111,8 @@ export const POST = withErrorHandling(async (req: Request) => {
       resolvedUserId = user?.id;
     }
 
-    const priceTable = pricingTableDualCurrency();
-    const starter = priceTable.find((p) => p.plan === "STARTER");
-    const pro = priceTable.find((p) => p.plan === "GROWTH");
     if (!plan) {
-      if (currency === "NGN") {
-        if (starter?.ngn === amount) plan = "STARTER";
-        if (pro?.ngn === amount) plan = "GROWTH";
-      } else if (currency === "USD") {
-        if (starter?.usd === amount) plan = "STARTER";
-        if (pro?.usd === amount) plan = "GROWTH";
-      }
+      plan = getPlanFromAmount(currency, amount) as SubscriptionPlan | null;
     }
 
     if (!txRef || !resolvedUserId || !plan) {
@@ -154,9 +145,8 @@ export const POST = withErrorHandling(async (req: Request) => {
       return NextResponse.json({ received: true, needsReview: true });
     }
 
-    const planRow = plan === "GROWTH" ? pro : starter;
-    const expected = currency === "NGN" ? planRow?.ngn : planRow?.usd;
-    if (expected == null || amount !== expected) {
+    const expected = getPlanPriceForCurrency(plan as "STARTER" | "GROWTH" | "ENTERPRISE", currency);
+    if (expected == null || Math.abs(amount - expected) > 0.01) {
       log("warn", "flutterwave_amount_mismatch", { userId: resolvedUserId, txRef, currency, amount, expected });
       await markWebhookFailed(webhookEvent.id, "Amount verification failed");
       return NextResponse.json({ error: "Amount verification failed" }, { status: 400 });
@@ -176,7 +166,7 @@ export const POST = withErrorHandling(async (req: Request) => {
       if (existingForPlan) {
         await tx.subscription.update({
           where: { id: existingForPlan.id },
-          data: { status: "ACTIVE", renewalDate },
+          data: { status: "ACTIVE", renewalDate, currency },
         });
         subscriptionId = existingForPlan.id;
       } else {
@@ -186,7 +176,7 @@ export const POST = withErrorHandling(async (req: Request) => {
             plan,
             status: "ACTIVE",
             renewalDate,
-            currency: currency === "NGN" ? "NGN" : "USD",
+            currency,
             interval: "monthly",
           },
         });

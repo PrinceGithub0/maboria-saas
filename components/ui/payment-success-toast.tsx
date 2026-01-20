@@ -4,13 +4,18 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Toast } from "@/components/ui/toast";
 import { formatCurrency } from "@/lib/currency";
+import { useLanguage } from "@/components/providers/language-provider";
 
 export function PaymentSuccessToast() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { language } = useLanguage();
+  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
   const handledRef = useRef(false);
   const [show, setShow] = useState(false);
-  const [message, setMessage] = useState<React.ReactNode>("Payment confirmed. Your plan is now active.");
+  const [message, setMessage] = useState<React.ReactNode>(
+    t("Payment confirmed. Your plan is now active.", "Paiement confirme. Votre plan est actif.")
+  );
 
   useEffect(() => {
     if (handledRef.current) return;
@@ -46,9 +51,14 @@ export function PaymentSuccessToast() {
           : null;
       setMessage(
         <div className="space-y-0.5">
-          <p className="font-medium">Payment Successful</p>
+          <p className="font-medium">{t("Payment Successful", "Paiement reussi")}</p>
           <p className="text-xs text-muted-foreground">
-            {paid ? `You paid ${paid} to Maboria` : `Your ${provider || "payment"} was successful.`}
+            {paid
+              ? t(`You paid ${paid} to Maboria`, `Vous avez paye ${paid} a Maboria`)
+              : t(
+                  `Your ${provider || "payment"} was successful.`,
+                  `Votre ${provider || "paiement"} est reussi.`
+                )}
           </p>
         </div>
       );

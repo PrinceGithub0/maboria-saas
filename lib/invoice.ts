@@ -13,6 +13,7 @@ import { getTaxIdLabel } from "./tax-labels";
 import { formatDateDMY } from "./date";
 import { ensureInvoicePaymentLink } from "./invoice-payments";
 import { triggerInvoiceStatusAutomations } from "./automation/events";
+import { STANDARD_VAT_RATE } from "./vat";
 
 export type InvoiceItem = {
   name: string;
@@ -155,7 +156,8 @@ export async function createInvoiceRecord({
     businessPhone: profile.businessPhone ?? null,
     taxId: profile.taxId ?? null,
   };
-  const totals = calculateTotals(items, tax, discount);
+  const vatRate = STANDARD_VAT_RATE;
+  const totals = calculateTotals(items, vatRate, discount);
   const base = invoiceNumber;
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const candidate = attempt === 0 ? base : `${base}-${crypto.randomInt(1000, 10000)}`;
@@ -273,7 +275,7 @@ export function buildInvoicePdfBuffer(input: InvoicePdfInput) {
     }
     const fontPath = ensureInvoiceFont();
     const fontBuffer = readFileSync(fontPath);
-    const doc = new PDFDocument({ margin: 48, size: "A4", font: fontBuffer });
+    const doc = new PDFDocument({ margin: 48, size: "A4", font: fontPath });
     const chunks: Buffer[] = [];
 
     doc.on("data", (chunk) => chunks.push(chunk as Buffer));
@@ -576,7 +578,8 @@ export function buildInvoicePdfBuffer(input: InvoicePdfInput) {
     );
     y += totalsRowHeight;
     if (input.totals.taxAmount > 0) {
-      const vatPercent = vatRate > 0 ? Math.round(vatRate * 100) : 0;
+      const vatPercent =
+        vatRate > 0 ? (vatRate * 100).toFixed(1).replace(/\.0$/, "") : "";
       text(`VAT (${vatPercent || ""}%)`, totalsX, y, { width: totalsLabelWidth }, 9, colors.muted);
       const taxValue = formatCurrencyCode(input.totals.taxAmount, normalizedCurrency);
       drawValue(taxValue, y, fitValueSize(taxValue, totalsValueWidth, 12, 9));
@@ -640,7 +643,7 @@ export async function ensureInvoicePdf({
     status: string;
     generatedAt: Date;
     currency: string;
-    items: InvoiceItem[];
+    items: unknown;
     tax?: any;
     discount?: any;
     pdfUrl?: string | null;
@@ -714,7 +717,7 @@ export async function generateAndStoreInvoicePdf(
     status: string;
     generatedAt: Date;
     currency: string;
-    items: InvoiceItem[];
+    items: unknown;
     tax?: any;
     discount?: any;
     pdfUrl?: string | null;
@@ -763,7 +766,7 @@ export async function sendInvoiceEmailToCustomer(
     status: string;
     generatedAt: Date;
     currency: string;
-    items: InvoiceItem[];
+    items: unknown;
     tax?: any;
     discount?: any;
     pdfUrl?: string | null;

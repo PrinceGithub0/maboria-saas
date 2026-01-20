@@ -15,6 +15,7 @@ import { parseDateInput } from "@/lib/date";
 import { allowedCurrencies, formatCurrencyOption } from "@/lib/payments/currency-allowlist";
 import { useSession } from "next-auth/react";
 import { getTaxIdLabel } from "@/lib/tax-labels";
+import { useLanguage } from "@/components/providers/language-provider";
 
 const fetcher = async (url: string) => {
   const res = await fetch(url, { cache: "no-store" });
@@ -35,6 +36,8 @@ const profileFetcher = async (url: string) => {
 
 export default function InvoicesPage() {
   const { data: session, status: sessionStatus } = useSession();
+  const { language } = useLanguage();
+  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
   const todayValue = new Date().toISOString().slice(0, 10);
   const invoicesKey =
     sessionStatus === "authenticated" && session?.user?.id
@@ -75,7 +78,7 @@ export default function InvoicesPage() {
   const [profileForm, setProfileForm] = useState({
     businessName: "",
     country: "NG",
-    defaultCurrency: "NGN",
+    defaultCurrency: "USD",
     businessAddress: "",
     businessEmail: "",
     businessPhone: "",
@@ -84,6 +87,22 @@ export default function InvoicesPage() {
   const [profileStatus, setProfileStatus] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
   const taxLabel = getTaxIdLabel(profileForm.country);
+  const currencyToCountry: Record<string, string> = {
+    NGN: "NG",
+    GHS: "GH",
+    KES: "KE",
+    ZAR: "ZA",
+    XOF: "CI",
+    EGP: "EG",
+    RWF: "RW",
+    UGX: "UG",
+    TZS: "TZ",
+    ZMW: "ZM",
+    MZN: "MZ",
+    USD: "US",
+    GBP: "GB",
+    EUR: "EU",
+  };
   const scrollToCreate = () => {
     if (typeof window === "undefined") return;
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -109,6 +128,18 @@ export default function InvoicesPage() {
   const profileMissing =
     businessProfile?.status === 404 || businessProfile?.data?.error === "Not found";
 
+  useEffect(() => {
+    if (businessProfile?.data?.id) return;
+    if (!me?.preferredCurrency) return;
+    const preferred = String(me.preferredCurrency).toUpperCase();
+    if (!allowedCurrencies.includes(preferred as (typeof allowedCurrencies)[number])) return;
+    setProfileForm((prev) => ({
+      ...prev,
+      defaultCurrency: preferred,
+      country: currencyToCountry[preferred] || prev.country,
+    }));
+  }, [businessProfile?.data?.id, me?.preferredCurrency]);
+
   const createBusinessProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setProfileStatus(null);
@@ -120,10 +151,10 @@ export default function InvoicesPage() {
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {
-      setProfileError(json.error || "Could not create business profile.");
+      setProfileError(json.error || t("Could not create business profile.", "Impossible de creer le profil."));
       return;
     }
-    setProfileStatus("Business profile saved.");
+    setProfileStatus(t("Business profile saved.", "Profil enregistre."));
     refreshBusinessProfile();
   };
 
@@ -131,12 +162,22 @@ export default function InvoicesPage() {
     e.preventDefault();
     if (form.status === "SENT" && !form.customerEmail.trim()) {
       setStatus({
-        message: "Customer email is required to send an invoice.",
+        message: t("Customer email is required to send an invoice.", "Email client requis pour envoyer une facture."),
         variant: "error",
       });
       return;
     }
-    const payload = {
+    const payload: {
+      invoiceNumber: string;
+      currency: string;
+      status: string;
+      customerName?: string;
+      customerEmail?: string;
+      customerAddress?: string;
+      issueDate?: string;
+      dueDate?: string;
+      items: { name: string; quantity: number; price: number }[];
+    } = {
       ...form,
       invoiceNumber: form.invoiceNumber.trim(),
       customerName: form.customerName.trim() || undefined,
@@ -146,7 +187,7 @@ export default function InvoicesPage() {
     const issueDateParsed = form.issueDate ? parseDateInput(form.issueDate) : null;
     if (form.issueDate && !issueDateParsed) {
       setStatus({
-        message: "Issue date must be in DD/MM/YYYY format.",
+        message: t("Issue date must be in DD/MM/YYYY format.", "Date d emission au format JJ/MM/AAAA."),
         variant: "error",
       });
       return;
@@ -154,7 +195,7 @@ export default function InvoicesPage() {
     const dueDateParsed = form.dueDate ? parseDateInput(form.dueDate) : null;
     if (form.dueDate && !dueDateParsed) {
       setStatus({
-        message: "Due date must be in DD/MM/YYYY format.",
+        message: t("Due date must be in DD/MM/YYYY format.", "Date d echeance au format JJ/MM/AAAA."),
         variant: "error",
       });
       return;
@@ -180,21 +221,26 @@ export default function InvoicesPage() {
           : null;
         if (json.type === "upgrade_required" || json.type === "limit_reached") {
           setStatus({
-            message: `${json.reason || "Upgrade required."}${required ? ` Required plan: ${required}.` : ""}`,
+            message: `${json.reason || t("Upgrade required.", "Mise a niveau requise.")}${
+              required ? ` ${t("Required plan:", "Plan requis :")} ${required}.` : ""
+            }`,
             variant: "error",
           });
         } else {
-          setStatus({ message: json.error || "Could not create invoice.", variant: "error" });
+          setStatus({ message: json.error || t("Could not create invoice.", "Impossible de creer la facture."), variant: "error" });
         }
       } else {
         const savedNumber = json?.invoiceNumber as string | undefined;
         if (savedNumber && savedNumber !== form.invoiceNumber) {
           setStatus({
-            message: `Invoice number already existed. Saved as ${savedNumber}.`,
+            message: t(
+              `Invoice number already existed. Saved as ${savedNumber}.`,
+              `Numero deja utilise. Enregistre comme ${savedNumber}.`
+            ),
             variant: "success",
           });
         } else {
-          setStatus({ message: "Invoice generated.", variant: "success" });
+          setStatus({ message: t("Invoice generated.", "Facture generee."), variant: "success" });
         }
         mutate();
         const nextCurrency =
@@ -212,7 +258,7 @@ export default function InvoicesPage() {
         });
       }
     } catch {
-      setStatus({ message: "Could not create invoice. Please try again.", variant: "error" });
+      setStatus({ message: t("Could not create invoice. Please try again.", "Impossible de creer la facture. Reessayez."), variant: "error" });
     }
   };
 
@@ -230,19 +276,35 @@ export default function InvoicesPage() {
     { code: "TZ", label: "Tanzania (TZ)" },
     { code: "ZM", label: "Zambia (ZM)" },
     { code: "MZ", label: "Mozambique (MZ)" },
+    { code: "US", label: "United States (US)" },
+    { code: "GB", label: "United Kingdom (GB)" },
+    { code: "EU", label: "Europe (EU)" },
   ];
 
   const scopedInvoices =
     !invoicesError && Array.isArray(invoices)
       ? invoices.filter((inv: any) => inv.userId === session?.user?.id)
       : [];
-  const latestInvoice = scopedInvoices[0] || null;
   const normalizedQuery = query.trim().toLowerCase();
   const getDisplayStatus = (value: string) => {
     const normalized = String(value || "").toUpperCase();
     if (normalized === "SENT" || normalized === "OVERDUE") return "UNPAID";
     if (normalized === "CANCELED") return "CANCELLED";
     return normalized;
+  };
+  const translateStatus = (value: string) => {
+    const normalized = String(value || "").toUpperCase();
+    if (language !== "fr") return normalized;
+    const map: Record<string, string> = {
+      DRAFT: "BROUILLON",
+      SENT: "ENVOYEE",
+      OVERDUE: "RETARD",
+      UNPAID: "IMPAYE",
+      PAID: "PAYEE",
+      CANCELLED: "ANNULEE",
+      FAILED: "ECHEC",
+    };
+    return map[normalized] || normalized;
   };
   const filteredInvoices = normalizedQuery
     ? scopedInvoices.filter((inv: any) => {
@@ -292,7 +354,7 @@ export default function InvoicesPage() {
     e.preventDefault();
     const invoiceId = editingInvoice?.id ?? editingInvoice?.invoiceNumber ?? "";
     if (!invoiceId) {
-      setEditStatus({ message: "Invoice not found for update.", variant: "error" });
+      setEditStatus({ message: t("Invoice not found for update.", "Facture introuvable pour mise a jour."), variant: "error" });
       return;
     }
     setSavingEdit(true);
@@ -313,12 +375,12 @@ export default function InvoicesPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setEditStatus({
-          message: data?.error || "Could not update customer details.",
+          message: data?.error || t("Could not update customer details.", "Impossible de mettre a jour le client."),
           variant: "error",
         });
         return;
       }
-      setEditStatus({ message: "Customer details updated.", variant: "success" });
+      setEditStatus({ message: t("Customer details updated.", "Details client mis a jour."), variant: "success" });
       mutate((current: any) => {
         if (!Array.isArray(current)) return current;
         return current.map((inv) =>
@@ -341,7 +403,7 @@ export default function InvoicesPage() {
       setEditOpen(false);
       setEditingInvoice(null);
     } catch {
-      setEditStatus({ message: "Could not update customer details.", variant: "error" });
+      setEditStatus({ message: t("Could not update customer details.", "Impossible de mettre a jour le client."), variant: "error" });
     } finally {
       setSavingEdit(false);
     }
@@ -352,12 +414,12 @@ export default function InvoicesPage() {
     if (!invoiceId) return;
     let customerEmail = invoice?.metadata?.customer?.email;
     if (!customerEmail && typeof window !== "undefined") {
-      const manual = window.prompt("Enter customer email to send this invoice:");
+      const manual = window.prompt(t("Enter customer email to send this invoice:", "Entrez l email client pour envoyer la facture :"));
       if (manual) customerEmail = manual.trim();
     }
     if (!customerEmail) {
       setStatus({
-        message: "Customer email is required to send this invoice.",
+        message: t("Customer email is required to send this invoice.", "Email client requis pour envoyer la facture."),
         variant: "error",
       });
       return;
@@ -377,11 +439,11 @@ export default function InvoicesPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setStatus({
-          message: data?.error || "Could not send invoice.",
+          message: data?.error || t("Could not send invoice.", "Impossible d envoyer la facture."),
           variant: "error",
         });
       } else {
-        setStatus({ message: "Invoice sent.", variant: "success" });
+        setStatus({ message: t("Invoice sent.", "Facture envoyee."), variant: "success" });
         mutate((current: any) => {
           if (!Array.isArray(current)) return current;
           return current.map((inv) =>
@@ -391,7 +453,7 @@ export default function InvoicesPage() {
         mutate();
       }
     } catch {
-      setStatus({ message: "Could not send invoice.", variant: "error" });
+      setStatus({ message: t("Could not send invoice.", "Impossible d envoyer la facture."), variant: "error" });
     } finally {
       setSendingId(null);
     }
@@ -401,29 +463,34 @@ export default function InvoicesPage() {
     <div className="space-y-6 max-md:space-y-7">
       <div className="md:contents max-md:rounded-[28px] max-md:border max-md:border-border/60 max-md:bg-card max-md:p-4 max-md:shadow-[0_16px_36px_rgba(15,23,42,0.18)]">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Invoices</p>
-          <h1 className="text-3xl font-semibold text-foreground">Generator</h1>
+          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
+            {t("Invoices", "Factures")}
+          </p>
+          <h1 className="text-3xl font-semibold text-foreground">{t("Generator", "Generateur")}</h1>
         </div>
         {status && <div className="mt-4"><Alert variant={status.variant}>{status.message}</Alert></div>}
       </div>
       {profileMissing ? (
-        <Card title="Business profile required">
+        <Card title={t("Business profile required", "Profil requis")}>
           {profileStatus && <Alert variant="success">{profileStatus}</Alert>}
           {profileError && <Alert variant="error">{profileError}</Alert>}
           <p className="text-sm text-muted-foreground">
-            Add your business profile before creating invoices.
+            {t(
+              "Add your business profile before creating invoices.",
+              "Ajoutez votre profil avant de creer des factures."
+            )}
           </p>
           <form
             className="mt-4 grid grid-cols-2 gap-4 max-md:grid-cols-1 max-md:gap-3"
             onSubmit={createBusinessProfile}
           >
             <Input
-              label="Business name"
+              label={t("Business name", "Nom de l entreprise")}
               value={profileForm.businessName}
               onChange={(e) => setProfileForm({ ...profileForm, businessName: e.target.value })}
             />
             <label className="flex flex-col gap-1 text-sm text-foreground">
-              Country
+              {t("Country", "Pays")}
               <select
                 value={profileForm.country}
                 onChange={(e) => setProfileForm({ ...profileForm, country: e.target.value })}
@@ -437,7 +504,7 @@ export default function InvoicesPage() {
               </select>
             </label>
             <label className="flex flex-col gap-1 text-sm text-foreground">
-              Default currency
+              {t("Default currency", "Devise par defaut")}
               <select
                 value={profileForm.defaultCurrency}
                 onChange={(e) => setProfileForm({ ...profileForm, defaultCurrency: e.target.value })}
@@ -451,77 +518,77 @@ export default function InvoicesPage() {
               </select>
             </label>
             <Input
-              label="Business email"
+              label={t("Business email", "Email entreprise")}
               type="email"
               value={profileForm.businessEmail}
               onChange={(e) => setProfileForm({ ...profileForm, businessEmail: e.target.value })}
             />
             <Input
-              label="Business phone"
+              label={t("Business phone", "Telephone entreprise")}
               value={profileForm.businessPhone}
               onChange={(e) => setProfileForm({ ...profileForm, businessPhone: e.target.value })}
             />
             <Input
-              label="Business address"
+              label={t("Business address", "Adresse entreprise")}
               value={profileForm.businessAddress}
               onChange={(e) => setProfileForm({ ...profileForm, businessAddress: e.target.value })}
             />
             <Input
-              label={`${taxLabel.long} (optional)`}
+              label={t(`${taxLabel.long} (optional)`, `${taxLabel.long} (optionnel)`)}
               value={profileForm.taxId}
               onChange={(e) => setProfileForm({ ...profileForm, taxId: e.target.value })}
             />
             <div className="col-span-2 max-md:col-span-1">
               <Button type="submit" className="max-md:w-full">
-                Save business profile
+                {t("Save business profile", "Enregistrer le profil")}
               </Button>
             </div>
           </form>
         </Card>
       ) : (
-        <Card title="Create invoice">
+        <Card title={t("Create invoice", "Creer une facture")}>
           <form className="grid grid-cols-2 gap-4 max-md:grid-cols-1 max-md:gap-3" onSubmit={createInvoice}>
             <Input
-              label="Invoice number"
+              label={t("Invoice number", "Numero de facture")}
               value={form.invoiceNumber}
               onChange={(e) => setForm({ ...form, invoiceNumber: e.target.value })}
             />
             <Input
-              label="Customer name"
+              label={t("Customer name", "Nom du client")}
               value={form.customerName}
               onChange={(e) => setForm({ ...form, customerName: e.target.value })}
             />
             <Input
-              label="Customer email"
+              label={t("Customer email", "Email client")}
               type="email"
               value={form.customerEmail}
               onChange={(e) => setForm({ ...form, customerEmail: e.target.value })}
             />
             <Input
-              label="Issue date"
+              label={t("Issue date", "Date d emission")}
               type="date"
               value={form.issueDate}
               onChange={(e) => setForm({ ...form, issueDate: e.target.value })}
             />
             <Input
-              label="Due date"
+              label={t("Due date", "Date d echeance")}
               type="date"
               value={form.dueDate}
               onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
             />
             <label className="flex flex-col gap-1 text-sm text-foreground">
-              Status
+              {t("Status", "Statut")}
               <select
                 value={form.status}
                 onChange={(e) => setForm({ ...form, status: e.target.value })}
                 className="rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:border-indigo-400 focus:outline-none"
               >
-                <option value="DRAFT">Draft</option>
-                <option value="SENT">Send now</option>
+                <option value="DRAFT">{t("Draft", "Brouillon")}</option>
+                <option value="SENT">{t("Send now", "Envoyer")}</option>
               </select>
             </label>
             <label className="flex flex-col gap-1 text-sm text-foreground">
-              Currency
+              {t("Currency", "Devise")}
               <select
                 value={form.currency}
                 onChange={(e) => setForm({ ...form, currency: e.target.value })}
@@ -535,12 +602,12 @@ export default function InvoicesPage() {
               </select>
             </label>
             <Input
-              label="Customer address"
+              label={t("Customer address", "Adresse client")}
               value={form.customerAddress}
               onChange={(e) => setForm({ ...form, customerAddress: e.target.value })}
             />
             <Input
-              label="Item name"
+              label={t("Item name", "Nom de l article")}
               value={form.items[0].name}
               onChange={(e) =>
                 setForm({ ...form, items: [{ ...form.items[0], name: e.target.value }] })
@@ -548,7 +615,7 @@ export default function InvoicesPage() {
             />
             <div className="space-y-1">
               <Input
-                label={`Item price (${form.currency})`}
+                label={t(`Item price (${form.currency})`, `Prix (${form.currency})`)}
                 type="number"
                 value={form.items[0].price}
                 min={0}
@@ -561,24 +628,29 @@ export default function InvoicesPage() {
                 }
               />
               <p className="text-xs text-muted-foreground">
-                Displayed as {formatCurrencyWithCode(form.items[0].price || 0, form.currency)}.
+                {t(
+                  `Displayed as ${formatCurrencyWithCode(form.items[0].price || 0, form.currency)}.`,
+                  `Affiche comme ${formatCurrencyWithCode(form.items[0].price || 0, form.currency)}.`
+                )}
               </p>
             </div>
             <div className="col-span-2 max-md:col-span-1">
               <Button type="submit" className="max-md:w-full">
-                {form.status === "SENT" ? "Save & send" : "Save draft"}
+                {form.status === "SENT"
+                  ? t("Save & send", "Enregistrer et envoyer")
+                  : t("Save draft", "Enregistrer brouillon")}
               </Button>
             </div>
           </form>
         </Card>
       )}
       <Card
-        title="History"
+        title={t("History", "Historique")}
         actions={
           <div className="flex flex-wrap items-center gap-3">
             <input
               suppressHydrationWarning
-              placeholder="Search invoices"
+              placeholder={t("Search invoices", "Rechercher des factures")}
               className="w-56 rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground max-md:w-full"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -590,14 +662,14 @@ export default function InvoicesPage() {
           <Alert variant="error">
             {(invoicesError as any)?.data?.reason ||
               (invoicesError as any)?.data?.error ||
-              "Unable to load invoices."}
+              t("Unable to load invoices.", "Impossible de charger les factures.")}
           </Alert>
         )}
         {showEmptyState ? (
           <EmptyState
-            title="No invoices yet"
-            description="Create your first invoice and it will appear here."
-            actionLabel="Create invoice"
+            title={t("No invoices yet", "Aucune facture")}
+            description={t("Create your first invoice and it will appear here.", "Creez votre premiere facture ici.")}
+            actionLabel={t("Create invoice", "Creer une facture")}
             onAction={scrollToCreate}
           />
         ) : (
@@ -605,25 +677,25 @@ export default function InvoicesPage() {
             data={filteredInvoices}
             keyExtractor={(row: any) => row.id || row.invoiceNumber}
             columns={[
-              { key: "invoiceNumber", label: "Number" },
+              { key: "invoiceNumber", label: t("Number", "Numero") },
               {
                 key: "currency",
-                label: "Currency",
+                label: t("Currency", "Devise"),
                 render: (row: any) => String(row.currency || "").toUpperCase(),
               },
               {
                 key: "status",
-                label: "Status",
-                render: (row: any) => getDisplayStatus(row?.status || ""),
+                label: t("Status", "Statut"),
+                render: (row: any) => translateStatus(getDisplayStatus(row?.status || "")),
               },
               {
                 key: "total",
-                label: "Total",
+                label: t("Total", "Total"),
                 render: (row: any) => formatCurrencyWithCode(Number(row.total || 0), row.currency),
               },
               {
                 key: "id",
-                label: "Actions",
+                label: t("Actions", "Actions"),
                 render: (row: any) => {
                   const invoiceId = row?.id ?? row?.invoiceNumber;
                   const invoiceNumber = row?.invoiceNumber ? String(row.invoiceNumber) : "";
@@ -639,10 +711,10 @@ export default function InvoicesPage() {
                           href={detailHref}
                           className="text-sm font-semibold text-indigo-600 hover:text-indigo-500"
                         >
-                          View
+                          {t("View", "Voir")}
                         </Link>
                       ) : (
-                        <span className="text-sm font-semibold text-muted-foreground">View</span>
+                        <span className="text-sm font-semibold text-muted-foreground">{t("View", "Voir")}</span>
                       )}
                       {String(row?.status || "").toUpperCase() === "DRAFT" ? (
                         <>
@@ -651,7 +723,7 @@ export default function InvoicesPage() {
                             onClick={() => openEditCustomer(row)}
                             className="text-sm font-semibold text-slate-700 hover:text-slate-600"
                           >
-                            Edit
+                            {t("Edit", "Modifier")}
                           </button>
                           <button
                             type="button"
@@ -659,7 +731,7 @@ export default function InvoicesPage() {
                             disabled={sendingId === row?.id}
                             className="text-sm font-semibold text-emerald-700 hover:text-emerald-600 disabled:opacity-50"
                           >
-                            {sendingId === row?.id ? "Sending..." : "Send"}
+                            {sendingId === row?.id ? t("Sending...", "Envoi...") : t("Send", "Envoyer")}
                           </button>
                         </>
                       ) : null}
@@ -675,34 +747,34 @@ export default function InvoicesPage() {
       <Modal
         open={editOpen}
         onClose={() => setEditOpen(false)}
-        title="Edit customer details"
+        title={t("Edit customer details", "Modifier les details client")}
       >
         <form className="space-y-4" onSubmit={saveCustomerDetails}>
           {editStatus && (
             <Alert variant={editStatus.variant}>{editStatus.message}</Alert>
           )}
           <Input
-            label="Customer name"
+            label={t("Customer name", "Nom du client")}
             value={editForm.customerName}
             onChange={(e) => setEditForm({ ...editForm, customerName: e.target.value })}
           />
           <Input
-            label="Customer email"
+            label={t("Customer email", "Email client")}
             type="email"
             value={editForm.customerEmail}
             onChange={(e) => setEditForm({ ...editForm, customerEmail: e.target.value })}
           />
           <Input
-            label="Customer address"
+            label={t("Customer address", "Adresse client")}
             value={editForm.customerAddress}
             onChange={(e) => setEditForm({ ...editForm, customerAddress: e.target.value })}
           />
           <div className="flex flex-wrap items-center justify-end gap-3">
             <Button type="button" variant="secondary" onClick={() => setEditOpen(false)}>
-              Cancel
+              {t("Cancel", "Annuler")}
             </Button>
             <Button type="submit" loading={savingEdit}>
-              Save changes
+              {t("Save changes", "Enregistrer")}
             </Button>
           </div>
         </form>

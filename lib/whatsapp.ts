@@ -81,15 +81,18 @@ export function normalizePhoneNumber(input: string) {
 
 function classifyWhatsAppError(
   status: number | undefined,
-  meta: { message?: string; type?: string; code?: number } | undefined,
+  meta: any,
   err?: any
 ): WhatsAppErrorDetails {
-  const message = meta?.message || err?.message || "";
+  const metaType = (meta as any)?.type as string | undefined;
+  const metaCode = (meta as any)?.code as number | undefined;
+  const metaMessage = (meta as any)?.message as string | undefined;
+  const message = metaMessage || err?.message || "";
   const lowered = String(message).toLowerCase();
-  const code = meta?.code;
+  const code = metaCode;
 
   if (status === 429 || lowered.includes("rate limit")) {
-    return { classification: "rate_limit", status, metaCode: code, metaType: meta?.type, metaMessage: message };
+    return { classification: "rate_limit", status, metaCode: code, metaType, metaMessage: message };
   }
 
   if (
@@ -100,26 +103,26 @@ function classifyWhatsAppError(
     lowered.includes("outside") ||
     lowered.includes("not permitted")
   ) {
-    return { classification: "policy_block", status, metaCode: code, metaType: meta?.type, metaMessage: message };
+    return { classification: "policy_block", status, metaCode: code, metaType, metaMessage: message };
   }
 
   if (status === 400 || lowered.includes("invalid")) {
-    return { classification: "validation_error", status, metaCode: code, metaType: meta?.type, metaMessage: message };
+    return { classification: "validation_error", status, metaCode: code, metaType, metaMessage: message };
   }
 
   if (err?.name === "AbortError" || ["ECONNRESET", "ETIMEDOUT", "ENOTFOUND"].includes(err?.code)) {
-    return { classification: "network_error", status, metaCode: code, metaType: meta?.type, metaMessage: message };
+    return { classification: "network_error", status, metaCode: code, metaType, metaMessage: message };
   }
 
   if (status && status >= 500) {
-    return { classification: "network_error", status, metaCode: code, metaType: meta?.type, metaMessage: message };
+    return { classification: "network_error", status, metaCode: code, metaType, metaMessage: message };
   }
 
   if (meta) {
-    return { classification: "meta_error", status, metaCode: code, metaType: meta?.type, metaMessage: message };
+    return { classification: "meta_error", status, metaCode: code, metaType, metaMessage: message };
   }
 
-  return { classification: "unknown", status, metaCode: code, metaType: meta?.type, metaMessage: message };
+  return { classification: "unknown", status, metaCode: code, metaType, metaMessage: message };
 }
 
 function buildWhatsAppError(details: WhatsAppErrorDetails) {

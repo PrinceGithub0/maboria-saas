@@ -8,11 +8,14 @@ import { Alert } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
+import { useLanguage } from "@/components/providers/language-provider";
 
 export default function NewAutomationPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "ADMIN";
+  const { language } = useLanguage();
+  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -24,34 +27,34 @@ export default function NewAutomationPage() {
   const [stepType, setStepType] = useState("parseText");
 
   const stepOptions = [
-    { value: "parseText", label: "Prepare input", adminOnly: true },
-    { value: "extractData", label: "Extract key details", adminOnly: true },
-    { value: "callApi", label: "Connect external service", adminOnly: true },
-    { value: "generateInvoice", label: "Create invoice" },
-    { value: "sendEmail", label: "Send email" },
-    { value: "generateReport", label: "Generate report" },
-    { value: "sendWhatsApp", label: "Send WhatsApp message", plan: "Pro" },
-    { value: "aiTransform", label: "AI improve message", plan: "Pro" },
+    { value: "parseText", label: t("Prepare input", "Preparer l entree"), adminOnly: true },
+    { value: "extractData", label: t("Extract key details", "Extraire les details"), adminOnly: true },
+    { value: "callApi", label: t("Connect external service", "Connecter un service externe"), adminOnly: true },
+    { value: "generateInvoice", label: t("Create invoice", "Creer une facture") },
+    { value: "sendEmail", label: t("Send email", "Envoyer un email") },
+    { value: "generateReport", label: t("Generate report", "Generer un rapport") },
+    { value: "sendWhatsApp", label: t("Send WhatsApp message", "Envoyer WhatsApp"), plan: "Pro" },
+    { value: "aiTransform", label: t("AI improve message", "IA ameliore message"), plan: "Pro" },
   ];
 
   const visibleStepOptions = stepOptions.filter((option) => isAdmin || !option.adminOnly);
 
   const getStepLabel = (type: string) => {
     const option = stepOptions.find((item) => item.value === type);
-    if (option?.adminOnly && !isAdmin) return "Internal step";
+    if (option?.adminOnly && !isAdmin) return t("Internal step", "Etape interne");
     return option?.label || type;
   };
 
   const formatPlan = (value?: string) => {
     switch ((value || "").toLowerCase()) {
       case "starter":
-        return "Starter";
+        return t("Starter", "Starter");
       case "pro":
-        return "Pro";
+        return t("Pro", "Pro");
       case "enterprise":
-        return "Enterprise";
+        return t("Enterprise", "Entreprise");
       default:
-        return value || "Upgrade";
+        return value || t("Upgrade", "Mise a niveau");
     }
   };
 
@@ -64,11 +67,23 @@ export default function NewAutomationPage() {
       lowered.includes("upgrade") ||
       lowered.includes("limit") ||
       lowered.includes("error") ||
-      lowered.includes("denied")
+      lowered.includes("denied") ||
+      lowered.includes("impossible") ||
+      lowered.includes("manquant") ||
+      lowered.includes("limite") ||
+      lowered.includes("erreur") ||
+      lowered.includes("refuse")
     ) {
       return "error";
     }
-    if (lowered.includes("saved") || lowered.includes("started") || lowered.includes("updated")) {
+    if (
+      lowered.includes("saved") ||
+      lowered.includes("started") ||
+      lowered.includes("updated") ||
+      lowered.includes("enregistre") ||
+      lowered.includes("demarre") ||
+      lowered.includes("mis a jour")
+    ) {
       return "success";
     }
     return "info";
@@ -77,7 +92,7 @@ export default function NewAutomationPage() {
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.steps.length) {
-      setStatus("Add at least one step before saving.");
+      setStatus(t("Add at least one step before saving.", "Ajoutez au moins une etape."));
       return;
     }
     setLoading(true);
@@ -94,11 +109,21 @@ export default function NewAutomationPage() {
     }
     if (!res.ok) {
       if (json.type === "upgrade_required") {
-        setStatus(`${json.reason || "Upgrade required."} Required plan: ${formatPlan(json.requiredPlan)}.`);
+        setStatus(
+          `${json.reason || t("Upgrade required.", "Mise a niveau requise.")} ${t(
+            "Required plan:",
+            "Plan requis :"
+          )} ${formatPlan(json.requiredPlan)}.`
+        );
       } else if (json.type === "limit_reached") {
-        setStatus(`${json.reason || "Limit reached."} Required plan: ${formatPlan(json.requiredPlan)}.`);
+        setStatus(
+          `${json.reason || t("Limit reached.", "Limite atteinte.")} ${t(
+            "Required plan:",
+            "Plan requis :"
+          )} ${formatPlan(json.requiredPlan)}.`
+        );
       } else {
-        setStatus(json.reason || json.error || "Could not save automation.");
+        setStatus(json.reason || json.error || t("Could not save automation.", "Impossible d enregistrer."));
       }
     } else {
       const savedId = json?.id || json?.flow?.id;
@@ -107,11 +132,16 @@ export default function NewAutomationPage() {
           ? savedId
           : "";
       if (!safeId) {
-        setStatus("Saved, but could not resolve the automation id. Returning to list.");
+        setStatus(
+          t(
+            "Saved, but could not resolve the automation id. Returning to list.",
+            "Enregistre, mais ID introuvable. Retour a la liste."
+          )
+        );
         router.push("/dashboard/automations");
         return;
       }
-      setStatus("Saved. Opening details...");
+      setStatus(t("Saved. Opening details...", "Enregistre. Ouverture..."));
       router.push(`/dashboard/automations/${encodeURIComponent(safeId)}`);
     }
     setLoading(false);
@@ -132,8 +162,10 @@ export default function NewAutomationPage() {
     <div className="space-y-4 max-md:space-y-6">
       <div className="md:contents max-md:rounded-[28px] max-md:border max-md:border-border/60 max-md:bg-card max-md:p-4 max-md:shadow-[0_16px_36px_rgba(15,23,42,0.18)]">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Automations</p>
-          <h1 className="text-3xl font-semibold text-foreground">Create automation</h1>
+          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
+            {t("Automations", "Automatisations")}
+          </p>
+          <h1 className="text-3xl font-semibold text-foreground">{t("Create automation", "Creer une automation")}</h1>
         </div>
         {status && (
           <div className="mt-4 flex">
@@ -149,31 +181,31 @@ export default function NewAutomationPage() {
       <Card>
         <form className="space-y-4" onSubmit={save}>
           <Input
-            label="Title"
+            label={t("Title", "Titre")}
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
-            placeholder="Daily onboarding emails"
+            placeholder={t("Daily onboarding emails", "Emails d accueil quotidiens")}
             autoFocus
           />
           <Input
-            label="Category"
+            label={t("Category", "Categorie")}
             value={form.category}
             onChange={(e) => setForm({ ...form, category: e.target.value })}
-            placeholder="Onboarding"
+            placeholder={t("Onboarding", "Onboarding")}
           />
           <label className="flex flex-col gap-2 text-sm text-foreground">
-            Description
+            {t("Description", "Description")}
             <textarea
               className="rounded-lg border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground"
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder="Explain what this automation does..."
+              placeholder={t("Explain what this automation does...", "Expliquez ce que fait cette automation...")}
             />
           </label>
           <div className="space-y-3">
             <div className="flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-2 text-sm text-foreground">
-                Step
+                {t("Step", "Etape")}
                 <select
                   className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
                   value={stepType}
@@ -187,7 +219,7 @@ export default function NewAutomationPage() {
                 </select>
               </label>
               <Button type="button" variant="secondary" onClick={addStep}>
-                Add step
+                {t("Add step", "Ajouter une etape")}
               </Button>
             </div>
             {form.steps.length > 0 ? (
@@ -208,18 +240,20 @@ export default function NewAutomationPage() {
                         )}
                       </div>
                       <Button type="button" size="sm" variant="ghost" onClick={() => removeStep(idx)}>
-                        Remove
+                        {t("Remove", "Retirer")}
                       </Button>
                     </div>
                   );
                 })}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No steps added yet.</p>
+              <p className="text-sm text-muted-foreground">
+                {t("No steps added yet.", "Aucune etape ajoutee.")}
+              </p>
             )}
           </div>
           <Button type="submit" loading={loading} className="max-md:w-full">
-            Save automation
+            {t("Save automation", "Enregistrer l automation")}
           </Button>
         </form>
       </Card>

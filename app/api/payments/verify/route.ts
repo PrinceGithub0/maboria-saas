@@ -13,7 +13,8 @@ import {
   verifyFlutterwaveTransactionByReference,
 } from "@/lib/payments/flutterwave";
 import { subscriptionPlanToUserPlan } from "@/lib/entitlements";
-import { pricingTableDualCurrency } from "@/lib/pricing";
+import { getPlanFromAmount, getPlanPriceForCurrency } from "@/lib/pricing";
+import { fromMinorUnits } from "@/lib/payments/currency-allowlist";
 import { log } from "@/lib/logger";
 
 const payloadSchema = z.object({
@@ -39,17 +40,9 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     if (!data || data.status !== "success") {
       return NextResponse.json({ status: "pending" });
     }
-    const priceTable = pricingTableDualCurrency();
-    const starter = priceTable.find((p) => p.plan === "STARTER");
-    const pro = priceTable.find((p) => p.plan === "GROWTH");
-    const amountNgn = Number(data?.amount || 0) / 100;
+    const amount = fromMinorUnits(Number(data?.amount || 0), data?.currency || "NGN");
     const currency = (data?.currency || "NGN").toUpperCase();
-    const inferredPlan =
-      currency === "NGN" && starter?.ngn === amountNgn
-        ? "STARTER"
-        : currency === "NGN" && pro?.ngn === amountNgn
-          ? "GROWTH"
-          : undefined;
+    const inferredPlan = getPlanFromAmount(currency, amount);
     const userId = (data?.metadata?.userId as string | undefined) || session.user.id;
     const plan = (data?.metadata?.plan as string | undefined) || inferredPlan;
     if (data?.metadata?.userId && data?.metadata?.userId !== session.user.id) {
@@ -57,6 +50,16 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     }
 
     data.metadata = { ...(data?.metadata || {}), userId, plan };
+
+    if (plan) {
+      const planKey =
+        plan === "STARTER" || plan === "GROWTH" || plan === "ENTERPRISE" ? plan : null;
+      const expected = planKey ? getPlanPriceForCurrency(planKey, currency) : null;
+      if (expected && Math.abs(amount - expected) > 0.01) {
+        log("warn", "paystack_amount_mismatch", { userId, plan, amount, expected, source: "verify" });
+        return NextResponse.json({ status: "pending" });
+      }
+    }
 
     await recordPaystackPayment(data);
     if (plan === "STARTER" || plan === "GROWTH") {
@@ -68,7 +71,7 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
       if (existingForPlan) {
         await prisma.subscription.update({
           where: { id: existingForPlan.id },
-          data: { status: "ACTIVE", renewalDate },
+          data: { status: "ACTIVE", renewalDate, currency },
         });
       } else {
         await prisma.subscription.create({
@@ -77,7 +80,7 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
             plan,
             status: "ACTIVE",
             renewalDate,
-            currency: "NGN",
+            currency,
             interval: "monthly",
           },
         });
@@ -108,21 +111,9 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     return NextResponse.json({ status: "pending" });
   }
 
-  const priceTable = pricingTableDualCurrency();
-  const starter = priceTable.find((p) => p.plan === "STARTER");
-  const pro = priceTable.find((p) => p.plan === "GROWTH");
   const amount = Number(verified?.amount || 0);
   const currency = (verified?.currency || "USD").toUpperCase();
-  const inferredPlan =
-    currency === "NGN" && starter?.ngn === amount
-      ? "STARTER"
-      : currency === "NGN" && pro?.ngn === amount
-        ? "GROWTH"
-        : currency === "USD" && starter?.usd === amount
-          ? "STARTER"
-          : currency === "USD" && pro?.usd === amount
-            ? "GROWTH"
-            : undefined;
+  const inferredPlan = getPlanFromAmount(currency, amount);
   const userId = (verified?.meta?.userId as string | undefined) || session.user.id;
   const plan = (verified?.meta?.plan as string | undefined) || inferredPlan;
   if (verified?.meta?.userId && verified?.meta?.userId !== session.user.id) {
@@ -130,10 +121,10 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
   }
 
   if (plan) {
-    const planRow =
-      plan === "GROWTH" ? priceTable.find((p) => p.plan === "GROWTH") : priceTable.find((p) => p.plan === "STARTER");
-    const expected = currency === "NGN" ? planRow?.ngn : planRow?.usd;
-    if (expected && amount !== expected) {
+    const planKey =
+      plan === "STARTER" || plan === "GROWTH" || plan === "ENTERPRISE" ? plan : null;
+    const expected = planKey ? getPlanPriceForCurrency(planKey, currency) : null;
+    if (expected && Math.abs(amount - expected) > 0.01) {
       log("warn", "flutterwave_amount_mismatch", { userId, plan, amount, expected, source: "verify" });
       return NextResponse.json({ status: "pending" });
     }
@@ -149,7 +140,7 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     if (existingForPlan) {
       await prisma.subscription.update({
         where: { id: existingForPlan.id },
-        data: { status: "ACTIVE", renewalDate },
+        data: { status: "ACTIVE", renewalDate, currency },
       });
     } else {
       await prisma.subscription.create({
@@ -158,7 +149,7 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
           plan,
           status: "ACTIVE",
           renewalDate,
-          currency: currency === "NGN" ? "NGN" : "USD",
+          currency,
           interval: "monthly",
         },
       });

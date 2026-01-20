@@ -10,7 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { log } from "@/lib/logger";
 import { subscriptionPlanToUserPlan } from "@/lib/entitlements";
 import { createAdminNotification } from "@/lib/notifications";
-import { pricingTableDualCurrency } from "@/lib/pricing";
+import { getPlanPriceForCurrency } from "@/lib/pricing";
 import {
   beginWebhookEvent,
   hashWebhookPayload,
@@ -84,11 +84,8 @@ export const POST = withErrorHandling(async (req: Request) => {
     }
 
     if (plan) {
-      const priceTable = pricingTableDualCurrency();
-      const planRow =
-        plan === "GROWTH" ? priceTable.find((p) => p.plan === "GROWTH") : priceTable.find((p) => p.plan === "STARTER");
-      const expected = currency === "NGN" ? planRow?.ngn : planRow?.usd;
-      if (expected && amount !== expected) {
+      const expected = getPlanPriceForCurrency(plan as "STARTER" | "GROWTH" | "ENTERPRISE", currency);
+      if (expected && Math.abs(amount - expected) > 0.01) {
         log("warn", "flutterwave_amount_mismatch", { userId, plan, amount, expected, txRef });
         await markWebhookFailed(webhookEvent.id, "amount_mismatch");
         return NextResponse.json({ received: true });
@@ -116,7 +113,7 @@ export const POST = withErrorHandling(async (req: Request) => {
             if (existingForPlan) {
               await tx.subscription.update({
                 where: { id: existingForPlan.id },
-                data: { status: "ACTIVE", renewalDate },
+                data: { status: "ACTIVE", renewalDate, currency },
               });
               subscriptionId = existingForPlan.id;
             } else {
@@ -126,7 +123,7 @@ export const POST = withErrorHandling(async (req: Request) => {
                   plan,
                   status: "ACTIVE",
                   renewalDate,
-                  currency: currency === "NGN" ? "NGN" : "USD",
+                  currency,
                   interval: "monthly",
                 },
               });

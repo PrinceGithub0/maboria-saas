@@ -1,30 +1,41 @@
 import { prisma } from "./prisma";
 
+type AsyncResult<T = unknown> = Promise<T>;
+type DelegateFn<T = unknown> = (...args: unknown[]) => AsyncResult<T>;
+type DelegateListFn<T = unknown> = (...args: unknown[]) => AsyncResult<T[]>;
+type LegacyEntry = { createdAt: Date; role: string; content: string };
+type ConversationRecord = {
+  id: string;
+  title?: string | null;
+  lastMessageAt?: Date | null;
+  updatedAt?: Date | null;
+  createdAt?: Date | null;
+};
+
 const prismaAny = prisma as unknown as {
   aiConversation?: {
-    findMany: Function;
-    findFirst: Function;
-    create: Function;
-    update: Function;
-    delete: Function;
+    findMany: DelegateListFn;
+    findFirst: DelegateFn;
+    create: DelegateFn;
+    update: DelegateFn;
+    deleteMany: DelegateFn;
   };
   aiMessage?: {
-    findMany: Function;
-    createMany: Function;
-    create: Function;
+    findMany: DelegateListFn;
+    createMany: DelegateFn;
+    create: DelegateFn;
   };
   aiMemory?: {
-    findMany: Function;
-    create: Function;
-    deleteMany: Function;
+    findMany: DelegateListFn;
+    create: DelegateFn;
+    deleteMany: DelegateFn;
   };
 };
 
-const hasAiSchema = Boolean(
-  prismaAny.aiConversation?.findFirst &&
-    prismaAny.aiConversation?.create &&
-    prismaAny.aiMessage?.findMany
-);
+const hasAiSchema =
+  typeof prismaAny.aiConversation?.findFirst === "function" &&
+  typeof prismaAny.aiConversation?.create === "function" &&
+  typeof prismaAny.aiMessage?.findMany === "function";
 const LEGACY_CONVERSATION_ID = "legacy";
 const LEGACY_TITLE = "General";
 
@@ -40,10 +51,10 @@ const isLegacyConversation = (conversationId?: string | null) =>
 
 export async function listAiConversations(userId: string) {
   if (!hasAiSchema) {
-    const legacy = await prismaAny.aiMemory?.findMany({
+    const legacy = (await prismaAny.aiMemory?.findMany({
       where: { userId },
       orderBy: { createdAt: "asc" },
-    });
+    })) as LegacyEntry[] | undefined;
     if (!legacy || legacy.length === 0) return [];
     const lastMessageAt = legacy[legacy.length - 1]?.createdAt;
     return [
@@ -56,7 +67,7 @@ export async function listAiConversations(userId: string) {
       },
     ];
   }
-  return prismaAny.aiConversation.findMany({
+  return prismaAny.aiConversation!.findMany({
     where: { userId },
     orderBy: [{ lastMessageAt: "desc" }, { updatedAt: "desc" }],
     select: {
@@ -79,25 +90,25 @@ export async function ensureDefaultAiConversation(userId: string) {
       createdAt: null,
     };
   }
-  const existing = await prismaAny.aiConversation.findFirst({
+  const existing = (await prismaAny.aiConversation!.findFirst({
     where: { userId },
     orderBy: [{ lastMessageAt: "desc" }, { updatedAt: "desc" }],
-  });
+  })) as ConversationRecord | null;
   if (existing) return existing;
 
-  const legacy = await prismaAny.aiMemory?.findMany({
+  const legacy = (await prismaAny.aiMemory?.findMany({
     where: { userId },
     orderBy: { createdAt: "asc" },
-  });
+  })) as LegacyEntry[] | undefined;
   if (legacy && legacy.length > 0) {
     const lastMessageAt = legacy[legacy.length - 1].createdAt;
-    const conversation = await prismaAny.aiConversation.create({
+    const conversation = (await prismaAny.aiConversation!.create({
       data: {
         userId,
         title: "General",
         lastMessageAt,
       },
-    });
+    })) as ConversationRecord;
     await prismaAny.aiMessage?.createMany({
       data: legacy.map((entry) => ({
         conversationId: conversation.id,
@@ -110,12 +121,12 @@ export async function ensureDefaultAiConversation(userId: string) {
     return conversation;
   }
 
-  return prismaAny.aiConversation.create({
+  return (await prismaAny.aiConversation!.create({
     data: {
       userId,
       title: DEFAULT_TITLE,
     },
-  });
+  })) as ConversationRecord;
 }
 
 export async function createAiConversation(userId: string, title?: string) {
@@ -128,12 +139,12 @@ export async function createAiConversation(userId: string, title?: string) {
       createdAt: null,
     };
   }
-  return prismaAny.aiConversation.create({
+  return (await prismaAny.aiConversation!.create({
     data: {
       userId,
       title: title && title.trim().length > 0 ? toTitle(title) : DEFAULT_TITLE,
     },
-  });
+  })) as ConversationRecord;
 }
 
 export async function renameAiConversation(userId: string, conversationId: string, title: string) {
@@ -147,9 +158,9 @@ export async function renameAiConversation(userId: string, conversationId: strin
       createdAt: null,
     };
   }
-  const existing = await prismaAny.aiConversation.findFirst({
+  const existing = (await prismaAny.aiConversation!.findFirst({
     where: { id: conversationId, userId },
-  });
+  })) as ConversationRecord | null;
   if (!existing) {
     return {
       id: LEGACY_CONVERSATION_ID,
@@ -159,10 +170,10 @@ export async function renameAiConversation(userId: string, conversationId: strin
       createdAt: null,
     };
   }
-  return prismaAny.aiConversation.update({
+  return (await prismaAny.aiConversation!.update({
     where: { id: conversationId, userId },
     data: { title: normalizedTitle },
-  });
+  })) as ConversationRecord;
 }
 
 export async function deleteAiConversation(userId: string, conversationId: string) {
@@ -181,11 +192,11 @@ export async function getAiConversationMessages(
   limit = 100
 ) {
   if (isLegacyConversation(conversationId) || !hasAiSchema) {
-    const messages = await prismaAny.aiMemory?.findMany({
+    const messages = (await prismaAny.aiMemory?.findMany({
       where: { userId },
       orderBy: { createdAt: "asc" },
       take: limit,
-    });
+    })) as LegacyEntry[] | undefined;
     return {
       conversation: {
         id: LEGACY_CONVERSATION_ID,
@@ -197,15 +208,15 @@ export async function getAiConversationMessages(
       messages: messages ?? [],
     };
   }
-  const conversation = await prismaAny.aiConversation.findFirst({
+  const conversation = (await prismaAny.aiConversation!.findFirst({
     where: { id: conversationId, userId },
-  });
+  })) as ConversationRecord | null;
   if (!conversation) {
-    const messages = await prismaAny.aiMemory?.findMany({
+    const messages = (await prismaAny.aiMemory?.findMany({
       where: { userId },
       orderBy: { createdAt: "asc" },
       take: limit,
-    });
+    })) as LegacyEntry[] | undefined;
     if (!messages || messages.length === 0) return null;
     return {
       conversation: {
@@ -218,7 +229,7 @@ export async function getAiConversationMessages(
       messages,
     };
   }
-  const messages = await prismaAny.aiMessage.findMany({
+  const messages = await prismaAny.aiMessage!.findMany({
     where: { conversationId, userId },
     orderBy: { createdAt: "asc" },
     take: limit,
@@ -238,7 +249,7 @@ export async function addAiMessage(params: {
       data: { userId, role, content },
     });
   }
-  const existing = await prismaAny.aiConversation.findFirst({
+  const existing = await prismaAny.aiConversation!.findFirst({
     where: { id: conversationId, userId },
   });
   if (!existing) {
@@ -247,9 +258,9 @@ export async function addAiMessage(params: {
     });
   }
   return prisma.$transaction(async (tx: any) => {
-    const conversation = await tx.aiConversation.findFirst({
+    const conversation = (await tx.aiConversation.findFirst({
       where: { id: conversationId, userId },
-    });
+    })) as ConversationRecord | null;
     if (!conversation) return null;
 
     const message = await tx.aiMessage.create({
@@ -277,13 +288,13 @@ export async function fetchConversationWindow(
   limit = 8
 ) {
   if (isLegacyConversation(conversationId) || !hasAiSchema) {
-    return prismaAny.aiMemory?.findMany({
+    return (prismaAny.aiMemory?.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
       take: limit,
-    });
+    }) as LegacyEntry[] | undefined);
   }
-  return prismaAny.aiMessage.findMany({
+  return prismaAny.aiMessage!.findMany({
     where: { conversationId, userId },
     orderBy: { createdAt: "desc" },
     take: limit,

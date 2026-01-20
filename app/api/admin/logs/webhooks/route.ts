@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
 import { withErrorHandling } from "@/lib/api-handler";
 
 export const GET = withErrorHandling(async (req: Request) => {
@@ -13,9 +12,16 @@ export const GET = withErrorHandling(async (req: Request) => {
   const url = new URL(req.url);
   const page = Number(url.searchParams.get("page") || 1);
   const take = 50;
-  const logs = await prisma.payment.findMany({
-    where: { metadata: { path: ["event"], not: Prisma.DbNull } },
-    orderBy: { createdAt: "desc" },
+  const status = url.searchParams.get("status") || undefined;
+  const provider = url.searchParams.get("provider") || undefined;
+  const query = url.searchParams.get("q")?.trim();
+  const logs = await prisma.webhookEvent.findMany({
+    where: {
+      ...(status ? { status } : {}),
+      ...(provider ? { provider } : {}),
+      ...(query ? { eventId: { contains: query, mode: "insensitive" } } : {}),
+    },
+    orderBy: { receivedAt: "desc" },
     skip: (page - 1) * take,
     take,
   });

@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
-import { pricingTableDualCurrency } from "@/lib/pricing";
+import { getPlanPriceForCurrency } from "@/lib/pricing";
 import { z } from "zod";
 import { isAllowedCurrency, isProviderCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
 
@@ -40,19 +40,8 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     return NextResponse.json({ error: "Unsupported currency" }, { status: 400 });
   }
   const plan = parsed.plan ?? "starter";
-  const priceTable = pricingTableDualCurrency();
-  const starter = priceTable.find((p) => p.plan === "STARTER");
-  const pro = priceTable.find((p) => p.plan === "GROWTH");
-  const planAmount =
-    currency === "NGN"
-      ? plan === "pro"
-        ? pro?.ngn
-        : starter?.ngn
-      : currency === "USD"
-        ? plan === "pro"
-          ? pro?.usd
-          : starter?.usd
-        : null;
+  const planCurrency = plan === "pro" ? "GROWTH" : "STARTER";
+  const planAmount = getPlanPriceForCurrency(planCurrency, currency);
 
   if (!planAmount) {
     return NextResponse.json({ error: "Pricing not configured for selected currency" }, { status: 400 });
@@ -79,7 +68,7 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     )}`,
     metadata: {
       userId: session.user.id,
-      plan: plan === "pro" ? "GROWTH" : "STARTER",
+      plan: planCurrency,
     },
   });
 

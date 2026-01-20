@@ -9,6 +9,21 @@ import {
   renameAiConversation,
 } from "@/lib/assistant-conversations";
 
+type ConversationPayload = {
+  id: string;
+  title: string;
+  lastMessageAt?: string | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+};
+
+type MessagePayload = {
+  id: string;
+  role: string;
+  content: string;
+  createdAt?: string | Date;
+};
+
 const resolveConversationId = (req: Request, ctx?: { params?: { id?: string } }) => {
   if (ctx?.params?.id) return ctx.params.id;
   const path = new URL(req.url).pathname;
@@ -44,7 +59,9 @@ export const GET = withErrorHandling(async (req: Request, ctx?: { params?: { id?
   const rawLimit = Number(url.searchParams.get("limit") ?? 100);
   const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 200) : 100;
 
-  const result = await getAiConversationMessages(session.user.id, conversationId, limit);
+  const result = (await getAiConversationMessages(session.user.id, conversationId, limit)) as
+    | { conversation: ConversationPayload; messages: MessagePayload[] }
+    | null;
   if (!result) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
 
   return NextResponse.json({

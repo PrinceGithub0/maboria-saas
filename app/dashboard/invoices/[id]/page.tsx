@@ -8,6 +8,8 @@ import { InvoicePreview } from "@/components/invoices/invoice-preview";
 import { Alert } from "@/components/ui/alert";
 import { InvoiceItem, calculateTotalsFromAmounts, resolveInvoiceCustomer } from "@/lib/invoice";
 import { isAllowedCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
+import { LangText } from "@/components/ui/lang-text";
+import { cookies } from "next/headers";
 
 type PageProps = {
   params: { id: string };
@@ -17,6 +19,12 @@ type PageProps = {
 export const dynamic = "force-dynamic";
 
 export default async function InvoiceDetailPage({ params, searchParams }: PageProps) {
+  const t = (en: string, fr: string) => <LangText en={en} fr={fr} />;
+  const language = cookies().get("maboria_language")?.value === "fr" ? "fr" : "en";
+  const pdfHint =
+    language === "fr"
+      ? "Corrigez la devise et le profil entreprise pour activer le PDF."
+      : "Fix invoice currency and business profile to enable PDF.";
   const session = await getServerSession(authOptions);
   if (!session?.user) {
     redirect("/login");
@@ -54,12 +62,12 @@ export default async function InvoiceDetailPage({ params, searchParams }: PagePr
   if (candidates.length === 0) {
     return (
       <div className="space-y-4">
-        <Alert variant="error">Invalid invoice link.</Alert>
+        <Alert variant="error">{t("Invalid invoice link.", "Lien de facture invalide.")}</Alert>
         <Link
           href="/dashboard/invoices"
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-muted px-4 py-2 text-sm font-semibold text-foreground hover:brightness-95"
         >
-          Back to invoices
+          {t("Back to invoices", "Retour aux factures")}
         </Link>
       </div>
     );
@@ -74,7 +82,8 @@ export default async function InvoiceDetailPage({ params, searchParams }: PagePr
     return (
       <div className="space-y-6">
         <Alert variant="error">
-          Access denied. {entitlement.reason || "Upgrade required to view invoices."}
+          {t("Access denied.", "Acces refuse.")}{" "}
+          {entitlement.reason || t("Upgrade required to view invoices.", "Mise a niveau requise pour voir les factures.")}
         </Alert>
       </div>
     );
@@ -95,13 +104,16 @@ export default async function InvoiceDetailPage({ params, searchParams }: PagePr
     return (
       <div className="space-y-4">
         <Alert variant="error">
-          Invoice not found. It may have been deleted or the link is incorrect.
+          {t(
+            "Invoice not found. It may have been deleted or the link is incorrect.",
+            "Facture introuvable. Elle a peut-etre ete supprimee ou le lien est incorrect."
+          )}
         </Alert>
         <Link
           href="/dashboard/invoices"
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-muted px-4 py-2 text-sm font-semibold text-foreground hover:brightness-95"
         >
-          Back to invoices
+          {t("Back to invoices", "Retour aux factures")}
         </Link>
       </div>
     );
@@ -140,23 +152,25 @@ export default async function InvoiceDetailPage({ params, searchParams }: PagePr
   );
   const downloadUrl = `/api/invoice/${encodeURIComponent(
     String(invoice.id)
-  )}/pdf?fresh=1&v=${invoice.updatedAt?.getTime?.() ?? Date.now()}`;
+  )}/pdf?fresh=1&v=${invoice.generatedAt?.getTime?.() ?? Date.now()}`;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
-            Invoices
+            {t("Invoices", "Factures")}
           </p>
-          <h1 className="text-3xl font-semibold text-foreground">Invoice {invoice.invoiceNumber}</h1>
+          <h1 className="text-3xl font-semibold text-foreground">
+            {t("Invoice", "Facture")} {invoice.invoiceNumber}
+          </h1>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
             href="/dashboard/invoices"
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-muted px-4 py-2 text-sm font-semibold text-foreground hover:brightness-95"
           >
-            Back to invoices
+            {t("Back to invoices", "Retour aux factures")}
           </Link>
           {currencyAllowed && !businessMissing ? (
             <a
@@ -164,15 +178,15 @@ export default async function InvoiceDetailPage({ params, searchParams }: PagePr
               download
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-500"
             >
-              Download PDF
+              {t("Download PDF", "Telecharger PDF")}
             </a>
           ) : (
             <span
               className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-border bg-muted px-4 py-2 text-sm font-semibold text-muted-foreground"
-              title="Fix invoice currency and business profile to enable PDF."
+              title={pdfHint}
               aria-disabled="true"
             >
-              Download PDF
+              {t("Download PDF", "Telecharger PDF")}
             </span>
           )}
         </div>
@@ -180,12 +194,18 @@ export default async function InvoiceDetailPage({ params, searchParams }: PagePr
 
       {!currencyAllowed && (
         <Alert variant="error">
-          Invoice currency is invalid. Update the invoice currency before downloading a PDF.
+          {t(
+            "Invoice currency is invalid. Update the invoice currency before downloading a PDF.",
+            "Devise invalide. Mettez a jour la devise avant de telecharger le PDF."
+          )}
         </Alert>
       )}
       {businessMissing && (
         <Alert variant="error">
-          Business profile snapshot is missing on this invoice. Please recreate the invoice.
+          {t(
+            "Business profile snapshot is missing on this invoice. Please recreate the invoice.",
+            "Profil entreprise manquant sur cette facture. Veuillez recreer la facture."
+          )}
         </Alert>
       )}
 

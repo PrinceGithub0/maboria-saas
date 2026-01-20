@@ -303,3 +303,8 @@ html:not(.dark) .automation-throughput-card {
 html.dark .automation-throughput-card {
   background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), #0b1222 55%, #0b1222 100%) !important;
 }
+
+html[data-lang="en"] [data-lang="fr"],
+html[data-lang="fr"] [data-lang="en"] {
+  display: none !important;
+}

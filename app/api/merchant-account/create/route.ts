@@ -25,7 +25,7 @@ export const POST = withRequestLogging(
     if (provider === "PAYSTACK" && !isProviderCurrency("PAYSTACK", currency)) {
       return NextResponse.json(
         {
-          error: "Paystack supports NGN only.",
+          error: "Paystack does not support the selected currency.",
         },
         { status: 400 }
       );

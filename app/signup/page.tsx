@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Alert } from "@/components/ui/alert";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
+import { useLanguage } from "@/components/providers/language-provider";
 
 export default function SignupPage() {
   const [form, setForm] = useState({
@@ -23,11 +24,13 @@ export default function SignupPage() {
   const [intent, setIntent] = useState<"trial" | "starter" | "pro">("trial");
   const [loading, setLoading] = useState(false);
   const logoSrc = "/branding/Maboria%20Company%20logo.png";
+  const { language } = useLanguage();
+  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.autoRenew) {
-      setError("You must accept auto-renew to continue.");
+      setError(t("You must accept auto-renew to continue.", "Vous devez accepter le renouvellement automatique."));
       return;
     }
     setLoading(true);
@@ -41,7 +44,7 @@ export default function SignupPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.error || "Signup failed");
+        setError(data.error || t("Signup failed", "Echec de l inscription"));
         return;
       }
       setUserId(data.userId || null);
@@ -55,14 +58,24 @@ export default function SignupPage() {
         callbackUrl: "/dashboard",
       });
       if (result?.error) {
-        setError("Account created, but sign-in failed. Please sign in to continue.");
+        setError(
+          t(
+            "Account created, but sign-in failed. Please sign in to continue.",
+            "Compte cree, mais connexion echouee. Veuillez vous connecter."
+          )
+        );
         return;
       }
       if (typeof window !== "undefined") {
         window.location.href = result?.url || "/dashboard";
       }
     } catch {
-      setError("Signup succeeded, but automatic sign-in failed. Please sign in to continue.");
+      setError(
+        t(
+          "Signup succeeded, but automatic sign-in failed. Please sign in to continue.",
+          "Inscription reussie, mais connexion automatique echouee. Veuillez vous connecter."
+        )
+      );
     } finally {
       setLoading(false);
     }
@@ -80,11 +93,16 @@ export default function SignupPage() {
               </div>
               <div>
                 <p className="text-xs uppercase tracking-[0.3em] text-indigo-600 dark:text-indigo-300">Maboria</p>
-                <p className="text-lg font-semibold text-foreground">Create your account</p>
+                <p className="text-lg font-semibold text-foreground">
+                  {t("Create your account", "Creez votre compte")}
+                </p>
               </div>
             </div>
             <p className="text-sm text-muted-foreground">
-              Start automating invoices, subscriptions, and customer updates in minutes.
+              {t(
+                "Start automating invoices, subscriptions, and customer updates in minutes.",
+                "Automatisez factures, abonnements et mises a jour clients en quelques minutes."
+              )}
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <Badge
@@ -96,48 +114,56 @@ export default function SignupPage() {
                   borderColor: "#6ee7b7",
                 }}
               >
-                Trusted billing
+                {t("Trusted billing", "Facturation fiable")}
               </Badge>
               <Badge
                 variant="default"
                 className="text-[10px] uppercase tracking-[0.2em] !bg-slate-900 !text-white !border-slate-900 dark:!bg-slate-800 dark:!text-slate-100 dark:!border-slate-700"
               >
-                AI automation
+                {t("AI automation", "Automatisation IA")}
               </Badge>
               <Badge
                 variant="default"
                 className="text-[10px] uppercase tracking-[0.2em] !bg-slate-900 !text-white !border-slate-900 dark:!bg-slate-800 dark:!text-slate-100 dark:!border-slate-700"
               >
-                Team-ready
+                {t("Team-ready", "Equipe prete")}
               </Badge>
             </div>
             {error && <Alert variant="error">{error}</Alert>}
             {success && (
               <Alert variant="success">
                 {intent === "trial"
-                  ? "Trial started. Please sign in to continue."
-                  : "Account created. Please sign in to complete subscription."}
+                  ? t("Trial started. Please sign in to continue.", "Essai demarre. Connectez-vous pour continuer.")
+                  : t(
+                      "Account created. Please sign in to complete subscription.",
+                      "Compte cree. Connectez-vous pour finaliser l abonnement."
+                    )}
                 {userId ? ` Your user ID: ${userId}.` : ""}
               </Alert>
             )}
             {success && userId && (
               <p className="text-xs text-muted-foreground">
-                User ID: <span className="font-mono text-foreground">{userId}</span>
+                {t("User ID:", "ID utilisateur:")} <span className="font-mono text-foreground">{userId}</span>
               </p>
             )}
             {success && (
               <div className="rounded-2xl border border-border bg-card/60 p-4">
-                <p className="text-sm font-semibold text-foreground">Continue to billing</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {t("Continue to billing", "Continuer vers la facturation")}
+                </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  If you are not redirected automatically, continue to payment setup to add your card.
+                  {t(
+                    "If you are not redirected automatically, continue to payment setup to add your card.",
+                    "Si vous n etes pas redirige, poursuivez la configuration du paiement."
+                  )}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Link href="/dashboard/payments">
-                    <Button size="sm">Go to payment setup</Button>
+                    <Button size="sm">{t("Go to payment setup", "Aller au paiement")}</Button>
                   </Link>
                   <Link href="/login">
                     <Button size="sm" variant="secondary">
-                      Sign in again
+                      {t("Sign in again", "Se connecter a nouveau")}
                     </Button>
                   </Link>
                 </div>
@@ -146,7 +172,9 @@ export default function SignupPage() {
 
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div className="space-y-2">
-                <p className="text-sm font-semibold text-foreground">Choose how to start</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {t("Choose how to start", "Choisissez comment demarrer")}
+                </p>
             <div className="grid gap-2">
               <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-muted/40 p-3">
                 <input
@@ -157,8 +185,15 @@ export default function SignupPage() {
                   onChange={() => setForm({ ...form, planIntent: "trial" })}
                 />
                 <div>
-                  <p className="text-sm font-medium text-foreground">Start 7-day free trial</p>
-                  <p className="text-xs text-muted-foreground">Auto-renews to a paid plan unless cancelled.</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {t("Start 7-day free trial", "Demarrer essai 7 jours")}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t(
+                      "Auto-renews to a paid plan unless cancelled.",
+                      "Renouvellement automatique sauf annulation."
+                    )}
+                  </p>
                 </div>
               </label>
               <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-muted/40 p-3">
@@ -170,8 +205,12 @@ export default function SignupPage() {
                   onChange={() => setForm({ ...form, planIntent: "starter" })}
                 />
                 <div>
-                  <p className="text-sm font-medium text-foreground">Subscribe to Starter</p>
-                  <p className="text-xs text-muted-foreground">Best for founders getting started.</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {t("Subscribe to Starter", "S'abonner a Starter")}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("Best for founders getting started.", "Ideal pour les fondateurs." )}
+                  </p>
                 </div>
               </label>
               <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-muted/40 p-3">
@@ -183,27 +222,34 @@ export default function SignupPage() {
                   onChange={() => setForm({ ...form, planIntent: "pro" })}
                 />
                 <div>
-                  <p className="text-sm font-medium text-foreground">Subscribe to Pro</p>
-                  <p className="text-xs text-muted-foreground">Unlock AI workflows and WhatsApp automation.</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {t("Subscribe to Pro", "S'abonner a Pro")}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t(
+                      "Unlock AI workflows and WhatsApp automation.",
+                      "Debloquez IA et automatisation WhatsApp."
+                    )}
+                  </p>
                 </div>
               </label>
             </div>
           </div>
           <Input
-            label="Name"
+            label={t("Name", "Nom")}
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             required
           />
           <Input
-            label="Email"
+            label={t("Email", "Email")}
             type="email"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             required
           />
           <Input
-            label="Password"
+            label={t("Password", "Mot de passe")}
             type="password"
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -218,23 +264,32 @@ export default function SignupPage() {
             />
             <span>
               {form.planIntent === "trial"
-                ? "I understand my trial will auto-renew unless I cancel before the renewal date."
-                : "I understand my subscription will auto-renew unless I cancel before the renewal date."}
+                ? t(
+                    "I understand my trial will auto-renew unless I cancel before the renewal date.",
+                    "Je comprends que l'essai se renouvelle sauf annulation avant la date."
+                  )
+                : t(
+                    "I understand my subscription will auto-renew unless I cancel before the renewal date.",
+                    "Je comprends que l'abonnement se renouvelle sauf annulation avant la date."
+                  )}
             </span>
           </label>
           <p className="text-xs text-muted-foreground">
-            Two-factor authentication (2FA) can be enabled after sign-in from Settings.
+            {t(
+              "Two-factor authentication (2FA) can be enabled after sign-in from Settings.",
+              "L'authentification 2FA peut etre activee apres connexion dans Parametres."
+            )}
           </p>
           <Button className="w-full" loading={loading} type="submit">
-            Create account
+            {t("Create account", "Creer un compte")}
           </Button>
         </form>
         <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
           <Link href="/login" className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-200">
-            Sign in
+            {t("Sign in", "Se connecter")}
           </Link>
           <Link href="/faq" className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-200">
-            View FAQ
+            {t("View FAQ", "Voir FAQ")}
           </Link>
         </div>
         </div>

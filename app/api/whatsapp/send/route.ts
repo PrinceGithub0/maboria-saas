@@ -19,7 +19,7 @@ const payloadSchema = z
     message: z.string().min(1).optional(),
     templateName: z.string().min(1).optional(),
     language: z.string().min(2).optional(),
-    components: z.array(z.record(z.any())).optional(),
+    components: z.array(z.record(z.string(), z.any())).optional(),
   })
   .refine((data) => (data.type === "text" ? Boolean(data.message) : true), {
     message: "message is required for text",

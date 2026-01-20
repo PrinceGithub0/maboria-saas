@@ -7,6 +7,7 @@ import { env } from "../env";
 import { notifyPaymentSucceeded } from "../whatsapp";
 import { maybeSendSubscriptionReceipt } from "../subscription-receipt";
 import { recordInvoicePayment } from "../invoice-payments";
+import { fromMinorUnits } from "./currency-allowlist";
 
 const PAYSTACK_SECRET = env.paystackSecret || "";
 const PAYSTACK_BASE = "https://api.paystack.co";
@@ -130,8 +131,8 @@ export async function recordPaystackPayment(data: any) {
       log("warn", "paystack_invoice_payment_unverified", { reference });
       return;
     }
-    const amount = typeof data.amount === "number" ? data.amount / 100 : 0;
     const currency = (data.currency || "NGN").toUpperCase();
+    const amount = typeof data.amount === "number" ? fromMinorUnits(data.amount, currency) : 0;
     const status = data.status === "success" ? "SUCCEEDED" : "FAILED";
     const meta = data?.metadata || {};
     await recordInvoicePayment({
@@ -184,8 +185,8 @@ export async function recordPaystackPayment(data: any) {
     return;
   }
 
-  const amount = typeof data.amount === "number" ? data.amount / 100 : 0;
   const currency = (data.currency || "NGN").toUpperCase();
+  const amount = typeof data.amount === "number" ? fromMinorUnits(data.amount, currency) : 0;
   const status = data.status === "success" ? "SUCCEEDED" : "FAILED";
   const plan = data?.metadata?.plan as string | undefined;
   const metadata = { ...(data?.metadata || {}), userId: resolvedUserId, plan };

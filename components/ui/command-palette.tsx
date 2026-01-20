@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { Search, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useLanguage } from "@/components/providers/language-provider";
 
 export type CommandItem = {
   id: string;
@@ -28,6 +29,8 @@ export function CommandPalette({
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
+  const { language } = useLanguage();
+  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
 
   useEffect(() => {
     if (!open) return;
@@ -55,13 +58,13 @@ export function CommandPalette({
   const grouped = useMemo(() => {
     const map = new Map<string, CommandItem[]>();
     for (const item of filtered) {
-      const key = item.group || "Navigate";
+      const key = item.group || t("Navigate", "Naviguer");
       const list = map.get(key) || [];
       list.push(item);
       map.set(key, list);
     }
     return Array.from(map.entries());
-  }, [filtered]);
+  }, [filtered, language]);
 
   const handleSelect = (item: CommandItem) => {
     onOpenChange(false);
@@ -79,7 +82,7 @@ export function CommandPalette({
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search pages, actions, and tools"
+            placeholder={t("Search pages, actions, and tools", "Rechercher pages, actions et outils")}
             className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
             onKeyDown={(e) => {
               if (e.key === "Enter" && filtered[0]) {
@@ -91,7 +94,7 @@ export function CommandPalette({
           <button
             onClick={() => onOpenChange(false)}
             className="rounded-lg border border-border bg-card p-1.5 text-muted-foreground hover:text-foreground"
-            aria-label="Close command palette"
+            aria-label={t("Close command palette", "Fermer la palette")}
           >
             <X className="h-4 w-4" />
           </button>
@@ -99,7 +102,7 @@ export function CommandPalette({
         <div className="max-h-[60vh] overflow-y-auto px-4 py-4">
           {grouped.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
-              No results found. Try another search term.
+              {t("No results found. Try another search term.", "Aucun resultat. Essayez un autre terme.")}
             </div>
           ) : (
             <div className="space-y-6">
@@ -131,7 +134,7 @@ export function CommandPalette({
                             ) : null}
                           </div>
                           <span className="rounded-full border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground">
-                            Enter
+                            {t("Enter", "Entree")}
                           </span>
                         </button>
                       );

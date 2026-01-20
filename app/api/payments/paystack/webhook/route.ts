@@ -16,6 +16,7 @@ import {
   markWebhookFailed,
   markWebhookProcessed,
 } from "@/lib/webhook-events";
+import { fromMinorUnits, normalizeCurrency } from "@/lib/payments/currency-allowlist";
 
 export const POST = withErrorHandling(async (req: Request) => {
   const signature = req.headers.get("x-paystack-signature") || undefined;
@@ -65,8 +66,8 @@ export const POST = withErrorHandling(async (req: Request) => {
       await recordInvoicePayment({
         provider: "PAYSTACK",
         reference: verified.reference || reference,
-        amount: Number(verified.amount || 0) / 100,
-        currency: (verified.currency || "NGN").toUpperCase(),
+        amount: fromMinorUnits(Number(verified.amount || 0), verified.currency || "NGN"),
+        currency: normalizeCurrency(verified.currency || "NGN"),
         status: "SUCCEEDED",
         invoiceId: meta?.invoice_id || meta?.invoiceId,
         invoiceNumber: meta?.invoiceNumber,
@@ -112,6 +113,7 @@ export const POST = withErrorHandling(async (req: Request) => {
       });
       const oldPlan = existing ? subscriptionPlanToUserPlan(existing.plan) : "free";
       const renewalDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      const currency = normalizeCurrency(data?.currency || "NGN");
       let subscriptionId: string | null = null;
       await prisma.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userIdFromMeta}))`;
@@ -122,7 +124,7 @@ export const POST = withErrorHandling(async (req: Request) => {
         if (existingForPlan) {
           await tx.subscription.update({
             where: { id: existingForPlan.id },
-            data: { status: "ACTIVE", renewalDate },
+            data: { status: "ACTIVE", renewalDate, currency },
           });
           subscriptionId = existingForPlan.id;
         } else {
@@ -132,7 +134,7 @@ export const POST = withErrorHandling(async (req: Request) => {
               plan: data.metadata.plan,
               status: "ACTIVE",
               renewalDate,
-              currency: "NGN",
+              currency,
               interval: "monthly",
             },
           });
@@ -213,16 +215,17 @@ export const POST = withErrorHandling(async (req: Request) => {
         });
         const oldPlan = existing ? subscriptionPlanToUserPlan(existing.plan) : "free";
         const renewalDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        const currency = normalizeCurrency(data?.currency || "NGN");
       await prisma.subscription.upsert({
         where: { id: data?.subscription_code || data?.id || `${userId}-${plan}` },
-        update: { status: "ACTIVE", plan, renewalDate },
+        update: { status: "ACTIVE", plan, renewalDate, currency },
         create: {
           id: data?.subscription_code || data?.id || `${userId}-${plan}`,
           userId,
           plan,
           status: "ACTIVE",
           renewalDate,
-          currency: "NGN",
+          currency,
           interval: "monthly",
         },
       });

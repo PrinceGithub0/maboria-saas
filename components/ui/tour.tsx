@@ -4,20 +4,55 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "./button";
 import { useUser } from "@/lib/hooks/use-user";
 import { usePathname, useRouter } from "next/navigation";
+import { useLanguage } from "@/components/providers/language-provider";
 
 const steps = [
-  { title: "Dashboard", desc: "See metrics, cards, and quick actions.", href: "/dashboard" },
-  { title: "Automations", desc: "Build or AI-generate workflows with triggers and actions.", href: "/dashboard/automations" },
-  { title: "Runs", desc: "Track automation outcomes and view logs.", href: "/dashboard/runs" },
-  { title: "AI Assistant", desc: "Chat, create flows, and diagnose errors with AI.", href: "/dashboard/assistant" },
-  { title: "Inbox", desc: "Review customer messages and replies in one place.", href: "/dashboard/inbox" },
-  { title: "Billing", desc: "Manage plans, invoices, and payment methods.", href: "/dashboard/subscription" },
-  { title: "Analytics", desc: "Review usage, automation runs, and quotas.", href: "/dashboard/usage" },
-  { title: "Settings", desc: "Profile, security, and 2FA preferences.", href: "/dashboard/settings" },
+  {
+    title: { en: "Dashboard", fr: "Tableau de bord" },
+    desc: { en: "See metrics, cards, and quick actions.", fr: "Voir les metriques, cartes et actions rapides." },
+    href: "/dashboard",
+  },
+  {
+    title: { en: "Automations", fr: "Automatisations" },
+    desc: { en: "Build or AI-generate workflows with triggers and actions.", fr: "Creer ou generer des workflows IA avec declencheurs et actions." },
+    href: "/dashboard/automations",
+  },
+  {
+    title: { en: "Runs", fr: "Executions" },
+    desc: { en: "Track automation outcomes and view logs.", fr: "Suivre les resultats et consulter les logs." },
+    href: "/dashboard/runs",
+  },
+  {
+    title: { en: "AI Assistant", fr: "Assistant IA" },
+    desc: { en: "Chat, create flows, and diagnose errors with AI.", fr: "Discuter, creer des flux, diagnostiquer avec l IA." },
+    href: "/dashboard/assistant",
+  },
+  {
+    title: { en: "Inbox", fr: "Boite de reception" },
+    desc: { en: "Review customer messages and replies in one place.", fr: "Voir messages clients et reponses au meme endroit." },
+    href: "/dashboard/inbox",
+  },
+  {
+    title: { en: "Billing", fr: "Facturation" },
+    desc: { en: "Manage plans, invoices, and payment methods.", fr: "Gerer plans, factures et moyens de paiement." },
+    href: "/dashboard/subscription",
+  },
+  {
+    title: { en: "Analytics", fr: "Analyses" },
+    desc: { en: "Review usage, automation runs, and quotas.", fr: "Voir l usage, executions et quotas." },
+    href: "/dashboard/usage",
+  },
+  {
+    title: { en: "Settings", fr: "Parametres" },
+    desc: { en: "Profile, security, and 2FA preferences.", fr: "Profil, securite et preferences 2FA." },
+    href: "/dashboard/settings",
+  },
 ];
 
 export function TourOverlay() {
   const { user, mutate } = useUser();
+  const { language } = useLanguage();
+  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
   const [active, setActive] = useState(0);
   const [visible, setVisible] = useState(false);
   const router = useRouter();
@@ -87,14 +122,14 @@ export function TourOverlay() {
       <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400" />
       <div className="flex items-center justify-between">
         <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-indigo-700 dark:text-indigo-300">
-          Product tour
+          {t("Product tour", "Parcours produit")}
         </p>
         <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${pillClass}`}>
-          Step {active + 1} of {steps.length}
+          {t("Step", "Etape")} {active + 1} {t("of", "sur")} {steps.length}
         </span>
       </div>
-      <h4 className="mt-3 text-xl font-semibold">{step.title}</h4>
-      <p className={`mt-1 text-sm ${descClass}`}>{step.desc}</p>
+      <h4 className="mt-3 text-xl font-semibold">{step.title[language]}</h4>
+      <p className={`mt-1 text-sm ${descClass}`}>{step.desc[language]}</p>
       <div className="mt-4">
         <div className={`h-1.5 w-full rounded-full ${trackClass}`}>
           <div
@@ -116,26 +151,30 @@ export function TourOverlay() {
               size="sm"
               variant="ghost"
               onClick={() => step?.href && router.push(step.href)}
-              aria-label={`Go to ${step.title}`}
+              aria-label={
+                language === "fr"
+                  ? `Aller a ${step.title[language]}`
+                  : `Go to ${step.title[language]}`
+              }
             >
-              Go
+              {t("Go", "Aller")}
             </Button>
             {active > 0 && (
               <Button size="sm" variant="ghost" onClick={() => goToStep(active - 1)}>
-                Back
+                {t("Back", "Retour")}
               </Button>
             )}
             {active < steps.length - 1 ? (
               <Button size="sm" variant="secondary" onClick={() => goToStep(active + 1)}>
-                Next
+                {t("Next", "Suivant")}
               </Button>
             ) : (
               <Button size="sm" onClick={complete}>
-                Finish
+                {t("Finish", "Terminer")}
               </Button>
             )}
             <Button size="sm" variant="ghost" onClick={() => setVisible(false)}>
-              Skip
+              {t("Skip", "Ignorer")}
             </Button>
           </div>
         </div>
@@ -147,7 +186,7 @@ export function TourOverlay() {
           goToStep(0);
         }}
       >
-        Restart tour
+        {t("Restart tour", "Recommencer")}
       </button>
     </div>
   );
@@ -159,11 +198,13 @@ export function RestartTourButton({
   size = "sm",
 }: {
   className?: string;
-  variant?: "default" | "secondary" | "ghost" | "outline";
-  size?: "sm" | "md" | "lg";
+  variant?: "primary" | "secondary" | "ghost" | "danger";
+  size?: "sm" | "md";
 }) {
   const { mutate } = useUser();
   const router = useRouter();
+  const { language } = useLanguage();
+  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
   const [loading, setLoading] = useState(false);
 
   const restart = async () => {
@@ -185,7 +226,7 @@ export function RestartTourButton({
 
   return (
     <Button className={className} variant={variant} size={size} onClick={restart} disabled={loading}>
-      {loading ? "Starting..." : "Product tour"}
+      {loading ? t("Starting...", "Demarrage...") : t("Product tour", "Parcours produit")}
     </Button>
   );
 }

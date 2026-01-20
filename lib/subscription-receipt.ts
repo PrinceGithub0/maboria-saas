@@ -6,6 +6,7 @@ import { sendEmail } from "./email";
 import { log } from "./logger";
 import { formatCurrencyCode } from "./currency";
 import { formatDateDMY } from "./date";
+import { STANDARD_VAT_RATE, splitVatInclusive } from "./vat";
 
 const interFontPath = path.join(process.cwd(), "assets", "fonts", "Inter.ttf");
 const logoPath = path.join(process.cwd(), "public", "branding", "Maboria Company logo.png");
@@ -141,16 +142,37 @@ export function buildSubscriptionReceiptPdfBuffer(input: {
     });
 
   y += 120;
+  const vatBreakdown = splitVatInclusive(input.amount, STANDARD_VAT_RATE);
+  const totalsLabelX = right - 240;
+  const totalsValueX = right - 120;
+  doc
+    .fontSize(10.5)
+    .fillColor("#111827")
+    .text("Subtotal", totalsLabelX, y, { width: 110, align: "left" })
+    .text(formatCurrencyCode(vatBreakdown.subtotal, input.currency), totalsValueX, y, {
+      width: 120,
+      align: "right",
+    });
+  y += 16;
+  doc
+    .fontSize(10.5)
+    .fillColor("#111827")
+    .text(`VAT (${STANDARD_VAT_RATE}%)`, totalsLabelX, y, { width: 110, align: "left" })
+    .text(formatCurrencyCode(vatBreakdown.vat, input.currency), totalsValueX, y, {
+      width: 120,
+      align: "right",
+    });
+  y += 20;
   doc
     .fontSize(11)
     .fillColor("#111827")
-    .text("Total Paid", right - 140, y, { width: 120, align: "right" });
+    .text("Total Paid", totalsLabelX, y, { width: 110, align: "left" });
   y += 18;
   doc
     .fontSize(14)
     .fillColor("#111827")
-    .text(formatCurrencyCode(input.amount, input.currency), right - 160, y, {
-      width: 140,
+    .text(formatCurrencyCode(input.amount, input.currency), totalsValueX, y, {
+      width: 120,
       align: "right",
     });
 

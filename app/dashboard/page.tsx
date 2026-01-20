@@ -12,6 +12,8 @@ import { RestartTourButton } from "@/components/ui/tour";
 import { formatCurrency } from "@/lib/currency";
 import { PaymentSuccessToast } from "@/components/ui/payment-success-toast";
 import { format } from "date-fns";
+import { currencyDisplay, normalizeCurrency } from "@/lib/payments/currency-allowlist";
+import { LangText } from "@/components/ui/lang-text";
 import {
   Activity,
   AlertTriangle,
@@ -63,7 +65,10 @@ export default async function DashboardPage({
       where: { userId },
     }),
     userId
-      ? prisma.user.findUnique({ where: { id: userId }, select: { publicId: true } })
+      ? prisma.user.findUnique({
+          where: { id: userId },
+          select: { publicId: true, preferredCurrency: true, businessProfile: { select: { defaultCurrency: true } } },
+        })
       : Promise.resolve(null),
     userId
       ? prisma.activityLog.findFirst({
@@ -101,6 +106,7 @@ export default async function DashboardPage({
       : Promise.resolve(0),
   ]);
 
+  const t = (en: string, fr: string) => <LangText en={en} fr={fr} />;
   const revenueRows = paymentsByCurrency || [];
   const successRuns = runs.find((r) => r.runStatus === "SUCCESS")?._count._all || 0;
   const failedRuns = runs.find((r) => r.runStatus === "FAILED")?._count._all || 0;
@@ -123,46 +129,143 @@ export default async function DashboardPage({
     uptimeMinutes >= 60
       ? `${Math.floor(uptimeMinutes / 60)}h ${uptimeMinutes % 60}m`
       : `${uptimeMinutes}m`;
+  const activityActionMap: Record<string, { en: string; fr: string; icon: LucideIcon }> = {
+    INVOICE_CREATED: { en: "Invoice created", fr: "Facture creee", icon: FileText },
+    INVOICE_SENT: { en: "Invoice sent", fr: "Facture envoyee", icon: FileText },
+    INVOICE_PAID: { en: "Invoice paid", fr: "Facture payee", icon: CreditCard },
+    INVOICE_UPDATED: { en: "Invoice updated", fr: "Facture mise a jour", icon: FileText },
+    INVOICE_DELETED: { en: "Invoice deleted", fr: "Facture supprimee", icon: FileText },
+    SUBSCRIPTION_CREATED: { en: "Subscription started", fr: "Abonnement demarre", icon: CreditCard },
+    SUBSCRIPTION_UPDATED: { en: "Subscription updated", fr: "Abonnement mis a jour", icon: CreditCard },
+    SUBSCRIPTION_CANCELED: { en: "Subscription canceled", fr: "Abonnement annule", icon: CreditCard },
+    ADMIN_SUBSCRIPTION_CANCELED: {
+      en: "Subscription canceled by admin",
+      fr: "Abonnement annule par admin",
+      icon: CreditCard,
+    },
+    TRIAL_STARTED: { en: "Trial started", fr: "Essai demarre", icon: CalendarClock },
+    TRIAL_EXPIRED: { en: "Trial expired", fr: "Essai expire", icon: CalendarClock },
+    TRIAL_CANCELED: { en: "Trial canceled", fr: "Essai annule", icon: CalendarClock },
+    PLAN_INTENT: { en: "Plan selection", fr: "Choix de plan", icon: CreditCard },
+    USER_SIGNIN: { en: "Signed in", fr: "Connexion", icon: Activity },
+    USER_SIGNOUT: { en: "Signed out", fr: "Deconnexion", icon: Activity },
+    PROFILE_UPDATED: { en: "Profile updated", fr: "Profil mis a jour", icon: Activity },
+    PASSWORD_UPDATED: { en: "Password updated", fr: "Mot de passe mis a jour", icon: Activity },
+    BUSINESS_PROFILE_CREATED: { en: "Business profile created", fr: "Profil entreprise cree", icon: Activity },
+    BUSINESS_PROFILE_UPDATED: { en: "Business profile updated", fr: "Profil entreprise mis a jour", icon: Activity },
+    AUTOMATION_CREATED: { en: "Automation created", fr: "Automatisation creee", icon: Bot },
+    AUTOMATION_RUN: { en: "Automation run", fr: "Execution automatisation", icon: Bot },
+    AI_ASSISTANT_USED: { en: "AI assistant used", fr: "Assistant IA utilise", icon: Sparkles },
+    AI_CALL: { en: "AI call", fr: "Appel IA", icon: Sparkles },
+    AI_INSIGHT: { en: "AI insight generated", fr: "Analyse IA generee", icon: Sparkles },
+    AI_FEEDBACK: { en: "AI feedback sent", fr: "Retour IA envoye", icon: Sparkles },
+    USAGE_LIMIT_EXCEEDED: { en: "Usage limit reached", fr: "Limite d usage atteinte", icon: AlertTriangle },
+    SUPPORT_STATUS: { en: "Support ticket updated", fr: "Ticket support mis a jour", icon: AlertTriangle },
+    ANNOUNCEMENT_PAYSTACK_DISMISSED: {
+      en: "Paystack notice dismissed",
+      fr: "Alerte Paystack fermee",
+      icon: Activity,
+    },
+    ADMIN_FLAG_UPDATE: { en: "Admin flag update", fr: "Mise a jour drapeau admin", icon: AlertTriangle },
+    ADMIN_IMPERSONATE: { en: "Admin impersonation", fr: "Impersonation admin", icon: AlertTriangle },
+    ADMIN_TOGGLE_USER: { en: "User access updated", fr: "Acces utilisateur mis a jour", icon: AlertTriangle },
+    ADMIN_SUB_OVERRIDE: { en: "Subscription override", fr: "Override abonnement", icon: AlertTriangle },
+    ROLE_UPDATED: { en: "User role updated", fr: "Role utilisateur mis a jour", icon: AlertTriangle },
+    ADMIN_AUTOMATION_REPLAY: { en: "Automation replayed", fr: "Rejouer automatisation", icon: Bot },
+    ADMIN_RESET_PASSWORD: { en: "Password reset", fr: "Reinitialisation mot de passe", icon: AlertTriangle },
+    ADMIN_WEBHOOK_RESOLVE: { en: "Webhook resolved", fr: "Webhook resolu", icon: Activity },
+    ADMIN_WEBHOOK_REPLAY: { en: "Webhook replayed", fr: "Webhook rejoue", icon: Activity },
+    ADMIN_WEBHOOK_ARCHIVE: { en: "Webhook archived", fr: "Webhook archive", icon: Activity },
+    WEBHOOK_PROCESSED: { en: "Webhook processed", fr: "Webhook traite", icon: Activity },
+    WEBHOOK_FAILED: { en: "Webhook failed", fr: "Webhook echoue", icon: AlertTriangle },
+    PAYSTACK_INVOICE: { en: "Paystack invoice event", fr: "Evenement facture Paystack", icon: CreditCard },
+    ONBOARDING_COMPLETE: { en: "Onboarding complete", fr: "Onboarding termine", icon: Activity },
+    prelaunch_log_check: { en: "Prelaunch check", fr: "Verification prelaunch", icon: Activity },
+    prelaunch_email_sent: { en: "Prelaunch email sent", fr: "Email prelaunch envoye", icon: Activity },
+    prelaunch_email_failed: { en: "Prelaunch email failed", fr: "Email prelaunch echoue", icon: AlertTriangle },
+  };
   const activityItems = (activityLogs || []).map((log) => {
     const action = String(log.action || "");
     const meta = (log.metadata || {}) as Record<string, any>;
-    const labelMap: Record<string, { title: string; icon: LucideIcon }> = {
-      INVOICE_CREATED: { title: "Invoice created", icon: FileText },
-      INVOICE_SENT: { title: "Invoice sent", icon: FileText },
-      INVOICE_PAID: { title: "Invoice paid", icon: CreditCard },
-      SUBSCRIPTION_UPDATED: { title: "Subscription updated", icon: CreditCard },
-      AUTOMATION_CREATED: { title: "Automation created", icon: Bot },
-      AUTOMATION_RUN: { title: "Automation run", icon: Bot },
-      AI_ASSISTANT_USED: { title: "AI assistant used", icon: Sparkles },
-    };
     const fallbackTitle = action
       .replace(/_/g, " ")
       .toLowerCase()
-      .replace(/(^\w|\s\w)/g, (m) => m.toUpperCase());
-    const entry = labelMap[action] || { title: fallbackTitle || "Activity", icon: Activity };
-    const description =
+      .replace(/(^\\w|\\s\\w)/g, (m) => m.toUpperCase());
+    const automationRunMatch = action.startsWith("AUTOMATION_RUN_") ? action.replace("AUTOMATION_RUN_", "") : "";
+    const automationRunStatus = automationRunMatch.toLowerCase();
+    const automationRunEntry = automationRunMatch
+      ? {
+          en: `Automation run ${automationRunStatus}`,
+          fr: `Execution automatisation ${automationRunStatus === "failed" ? "echouee" : "reussie"}`,
+          icon: Bot,
+        }
+      : null;
+    const entry =
+      automationRunEntry ||
+      activityActionMap[action] ||
+      ({
+        en: fallbackTitle || "Activity",
+        fr: fallbackTitle || "Activite",
+        icon: Activity,
+      } as const);
+    const statusLabelMap: Record<string, { en: string; fr: string }> = {
+      active: { en: "active", fr: "actif" },
+      trialing: { en: "trialing", fr: "essai" },
+      canceled: { en: "canceled", fr: "annule" },
+      cancelled: { en: "cancelled", fr: "annule" },
+      failed: { en: "failed", fr: "echec" },
+      paid: { en: "paid", fr: "paye" },
+      sent: { en: "sent", fr: "envoye" },
+      overdue: { en: "overdue", fr: "retard" },
+      draft: { en: "draft", fr: "brouillon" },
+      inactive: { en: "inactive", fr: "inactif" },
+    };
+    const planLabelMap: Record<string, { en: string; fr: string }> = {
+      free: { en: "free", fr: "gratuit" },
+      trial: { en: "trial", fr: "essai" },
+      starter: { en: "starter", fr: "starter" },
+      pro: { en: "pro", fr: "pro" },
+      enterprise: { en: "enterprise", fr: "entreprise" },
+    };
+    const descriptionEn =
       meta.invoiceNumber
         ? `Invoice ${meta.invoiceNumber}`
         : meta.plan
-          ? `Plan ${String(meta.plan).toLowerCase()}`
+          ? `Plan ${planLabelMap[String(meta.plan).toLowerCase()]?.en ?? String(meta.plan).toLowerCase()}`
           : meta.status
-            ? `Status ${String(meta.status).toLowerCase()}`
+            ? `Status ${statusLabelMap[String(meta.status).toLowerCase()]?.en ?? String(meta.status).toLowerCase()}`
+            : "";
+    const descriptionFr =
+      meta.invoiceNumber
+        ? `Facture ${meta.invoiceNumber}`
+        : meta.plan
+          ? `Plan ${planLabelMap[String(meta.plan).toLowerCase()]?.fr ?? String(meta.plan).toLowerCase()}`
+          : meta.status
+            ? `Statut ${
+                statusLabelMap[String(meta.status).toLowerCase()]?.fr ?? String(meta.status).toLowerCase()
+              }`
             : "";
     const timestamp = log.timestamp ? format(new Date(log.timestamp), "dd MMM, HH:mm") : "";
     return {
       id: log.id,
-      title: entry.title,
-      description,
+      title: { en: entry.en, fr: entry.fr },
+      description: { en: descriptionEn, fr: descriptionFr },
       timestamp,
       Icon: entry.icon,
     };
   });
   const rangeDays = rangeParam === "30d" ? 30 : 7;
-  const availableCurrencies = revenueRows.map((row) => row.currency).filter(Boolean);
-  const selectedCurrency =
-    (currencyParam && availableCurrencies.includes(currencyParam)
-      ? currencyParam
-      : availableCurrencies[0]) || "NGN";
+  const availableCurrencies = revenueRows
+    .map((row) => normalizeCurrency(row.currency))
+    .filter(Boolean);
+  const preferredCurrency = normalizeCurrency(user?.preferredCurrency || "");
+  const businessCurrency = normalizeCurrency(user?.businessProfile?.defaultCurrency || "");
+  const candidateCurrency = normalizeCurrency(currencyParam || "") || businessCurrency || preferredCurrency;
+  const selectedCurrency = (() => {
+    if (candidateCurrency && availableCurrencies.includes(candidateCurrency)) return candidateCurrency;
+    if (availableCurrencies.length > 0) return availableCurrencies[0];
+    return candidateCurrency || "NGN";
+  })();
   const chartStart = new Date(now);
   chartStart.setDate(chartStart.getDate() - (rangeDays - 1));
   chartStart.setHours(0, 0, 0, 0);
@@ -174,7 +277,7 @@ export default async function DashboardPage({
   const dailyTotals = new Map<string, number>();
   dayKeys.forEach((date) => dailyTotals.set(format(date, "yyyy-MM-dd"), 0));
   (recentPayments || []).forEach((payment: any) => {
-    if (payment.currency !== selectedCurrency) return;
+    if (normalizeCurrency(payment.currency) !== selectedCurrency) return;
     const paymentDate = new Date(payment.createdAt);
     if (paymentDate < chartStart) return;
     const key = format(paymentDate, "yyyy-MM-dd");
@@ -185,7 +288,7 @@ export default async function DashboardPage({
     value: dailyTotals.get(format(date, "yyyy-MM-dd")) || 0,
   }));
   const selectedRevenueTotal =
-    revenueRows.find((row) => row.currency === selectedCurrency)?._sum.amount || 0;
+    revenueRows.find((row) => normalizeCurrency(row.currency) === selectedCurrency)?._sum.amount || 0;
   const reminderItems = (unpaidInvoices || []).map((invoice: any) => {
     const meta = (invoice?.metadata || {}) as Record<string, any>;
     const dueDate = meta?.dueDate ? new Date(meta.dueDate) : null;
@@ -205,6 +308,23 @@ export default async function DashboardPage({
     const suffix = qs.toString();
     return suffix ? `/dashboard?${suffix}` : "/dashboard";
   };
+  const formatCurrencyChip = (code: string) => {
+    const normalized = normalizeCurrency(code);
+    const meta = currencyDisplay[normalized as keyof typeof currencyDisplay];
+    return meta ? `${meta.flag} ${normalized}` : normalized;
+  };
+  const systemLabelMap: Record<string, { en: string; fr: string }> = {
+    API: { en: "API", fr: "API" },
+    Database: { en: "Database", fr: "Base de donnees" },
+    Paystack: { en: "Paystack", fr: "Paystack" },
+    Flutterwave: { en: "Flutterwave", fr: "Flutterwave" },
+    Email: { en: "Email", fr: "Email" },
+  };
+  const statusLabelMap: Record<string, { en: string; fr: string }> = {
+    ok: { en: "Healthy", fr: "Sain" },
+    configured: { en: "Configured", fr: "Configure" },
+    missing: { en: "Attention", fr: "Attention" },
+  };
 
   return (
     <div className="space-y-6">
@@ -212,22 +332,30 @@ export default async function DashboardPage({
       <div className="md:contents max-md:rounded-[28px] max-md:border max-md:border-border/60 max-md:bg-card max-md:p-4 max-md:shadow-[0_16px_36px_rgba(15,23,42,0.18)]">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Dashboard</p>
-            <h1 className="text-3xl font-semibold text-foreground">Overview</h1>
-            <p className="text-sm text-muted-foreground">Real-time metrics across automations, invoices, and payments.</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
+              {t("Dashboard", "Tableau")}
+            </p>
+            <h1 className="text-3xl font-semibold text-foreground">{t("Overview", "Vue d ensemble")}</h1>
+            <p className="text-sm text-muted-foreground">
+              {t(
+                "Real-time metrics across automations, invoices, and payments.",
+                "Metriques en temps reel sur automatisations, factures et paiements."
+              )}
+            </p>
             {publicId && (
               <p className="mt-1 text-xs text-muted-foreground">
-                User ID: <span className="font-mono text-foreground">{publicId}</span>
+                {t("User ID:", "ID utilisateur :")}{" "}
+                <span className="font-mono text-foreground">{publicId}</span>
               </p>
             )}
           </div>
           <div className="flex flex-wrap gap-2">
             <Badge variant="success" className="font-semibold text-slate-900 dark:text-emerald-200">
-              {"Secure \u2022 Logged"}
+              {t("Secure • Logged", "Securise • Connecte")}
             </Badge>
             <Link href="/dashboard/onboarding">
               <Button variant="secondary" size="sm">
-                Set up workspace
+                {t("Set up workspace", "Configurer l espace")}
               </Button>
             </Link>
             <RestartTourButton />
@@ -240,23 +368,25 @@ export default async function DashboardPage({
       </div>
 
       {automations === 0 && invoices === 0 && (
-        <Card title="Quick start">
+        <Card title={t("Quick start", "Demarrage rapide")}>
           <p className="text-sm text-muted-foreground">
-            Start by creating your first automation or sending an invoice. Pro unlocks AI workflows and WhatsApp
-            automations.
+            {t(
+              "Start by creating your first automation or sending an invoice. Pro unlocks AI workflows and WhatsApp automations.",
+              "Commencez par creer votre premiere automatisation ou envoyer une facture. Pro debloque l IA et WhatsApp."
+            )}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Link href="/dashboard/automations/new">
-              <Button size="sm">Create automation</Button>
+              <Button size="sm">{t("Create automation", "Creer une automatisation")}</Button>
             </Link>
             <Link href="/dashboard/invoices">
               <Button size="sm" variant="secondary">
-                Create invoice
+                {t("Create invoice", "Creer une facture")}
               </Button>
             </Link>
             <Link href="/dashboard/subscription">
               <Button size="sm" variant="ghost">
-                Upgrade to Pro
+                {t("Upgrade to Pro", "Passer a Pro")}
               </Button>
             </Link>
           </div>
@@ -264,44 +394,47 @@ export default async function DashboardPage({
       )}
 
       <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-        <Card title="Quick actions">
+        <Card title={t("Quick actions", "Actions rapides")}>
           <div className="grid gap-3 sm:grid-cols-2">
             <Link href="/dashboard/invoices">
               <Button className="w-full justify-between">
-                <span>New invoice</span>
+                <span>{t("New invoice", "Nouvelle facture")}</span>
                 <Plus className="h-4 w-4" />
               </Button>
             </Link>
             <Link href="/dashboard/automations/new">
               <Button variant="secondary" className="w-full justify-between">
-                <span>New automation</span>
+                <span>{t("New automation", "Nouvelle automatisation")}</span>
                 <ArrowUpRight className="h-4 w-4" />
               </Button>
             </Link>
             <Link href="/dashboard/assistant">
-              <Button variant="outline" className="w-full justify-between">
-                <span>Ask AI assistant</span>
+              <Button variant="secondary" className="w-full justify-between">
+                <span>{t("Ask AI assistant", "Demander a l assistant IA")}</span>
                 <Sparkles className="h-4 w-4" />
               </Button>
             </Link>
             <Link href="/dashboard/support">
-              <Button variant="outline" className="w-full justify-between">
-                <span>Contact support</span>
+              <Button variant="secondary" className="w-full justify-between">
+                <span>{t("Contact support", "Contacter le support")}</span>
                 <ArrowUpRight className="h-4 w-4" />
               </Button>
             </Link>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            Launch a new invoice, run an automation, or ask the assistant for guidance.
+            {t(
+              "Launch a new invoice, run an automation, or ask the assistant for guidance.",
+              "Lancez une facture, une automatisation, ou demandez conseil a l assistant."
+            )}
           </p>
         </Card>
 
-        <Card title="Needs attention">
+        <Card title={t("Needs attention", "A verifier")}>
           <div className="space-y-3">
             <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-3 py-2">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-300" />
-                Overdue invoices
+                {t("Overdue invoices", "Factures en retard")}
               </div>
               <Badge variant={overdueCount ? "warning" : "success"} className="text-[11px]">
                 {overdueCount}
@@ -310,7 +443,7 @@ export default async function DashboardPage({
             <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-3 py-2">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <CalendarClock className="h-4 w-4 text-indigo-600 dark:text-indigo-300" />
-                Unpaid invoices
+                {t("Unpaid invoices", "Factures impayees")}
               </div>
               <Badge variant={unpaidCount ? "warning" : "success"} className="text-[11px]">
                 {unpaidCount}
@@ -319,7 +452,7 @@ export default async function DashboardPage({
             <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-3 py-2">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <Activity className="h-4 w-4 text-rose-600 dark:text-rose-300" />
-                Failed runs
+                {t("Failed runs", "Executions echouees")}
               </div>
               <Badge variant={failedRuns ? "warning" : "success"} className="text-[11px]">
                 {failedRuns}
@@ -328,7 +461,7 @@ export default async function DashboardPage({
             <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-3 py-2">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <CreditCard className="h-4 w-4 text-rose-600 dark:text-rose-300" />
-                Failed payments
+                {t("Failed payments", "Paiements echoues")}
               </div>
               <Badge variant={failedPaymentCount ? "warning" : "success"} className="text-[11px]">
                 {failedPaymentCount}
@@ -340,32 +473,44 @@ export default async function DashboardPage({
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Revenue</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
+            {t("Revenue", "Revenu")}
+          </p>
           <p className="mt-3 text-2xl font-semibold text-foreground">
             {formatCurrency(Number(selectedRevenueTotal || 0), selectedCurrency)}
           </p>
-          <p className="text-xs text-muted-foreground">Last {rangeDays} days · {selectedCurrency}</p>
+          <p className="text-xs text-muted-foreground">
+            {t(`Last ${rangeDays} days - ${selectedCurrency}`, `Derniers ${rangeDays} jours - ${selectedCurrency}`)}
+          </p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Unpaid invoices</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
+            {t("Unpaid invoices", "Factures impayees")}
+          </p>
           <p className="mt-3 text-2xl font-semibold text-foreground">{unpaidCount}</p>
-          <p className="text-xs text-muted-foreground">Sent or overdue</p>
+          <p className="text-xs text-muted-foreground">{t("Sent or overdue", "Envoyees ou en retard")}</p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Active automations</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
+            {t("Active automations", "Automatisations actives")}
+          </p>
           <p className="mt-3 text-2xl font-semibold text-foreground">{automations}</p>
-          <p className="text-xs text-muted-foreground">Drafts included</p>
+          <p className="text-xs text-muted-foreground">{t("Drafts included", "Brouillons inclus")}</p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">AI usage</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
+            {t("AI usage", "Usage IA")}
+          </p>
           <p className="mt-3 text-2xl font-semibold text-foreground">{aiUsageCount}</p>
-          <p className="text-xs text-muted-foreground">Requests last 30 days</p>
+          <p className="text-xs text-muted-foreground">
+            {t("Requests last 30 days", "Requetes sur 30 jours")}
+          </p>
         </Card>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <Card
-          title="Revenue trend"
+          title={t("Revenue trend", "Tendance des revenus")}
           actions={
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex items-center rounded-full border border-border bg-muted/40 p-1 text-xs font-semibold">
@@ -392,7 +537,7 @@ export default async function DashboardPage({
                       currency === selectedCurrency ? "bg-emerald-600 text-white" : "text-foreground"
                     }`}
                   >
-                    {currency}
+                    {formatCurrencyChip(currency)}
                   </Link>
                 ))}
               </div>
@@ -403,27 +548,38 @@ export default async function DashboardPage({
         </Card>
 
         <Card
-          title="Reminder queue"
+          title={t("Reminder queue", "File de relance")}
           actions={
             <Link href="/dashboard/invoices" className="text-xs font-semibold text-indigo-600">
-              View invoices
+              {t("View invoices", "Voir factures")}
             </Link>
           }
         >
           {reminderItems.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No unpaid invoices waiting for follow-up.</p>
+            <p className="text-sm text-muted-foreground">
+              {t("No unpaid invoices waiting for follow-up.", "Aucune facture impayee en attente.")}
+            </p>
           ) : (
             <div className="space-y-3">
               {reminderItems.map((item) => (
                 <div key={item.id} className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-3 py-3">
                   <div>
                     <p className="text-sm font-semibold text-foreground">{item.invoiceNumber}</p>
-                    <p className="text-xs text-muted-foreground">Due {item.dueLabel}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t(`Due ${item.dueLabel}`, `Echeance ${item.dueLabel}`)}
+                    </p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-semibold text-foreground">{item.total}</p>
-                    <Badge variant={item.status === "OVERDUE" ? "warning" : "secondary"} className="text-[10px]">
-                      {String(item.status).toLowerCase()}
+                    <Badge variant={item.status === "OVERDUE" ? "warning" : "default"} className="text-[10px]">
+                      {t(
+                        String(item.status).toLowerCase(),
+                        String(item.status).toLowerCase() === "sent"
+                          ? "envoyee"
+                          : String(item.status).toLowerCase() === "overdue"
+                            ? "retard"
+                            : String(item.status).toLowerCase()
+                      )}
                     </Badge>
                   </div>
                 </div>
@@ -434,28 +590,30 @@ export default async function DashboardPage({
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 max-md:gap-5">
-        <Card title="Invoices">
+        <Card title={t("Invoices", "Factures")}>
           <p className="text-3xl font-semibold text-foreground">{invoices}</p>
-          <p className="text-xs text-muted-foreground">Generated across all currencies</p>
-        </Card>
-        <Card title="Run health">
-          <p className="text-3xl font-semibold text-foreground">
-            {successRuns} <span className="text-sm text-muted-foreground">ok</span> / {failedRuns}{" "}
-            <span className="text-sm text-rose-600 dark:text-rose-300">failed</span>
+          <p className="text-xs text-muted-foreground">
+            {t("Generated across all currencies", "Genere dans toutes les devises")}
           </p>
-          <p className="text-xs text-muted-foreground">Last 100 runs</p>
+        </Card>
+        <Card title={t("Run health", "Sante des executions")}>
+          <p className="text-3xl font-semibold text-foreground">
+            {successRuns} <span className="text-sm text-muted-foreground">{t("ok", "ok")}</span> / {failedRuns}{" "}
+            <span className="text-sm text-rose-600 dark:text-rose-300">{t("failed", "echec")}</span>
+          </p>
+          <p className="text-xs text-muted-foreground">{t("Last 100 runs", "100 dernieres executions")}</p>
         </Card>
       </div>
 
       <Card
-        title="Automation throughput"
+        title={t("Automation throughput", "Debit automatisation")}
         actions={
           <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-muted-foreground">
             <span className="rounded-full border border-border/60 bg-muted/60 px-2 py-1">
-              {successRate}% success
+              {t(`${successRate}% success`, `${successRate}% succes`)}
             </span>
             <span className="rounded-full border border-border/60 bg-muted/60 px-2 py-1">
-              {totalRuns} runs
+              {t(`${totalRuns} runs`, `${totalRuns} executions`)}
             </span>
           </div>
         }
@@ -464,19 +622,21 @@ export default async function DashboardPage({
           <div className="mb-3 flex items-center justify-between">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-indigo-700 dark:text-indigo-300">
-                Last 7 days
+                {t("Last 7 days", "7 derniers jours")}
               </p>
-              <p className="text-lg font-semibold text-foreground">Automation activity</p>
+              <p className="text-lg font-semibold text-foreground">
+                {t("Automation activity", "Activite automatisation")}
+              </p>
             </div>
           </div>
           <div className="mb-3 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              {successRuns} successful runs
+              {t(`${successRuns} successful runs`, `${successRuns} executions reussies`)}
             </span>
             <span className="inline-flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-rose-500" />
-              {failedRuns} failed runs
+              {t(`${failedRuns} failed runs`, `${failedRuns} executions echouees`)}
             </span>
           </div>
           <MiniAreaChart
@@ -494,23 +654,32 @@ export default async function DashboardPage({
         </div>
       </Card>
 
-      <Card title="System status">
+      <Card title={t("System status", "Etat du systeme")}>
         <div className="grid gap-3 sm:grid-cols-2">
           {systemStatus.map((item) => (
             <div key={item.label} className="flex items-center justify-between rounded-xl border border-border bg-muted/30 px-3 py-2">
-              <span className="text-sm font-semibold text-foreground">{item.label}</span>
+              <span className="text-sm font-semibold text-foreground">
+                {t(systemLabelMap[item.label]?.en ?? item.label, systemLabelMap[item.label]?.fr ?? item.label)}
+              </span>
               <Badge variant={formatStatusBadge(item.status)} className="text-[11px]">
-                {item.status === "ok" ? "Healthy" : item.status === "configured" ? "Configured" : "Attention"}
+                {t(statusLabelMap[item.status]?.en ?? "Attention", statusLabelMap[item.status]?.fr ?? "Attention")}
               </Badge>
             </div>
           ))}
         </div>
-        <p className="mt-3 text-xs text-muted-foreground">Uptime: {uptimeLabel}</p>
+        <p className="mt-3 text-xs text-muted-foreground">{t(`Uptime: ${uptimeLabel}`, `Uptime : ${uptimeLabel}`)}</p>
       </Card>
 
-      <Card title="Recent activity" actions={<Link href="/dashboard/usage" className="text-xs font-semibold text-indigo-600">View all</Link>}>
+      <Card
+        title={t("Recent activity", "Activite recente")}
+        actions={
+          <Link href="/dashboard/usage" className="text-xs font-semibold text-indigo-600">
+            {t("View all", "Voir tout")}
+          </Link>
+        }
+      >
         {activityItems.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No recent activity yet.</p>
+          <p className="text-sm text-muted-foreground">{t("No recent activity yet.", "Aucune activite pour le moment.")}</p>
         ) : (
           <div className="space-y-3">
             {activityItems.map((item) => {
@@ -521,9 +690,11 @@ export default async function DashboardPage({
                     <Icon className="h-4 w-4 text-foreground" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-foreground">{item.title}</p>
-                    {item.description ? (
-                      <p className="text-xs text-muted-foreground">{item.description}</p>
+                    <p className="text-sm font-semibold text-foreground">
+                      {t(item.title.en, item.title.fr)}
+                    </p>
+                    {item.description?.en ? (
+                      <p className="text-xs text-muted-foreground">{t(item.description.en, item.description.fr)}</p>
                     ) : null}
                   </div>
                   <span className="text-[11px] text-muted-foreground">{item.timestamp}</span>

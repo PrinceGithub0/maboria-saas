@@ -5,6 +5,7 @@ import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { TRIAL_DAYS } from "@/lib/pricing";
+import { useLanguage } from "@/components/providers/language-provider";
 
 const fetcher = async (url: string) => {
   const res = await fetch(url);
@@ -38,6 +39,8 @@ type Variant = "hero" | "header" | "mobileCard" | "mobileBar";
 
 export function MarketingCta({ variant }: { variant: Variant }) {
   const { data: session } = useSession();
+  const { language } = useLanguage();
+  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
   const { data: me } = useSWR(session ? "/api/user/me" : null, fetcher, {
     shouldRetryOnError: false,
   });
@@ -49,10 +52,10 @@ export function MarketingCta({ variant }: { variant: Variant }) {
       return (
         <>
           <Link href="/dashboard/subscription">
-            <Button variant="ghost">View plans</Button>
+            <Button variant="ghost">{t("View plans", "Voir les offres")}</Button>
           </Link>
           <Link href="/dashboard/payments">
-            <Button>Resubscribe</Button>
+            <Button>{t("Resubscribe", "Se reabonner")}</Button>
           </Link>
         </>
       );
@@ -60,10 +63,10 @@ export function MarketingCta({ variant }: { variant: Variant }) {
     return (
       <>
         <Link href="/login">
-          <Button variant="ghost">Login</Button>
+          <Button variant="ghost">{t("Login", "Se connecter")}</Button>
         </Link>
         <Link href="/signup">
-          <Button>Get Started</Button>
+          <Button>{t("Get Started", "Commencer")}</Button>
         </Link>
       </>
     );
@@ -74,11 +77,11 @@ export function MarketingCta({ variant }: { variant: Variant }) {
       return (
         <div className="mt-3 flex flex-col gap-2">
           <Link href="/dashboard/payments">
-            <Button className="w-full">Resubscribe</Button>
+            <Button className="w-full">{t("Resubscribe", "Se reabonner")}</Button>
           </Link>
           <Link href="/dashboard/subscription">
             <Button variant="secondary" className="w-full">
-              View plans
+              {t("View plans", "Voir les offres")}
             </Button>
           </Link>
         </div>
@@ -87,11 +90,11 @@ export function MarketingCta({ variant }: { variant: Variant }) {
     return (
       <div className="mt-3 flex flex-col gap-2">
         <Link href="/signup">
-          <Button className="w-full">Create free account</Button>
+          <Button className="w-full">{t("Create free account", "Creer un compte gratuit")}</Button>
         </Link>
         <Link href="/login">
           <Button variant="secondary" className="w-full">
-            Sign in
+            {t("Sign in", "Se connecter")}
           </Button>
         </Link>
       </div>
@@ -103,11 +106,11 @@ export function MarketingCta({ variant }: { variant: Variant }) {
       return (
         <div className="mx-auto flex max-w-[420px] items-center gap-2 max-md:mx-0 max-md:w-full max-md:max-w-none">
           <Link href="/dashboard/payments" className="flex-1">
-            <Button className="h-11 w-full">Resubscribe</Button>
+            <Button className="h-11 w-full">{t("Resubscribe", "Se reabonner")}</Button>
           </Link>
           <Link href="/dashboard/subscription" className="flex-1">
             <Button variant="secondary" className="h-11 w-full">
-              View plans
+              {t("View plans", "Voir les offres")}
             </Button>
           </Link>
         </div>
@@ -116,11 +119,11 @@ export function MarketingCta({ variant }: { variant: Variant }) {
     return (
       <div className="mx-auto flex max-w-[420px] items-center gap-2 max-md:mx-0 max-md:w-full max-md:max-w-none">
         <Link href="/signup" className="flex-1">
-          <Button className="h-11 w-full">Get started</Button>
+          <Button className="h-11 w-full">{t("Get started", "Commencer")}</Button>
         </Link>
         <Link href="/login" className="flex-1">
           <Button variant="secondary" className="h-11 w-full">
-            Sign in
+            {t("Sign in", "Se connecter")}
           </Button>
         </Link>
       </div>
@@ -133,17 +136,20 @@ export function MarketingCta({ variant }: { variant: Variant }) {
         <div className="flex flex-wrap gap-3 max-md:flex-col max-md:items-stretch">
           <Link href="/dashboard/payments">
             <Button size="md" className="max-md:w-full">
-              Resubscribe
+              {t("Resubscribe", "Se reabonner")}
             </Button>
           </Link>
           <Link href="/dashboard/subscription">
             <Button variant="secondary" size="md" className="max-md:w-full">
-              View plans
+              {t("View plans", "Voir les offres")}
             </Button>
           </Link>
         </div>
         <p className="text-sm text-muted-foreground max-md:text-xs">
-          Your trial ended or your subscription was cancelled. Choose a plan to continue.
+          {t(
+            "Your trial ended or your subscription was cancelled. Choose a plan to continue.",
+            "Votre essai est termine ou votre abonnement est annule. Choisissez une offre."
+          )}
         </p>
       </>
     );
@@ -154,17 +160,20 @@ export function MarketingCta({ variant }: { variant: Variant }) {
       <div className="flex flex-wrap gap-3 max-md:flex-col max-md:items-stretch">
         <Link href="/signup">
           <Button size="md" className="max-md:w-full">
-            Start free trial
+            {t("Start free trial", "Demarrer l essai gratuit")}
           </Button>
         </Link>
         <Link href="/pricing">
           <Button variant="secondary" size="md" className="max-md:w-full">
-            View pricing
+            {t("View pricing", "Voir les tarifs")}
           </Button>
         </Link>
       </div>
       <p className="text-sm text-muted-foreground max-md:text-xs">
-        No credit card required. Trial is {TRIAL_DAYS} days.
+        {t(
+          `No credit card required. Trial is ${TRIAL_DAYS} days.`,
+          `Aucune carte requise. Essai de ${TRIAL_DAYS} jours.`
+        )}
       </p>
     </>
   );

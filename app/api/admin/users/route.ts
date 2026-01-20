@@ -15,6 +15,7 @@ export async function GET() {
       name: true,
       email: true,
       role: true,
+      publicId: true,
       createdAt: true,
       subscriptions: true,
     },

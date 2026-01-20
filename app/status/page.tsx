@@ -3,6 +3,7 @@
 import { Card } from "@/components/ui/card";
 import { Circle } from "lucide-react";
 import useSWR from "swr";
+import { useLanguage } from "@/components/providers/language-provider";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -18,23 +19,25 @@ function StatusItem({ label, status }: { label: string; status: "green" | "yello
 }
 
 export default function StatusPage() {
+  const { language } = useLanguage();
+  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
   const { data } = useSWR("/api/health", fetcher);
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-6 py-10 text-foreground max-md:mx-0 max-md:w-full max-md:max-w-none">
-      <h1 className="text-3xl font-semibold">System Status</h1>
+      <h1 className="text-3xl font-semibold">{t("System Status", "Etat du systeme")}</h1>
       <div className="grid gap-4 md:grid-cols-2">
-        <Card title="Core services">
+        <Card title={t("Core services", "Services coeur")}>
           <div className="space-y-2">
-            <StatusItem label="API" status={data?.status === "ok" ? "green" : "red"} />
-            <StatusItem label="Database" status={data?.db === "connected" ? "green" : "red"} />
-            <StatusItem label="Automation engine" status="green" />
+            <StatusItem label={t("API", "API")} status={data?.status === "ok" ? "green" : "red"} />
+            <StatusItem label={t("Database", "Base de donnees")} status={data?.db === "connected" ? "green" : "red"} />
+            <StatusItem label={t("Automation engine", "Moteur automatisation")} status="green" />
           </div>
         </Card>
-        <Card title="Integrations">
+        <Card title={t("Integrations", "Integrations")}>
           <div className="space-y-2">
             <StatusItem label="Flutterwave" status={data?.flutterwave === "configured" ? "green" : "yellow"} />
             <StatusItem label="Paystack" status={data?.paystack === "configured" ? "green" : "yellow"} />
-            <StatusItem label="AI engine" status="green" />
+            <StatusItem label={t("AI engine", "Moteur IA")} status="green" />
           </div>
         </Card>
       </div>

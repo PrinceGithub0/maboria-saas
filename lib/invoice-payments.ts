@@ -6,6 +6,7 @@ import {
   isAllowedCurrency,
   isProviderCurrency,
   normalizeCurrency,
+  toMinorUnits,
 } from "./payments/currency-allowlist";
 import { initializePaystackTransaction } from "./payments/paystack";
 import { initializeFlutterwavePayment } from "./payments/flutterwave";
@@ -92,7 +93,7 @@ export async function ensureInvoicePaymentLink({
   let paymentUrl = "";
   if (provider === "PAYSTACK") {
     const response = await initializePaystackTransaction({
-      amount: Math.round(amount * 100),
+      amount: toMinorUnits(amount, currency),
       email: customerEmail,
       currency,
       callback_url: env.appUrl,

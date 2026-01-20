@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
-import { pricingTableDualCurrency } from "@/lib/pricing";
+import { getPlanFromAmount, getPlanPriceForCurrency } from "@/lib/pricing";
+import { fromMinorUnits } from "@/lib/payments/currency-allowlist";
 import { log } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { subscriptionPlanToUserPlan } from "@/lib/entitlements";
@@ -45,17 +46,9 @@ export const GET = withRequestLogging(withErrorHandling(async (req: Request) => 
       return redirectWithStatus(origin, provider, "pending", { reference });
     }
 
-    const priceTable = pricingTableDualCurrency();
-    const starter = priceTable.find((p) => p.plan === "STARTER");
-    const pro = priceTable.find((p) => p.plan === "GROWTH");
-    const amountNgn = Number(data?.amount || 0) / 100;
+    const amount = fromMinorUnits(Number(data?.amount || 0), data?.currency || "NGN");
     const currency = (data?.currency || "NGN").toUpperCase();
-    const inferredPlan =
-      currency === "NGN" && starter?.ngn === amountNgn
-        ? "STARTER"
-        : currency === "NGN" && pro?.ngn === amountNgn
-          ? "GROWTH"
-          : undefined;
+    const inferredPlan = getPlanFromAmount(currency, amount);
     const userId = (data?.metadata?.userId as string | undefined) || undefined;
     const plan = (data?.metadata?.plan as string | undefined) || inferredPlan;
 
@@ -71,7 +64,7 @@ export const GET = withRequestLogging(withErrorHandling(async (req: Request) => 
       if (existingForPlan) {
         await prisma.subscription.update({
           where: { id: existingForPlan.id },
-          data: { status: "ACTIVE", renewalDate },
+          data: { status: "ACTIVE", renewalDate, currency },
         });
       } else {
         await prisma.subscription.create({
@@ -80,7 +73,7 @@ export const GET = withRequestLogging(withErrorHandling(async (req: Request) => 
             plan,
             status: "ACTIVE",
             renewalDate,
-            currency: "NGN",
+            currency,
             interval: "monthly",
           },
         });
@@ -98,7 +91,7 @@ export const GET = withRequestLogging(withErrorHandling(async (req: Request) => 
 
     return redirectWithStatus(origin, provider, "success", {
       reference,
-      amount: amountNgn.toString(),
+      amount: amount.toString(),
       currency,
     });
   }
@@ -118,21 +111,9 @@ export const GET = withRequestLogging(withErrorHandling(async (req: Request) => 
     return redirectWithStatus(origin, provider, "pending", { tx_ref: txRef || "" });
   }
 
-  const priceTable = pricingTableDualCurrency();
-  const starter = priceTable.find((p) => p.plan === "STARTER");
-  const pro = priceTable.find((p) => p.plan === "GROWTH");
   const amount = Number(verified?.amount || 0);
   const currency = (verified?.currency || "USD").toUpperCase();
-  const inferredPlan =
-    currency === "NGN" && starter?.ngn === amount
-      ? "STARTER"
-      : currency === "NGN" && pro?.ngn === amount
-        ? "GROWTH"
-        : currency === "USD" && starter?.usd === amount
-          ? "STARTER"
-          : currency === "USD" && pro?.usd === amount
-            ? "GROWTH"
-            : undefined;
+  const inferredPlan = getPlanFromAmount(currency, amount);
   const userId = (verified?.meta?.userId as string | undefined) || undefined;
   const plan = (verified?.meta?.plan as string | undefined) || inferredPlan;
 
@@ -147,7 +128,7 @@ export const GET = withRequestLogging(withErrorHandling(async (req: Request) => 
     if (existingForPlan) {
       await prisma.subscription.update({
         where: { id: existingForPlan.id },
-        data: { status: "ACTIVE", renewalDate },
+        data: { status: "ACTIVE", renewalDate, currency },
       });
     } else {
       await prisma.subscription.create({
@@ -156,7 +137,7 @@ export const GET = withRequestLogging(withErrorHandling(async (req: Request) => 
           plan,
           status: "ACTIVE",
           renewalDate,
-          currency: currency === "NGN" ? "NGN" : "USD",
+          currency,
           interval: "monthly",
         },
       });

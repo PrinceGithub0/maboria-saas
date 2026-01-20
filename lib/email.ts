@@ -1,6 +1,7 @@
 import "server-only";
 
 import nodemailer from "nodemailer";
+import SMTPTransport from "nodemailer/lib/smtp-transport";
 import { log } from "./logger";
 
 const port = Number(process.env.EMAIL_SERVER_PORT) || 587;
@@ -28,7 +29,7 @@ function createTransport(options: { port: number; secure: boolean; allowInsecure
     connectionTimeout: 10_000,
     greetingTimeout: 10_000,
     socketTimeout: 20_000,
-  });
+  } as SMTPTransport.Options);
 }
 
 const primaryConfig = { port, secure };

@@ -5,6 +5,7 @@ import OpenAI from "openai";
 import { prisma } from "../prisma";
 import { sendEmail } from "../email";
 import { createInvoiceRecord, calculateTotals } from "../invoice";
+import { STANDARD_VAT_RATE } from "../vat";
 import { log } from "../logger";
 import { meterUsage, autoInvoiceFromUsage, recoverFailedPayment } from "../billing";
 import { enqueueJob } from "../jobs";
@@ -116,7 +117,7 @@ export async function executeAutomationRun(
             currency: config.currency || "USD",
             items,
             status: "SENT",
-            tax: config.tax ?? 0,
+            tax: STANDARD_VAT_RATE,
             discount: config.discount ?? 0,
           });
           context.invoice = invoice;
@@ -183,7 +184,7 @@ export async function executeAutomationRun(
           if (!businessProfile) {
             throw new Error("Business profile required before sending WhatsApp messages");
           }
-          logs.push({ step: type, result: "queued-whatsapp" });
+          logs.push({ step: stepType, result: "queued-whatsapp" });
           enqueueJob("send-notification", {
             channel: "whatsapp",
             to: config.to,

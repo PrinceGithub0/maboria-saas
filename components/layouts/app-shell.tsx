@@ -9,6 +9,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useSession } from "next-auth/react";
 import { Bot, CreditCard, LayoutDashboard, Settings } from "lucide-react";
+import { useLanguage } from "@/components/providers/language-provider";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -23,6 +24,8 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { language } = useLanguage();
+  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
   const { data: me } = useSWR(session ? "/api/user/me" : null, fetcher, {
     shouldRetryOnError: false,
   });
@@ -76,19 +79,22 @@ export function AppShell({
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
                     <p className="text-xs uppercase tracking-[0.2em] text-slate-900 dark:text-amber-200">
-                      Subscription needed
+                      {t("Subscription needed", "Abonnement requis")}
                     </p>
                     <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-amber-100">
-                      Your trial ended or your subscription was cancelled. Choose a plan to regain access.
+                      {t(
+                        "Your trial ended or your subscription was cancelled. Choose a plan to regain access.",
+                        "Votre essai est termine ou votre abonnement est annule. Choisissez un plan pour retrouver l acces."
+                      )}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-3">
                     <Link href="/dashboard/payments">
-                      <Button size="sm">Resubscribe</Button>
+                      <Button size="sm">{t("Resubscribe", "Se reabonner")}</Button>
                     </Link>
                     <Link href="/dashboard/subscription">
                       <Button size="sm" variant="secondary">
-                        View plans
+                        {t("View plans", "Voir les offres")}
                       </Button>
                     </Link>
                   </div>
@@ -109,21 +115,23 @@ export function AppShell({
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="w-full max-w-xl rounded-2xl border border-border bg-card/80 p-6 text-center shadow-xl max-md:w-full max-md:max-w-none">
                     <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
-                      Subscription inactive
+                      {t("Subscription inactive", "Abonnement inactif")}
                     </p>
                     <h1 className="mt-2 text-2xl font-semibold text-foreground">
-                      Dashboard is locked until you resubscribe
+                      {t("Dashboard is locked until you resubscribe", "Tableau verrouille jusqu a la reabonnement")}
                     </h1>
                     <p className="mt-2 text-sm text-muted-foreground">
-                      Your subscription is cancelled or your trial has ended. You can view the dashboard, but actions are disabled
-                      until you choose a new plan.
+                      {t(
+                        "Your subscription is cancelled or your trial has ended. You can view the dashboard, but actions are disabled until you choose a new plan.",
+                        "Votre abonnement est annule ou votre essai est termine. Vous pouvez voir le tableau, mais les actions sont desactivees jusqu a un nouveau plan."
+                      )}
                     </p>
                     <div className="mt-4 flex flex-wrap justify-center gap-3">
                       <Link href="/dashboard/payments">
-                        <Button>Resubscribe</Button>
+                        <Button>{t("Resubscribe", "Se reabonner")}</Button>
                       </Link>
                       <Link href="/dashboard/subscription">
-                        <Button variant="secondary">View subscription</Button>
+                        <Button variant="secondary">{t("View subscription", "Voir abonnement")}</Button>
                       </Link>
                     </div>
                   </div>
@@ -132,18 +140,23 @@ export function AppShell({
               {billingLocked && !isCanceledOnly && !billingAllowed && !isMarketingHome ? (
                 <div className="mx-auto max-w-2xl rounded-2xl border border-border bg-card/70 p-6 text-center max-md:mx-0 max-md:w-full max-md:max-w-none">
                   <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
-                    Billing required
+                    {t("Billing required", "Facturation requise")}
                   </p>
-                  <h1 className="mt-2 text-2xl font-semibold text-foreground">Add a payment method to continue</h1>
+                  <h1 className="mt-2 text-2xl font-semibold text-foreground">
+                    {t("Add a payment method to continue", "Ajoutez un moyen de paiement pour continuer")}
+                  </h1>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Your account is not active yet. Please add a valid payment method to unlock the app.
+                    {t(
+                      "Your account is not active yet. Please add a valid payment method to unlock the app.",
+                      "Votre compte n est pas actif. Ajoutez un moyen de paiement valide pour debloquer l application."
+                    )}
                   </p>
                   <div className="mt-4 flex flex-wrap justify-center gap-3">
                     <Link href="/dashboard/payments">
-                      <Button>Go to billing</Button>
+                      <Button>{t("Go to billing", "Aller a la facturation")}</Button>
                     </Link>
                     <Link href="/dashboard/subscription">
-                      <Button variant="secondary">View subscription</Button>
+                      <Button variant="secondary">{t("View subscription", "Voir abonnement")}</Button>
                     </Link>
                   </div>
                 </div>
@@ -152,14 +165,14 @@ export function AppShell({
           </main>
         </div>
       </div>
-      {showMobileNav ? (
+              {showMobileNav ? (
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:hidden">
           <div className="mx-auto flex max-w-[420px] items-center justify-between rounded-3xl bg-card/80 px-3 py-2 shadow-[0_12px_24px_rgba(15,23,42,0.15)] max-md:mx-0 max-md:w-full max-md:max-w-none max-md:border max-md:border-border">
             {[
-              { href: "/dashboard", label: "Home", Icon: LayoutDashboard },
-              { href: "/dashboard/automations", label: "Flows", Icon: Bot },
-              { href: "/dashboard/payments", label: "Pay", Icon: CreditCard },
-              { href: "/dashboard/settings", label: "Settings", Icon: Settings },
+              { href: "/dashboard", label: t("Home", "Accueil"), Icon: LayoutDashboard },
+              { href: "/dashboard/automations", label: t("Flows", "Flux"), Icon: Bot },
+              { href: "/dashboard/payments", label: t("Pay", "Payer"), Icon: CreditCard },
+              { href: "/dashboard/settings", label: t("Settings", "Parametres"), Icon: Settings },
             ].map(({ href, label, Icon }) => {
               const active = pathname === href || pathname.startsWith(href);
               return (

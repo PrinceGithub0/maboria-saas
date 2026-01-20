@@ -39,12 +39,17 @@ export const GET = withErrorHandling(async (req: Request) => {
   const conversationId = url.searchParams.get("conversationId");
   const conversation = conversationId
     ? { id: conversationId }
-    : await ensureDefaultAiConversation(session.user.id);
+    : (await ensureDefaultAiConversation(session.user.id)) as { id: string };
   const result = await getAiConversationMessages(session.user.id, conversation.id, limit);
   if (conversationId && !result) {
     return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
   }
-  const messages = result?.messages ?? [];
+  const messages = (result?.messages ?? []) as Array<{
+    id: string;
+    role: string;
+    content: string;
+    createdAt?: string | Date;
+  }>;
   const history = messages.map((entry) => ({
     id: entry.id,
     role: entry.role,
@@ -107,7 +112,7 @@ export const POST = withErrorHandling(async (req: Request) => {
   assertRateLimit(`ai:${session.user.id}`);
   const conversation = conversationId
     ? { id: conversationId }
-    : await ensureDefaultAiConversation(session.user.id);
+    : (await ensureDefaultAiConversation(session.user.id)) as { id: string };
   const storedUserMessage = await addAiMessage({
     userId: session.user.id,
     conversationId: conversation.id,
@@ -118,7 +123,10 @@ export const POST = withErrorHandling(async (req: Request) => {
     return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
   }
 
-  const memory = await fetchConversationWindow(session.user.id, conversation.id, 8);
+  const memory = ((await fetchConversationWindow(session.user.id, conversation.id, 8)) ?? []) as Array<{
+    role: string;
+    content: string;
+  }>;
   const memoryChrono = [...memory].reverse();
   const memoryText = memoryChrono.map((m) => `${m.role}: ${m.content}`).join("\n");
 

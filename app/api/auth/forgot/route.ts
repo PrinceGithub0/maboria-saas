@@ -22,7 +22,13 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     data: { token, userId: user.id, expiresAt },
   });
 
-  const resetUrl = `${process.env.APP_URL}/reset?token=${token}`;
+  const origin = req.headers.get("origin");
+  const baseUrl =
+    process.env.APP_URL ||
+    process.env.NEXTAUTH_URL ||
+    origin ||
+    new URL(req.url).origin;
+  const resetUrl = `${baseUrl}/reset?token=${encodeURIComponent(token)}`;
   await sendEmail({
     to: email,
     subject: "Reset your password",

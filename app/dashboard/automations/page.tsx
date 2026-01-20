@@ -9,6 +9,7 @@ import { Alert } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLanguage } from "@/components/providers/language-provider";
 
 const fetcher = async (url: string) => {
   const res = await fetch(url, { cache: "no-store" });
@@ -24,6 +25,8 @@ const fetcher = async (url: string) => {
 
 export default function AutomationsPage() {
   const router = useRouter();
+  const { language } = useLanguage();
+  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
   const { data: flows, error: flowsError, mutate, isLoading } = useSWR("/api/automation", fetcher);
   const { data: runs, mutate: mutateRuns } = useSWR("/api/automation/runs", fetcher, {
     refreshInterval: 4000,
@@ -38,13 +41,13 @@ export default function AutomationsPage() {
   const formatPlan = (value?: string) => {
     switch ((value || "").toLowerCase()) {
       case "starter":
-        return "Starter";
+        return t("Starter", "Starter");
       case "pro":
-        return "Pro";
+        return t("Pro", "Pro");
       case "enterprise":
-        return "Enterprise";
+        return t("Enterprise", "Entreprise");
       default:
-        return value || "Upgrade";
+        return value || t("Upgrade", "Mise a niveau");
     }
   };
 
@@ -57,11 +60,23 @@ export default function AutomationsPage() {
       lowered.includes("upgrade") ||
       lowered.includes("limit") ||
       lowered.includes("error") ||
-      lowered.includes("denied")
+      lowered.includes("denied") ||
+      lowered.includes("impossible") ||
+      lowered.includes("manquant") ||
+      lowered.includes("limite") ||
+      lowered.includes("erreur") ||
+      lowered.includes("refuse")
     ) {
       return "error";
     }
-    if (lowered.includes("saved") || lowered.includes("started") || lowered.includes("updated")) {
+    if (
+      lowered.includes("saved") ||
+      lowered.includes("started") ||
+      lowered.includes("updated") ||
+      lowered.includes("enregistre") ||
+      lowered.includes("demarre") ||
+      lowered.includes("mis a jour")
+    ) {
       return "success";
     }
     return "info";
@@ -69,7 +84,7 @@ export default function AutomationsPage() {
 
   const runFlow = async (id: string) => {
     if (!id || id === "undefined" || id === "null") {
-      setStatus("Missing automation id.");
+      setStatus(t("Missing automation id.", "ID automation manquant."));
       return;
     }
     setRunningId(id);
@@ -82,17 +97,27 @@ export default function AutomationsPage() {
       const json = await res.json();
       if (!res.ok) {
         if (json.type === "upgrade_required") {
-          setStatus(`${json.reason || "Upgrade required."} Required plan: ${formatPlan(json.requiredPlan)}.`);
+          setStatus(
+            `${json.reason || t("Upgrade required.", "Mise a niveau requise.")} ${t(
+              "Required plan:",
+              "Plan requis :"
+            )} ${formatPlan(json.requiredPlan)}.`
+          );
         } else if (json.type === "limit_reached") {
-          setStatus(`${json.reason || "Limit reached."} Required plan: ${formatPlan(json.requiredPlan)}.`);
+          setStatus(
+            `${json.reason || t("Limit reached.", "Limite atteinte.")} ${t(
+              "Required plan:",
+              "Plan requis :"
+            )} ${formatPlan(json.requiredPlan)}.`
+          );
         } else {
-          setStatus(json.reason || json.error || "Could not run automation.");
+          setStatus(json.reason || json.error || t("Could not run automation.", "Impossible de lancer l automation."));
         }
       } else {
-        setStatus("Automation run started.");
+        setStatus(t("Automation run started.", "Execution demarree."));
       }
     } catch {
-      setStatus("Could not run automation. Please try again.");
+      setStatus(t("Could not run automation. Please try again.", "Impossible de lancer l automation. Reessayez."));
     } finally {
       setRunningId(null);
     }
@@ -179,11 +204,11 @@ export default function AutomationsPage() {
   const remainingFlows = primaryFlow ? sortedFlows.slice(1) : [];
 
   const statusOptions = [
-    { label: "All", value: "all" },
-    { label: "Active", value: "active" },
-    { label: "Draft", value: "draft" },
-    { label: "Paused", value: "paused" },
-    { label: "Failed", value: "failed" },
+    { label: t("All", "Tous"), value: "all" },
+    { label: t("Active", "Actif"), value: "active" },
+    { label: t("Draft", "Brouillon"), value: "draft" },
+    { label: t("Paused", "En pause"), value: "paused" },
+    { label: t("Failed", "Echec"), value: "failed" },
   ];
 
   const formatDate = (value?: string) => {
@@ -235,15 +260,20 @@ export default function AutomationsPage() {
         <div className="flex items-start justify-between gap-4 max-md:flex-col">
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-indigo-600 dark:text-indigo-300">
-              Automations
+              {t("Automations", "Automatisations")}
             </p>
-            <h1 className="text-3xl font-semibold text-foreground">Automation command center</h1>
+            <h1 className="text-3xl font-semibold text-foreground">
+              {t("Automation command center", "Centre de commande automatisation")}
+            </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Monitor every flow, keep execution healthy, and launch runs with confidence.
+              {t(
+                "Monitor every flow, keep execution healthy, and launch runs with confidence.",
+                "Surveillez chaque flux, gardez une execution saine et lancez des runs en confiance."
+              )}
             </p>
           </div>
           <Button className="max-md:w-full" onClick={() => router.push("/dashboard/automations/new")}>
-            Create automation
+            {t("Create automation", "Creer une automation")}
           </Button>
         </div>
         {status && (
@@ -258,11 +288,11 @@ export default function AutomationsPage() {
         )}
         <div className="grid gap-3 md:grid-cols-5 max-md:grid-cols-2">
           {[
-            { label: "Total flows", value: totalFlows },
-            { label: "Active", value: activeFlows },
-            { label: "Draft", value: draftFlows },
-            { label: "Paused", value: pausedFlows },
-            { label: "AI assisted", value: flowList.filter((flow: any) => hasAiStep(flow)).length },
+            { label: t("Total flows", "Total des flux"), value: totalFlows },
+            { label: t("Active", "Actif"), value: activeFlows },
+            { label: t("Draft", "Brouillon"), value: draftFlows },
+            { label: t("Paused", "En pause"), value: pausedFlows },
+            { label: t("AI assisted", "Assiste IA"), value: flowList.filter((flow: any) => hasAiStep(flow)).length },
           ].map((item) => (
             <div key={item.label} className="rounded-xl bg-muted/40 px-4 py-3 text-center">
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{item.label}</p>
@@ -274,19 +304,21 @@ export default function AutomationsPage() {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className={`rounded-2xl px-3 py-2 text-sm font-semibold ${healthTone.pill}`}>
-                {healthScore}% healthy
+                {t(`${healthScore}% healthy`, `${healthScore}% sain`)}
               </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">Automation health</p>
-                <p className="text-sm text-muted-foreground">Last 7 days overview</p>
+                <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">
+                  {t("Automation health", "Sante automatisation")}
+                </p>
+                <p className="text-sm text-muted-foreground">{t("Last 7 days overview", "Vue des 7 derniers jours")}</p>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span className="rounded-full border border-border/60 bg-background px-3 py-1">
-                Failed: {runTotal ? runFailed : failedFlows}
+                {t("Failed", "Echec")}: {runTotal ? runFailed : failedFlows}
               </span>
               <span className="rounded-full border border-border/60 bg-background px-3 py-1">
-                Updated: {formatDate(new Date().toISOString())}
+                {t("Updated", "Mis a jour")}: {formatDate(new Date().toISOString())}
               </span>
             </div>
           </div>
@@ -299,22 +331,22 @@ export default function AutomationsPage() {
       <section className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-[220px] flex-1">
           <Input
-            label="Search"
-            placeholder="Search by name, category, or description"
+            label={t("Search", "Recherche")}
+            placeholder={t("Search by name, category, or description", "Recherche par nom, categorie ou description")}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <label className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Sort</label>
+          <label className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{t("Sort", "Tri")}</label>
           <select
             className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground"
             value={sortBy}
             onChange={(event) => setSortBy(event.target.value)}
           >
-            <option value="updated">Recently updated</option>
-            <option value="name">Name</option>
-            <option value="status">Status</option>
+            <option value="updated">{t("Recently updated", "Recemment mis a jour")}</option>
+            <option value="name">{t("Name", "Nom")}</option>
+            <option value="status">{t("Status", "Statut")}</option>
           </select>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -339,7 +371,7 @@ export default function AutomationsPage() {
           <Alert variant="error">
             {(flowsError as any)?.data?.reason ||
               (flowsError as any)?.data?.error ||
-              "Unable to load automations."}
+              t("Unable to load automations.", "Impossible de charger les automatisations.")}
           </Alert>
         )}
 
@@ -349,27 +381,29 @@ export default function AutomationsPage() {
               <div className="rounded-3xl border border-border/70 bg-background/80 p-6 shadow-[0_20px_40px_rgba(15,23,42,0.08)]">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Featured flow</p>
+                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                      {t("Featured flow", "Flux vedette")}
+                    </p>
                     <h2 className="mt-1 text-2xl font-semibold text-foreground">{primaryFlow.title}</h2>
                     <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                      {primaryFlow.description || "No description provided."}
+                      {primaryFlow.description || t("No description provided.", "Aucune description fournie.")}
                     </p>
                   </div>
                   <Badge variant={resolveStatusBadge(primaryFlow.status)}>{primaryFlow.status}</Badge>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
                   <span className="rounded-full border border-border px-3 py-1">
-                    Category: {primaryFlow.category || "General"}
+                    {t("Category", "Categorie")}: {primaryFlow.category || t("General", "General")}
                   </span>
                   <span className="rounded-full border border-border px-3 py-1">
-                    Steps: {Array.isArray(primaryFlow.steps) ? primaryFlow.steps.length : 0}
+                    {t("Steps", "Etapes")}: {Array.isArray(primaryFlow.steps) ? primaryFlow.steps.length : 0}
                   </span>
                   <span className="rounded-full border border-border px-3 py-1">
-                    Updated: {formatDate(primaryFlow.updatedAt)}
+                    {t("Updated", "Mis a jour")}: {formatDate(primaryFlow.updatedAt)}
                   </span>
                   {hasAiStep(primaryFlow) && (
                     <span className="rounded-full border border-border px-3 py-1 text-indigo-600 dark:text-indigo-300">
-                      AI assisted
+                      {t("AI assisted", "Assiste IA")}
                     </span>
                   )}
                 </div>
@@ -382,14 +416,14 @@ export default function AutomationsPage() {
                         variant="secondary"
                         onClick={() => {
                           if (!safeId) {
-                            setStatus("Missing automation id.");
+                            setStatus(t("Missing automation id.", "ID automation manquant."));
                             return;
                           }
                           router.push(`/dashboard/automations/${encodeURIComponent(safeId)}`);
                         }}
                         type="button"
                       >
-                        Open details
+                        {t("Open details", "Voir details")}
                       </Button>
                     );
                   })()}
@@ -401,7 +435,7 @@ export default function AutomationsPage() {
                     disabled={runningId === primaryFlow.id}
                     type="button"
                   >
-                    Run now
+                    {t("Run now", "Lancer")}
                   </Button>
                 </div>
               </div>
@@ -417,25 +451,25 @@ export default function AutomationsPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                          {flow.category || "General"}
+                          {flow.category || t("General", "General")}
                         </p>
                         <h3 className="mt-1 text-lg font-semibold text-foreground">{flow.title}</h3>
                       </div>
                       <Badge variant={resolveStatusBadge(flow.status)}>{flow.status}</Badge>
                     </div>
                     <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-                      {flow.description || "No description provided."}
+                      {flow.description || t("No description provided.", "Aucune description fournie.")}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
                       <span className="rounded-full border border-border px-2.5 py-1">
-                        Steps: {Array.isArray(flow.steps) ? flow.steps.length : 0}
+                        {t("Steps", "Etapes")}: {Array.isArray(flow.steps) ? flow.steps.length : 0}
                       </span>
                       <span className="rounded-full border border-border px-2.5 py-1">
-                        Updated: {formatDate(flow.updatedAt)}
+                        {t("Updated", "Mis a jour")}: {formatDate(flow.updatedAt)}
                       </span>
                       {hasAiStep(flow) && (
                         <span className="rounded-full border border-border px-2.5 py-1 text-indigo-600 dark:text-indigo-300">
-                          AI assisted
+                          {t("AI assisted", "Assiste IA")}
                         </span>
                       )}
                     </div>
@@ -448,14 +482,14 @@ export default function AutomationsPage() {
                             variant="secondary"
                             onClick={() => {
                               if (!safeId) {
-                                setStatus("Missing automation id.");
+                                setStatus(t("Missing automation id.", "ID automation manquant."));
                                 return;
                               }
                               router.push(`/dashboard/automations/${encodeURIComponent(safeId)}`);
                             }}
                             type="button"
                           >
-                            Open details
+                            {t("Open details", "Voir details")}
                           </Button>
                         );
                       })()}
@@ -467,7 +501,7 @@ export default function AutomationsPage() {
                         disabled={runningId === flow.id}
                         type="button"
                       >
-                        Run
+                        {t("Run", "Lancer")}
                       </Button>
                     </div>
                   </div>
@@ -479,9 +513,12 @@ export default function AutomationsPage() {
 
         {sortedFlows.length === 0 && !isLoading && (
           <EmptyState
-            title="No automations yet"
-            description="Create your first automation flow to start orchestrating tasks."
-            actionLabel="Create automation"
+            title={t("No automations yet", "Aucune automation pour l instant")}
+            description={t(
+              "Create your first automation flow to start orchestrating tasks.",
+              "Creez votre premier flux pour lancer les taches."
+            )}
+            actionLabel={t("Create automation", "Creer une automation")}
             onAction={() => router.push("/dashboard/automations/new")}
           />
         )}

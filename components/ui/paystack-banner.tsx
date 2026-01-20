@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import Image from "next/image";
 import clsx from "clsx";
+import { useLanguage } from "@/components/providers/language-provider";
 
 type BannerVariant = "public" | "dashboard";
 
@@ -17,6 +18,11 @@ export function PaystackBanner({
   dismissed?: boolean;
 }) {
   const [visible, setVisible] = useState(!dismissed);
+  const { language } = useLanguage();
+  const altText =
+    language === "fr"
+      ? "Maboria accepte maintenant les paiements via Paystack"
+      : "Maboria now accepts payments using Paystack";
 
   if (dismissible && !visible) return null;
 
@@ -61,7 +67,7 @@ export function PaystackBanner({
       <div className="relative h-full w-full">
         <Image
           src="/announcements/paystack.png"
-          alt="Maboria now accepts payments using Paystack"
+          alt={altText}
           fill
           sizes="100vw"
           className="object-contain"

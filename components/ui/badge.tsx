@@ -18,7 +18,8 @@ export function Badge({
       "bg-emerald-100 text-slate-900 border border-emerald-300 font-semibold dark:bg-emerald-500/20 dark:text-emerald-200 dark:border-emerald-500/40",
     warning:
       "bg-amber-200 text-slate-900 border border-amber-300 dark:bg-amber-500/20 dark:text-amber-200 dark:border-amber-500/40",
-    danger: "bg-rose-600 text-white border border-rose-700 dark:bg-rose-500/20 dark:text-rose-200 dark:border-rose-500/40",
+    danger:
+      "bg-[#dc2626] text-white border border-[#b91c1c] font-semibold dark:bg-rose-500/20 dark:text-rose-200 dark:border-rose-500/40",
     country: "bg-slate-100 text-slate-900 border border-slate-400 font-semibold dark:bg-indigo-500/20 dark:text-indigo-200 dark:border-indigo-500/40",
   };
   return (

@@ -9,7 +9,7 @@ import {
   recordPaystackPayment,
 } from "@/lib/payments/paystack";
 import { recordInvoicePayment } from "@/lib/invoice-payments";
-import { pricingTableDualCurrency } from "@/lib/pricing";
+import { getPlanFromAmount, getPlanPriceForCurrency } from "@/lib/pricing";
 import {
   beginWebhookEvent,
   hashWebhookPayload,
@@ -17,7 +17,12 @@ import {
   markWebhookProcessed,
 } from "@/lib/webhook-events";
 import { getUserPlan, subscriptionPlanToUserPlan } from "@/lib/entitlements";
-import { isAllowedCurrency, isProviderCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
+import {
+  fromMinorUnits,
+  isAllowedCurrency,
+  isProviderCurrency,
+  normalizeCurrency,
+} from "@/lib/payments/currency-allowlist";
 
 export const POST = withErrorHandling(async (req: Request) => {
   const signature = req.headers.get("x-paystack-signature") || "";
@@ -81,7 +86,7 @@ export const POST = withErrorHandling(async (req: Request) => {
       await recordInvoicePayment({
         provider: "PAYSTACK",
         reference: verified.reference || reference,
-        amount: Number(verified.amount || 0) / 100,
+        amount: fromMinorUnits(Number(verified.amount || 0), verified.currency || "NGN"),
         currency: (verified.currency || "NGN").toUpperCase(),
         status: "SUCCEEDED",
         invoiceId: meta?.invoice_id || meta?.invoiceId,
@@ -111,13 +116,9 @@ export const POST = withErrorHandling(async (req: Request) => {
       resolvedUserId = user?.id;
     }
 
-    const priceTable = pricingTableDualCurrency();
-    const starter = priceTable.find((p) => p.plan === "STARTER");
-    const pro = priceTable.find((p) => p.plan === "GROWTH");
-    const amountNgn = amountKobo / 100;
-    if (!plan && currency === "NGN") {
-      if (starter?.ngn === amountNgn) plan = "STARTER";
-      if (pro?.ngn === amountNgn) plan = "GROWTH";
+    const amount = fromMinorUnits(amountKobo, currency);
+    if (!plan) {
+      plan = getPlanFromAmount(currency, amount) as SubscriptionPlan | null;
     }
 
     if (!reference || !resolvedUserId || !plan) {
@@ -140,7 +141,7 @@ export const POST = withErrorHandling(async (req: Request) => {
       await prisma.payment.create({
         data: {
           userId: resolvedUserId,
-          amount: amountKobo / 100,
+          amount,
           currency,
           provider: "PAYSTACK",
           status: "FAILED",
@@ -152,17 +153,14 @@ export const POST = withErrorHandling(async (req: Request) => {
       return NextResponse.json({ received: true, needsReview: true });
     }
 
-    const planRow = plan === "GROWTH" ? pro : starter;
-    const expectedNgn = planRow?.ngn;
-    const expectedKobo = expectedNgn ? expectedNgn * 100 : null;
-
-    if (currency !== "NGN" || expectedKobo == null || amountKobo !== expectedKobo) {
+    const expected = getPlanPriceForCurrency(plan as "STARTER" | "GROWTH" | "ENTERPRISE", currency);
+    if (!expected || Math.abs(amount - expected) > 0.01) {
       log("warn", "paystack_amount_mismatch", {
         userId: resolvedUserId,
         reference,
         currency,
-        amount: amountKobo,
-        expectedKobo,
+        amount,
+        expected,
       });
       await markWebhookFailed(webhookEvent.id, "Amount verification failed");
       return NextResponse.json({ error: "Amount verification failed" }, { status: 400 });
@@ -182,7 +180,7 @@ export const POST = withErrorHandling(async (req: Request) => {
       if (existingForPlan) {
         await tx.subscription.update({
           where: { id: existingForPlan.id },
-          data: { status: "ACTIVE", renewalDate },
+          data: { status: "ACTIVE", renewalDate, currency },
         });
         subscriptionId = existingForPlan.id;
       } else {
@@ -192,7 +190,7 @@ export const POST = withErrorHandling(async (req: Request) => {
             plan,
             status: "ACTIVE",
             renewalDate,
-            currency: "NGN",
+            currency,
             interval: "monthly",
           },
         });

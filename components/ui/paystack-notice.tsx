@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import { X, Info } from "lucide-react";
+import { useLanguage } from "@/components/providers/language-provider";
 
 export function PaystackNotice({ dismissed }: { dismissed: boolean }) {
   const [visible, setVisible] = useState(!dismissed);
   const [saving, setSaving] = useState(false);
+  const { language } = useLanguage();
+  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
 
   if (!visible) return null;
 
@@ -24,7 +27,7 @@ export function PaystackNotice({ dismissed }: { dismissed: boolean }) {
       <div className="flex items-center gap-2">
         <Info className="h-4 w-4 text-slate-950 dark:text-emerald-200" />
         <span className="font-semibold text-slate-900 dark:text-emerald-100">
-          Payments via Paystack are now available.
+          {t("Payments via Paystack are now available.", "Les paiements via Paystack sont disponibles.")}
         </span>
       </div>
       <button

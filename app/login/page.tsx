@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert } from "@/components/ui/alert";
 import Image from "next/image";
+import { useLanguage } from "@/components/providers/language-provider";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -18,6 +19,8 @@ export default function LoginPage() {
   const router = useRouter();
   const params = useSearchParams();
   const logoSrc = "/branding/Maboria%20Company%20logo.png";
+  const { language } = useLanguage();
+  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,7 +33,11 @@ export default function LoginPage() {
     });
     setLoading(false);
     if (res?.error) {
-      setError(res.error === "CredentialsSignin" ? "Invalid email, password, or 2FA code." : res.error);
+      setError(
+        res.error === "CredentialsSignin"
+          ? t("Invalid email, password, or 2FA code.", "Email, mot de passe ou code 2FA invalide.")
+          : res.error
+      );
     } else {
       router.push("/dashboard");
     }
@@ -45,46 +52,48 @@ export default function LoginPage() {
           </div>
           <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Maboria</p>
         </div>
-        <h1 className="mt-2 text-2xl font-semibold text-foreground">Welcome back</h1>
-        <p className="text-sm text-muted-foreground">Sign in to manage automations and billing.</p>
+        <h1 className="mt-2 text-2xl font-semibold text-foreground">{t("Welcome back", "Bon retour")}</h1>
+        <p className="text-sm text-muted-foreground">
+          {t("Sign in to manage automations and billing.", "Connectez-vous pour gerer automatisations et facturation.")}
+        </p>
         {params.get("message") && <Alert variant="success">{params.get("message")}</Alert>}
         {error && <Alert variant="error">{error}</Alert>}
         <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
           <Input
-            label="Email"
+            label={t("Email", "Email")}
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
           <Input
-            label="Password"
+            label={t("Password", "Mot de passe")}
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
           <Input
-            label="2FA code (if enabled)"
+            label={t("2FA code (if enabled)", "Code 2FA (si active)")}
             value={otp}
             onChange={(e) => setOtp(e.target.value)}
-            placeholder="123456 or backup code"
+            placeholder={t("123456 or backup code", "123456 ou code de secours")}
           />
           <Button className="w-full" loading={loading} type="submit">
-            Sign in
+            {t("Sign in", "Se connecter")}
           </Button>
         </form>
         <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
           <Link href="/signup" className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-200">
-            Create account
+            {t("Create account", "Creer un compte")}
           </Link>
           <Link href="/forgot" className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-200">
-            Forgot password
+            {t("Forgot password", "Mot de passe oublie")}
           </Link>
         </div>
         <div className="mt-4 text-center text-sm text-muted-foreground">
           <Link href="/faq" className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-200">
-            View FAQ
+            {t("View FAQ", "Voir la FAQ")}
           </Link>
         </div>
       </div>
