@@ -18,7 +18,7 @@ export default function AdminUsersPage() {
   const { language } = useLanguage();
   const t = (en: string, fr: string) => (language === "fr" ? fr : en);
   const [query, setQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "disabled" | "active" | "trial">("all");
+  const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "disabled" | "active">("all");
   const [cancelForm, setCancelForm] = useState({ publicUserId: "", lastName: "" });
   const [cancelStatus, setCancelStatus] = useState<{ message: string; variant: "success" | "error" | "info" } | null>(
     null
@@ -35,7 +35,6 @@ export default function AdminUsersPage() {
     status: "",
     currency: "",
     renewalDate: "",
-    trialEndsAt: "",
   });
   const { data, mutate, isLoading } = useSWR("/api/admin/users", fetcher);
   const usersData = useMemo(() => (Array.isArray(data) ? data : []), [data]);
@@ -43,17 +42,15 @@ export default function AdminUsersPage() {
   const adminUsers = usersData.filter((u: any) => u.role === "ADMIN").length;
   const disabledUsers = usersData.filter((u: any) => u.role === "DISABLED").length;
   const activeSubs = usersData.filter((u: any) => u.subscriptions?.some((s: any) => s.status === "ACTIVE")).length;
-  const trialSubs = usersData.filter((u: any) => u.subscriptions?.some((s: any) => s.status === "TRIALING")).length;
-  const users = useMemo(() => {
+  const users = useMemo(() => { 
     const normalized = query.trim().toLowerCase();
     return usersData
       .filter((u: any) => {
         if (roleFilter === "admin") return u.role === "ADMIN";
         if (roleFilter === "disabled") return u.role === "DISABLED";
         if (roleFilter === "active") return u.subscriptions?.some((s: any) => s.status === "ACTIVE");
-        if (roleFilter === "trial") return u.subscriptions?.some((s: any) => s.status === "TRIALING");
-        return true;
-      })
+        return true; 
+      }) 
       .filter((u: any) => {
         const email = String(u.email || "").toLowerCase();
         const name = String(u.name || "").toLowerCase();
@@ -67,9 +64,14 @@ export default function AdminUsersPage() {
     switch ((plan || "").toUpperCase()) {
       case "STARTER":
         return t("Starter", "Starter");
-      case "GROWTH":
-      case "PREMIUM":
+      case "PRO":
         return t("Pro", "Pro");
+      case "GROWTH":
+        return t("Growth", "Growth");
+      case "BUSINESS":
+        return t("Business", "Business");
+      case "PREMIUM":
+        return t("Business", "Business");
       case "ENTERPRISE":
         return t("Enterprise", "Entreprise");
       default:
@@ -91,8 +93,6 @@ export default function AdminUsersPage() {
     switch ((status || "").toUpperCase()) {
       case "ACTIVE":
         return t("ACTIVE", "ACTIVE");
-      case "TRIALING":
-        return t("TRIALING", "ESSAI");
       case "PAST_DUE":
         return t("PAST_DUE", "EN_RETARD");
       case "CANCELED":
@@ -105,9 +105,7 @@ export default function AdminUsersPage() {
   };
 
   const pickPrimarySubscription = (user: any) =>
-    user?.subscriptions?.find((s: any) => s.status === "ACTIVE") ||
-    user?.subscriptions?.find((s: any) => s.status === "TRIALING") ||
-    user?.subscriptions?.[0];
+    user?.subscriptions?.find((s: any) => s.status === "ACTIVE") || user?.subscriptions?.[0];
 
   const updateUserOptimistic = async (id: string, updater: (user: any) => any) => {
     await mutate(
@@ -131,12 +129,12 @@ export default function AdminUsersPage() {
   const openManage = (user: any) => {
     const primarySub = pickPrimarySubscription(user);
     setSelectedUser({ ...user, primarySub });
+    const normalizedPlan = primarySub?.plan === "PREMIUM" ? "BUSINESS" : primarySub?.plan || "";
     setSubForm({
-      plan: primarySub?.plan || "",
+      plan: normalizedPlan,
       status: primarySub?.status || "",
       currency: primarySub?.currency || "",
       renewalDate: formatDateInput(primarySub?.renewalDate),
-      trialEndsAt: formatDateInput(primarySub?.trialEndsAt),
     });
     setPasswordReset("");
     setActionStatus(null);
@@ -258,7 +256,6 @@ export default function AdminUsersPage() {
     if (subForm.status) payload.status = subForm.status;
     if (subForm.currency) payload.currency = subForm.currency;
     if (subForm.renewalDate) payload.renewalDate = new Date(subForm.renewalDate).toISOString();
-    if (subForm.trialEndsAt) payload.trialEndsAt = new Date(subForm.trialEndsAt).toISOString();
     if (!Object.keys(payload).length) {
       setActionStatus({ message: t("No subscription changes to apply.", "Aucune modification d'abonnement."), variant: "info" });
       return;
@@ -296,43 +293,6 @@ export default function AdminUsersPage() {
         ...user,
         primarySub: { ...user.primarySub, ...data },
       }));
-    }
-    setActionLoading(false);
-  };
-
-  const extendTrial = async (days: number) => {
-    if (!selectedUser?.primarySub?.id) {
-      setActionStatus({ message: t("No subscription found for this user.", "Aucun abonnement trouve pour cet utilisateur."), variant: "error" });
-      return;
-    }
-    const next = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-    setSubForm((prev) => ({ ...prev, trialEndsAt: next.toISOString().slice(0, 10) }));
-    setActionLoading(true);
-    setActionStatus(null);
-    await updateUserOptimistic(selectedUser.id, (user) => {
-      const subscriptions = (user.subscriptions || []).map((sub: any) =>
-        sub.id === selectedUser.primarySub.id ? { ...sub, trialEndsAt: next.toISOString() } : sub
-      );
-      return { ...user, subscriptions };
-    });
-    updateSelectedUser(selectedUser.id, (user) => ({
-      ...user,
-      primarySub: { ...user.primarySub, trialEndsAt: next.toISOString() },
-    }));
-    const res = await fetch(`/api/admin/subscriptions/${selectedUser.primarySub.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ trialEndsAt: next.toISOString() }),
-    });
-    const payload = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setActionStatus({ message: payload.error || t("Trial extension failed.", "Extension de l'essai echouee."), variant: "error" });
-      await mutate();
-    } else {
-      setActionStatus({
-        message: t(`Trial extended by ${days} days.`, `Essai prolonge de ${days} jours.`),
-        variant: "success",
-      });
     }
     setActionLoading(false);
   };
@@ -384,7 +344,6 @@ export default function AdminUsersPage() {
                 { key: "admin", label: t("Admins", "Admins") },
                 { key: "disabled", label: t("Disabled", "Desactives") },
                 { key: "active", label: t("Active subs", "Abos actifs") },
-                { key: "trial", label: t("Trials", "Essais") },
               ].map((filter) => (
                 <Button
                   key={filter.key}
@@ -400,10 +359,9 @@ export default function AdminUsersPage() {
           </div>
         </div>
       </div>
-      <div className="grid gap-4 md:grid-cols-5 max-md:grid-cols-1 max-md:gap-5">
+      <div className="grid gap-4 md:grid-cols-4 max-md:grid-cols-1 max-md:gap-5">
         {isLoading ? (
           <>
-            <Skeleton className="h-20" />
             <Skeleton className="h-20" />
             <Skeleton className="h-20" />
             <Skeleton className="h-20" />
@@ -422,9 +380,6 @@ export default function AdminUsersPage() {
             </Card>
             <Card title={t("Active subs", "Abos actifs")}>
               <p className="text-2xl font-semibold text-foreground">{activeSubs}</p>
-            </Card>
-            <Card title={t("Trials", "Essais")}>
-              <p className="text-2xl font-semibold text-foreground">{trialSubs}</p>
             </Card>
           </>
         )}
@@ -452,8 +407,8 @@ export default function AdminUsersPage() {
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
           {t(
-            "Cancellation is restricted to admins. Active/trialing subscriptions are set to cancelled immediately.",
-            "Annulation reservee aux admins. Les abonnements actifs/essai sont annules immediatement."
+            "Cancellation is restricted to admins. Active subscriptions are set to cancelled immediately.",
+            "Annulation reservee aux admins. Les abonnements actifs sont annules immediatement."
           )}
         </p>
       </Card>
@@ -484,8 +439,6 @@ export default function AdminUsersPage() {
                     ? "!bg-red-600 !text-white !border-red-700 dark:bg-rose-500/20 dark:text-rose-200 dark:border-rose-500/40"
                     : status === "ACTIVE"
                     ? "!bg-emerald-200 !text-emerald-900 !border-emerald-400 dark:bg-emerald-500/20 dark:text-emerald-200 dark:border-emerald-500/40"
-                    : status === "TRIALING"
-                    ? "!bg-amber-200 !text-amber-900 !border-amber-400 dark:bg-amber-500/20 dark:text-amber-200 dark:border-amber-500/40"
                     : "!bg-slate-200 !text-slate-900 !border-slate-400 dark:bg-slate-700 dark:text-slate-100 dark:border-slate-500";
                   return (
                     <Badge variant="default" className={badgeClass}>
@@ -546,7 +499,9 @@ export default function AdminUsersPage() {
                   >
                     <option value="">{t("Select plan", "Choisir un plan")}</option>
                     <option value="STARTER">Starter</option>
-                    <option value="PREMIUM">Pro</option>
+                    <option value="PRO">Pro</option>
+                    <option value="GROWTH">Growth</option>
+                    <option value="BUSINESS">Business</option>
                     <option value="ENTERPRISE">Enterprise</option>
                   </select>
                 </label>
@@ -559,7 +514,6 @@ export default function AdminUsersPage() {
                   >
                     <option value="">{t("Select status", "Choisir un statut")}</option>
                     <option value="ACTIVE">ACTIVE</option>
-                    <option value="TRIALING">TRIALING</option>
                     <option value="PAST_DUE">PAST_DUE</option>
                     <option value="CANCELED">CANCELED</option>
                     <option value="INACTIVE">INACTIVE</option>
@@ -587,19 +541,6 @@ export default function AdminUsersPage() {
                   />
                 </label>
                 <label className="text-xs text-muted-foreground">
-                  {t("Trial ends", "Fin d'essai")}
-                  <Input
-                    type="date"
-                    value={subForm.trialEndsAt}
-                    onChange={(event) => setSubForm((prev) => ({ ...prev, trialEndsAt: event.target.value }))}
-                    className="mt-1"
-                  />
-                </label>
-                <div className="flex items-end gap-2">
-                  <Button size="sm" variant="secondary" loading={actionLoading} onClick={() => extendTrial(7)}>
-                    {t("Extend trial 7d", "Prolonger essai 7j")}
-                  </Button>
-                </div>
               </div>
               <div className="mt-3 flex items-center gap-2">
                 <Button size="sm" loading={actionLoading} onClick={updateSubscription}>

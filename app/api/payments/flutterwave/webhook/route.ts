@@ -10,7 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { log } from "@/lib/logger";
 import { subscriptionPlanToUserPlan } from "@/lib/entitlements";
 import { createAdminNotification } from "@/lib/notifications";
-import { getPlanPriceForCurrency } from "@/lib/pricing";
+import { getPlanPriceForInterval, type BillingInterval } from "@/lib/pricing";
 import {
   beginWebhookEvent,
   hashWebhookPayload,
@@ -57,7 +57,10 @@ export const POST = withErrorHandling(async (req: Request) => {
     }
 
     const userId = verified?.meta?.userId as string | undefined;
-    const plan = verified?.meta?.plan as string | undefined;
+    const rawPlan = String(verified?.meta?.plan || "").toUpperCase();
+    const plan = rawPlan === "PREMIUM" ? "BUSINESS" : rawPlan || undefined;
+    const rawInterval = String(verified?.meta?.interval || "");
+    const interval: BillingInterval = rawInterval === "yearly" ? "yearly" : "monthly";
     const status = verified?.status;
     const amount = Number(verified?.amount || 0);
     const currency = (verified?.currency || "USD").toUpperCase();
@@ -84,9 +87,13 @@ export const POST = withErrorHandling(async (req: Request) => {
     }
 
     if (plan) {
-      const expected = getPlanPriceForCurrency(plan as "STARTER" | "GROWTH" | "ENTERPRISE", currency);
+      const expected = getPlanPriceForInterval(
+        plan as "STARTER" | "PRO" | "GROWTH" | "BUSINESS" | "PREMIUM" | "ENTERPRISE",
+        currency,
+        interval
+      );
       if (expected && Math.abs(amount - expected) > 0.01) {
-        log("warn", "flutterwave_amount_mismatch", { userId, plan, amount, expected, txRef });
+        log("warn", "flutterwave_amount_mismatch", { userId, plan, amount, expected, txRef, interval });
         await markWebhookFailed(webhookEvent.id, "amount_mismatch");
         return NextResponse.json({ received: true });
       }
@@ -96,13 +103,16 @@ export const POST = withErrorHandling(async (req: Request) => {
       await recordFlutterwavePayment({ ...verified, meta: verified?.meta || data?.meta });
       if (userId) {
         const existing = await prisma.subscription.findFirst({
-          where: { userId, status: { in: ["ACTIVE", "TRIALING", "PAST_DUE", "CANCELED", "INACTIVE"] } },
+          where: { userId, status: { in: ["ACTIVE", "PAST_DUE", "CANCELED", "INACTIVE"] } },
           orderBy: { createdAt: "desc" },
         });
         const oldPlan = existing ? subscriptionPlanToUserPlan(existing.plan) : "free";
 
-        if (plan === "STARTER" || plan === "GROWTH") {
-          const renewalDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        if (plan === "STARTER" || plan === "PRO" || plan === "GROWTH" || plan === "BUSINESS") {
+          const renewalDate =
+            interval === "yearly"
+              ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+              : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
           let subscriptionId: string | null = null;
           await prisma.$transaction(async (tx) => {
             await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`;
@@ -113,7 +123,7 @@ export const POST = withErrorHandling(async (req: Request) => {
             if (existingForPlan) {
               await tx.subscription.update({
                 where: { id: existingForPlan.id },
-                data: { status: "ACTIVE", renewalDate, currency },
+                data: { status: "ACTIVE", renewalDate, currency, interval, plan },
               });
               subscriptionId = existingForPlan.id;
             } else {
@@ -124,7 +134,7 @@ export const POST = withErrorHandling(async (req: Request) => {
                   status: "ACTIVE",
                   renewalDate,
                   currency,
-                  interval: "monthly",
+                  interval,
                 },
               });
               subscriptionId = created.id;

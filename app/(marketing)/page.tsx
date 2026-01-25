@@ -15,48 +15,17 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { pricingTableDualCurrency } from "@/lib/pricing";
+import { PricingSection } from "@/components/pricing/pricing-section";
 import { MarketingCta } from "@/components/ui/marketing-cta";
-import { marketingCountries, getPaystackEnabledCurrencies } from "@/lib/payments/currency-allowlist";
+import { getPaystackEnabledCurrencies, providerSupport } from "@/lib/payments/currency-allowlist";
 import { PaystackLogo } from "@/components/ui/paystack-logo";
 import { LangText } from "@/components/ui/lang-text";
 
-const planMeta: Record<
-  string,
-  { desc: { en: string; fr: string }; cta: { en: string; fr: string }; href: string; featured?: boolean }
-> = {
-  STARTER: {
-    desc: { en: "Simple invoicing + basic reminders", fr: "Facturation simple + rappels de base" },
-    cta: { en: "Subscribe", fr: "S abonner" },
-    href: "/dashboard/subscription?plan=starter",
-  },
-  GROWTH: {
-    desc: { en: "AI suggestions, WhatsApp nudges, advanced automations", fr: "Suggestions IA, rappels WhatsApp, automatisations avancees" },
-    cta: { en: "Subscribe", fr: "S abonner" },
-    href: "/dashboard/subscription?plan=pro",
-    featured: true,
-  },
-  ENTERPRISE: {
-    desc: { en: "Full automation control, team access, deeper governance", fr: "Controle complet des automatisations, acces equipe, gouvernance avancee" },
-    cta: { en: "Contact sales", fr: "Contacter ventes" },
-    href: "/contact",
-  },
-};
-
-const plans = pricingTableDualCurrency().map((p) => ({ ...p, ...planMeta[p.plan] }));
-const paystackCountryLabels: Record<string, string> = {
-  Nigeria: "NGN",
-  Ghana: "GHS",
-  Kenya: "KES",
-  "South Africa": "ZAR",
-  "Cote d'Ivoire": "XOF",
-};
+const plans = pricingTableDualCurrency();
 const paystackEnabledCurrencies = getPaystackEnabledCurrencies();
-const paystackCountries = marketingCountries.PAYSTACK.filter((country) => {
-  const code = paystackCountryLabels[country];
-  return !code || paystackEnabledCurrencies.includes(code);
-});
-const paystackCoverageLabel = "Paystack coverage";
-const flutterwaveCountries = marketingCountries.FLUTTERWAVE;
+const paystackCoverageLabel = "Paystack currencies";
+const paystackCurrencies = paystackEnabledCurrencies;
+const flutterwaveCurrencies = providerSupport.FLUTTERWAVE;
 const highlights = [
   {
     title: { en: "Get paid faster", fr: "Etre paye plus vite" },
@@ -85,10 +54,10 @@ const highlights = [
 ];
 const whyMaboria = [
   {
-    title: { en: "Built for African operations", fr: "Concu pour les operations africaines" },
+    title: { en: "Built for modern operations", fr: "Concu pour des operations modernes" },
     description: {
-      en: "Run local-currency billing with Paystack in supported markets and multi-currency billing with Flutterwave.",
-      fr: "Facturation en monnaie locale avec Paystack la ou disponible et multi-devises avec Flutterwave.",
+      en: "Run billing in supported currencies and multi-currency billing with Flutterwave.",
+      fr: "Facturation en devises prises en charge et multi-devises avec Flutterwave.",
     },
     icon: Gauge,
   },
@@ -274,7 +243,7 @@ export default function LandingPage() {
               variant="success"
               className="max-md:mx-auto max-md:w-fit border border-emerald-400/60 bg-emerald-100 text-xs font-semibold text-emerald-900 dark:bg-emerald-500/10 dark:text-emerald-200"
             >
-              <LangText en="Get paid faster \u2022 Automatic follow-ups" fr="Encaissez plus vite \u2022 Relances automatiques" />
+              <LangText en="Get paid faster - Automatic follow-ups" fr="Encaissez plus vite - Relances automatiques" />
             </Badge>
             <h1 className="text-3xl font-semibold leading-[1.1] tracking-tight text-foreground sm:text-4xl md:text-6xl max-md:text-3xl max-[480px]:text-[24px]">
               <LangText
@@ -440,8 +409,8 @@ export default function LandingPage() {
             </div>
             <p className="text-xs text-slate-900 dark:text-slate-300">
               <LangText
-                en="Advanced automation is available on Pro & Enterprise plans."
-                fr="Automatisation avancee disponible sur Pro & Enterprise."
+                en="Advanced automation is available on Pro, Growth, Business & Enterprise plans."
+                fr="Automatisation avancee disponible sur Pro, Growth, Business et Enterprise."
               />
             </p>
           </div>
@@ -450,18 +419,18 @@ export default function LandingPage() {
               <LangText en="Payment coverage" fr="Couverture de paiement" />
             </p>
             <h2 className="text-2xl font-semibold text-foreground md:text-2xl max-md:text-xl">
-              <LangText en="Payment coverage & supported countries" fr="Couverture de paiement & pays pris en charge" />
+              <LangText en="Payment coverage & supported currencies" fr="Couverture de paiement & devises prises en charge" />
             </h2>
             <p className="text-sm text-slate-900 dark:text-slate-300 md:hidden">
               <LangText
-                en="Local and international payments supported across key markets."
-                fr="Paiements locaux et internationaux dans les principaux marches."
+                en="Local and international payments supported through enabled providers."
+                fr="Paiements locaux et internationaux via les prestataires actives."
               />
             </p>
             <p className="hidden text-sm text-slate-900 dark:text-slate-300 md:block">
               <LangText
-                en="Pay with local cards or bank transfer in supported African countries. International customers can pay securely via Flutterwave with Visa, Mastercard, and Verve. Multi-currency billing is handled through Flutterwave."
-                fr="Payez par carte locale ou virement dans les pays africains pris en charge. Les clients internationaux paient via Flutterwave avec Visa, Mastercard et Verve. La facturation multi-devise passe par Flutterwave."
+                en="Accept cards and bank transfers where enabled. International cards are supported by Flutterwave where available. Multi-currency billing is handled through Flutterwave."
+                fr="Acceptez cartes et virements la ou disponible. Les cartes internationales sont supportees via Flutterwave. La facturation multi-devise passe par Flutterwave."
               />
             </p>
           </div>
@@ -473,7 +442,7 @@ export default function LandingPage() {
                 <summary className="flex cursor-pointer items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold text-foreground">
-                      <LangText en={paystackCoverageLabel} fr="Couverture Paystack" />
+                      <LangText en={paystackCoverageLabel} fr="Devises Paystack" />
                     </p>
                     <p className="text-xs text-slate-900 dark:text-slate-300">
                       <LangText en="Cards, bank transfer, local methods." fr="Cartes, virement, moyens locaux." />
@@ -484,17 +453,17 @@ export default function LandingPage() {
                 <div className="overflow-hidden transition-[max-height] duration-300 max-h-0 group-open:max-h-[720px]">
                   <div className="pt-3 space-y-3 text-sm text-slate-900 dark:text-slate-300">
                     <p>
-                      <LangText en="Countries where Paystack operates fully:" fr="Pays ou Paystack opere pleinement :" />
+                      <LangText en="Currencies enabled for Paystack:" fr="Devises activees pour Paystack :" />
                     </p>
                     <div className="grid grid-cols-2 gap-2">
-                      {paystackCountries.map((country) => (
-                        <Badge key={country} variant="country" className="text-[11px]">
-                          {country}
+                      {paystackCurrencies.map((code) => (
+                        <Badge key={code} variant="country" className="text-[11px]">
+                          {code}
                         </Badge>
                       ))}
                     </div>
                     <p>
-                      <LangText en="Beta programs: Egypt, Rwanda." fr="Programmes beta : Egypte, Rwanda." />
+                      <LangText en="Additional markets may be in beta." fr="Des marches supplementaires peuvent etre en beta." />
                     </p>
                     <div className="flex flex-wrap items-center justify-center gap-4 text-center">
                       <div className="flex flex-col items-center">
@@ -565,7 +534,7 @@ export default function LandingPage() {
                       </div>
                     </div>
                     <p>
-                      <LangText en="USD support available in Nigeria and Kenya." fr="USD disponible au Nigeria et au Kenya." />
+                      <LangText en="USD availability depends on provider settings." fr="Disponibilite USD selon la configuration du prestataire." />
                     </p>
                   </div>
                 </div>
@@ -575,7 +544,7 @@ export default function LandingPage() {
                 <summary className="flex cursor-pointer items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold text-foreground">
-                      <LangText en="Flutterwave coverage" fr="Couverture Flutterwave" />
+                      <LangText en="Flutterwave currencies" fr="Devises Flutterwave" />
                     </p>
                     <p className="text-xs text-slate-900 dark:text-slate-300">
                       <LangText en="Visa, Mastercard, Verve accepted." fr="Visa, Mastercard, Verve acceptes." />
@@ -587,21 +556,21 @@ export default function LandingPage() {
                   <div className="pt-3 space-y-3 text-sm text-slate-900 dark:text-slate-300">
                     <p>
                       <LangText
-                        en="Selected countries where Flutterwave enables merchant payments:"
-                        fr="Pays selectionnes ou Flutterwave permet les paiements marchands :"
+                        en="Currencies enabled for Flutterwave:"
+                        fr="Devises activees pour Flutterwave :"
                       />
                     </p>
                     <div className="grid grid-cols-2 gap-2">
-                      {flutterwaveCountries.map((country) => (
-                        <Badge key={country} variant="country" className="text-[11px]">
-                          {country}
+                      {flutterwaveCurrencies.map((code) => (
+                        <Badge key={code} variant="country" className="text-[11px]">
+                          {code}
                         </Badge>
                       ))}
                     </div>
                     <p>
                       <LangText
-                        en="Accept payments from Customers in the US, UK, and Europe (Germany, France, Spain)."
-                        fr="Acceptez des paiements des Etats-Unis, du Royaume-Uni et d Europe (Allemagne, France, Espagne)."
+                        en="Accept payments from international customers with major cards."
+                        fr="Acceptez des paiements internationaux avec les principales cartes."
                       />
                     </p>
                     <div className="flex items-center justify-center gap-6">
@@ -629,8 +598,8 @@ export default function LandingPage() {
                     </div>
                     <p>
                       <LangText
-                        en="Supports USD plus local African currencies where available."
-                        fr="Prend en charge USD et devises locales africaines selon disponibilite."
+                        en="Supports USD and other supported currencies where available."
+                        fr="Supporte USD et autres devises prises en charge si disponibles."
                       />
                     </p>
                   </div>
@@ -643,17 +612,17 @@ export default function LandingPage() {
                 <div className="absolute -right-16 -top-16 hidden h-32 w-32 rounded-full bg-slate-500/10 blur-3xl dark:block" />
                 <div className="relative space-y-4 text-sm text-slate-900 dark:text-slate-300">
                   <p>
-                    <LangText en="Countries where Paystack operates fully:" fr="Pays ou Paystack opere pleinement :" />
+                    <LangText en="Currencies enabled for Paystack:" fr="Devises activees pour Paystack :" />
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {paystackCountries.map((country) => (
-                      <Badge key={country} variant="country">
-                        {country}
+                    {paystackCurrencies.map((code) => (
+                      <Badge key={code} variant="country">
+                        {code}
                       </Badge>
                     ))}
                   </div>
                   <p>
-                    <LangText en="Beta programs: Egypt, Rwanda." fr="Programmes beta : Egypte, Rwanda." />
+                    <LangText en="Additional markets may be in beta." fr="Des marches supplementaires peuvent etre en beta." />
                   </p>
                     <div className="flex flex-wrap items-center justify-center gap-6 text-center">
                       <div className="flex flex-col items-center">
@@ -722,7 +691,7 @@ export default function LandingPage() {
                       </div>
                     </div>
                   <p>
-                    <LangText en="USD support available in Nigeria and Kenya." fr="USD disponible au Nigeria et au Kenya." />
+                    <LangText en="USD availability depends on provider settings." fr="Disponibilite USD selon la configuration du prestataire." />
                   </p>
                 </div>
               </div>
@@ -732,21 +701,21 @@ export default function LandingPage() {
                 <div className="relative space-y-4 text-sm text-slate-900 dark:text-slate-300">
                   <p>
                     <LangText
-                      en="Selected countries where Flutterwave enables merchant payments:"
-                      fr="Pays selectionnes ou Flutterwave permet les paiements marchands :"
+                      en="Currencies enabled for Flutterwave:"
+                      fr="Devises activees pour Flutterwave :"
                     />
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {flutterwaveCountries.map((country) => (
-                      <Badge key={country} variant="country">
-                        {country}
+                    {flutterwaveCurrencies.map((code) => (
+                      <Badge key={code} variant="country">
+                        {code}
                       </Badge>
                     ))}
                   </div>
                   <p>
                     <LangText
-                      en="Accept payments from Customers in the US, UK, and Europe (Germany, France, Spain)."
-                      fr="Acceptez des paiements des Etats-Unis, du Royaume-Uni et d Europe (Allemagne, France, Espagne)."
+                      en="Accept payments from international customers with major cards."
+                      fr="Acceptez des paiements internationaux avec les principales cartes."
                     />
                   </p>
                   <div className="flex flex-col gap-3">
@@ -778,8 +747,8 @@ export default function LandingPage() {
                   </div>
                   <p>
                     <LangText
-                      en="Supports USD plus local African currencies where available."
-                      fr="Prend en charge USD et devises locales africaines selon disponibilite."
+                      en="Supports USD and other supported currencies where available."
+                      fr="Supporte USD et autres devises prises en charge si disponibles."
                     />
                   </p>
                 </div>
@@ -853,11 +822,11 @@ export default function LandingPage() {
             ))}
           </div>
           <div className="flex flex-wrap gap-3 text-sm text-slate-900 dark:text-slate-300">
-            {[
-              { en: "No credit card required for trial", fr: "Aucune carte requise pour l essai" },
-              { en: "7-day trial access", fr: "Essai 7 jours" },
-              { en: "Cancel anytime", fr: "Annulez a tout moment" },
-            ].map((item) => (
+            {[ 
+              { en: "No setup required", fr: "Aucune configuration requise" }, 
+              { en: "Monthly billing", fr: "Facturation mensuelle" }, 
+              { en: "Cancel anytime", fr: "Annulez a tout moment" }, 
+            ].map((item) => ( 
               <div
                 key={item.en}
                 className="flex items-center gap-2 rounded-full border border-border bg-card/70 px-4 py-2 text-xs font-medium"
@@ -905,73 +874,8 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="mt-12 space-y-6 md:mt-16">
-          <div className="space-y-2">
-            <h2 className="text-2xl font-semibold text-foreground max-md:text-xl">
-              <LangText en="Pricing" fr="Tarifs" />
-            </h2>
-            <p className="text-sm text-slate-900 dark:text-slate-300">
-              <LangText en="Prices include 7.5% VAT." fr="Les prix incluent 7.5% TVA." />
-            </p>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3 max-md:gap-3">
-            {plans.map((plan) => (
-              <Card
-                key={plan.plan}
-                title={
-                  plan.label === "Starter" ? (
-                    <LangText en="Starter" fr="Starter" />
-                  ) : plan.label === "Pro" ? (
-                    <LangText en="Pro" fr="Pro" />
-                  ) : (
-                    <LangText en="Enterprise" fr="Entreprise" />
-                  )
-                }
-                className={`relative h-full p-5 md:p-6 max-md:p-4 ${plan.featured ? "border-indigo-500/60 shadow-lg shadow-indigo-500/20" : "shadow-sm"}`}
-              >
-                {plan.featured && (
-                  <div className="absolute right-4 top-4">
-                    <Badge variant="success" className="font-bold text-slate-900 dark:text-emerald-200">
-                      <LangText en="Popular" fr="Populaire" />
-                    </Badge>
-                  </div>
-                )}
-                <div className="space-y-2">
-                  <div className="text-3xl font-semibold text-foreground max-md:text-2xl">
-                    {plan.ngn == null ? (
-                      <LangText en="Contact sales" fr="Contacter ventes" />
-                    ) : (
-                      <div className="flex flex-col gap-1">
-                        <div>
-                          {formatMoney(plan.ngn, "NGN")}
-                          <span className="text-sm text-slate-900 dark:text-slate-300">
-                            <LangText en="/mo" fr="/mois" />
-                          </span>
-                        </div>
-                        {plan.usd != null && (
-                          <div className="text-sm font-medium text-slate-900 dark:text-slate-300">
-                            {formatMoney(plan.usd, "USD")}
-                            <LangText en="/mo" fr="/mois" />
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <p className="text-sm text-slate-900 dark:text-slate-300">
-                    <LangText en={plan.desc.en} fr={plan.desc.fr} />
-                  </p>
-                </div>
-
-                <Link href={plan.href}>
-                  <Button className="mt-3 w-full max-md:h-11" variant="primary">
-                    <LangText en={plan.cta.en} fr={plan.cta.fr} />
-                  </Button>
-                </Link>
-              </Card>
-            ))}
-          </div>
+        <section className="mt-12 md:mt-16">
+          <PricingSection plans={plans} />
         </section>
 
         <section className="mt-12 rounded-2xl border border-border bg-card/70 p-6 md:mt-16 md:p-8 max-md:p-4 shadow-sm">

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
-import { getPlanFromAmount, getPlanPriceForCurrency } from "@/lib/pricing";
+import { getPlanFromAmountWithInterval, type BillingInterval } from "@/lib/pricing";
 import { fromMinorUnits } from "@/lib/payments/currency-allowlist";
 import { log } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -48,38 +48,45 @@ export const GET = withRequestLogging(withErrorHandling(async (req: Request) => 
 
     const amount = fromMinorUnits(Number(data?.amount || 0), data?.currency || "NGN");
     const currency = (data?.currency || "NGN").toUpperCase();
-    const inferredPlan = getPlanFromAmount(currency, amount);
+    const inferred = getPlanFromAmountWithInterval(currency, amount);
     const userId = (data?.metadata?.userId as string | undefined) || undefined;
-    const plan = (data?.metadata?.plan as string | undefined) || inferredPlan;
+    const plan = (data?.metadata?.plan as string | undefined) || inferred?.plan;
+    const rawInterval = String(data?.metadata?.interval || "");
+    const interval: BillingInterval =
+      rawInterval === "yearly" ? "yearly" : rawInterval === "monthly" ? "monthly" : inferred?.interval || "monthly";
 
-    data.metadata = { ...(data?.metadata || {}), userId, plan };
+    const normalizedPlan = plan === "PREMIUM" ? "BUSINESS" : plan;
+    data.metadata = { ...(data?.metadata || {}), userId, plan: normalizedPlan ?? plan, interval };
     await recordPaystackPayment(data);
 
-    if (userId && (plan === "STARTER" || plan === "GROWTH")) {
-      const renewalDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    if (userId && (normalizedPlan === "STARTER" || normalizedPlan === "PRO" || normalizedPlan === "GROWTH" || normalizedPlan === "BUSINESS")) {
+      const renewalDate =
+        interval === "yearly"
+          ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       const existingForPlan = await prisma.subscription.findFirst({
-        where: { userId, plan },
+        where: { userId, plan: normalizedPlan },
         orderBy: { createdAt: "desc" },
       });
       if (existingForPlan) {
         await prisma.subscription.update({
           where: { id: existingForPlan.id },
-          data: { status: "ACTIVE", renewalDate, currency },
+          data: { status: "ACTIVE", renewalDate, currency, interval, plan: normalizedPlan },
         });
       } else {
         await prisma.subscription.create({
           data: {
             userId,
-            plan,
+            plan: normalizedPlan,
             status: "ACTIVE",
             renewalDate,
             currency,
-            interval: "monthly",
+            interval,
           },
         });
       }
-      log("info", "paystack_subscription_synced", { userId, plan, status: "ACTIVE", source: "callback" });
-      const newPlan = subscriptionPlanToUserPlan(plan);
+      log("info", "paystack_subscription_synced", { userId, plan: normalizedPlan, status: "ACTIVE", source: "callback" });
+      const newPlan = subscriptionPlanToUserPlan(normalizedPlan);
       log("info", "billing_plan_transition", {
         provider: "paystack",
         event: "callback",
@@ -113,37 +120,44 @@ export const GET = withRequestLogging(withErrorHandling(async (req: Request) => 
 
   const amount = Number(verified?.amount || 0);
   const currency = (verified?.currency || "USD").toUpperCase();
-  const inferredPlan = getPlanFromAmount(currency, amount);
+  const inferred = getPlanFromAmountWithInterval(currency, amount);
   const userId = (verified?.meta?.userId as string | undefined) || undefined;
-  const plan = (verified?.meta?.plan as string | undefined) || inferredPlan;
+  const plan = (verified?.meta?.plan as string | undefined) || inferred?.plan;
+  const rawInterval = String(verified?.meta?.interval || "");
+  const interval: BillingInterval =
+    rawInterval === "yearly" ? "yearly" : rawInterval === "monthly" ? "monthly" : inferred?.interval || "monthly";
 
-  await recordFlutterwavePayment({ ...verified, meta: { ...(verified?.meta || {}), userId, plan } });
+  const normalizedPlan = plan === "PREMIUM" ? "BUSINESS" : plan;
+  await recordFlutterwavePayment({ ...verified, meta: { ...(verified?.meta || {}), userId, plan: normalizedPlan ?? plan, interval } });
 
-  if (userId && (plan === "STARTER" || plan === "GROWTH")) {
-    const renewalDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  if (userId && (normalizedPlan === "STARTER" || normalizedPlan === "PRO" || normalizedPlan === "GROWTH" || normalizedPlan === "BUSINESS")) {
+    const renewalDate =
+      interval === "yearly"
+        ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     const existingForPlan = await prisma.subscription.findFirst({
-      where: { userId, plan },
+      where: { userId, plan: normalizedPlan },
       orderBy: { createdAt: "desc" },
     });
     if (existingForPlan) {
       await prisma.subscription.update({
         where: { id: existingForPlan.id },
-        data: { status: "ACTIVE", renewalDate, currency },
+        data: { status: "ACTIVE", renewalDate, currency, interval, plan: normalizedPlan },
       });
     } else {
       await prisma.subscription.create({
         data: {
           userId,
-          plan,
+          plan: normalizedPlan,
           status: "ACTIVE",
           renewalDate,
           currency,
-          interval: "monthly",
+          interval,
         },
       });
     }
-    log("info", "flutterwave_subscription_synced", { userId, plan, status: "ACTIVE", source: "callback" });
-    const newPlan = subscriptionPlanToUserPlan(plan);
+    log("info", "flutterwave_subscription_synced", { userId, plan: normalizedPlan, status: "ACTIVE", source: "callback" });
+    const newPlan = subscriptionPlanToUserPlan(normalizedPlan);
     log("info", "billing_plan_transition", {
       provider: "flutterwave",
       event: "callback",

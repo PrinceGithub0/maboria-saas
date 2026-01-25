@@ -17,6 +17,7 @@ import {
   markWebhookProcessed,
 } from "@/lib/webhook-events";
 import { fromMinorUnits, normalizeCurrency } from "@/lib/payments/currency-allowlist";
+import type { BillingInterval } from "@/lib/pricing";
 
 export const POST = withErrorHandling(async (req: Request) => {
   const signature = req.headers.get("x-paystack-signature") || undefined;
@@ -29,7 +30,11 @@ export const POST = withErrorHandling(async (req: Request) => {
   const data = payload.data;
   log("info", "paystack_webhook_received", { event });
   const userIdFromMeta = data?.metadata?.userId as string | undefined;
+  const rawPlan = String(data?.metadata?.plan || "").toUpperCase();
+  const normalizedPlan = rawPlan === "PREMIUM" ? "BUSINESS" : rawPlan;
   const isInvoicePayment = data?.metadata?.type === "invoice_payment";
+  const rawInterval = String(data?.metadata?.interval || "");
+  const interval: BillingInterval = rawInterval === "yearly" ? "yearly" : "monthly";
 
   const eventId = String(data?.id || data?.reference || `${event}:${payloadHash}`);
   const webhookEvent = await beginWebhookEvent({
@@ -84,7 +89,7 @@ export const POST = withErrorHandling(async (req: Request) => {
     await recordPaystackPayment(data);
     if (event === "charge.success" && userIdFromMeta) {
       const existing = await prisma.subscription.findFirst({
-        where: { userId: userIdFromMeta, status: { in: ["ACTIVE", "TRIALING", "PAST_DUE", "CANCELED", "INACTIVE"] } },
+        where: { userId: userIdFromMeta, status: { in: ["ACTIVE", "PAST_DUE", "CANCELED", "INACTIVE"] } },
         orderBy: { createdAt: "desc" },
       });
       const oldPlan = existing ? subscriptionPlanToUserPlan(existing.plan) : "free";
@@ -105,37 +110,43 @@ export const POST = withErrorHandling(async (req: Request) => {
     if (
       data.status === "success" &&
       userIdFromMeta &&
-      (data.metadata?.plan === "STARTER" || data.metadata?.plan === "GROWTH")
+      (normalizedPlan === "STARTER" ||
+        normalizedPlan === "PRO" ||
+        normalizedPlan === "GROWTH" ||
+        normalizedPlan === "BUSINESS")
     ) {
       const existing = await prisma.subscription.findFirst({
-        where: { userId: userIdFromMeta, status: { in: ["ACTIVE", "TRIALING", "PAST_DUE", "CANCELED", "INACTIVE"] } },
+        where: { userId: userIdFromMeta, status: { in: ["ACTIVE", "PAST_DUE", "CANCELED", "INACTIVE"] } },
         orderBy: { createdAt: "desc" },
       });
       const oldPlan = existing ? subscriptionPlanToUserPlan(existing.plan) : "free";
-      const renewalDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      const renewalDate =
+        interval === "yearly"
+          ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       const currency = normalizeCurrency(data?.currency || "NGN");
       let subscriptionId: string | null = null;
       await prisma.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userIdFromMeta}))`;
         const existingForPlan = await tx.subscription.findFirst({
-          where: { userId: userIdFromMeta, plan: data.metadata.plan },
+          where: { userId: userIdFromMeta, plan: normalizedPlan },
           orderBy: { createdAt: "desc" },
         });
         if (existingForPlan) {
           await tx.subscription.update({
             where: { id: existingForPlan.id },
-            data: { status: "ACTIVE", renewalDate, currency },
+            data: { status: "ACTIVE", renewalDate, currency, interval, plan: normalizedPlan },
           });
           subscriptionId = existingForPlan.id;
         } else {
           const created = await tx.subscription.create({
             data: {
               userId: userIdFromMeta,
-              plan: data.metadata.plan,
+              plan: normalizedPlan,
               status: "ACTIVE",
               renewalDate,
               currency,
-              interval: "monthly",
+              interval,
             },
           });
           subscriptionId = created.id;
@@ -143,10 +154,10 @@ export const POST = withErrorHandling(async (req: Request) => {
       });
       log("info", "paystack_subscription_synced", {
         userId: userIdFromMeta,
-        plan: data.metadata.plan,
+        plan: normalizedPlan,
         status: "ACTIVE",
       });
-      const newPlan = subscriptionPlanToUserPlan(data.metadata.plan);
+      const newPlan = subscriptionPlanToUserPlan(normalizedPlan);
       if (subscriptionId) {
         await prisma.activityLog.create({
           data: {
@@ -154,7 +165,7 @@ export const POST = withErrorHandling(async (req: Request) => {
             action: "SUBSCRIPTION_UPDATED",
             resourceType: "subscription",
             resourceId: subscriptionId,
-            metadata: { status: "ACTIVE", plan: data.metadata.plan },
+            metadata: { status: "ACTIVE", plan: normalizedPlan },
           },
         });
       }
@@ -171,12 +182,12 @@ export const POST = withErrorHandling(async (req: Request) => {
       const userId = userIdFromMeta;
       if (userId) {
         const existing = await prisma.subscription.findFirst({
-          where: { userId, status: { in: ["ACTIVE", "TRIALING", "PAST_DUE", "CANCELED", "INACTIVE"] } },
+          where: { userId, status: { in: ["ACTIVE", "PAST_DUE", "CANCELED", "INACTIVE"] } },
           orderBy: { createdAt: "desc" },
         });
         const oldPlan = existing ? subscriptionPlanToUserPlan(existing.plan) : "free";
       await prisma.subscription.updateMany({
-        where: { userId, status: { in: ["ACTIVE", "TRIALING", "PAST_DUE"] } },
+        where: { userId, status: { in: ["ACTIVE", "PAST_DUE"] } },
         data: { status: "CANCELED" },
       });
       await prisma.activityLog.create({
@@ -207,18 +218,24 @@ export const POST = withErrorHandling(async (req: Request) => {
 
     if (event === "subscription.create" || event === "subscription.enable") {
       const userId = userIdFromMeta;
-      const plan = data?.metadata?.plan;
-      if (userId && (plan === "STARTER" || plan === "GROWTH" || plan === "ENTERPRISE")) {
+      const plan = normalizedPlan;
+      if (
+        userId &&
+        (plan === "STARTER" || plan === "PRO" || plan === "GROWTH" || plan === "BUSINESS" || plan === "ENTERPRISE")
+      ) {
         const existing = await prisma.subscription.findFirst({
-          where: { userId, status: { in: ["ACTIVE", "TRIALING", "PAST_DUE", "CANCELED", "INACTIVE"] } },
+          where: { userId, status: { in: ["ACTIVE", "PAST_DUE", "CANCELED", "INACTIVE"] } },
           orderBy: { createdAt: "desc" },
         });
         const oldPlan = existing ? subscriptionPlanToUserPlan(existing.plan) : "free";
-        const renewalDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        const renewalDate =
+          interval === "yearly"
+            ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+            : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
         const currency = normalizeCurrency(data?.currency || "NGN");
       await prisma.subscription.upsert({
         where: { id: data?.subscription_code || data?.id || `${userId}-${plan}` },
-        update: { status: "ACTIVE", plan, renewalDate, currency },
+        update: { status: "ACTIVE", plan, renewalDate, currency, interval },
         create: {
           id: data?.subscription_code || data?.id || `${userId}-${plan}`,
           userId,
@@ -226,7 +243,7 @@ export const POST = withErrorHandling(async (req: Request) => {
           status: "ACTIVE",
           renewalDate,
           currency,
-          interval: "monthly",
+          interval,
         },
       });
       await prisma.activityLog.create({

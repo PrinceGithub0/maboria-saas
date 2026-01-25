@@ -37,7 +37,7 @@ export const GET = withErrorHandling(async (req: Request, ctx?: { params?: { id?
 
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "ai",
-    requiredPlan: "pro",
+    requiredPlan: "starter",
     allowTrial: false,
   });
   if (!entitlement.ok) {
@@ -45,7 +45,7 @@ export const GET = withErrorHandling(async (req: Request, ctx?: { params?: { id?
       {
         error: "Upgrade required",
         type: entitlement.type,
-        requiredPlan: "pro",
+        requiredPlan: entitlement.requiredPlan ?? "starter",
         reason: entitlement.reason,
       },
       { status: 403 }
@@ -87,7 +87,7 @@ export const PATCH = withErrorHandling(async (req: Request, ctx?: { params?: { i
 
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "ai",
-    requiredPlan: "pro",
+    requiredPlan: "starter",
     allowTrial: false,
   });
   if (!entitlement.ok) {
@@ -95,7 +95,7 @@ export const PATCH = withErrorHandling(async (req: Request, ctx?: { params?: { i
       {
         error: "Upgrade required",
         type: entitlement.type,
-        requiredPlan: "pro",
+        requiredPlan: entitlement.requiredPlan ?? "starter",
         reason: entitlement.reason,
       },
       { status: 403 }
@@ -120,7 +120,7 @@ export const DELETE = withErrorHandling(async (_req: Request, ctx?: { params?: {
 
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "ai",
-    requiredPlan: "pro",
+    requiredPlan: "starter",
     allowTrial: false,
   });
   if (!entitlement.ok) {
@@ -128,7 +128,7 @@ export const DELETE = withErrorHandling(async (_req: Request, ctx?: { params?: {
       {
         error: "Upgrade required",
         type: entitlement.type,
-        requiredPlan: "pro",
+        requiredPlan: entitlement.requiredPlan ?? "starter",
         reason: entitlement.reason,
       },
       { status: 403 }

@@ -14,8 +14,25 @@ import {
   normalizeCurrencyCode,
   isSupportedCountry,
 } from "@/lib/business-profile";
+import { hasRequiredAddress, parseBusinessAddress } from "@/lib/address";
+import path from "path";
+import fs from "fs/promises";
 
 const COUNTRY_CODE_REGEX = /^[A-Z]{2}$/;
+const REQUIRED_MESSAGE = "This field is required";
+const LOGO_DIR = path.join(process.cwd(), "uploads", "business-logos");
+
+const getLogoUrl = async (userId: string) => {
+  try {
+    const files = await fs.readdir(LOGO_DIR);
+    const match = files.find((file) => file.startsWith(`${userId}.`));
+    if (!match) return null;
+    const stat = await fs.stat(path.join(LOGO_DIR, match));
+    return `/api/business-profile/logo?v=${stat.mtimeMs}`;
+  } catch {
+    return null;
+  }
+};
 
 export const GET = withRequestLogging(withErrorHandling(async () => {
   const session = await getServerSession(authOptions);
@@ -39,7 +56,8 @@ export const GET = withRequestLogging(withErrorHandling(async () => {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  return NextResponse.json(profile);
+  const logoUrl = await getLogoUrl(session.user.id);
+  return NextResponse.json({ ...profile, logoUrl });
 }));
 
 export const POST = withRequestLogging(withErrorHandling(async (req: Request) => {
@@ -67,7 +85,20 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
   const parsed = businessProfileCreateSchema.parse(await req.json());
   const country = normalizeCountryCode(parsed.country);
   const currency = normalizeCurrencyCode(parsed.defaultCurrency);
+  const addressFields = parseBusinessAddress(parsed.businessAddress);
 
+  if (!parsed.businessName?.trim()) {
+    return NextResponse.json({ error: REQUIRED_MESSAGE }, { status: 400 });
+  }
+  if (!parsed.businessEmail?.trim()) {
+    return NextResponse.json({ error: REQUIRED_MESSAGE }, { status: 400 });
+  }
+  if (!parsed.businessPhone?.trim()) {
+    return NextResponse.json({ error: REQUIRED_MESSAGE }, { status: 400 });
+  }
+  if (!parsed.businessAddress?.trim() || !hasRequiredAddress(addressFields)) {
+    return NextResponse.json({ error: REQUIRED_MESSAGE }, { status: 400 });
+  }
   if (!COUNTRY_CODE_REGEX.test(country) || !isSupportedCountry(country)) {
     return NextResponse.json({ error: "Invalid country code" }, { status: 400 });
   }
@@ -152,6 +183,27 @@ export const PUT = withRequestLogging(withErrorHandling(async (req: Request) => 
 
   if (Object.keys(updateData).length === 0) {
     return NextResponse.json({ error: "No updates provided" }, { status: 400 });
+  }
+
+  const nextProfile = {
+    businessName: updateData.businessName ?? existing.businessName,
+    country: updateData.country ?? existing.country,
+    defaultCurrency: updateData.defaultCurrency ?? existing.defaultCurrency,
+    businessAddress: updateData.businessAddress ?? existing.businessAddress,
+    businessEmail: updateData.businessEmail ?? existing.businessEmail,
+    businessPhone: updateData.businessPhone ?? existing.businessPhone,
+  };
+  const nextAddress = parseBusinessAddress(nextProfile.businessAddress);
+  if (
+    !nextProfile.businessName?.trim() ||
+    !nextProfile.country?.trim() ||
+    !nextProfile.defaultCurrency?.trim() ||
+    !nextProfile.businessEmail?.trim() ||
+    !nextProfile.businessPhone?.trim() ||
+    !nextProfile.businessAddress?.trim() ||
+    !hasRequiredAddress(nextAddress)
+  ) {
+    return NextResponse.json({ error: REQUIRED_MESSAGE }, { status: 400 });
   }
 
   const updated = await profileClient.update({

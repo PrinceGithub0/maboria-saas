@@ -18,7 +18,6 @@ export const GET = withErrorHandling(async () => {
         plan: "ENTERPRISE",
         status: "ACTIVE",
         renewalDate: new Date().toISOString(),
-        trialEndsAt: null,
         usageLimit: null,
         usagePeriod: "monthly",
         currency: "USD",
@@ -44,8 +43,7 @@ export const POST = withErrorHandling(async (req: Request) => {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { plan, status, renewalDate, trialEndsAt, usageLimit, usagePeriod } =
-    subscriptionSchema.parse(await req.json());
+  const { plan, status, renewalDate, usageLimit, usagePeriod } = subscriptionSchema.parse(await req.json());
   assertRateLimit(`sub:${session.user.id}`, 10, 60_000);
   const sub = await prisma.subscription.create({
     data: {
@@ -53,7 +51,6 @@ export const POST = withErrorHandling(async (req: Request) => {
       plan,
       status,
       renewalDate: renewalDate ? new Date(renewalDate) : new Date(),
-      trialEndsAt: trialEndsAt ? new Date(trialEndsAt) : null,
       usageLimit,
       usagePeriod,
     },
@@ -76,10 +73,10 @@ export const PUT = withErrorHandling(async (req: Request) => {
   if (session.user.role !== "ADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const { id, status, plan, trialEndsAt, usageLimit, usagePeriod } = await req.json();
+  const { id, status, plan, usageLimit, usagePeriod } = await req.json();
   const sub = await prisma.subscription.update({
     where: { id, userId: session.user.id },
-    data: { status, plan, trialEndsAt, usageLimit, usagePeriod },
+    data: { status, plan, usageLimit, usagePeriod },
   });
   await prisma.activityLog.create({
     data: {

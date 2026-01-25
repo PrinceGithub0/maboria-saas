@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { withErrorHandling } from "@/lib/api-handler";
 import { assertRateLimit } from "@/lib/rate-limit";
-import { enforceEntitlement } from "@/lib/entitlements";
+import { enforceEntitlement, enforceUsageLimit, nextPlanAfter } from "@/lib/entitlements";
 import {
   ensureConversationForUserPhone,
   recordOutboundMessage,
@@ -42,7 +42,7 @@ export const POST = withErrorHandling(async (req: Request) => {
 
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "whatsapp",
-    requiredPlan: "pro",
+    requiredPlan: "starter",
     allowTrial: false,
   });
   if (!entitlement.ok) {
@@ -52,6 +52,22 @@ export const POST = withErrorHandling(async (req: Request) => {
         type: entitlement.type,
         requiredPlan: entitlement.requiredPlan,
         reason: entitlement.reason,
+      },
+      { status: 403 }
+    );
+  }
+
+  const usage = await enforceUsageLimit(session.user.id, "whatsappMessages", false);
+  if (!usage.ok) {
+    const requiredPlan = nextPlanAfter(usage.plan);
+    return NextResponse.json(
+      {
+        error: "Usage limit reached",
+        type: "limit_reached",
+        requiredPlan,
+        plan: usage.plan,
+        limit: usage.limit,
+        used: usage.used,
       },
       { status: 403 }
     );

@@ -11,7 +11,7 @@ export async function GET() {
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "automations",
     requiredPlan: "starter",
-    allowTrial: true,
+    allowTrial: false,
   });
   if (!entitlement.ok) {
     return NextResponse.json(

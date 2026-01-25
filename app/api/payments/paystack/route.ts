@@ -8,7 +8,7 @@ import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
 import { z } from "zod";
-import { getPlanPriceForCurrency } from "@/lib/pricing";
+import { getPlanPriceForInterval, type BillingInterval } from "@/lib/pricing";
 import {
   isAllowedCurrency,
   isProviderCurrency,
@@ -24,9 +24,10 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
 
   const parsed = z
     .object({
-      plan: z.enum(["starter", "pro", "enterprise"]).optional(),
+      plan: z.enum(["starter", "pro", "growth", "business", "enterprise"]).optional(),
       currency: z.string().optional(),
       amount: z.number().optional(),
+      interval: z.enum(["monthly", "yearly"]).optional(),
     })
     .parse(await req.json());
 
@@ -47,8 +48,16 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
   }
 
   const plan = parsed.plan ?? "starter";
-  const planCurrency = plan === "pro" ? "GROWTH" : "STARTER";
-  const price = getPlanPriceForCurrency(planCurrency, currency);
+  const interval: BillingInterval = parsed.interval === "yearly" ? "yearly" : "monthly";
+  const planCurrency =
+    plan === "pro"
+      ? "PRO"
+      : plan === "growth"
+        ? "GROWTH"
+        : plan === "business"
+          ? "BUSINESS"
+          : "STARTER";
+  const price = getPlanPriceForInterval(planCurrency, currency, interval);
 
   if (!price) {
     return NextResponse.json({ error: "Pricing not configured for currency" }, { status: 500 });
@@ -75,7 +84,7 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     callback_url: `${appUrl}/dashboard?payment=success&provider=paystack&amount=${price}&currency=${currency}&reference=${encodeURIComponent(
       reference
     )}`,
-    metadata: { userId: user.id, plan: planCurrency },
+    metadata: { userId: user.id, plan: planCurrency, interval },
   });
   return NextResponse.json(init);
 }));

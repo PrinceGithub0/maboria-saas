@@ -33,8 +33,8 @@ export default function NewAutomationPage() {
     { value: "generateInvoice", label: t("Create invoice", "Creer une facture") },
     { value: "sendEmail", label: t("Send email", "Envoyer un email") },
     { value: "generateReport", label: t("Generate report", "Generer un rapport") },
-    { value: "sendWhatsApp", label: t("Send WhatsApp message", "Envoyer WhatsApp"), plan: "Pro" },
-    { value: "aiTransform", label: t("AI improve message", "IA ameliore message"), plan: "Pro" },
+    { value: "sendWhatsApp", label: t("Send WhatsApp message", "Envoyer WhatsApp"), plan: "Starter" },
+    { value: "aiTransform", label: t("AI improve message", "IA ameliore message"), plan: "Starter" },
   ];
 
   const visibleStepOptions = stepOptions.filter((option) => isAdmin || !option.adminOnly);
@@ -51,6 +51,10 @@ export default function NewAutomationPage() {
         return t("Starter", "Starter");
       case "pro":
         return t("Pro", "Pro");
+      case "growth":
+        return t("Growth", "Growth");
+      case "business":
+        return t("Business", "Business");
       case "enterprise":
         return t("Enterprise", "Entreprise");
       default:

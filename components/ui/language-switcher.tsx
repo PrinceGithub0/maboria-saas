@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
-import { Globe, Check } from "lucide-react";
+import { Check, ChevronDown, Globe } from "lucide-react";
 
 type Language = "en" | "fr";
 
@@ -48,18 +48,20 @@ export function LanguageSwitcher({ value, onChange }: Props) {
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((prev) => !prev)}
-        className="inline-flex items-center justify-center rounded-full border border-border bg-card p-2 text-muted-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+        className="inline-flex items-center gap-2 rounded-full border border-border bg-card/95 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground shadow-sm hover:bg-muted focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
       >
-        <Globe className="h-4 w-4" />
+        <Globe className="h-4 w-4 text-muted-foreground" />
+        <span>{value === "fr" ? "FR" : "EN"}</span>
+        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
       </button>
 
       {open && (
         <div
           role="menu"
           aria-label="Language menu"
-          className="absolute right-0 mt-2 w-44 overflow-hidden rounded-xl border border-border bg-card shadow-xl"
+          className="absolute right-0 mt-2 w-48 overflow-hidden rounded-2xl border border-border bg-background shadow-2xl"
         >
-          <div className="px-3 py-2 text-xs font-semibold text-muted-foreground">
+          <div className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             {value === "fr" ? "Langue" : "Language"}
           </div>
           <div className="border-t border-border">
@@ -77,8 +79,8 @@ export function LanguageSwitcher({ value, onChange }: Props) {
                     router.refresh();
                   }}
                   className={clsx(
-                    "flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-indigo-500/40",
-                    active ? "bg-muted" : "hover:bg-muted"
+                    "flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-indigo-500/40",
+                    active ? "bg-indigo-500/10 text-foreground" : "hover:bg-muted"
                   )}
                 >
                   <span className="text-foreground">{value === "fr" ? opt.label.fr : opt.label.en}</span>

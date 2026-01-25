@@ -32,10 +32,9 @@ export default function AdminMetricsPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-6 max-md:grid-cols-1 max-md:gap-5">
+      <div className="grid gap-4 md:grid-cols-5 max-md:grid-cols-1 max-md:gap-5">
         {isLoading ? (
           <>
-            <Skeleton className="h-24" />
             <Skeleton className="h-24" />
             <Skeleton className="h-24" />
             <Skeleton className="h-24" />
@@ -46,9 +45,6 @@ export default function AdminMetricsPage() {
           <>
             <Card title={t("Active subs", "Abos actifs")}>
               <p className="text-3xl font-semibold text-foreground">{metrics.activeSubs ?? 0}</p>
-            </Card>
-            <Card title={t("Trials", "Essais")}>
-              <p className="text-3xl font-semibold text-foreground">{metrics.trials ?? 0}</p>
             </Card>
             <Card title={t("USD plans", "Plans USD")}>
               <p className="text-3xl font-semibold text-foreground">{metrics.mrrUsd ?? 0}</p>

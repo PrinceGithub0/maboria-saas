@@ -31,7 +31,6 @@ export default async function AdminPage() {
     tickets,
     revenueByCurrency,
     activeSubs,
-    trialSubs,
     userCount,
     newUsers7d,
     aiMemories,
@@ -50,7 +49,6 @@ export default async function AdminPage() {
     prisma.supportTicket.findMany({ take: 5, orderBy: { createdAt: "desc" } }),
     prisma.payment.groupBy({ by: ["currency"], _sum: { amount: true } }),
     prisma.subscription.count({ where: { status: "ACTIVE" } }),
-    prisma.subscription.count({ where: { status: "TRIALING" } }),
     prisma.user.count(),
     prisma.user.count({ where: { createdAt: { gt: last7d } } }),
     prisma.aiMemory.count(),
@@ -81,11 +79,8 @@ export default async function AdminPage() {
     INVOICE_DELETED: { en: "Invoice deleted", fr: "Facture supprimee" },
     SUBSCRIPTION_CREATED: { en: "Subscription started", fr: "Abonnement demarre" },
     SUBSCRIPTION_UPDATED: { en: "Subscription updated", fr: "Abonnement mis a jour" },
-    SUBSCRIPTION_CANCELED: { en: "Subscription canceled", fr: "Abonnement annule" },
-    ADMIN_SUBSCRIPTION_CANCELED: { en: "Subscription canceled by admin", fr: "Abonnement annule par admin" },
-    TRIAL_STARTED: { en: "Trial started", fr: "Essai demarre" },
-    TRIAL_EXPIRED: { en: "Trial expired", fr: "Essai expire" },
-    TRIAL_CANCELED: { en: "Trial canceled", fr: "Essai annule" },
+    SUBSCRIPTION_CANCELED: { en: "Subscription cancelled", fr: "Abonnement annule" },
+    ADMIN_SUBSCRIPTION_CANCELED: { en: "Subscription cancelled by admin", fr: "Abonnement annule par admin" },
     PLAN_INTENT: { en: "Plan selection", fr: "Choix de plan" },
     USER_SIGNIN: { en: "Signed in", fr: "Connexion" },
     USER_SIGNOUT: { en: "Signed out", fr: "Deconnexion" },
@@ -130,7 +125,6 @@ export default async function AdminPage() {
     RESOLVED: { en: "Resolved", fr: "Resolue" },
     CLOSED: { en: "Closed", fr: "Ferme" },
     ACTIVE: { en: "Active", fr: "Actif" },
-    TRIALING: { en: "Trialing", fr: "Essai" },
     CANCELED: { en: "Canceled", fr: "Annule" },
     CANCELLED: { en: "Cancelled", fr: "Annule" },
   };
@@ -222,7 +216,6 @@ export default async function AdminPage() {
           </Card>
           <Card title={t("Active subscriptions", "Abonnements actifs")}>
             <p className="text-3xl font-semibold text-foreground">{numberFormat.format(activeSubs)}</p>
-            <p className="text-xs text-muted-foreground">{t(`${numberFormat.format(trialSubs)} in trial`, `${numberFormat.format(trialSubs)} en essai`)}</p>
           </Card>
           <Card title={t("New users (7d)", "Nouveaux utilisateurs (7j)")}>
             <p className="text-3xl font-semibold text-foreground">{numberFormat.format(newUsers7d)}</p>
@@ -407,8 +400,8 @@ export default async function AdminPage() {
               <p className="text-2xl font-semibold text-foreground">{numberFormat.format(activeSubs)}</p>
             </div>
             <div className="rounded-xl border border-border/70 bg-muted/40 p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("Trials", "Essais")}</p>
-              <p className="text-2xl font-semibold text-foreground">{numberFormat.format(trialSubs)}</p>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("Total users", "Utilisateurs totaux")}</p>
+              <p className="text-2xl font-semibold text-foreground">{numberFormat.format(totalUsers)}</p>
             </div>
           </div>
         </Card>

@@ -7,7 +7,7 @@ Full-stack automation, billing, and AI platform built with Next.js 14 (App Route
 - Workspaces: businesses, members, workflows with triggers → conditions → actions, scheduler, retry queue, webhook listener.
 - Automation engine: AI-assisted builder, run logs, restart, error recovery, WhatsApp/email/API/database actions, usage metering, auto-invoice, payment recovery.
 - AI assistant: natural-language workflow generation, task explanations, suggestions, AI memory, business insights.
-- Billing: Flutterwave (USD/Intl) subscriptions, Paystack (NGN), usage metering, transactions, invoices, failed payment notifications.
+- Billing: Flutterwave and Paystack subscriptions, usage metering, transactions, invoices, failed payment notifications.
 - Dashboards: user overview, automations, workflows, runs, invoices, payments, assistant, settings; admin metrics/users/logs/support/analytics.
 - Notifications: in-app notifications, audit logs, rate limiting, CSRF-safe payment flows.
 - DevOps: Dockerfile, docker-compose Postgres, Prisma migrations/seed, ESLint/Prettier, path aliases.

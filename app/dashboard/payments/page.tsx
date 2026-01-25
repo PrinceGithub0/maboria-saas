@@ -8,13 +8,13 @@ import { Table } from "@/components/ui/table";
 import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency } from "@/lib/currency";
-import { getPlanPriceForCurrency, pricingTableDualCurrency } from "@/lib/pricing";
+import { BillingInterval, getPlanPriceForInterval, pricingTableDualCurrency } from "@/lib/pricing";
 import {
-  marketingCountries,
   getPaystackEnabledCurrencies,
   isAllowedCurrency,
   isPaystackCurrencyEnabled,
   normalizeCurrency,
+  providerSupport,
 } from "@/lib/payments/currency-allowlist";
 import { useLanguage } from "@/components/providers/language-provider";
 
@@ -27,141 +27,69 @@ export default function PaymentsPage() {
   const { data: me } = useSWR("/api/user/me", fetcher, { revalidateOnFocus: false });
   const didInit = useRef(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [plan, setPlan] = useState<"starter" | "pro">("starter");
+  const [plan, setPlan] = useState<"starter" | "pro" | "growth" | "business">("starter");
   const [currency, setCurrency] = useState<string>("USD");
   const [provider, setProvider] = useState<"paystack" | "flutterwave">("flutterwave");
-  const [paystackCountry, setPaystackCountry] = useState<string>(
-    marketingCountries.PAYSTACK[0] || "Nigeria"
+  const [billingInterval, setBillingInterval] = useState<BillingInterval>("monthly");
+  const paystackEnabledCurrencies = getPaystackEnabledCurrencies();
+  const [paystackCurrency, setPaystackCurrency] = useState<string>(
+    paystackEnabledCurrencies[0] || "NGN"
   );
 
-  useEffect(() => {
-    if (didInit.current || me?.preferredCurrency) return;
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
-    if (tz === "Africa/Lagos") {
-      setCurrency("NGN");
-      setProvider("paystack");
-      setPaystackCountry("Nigeria");
-      didInit.current = true;
-      return;
-    }
-    if (tz === "Africa/Accra") {
-      setCurrency("GHS");
-      setProvider("paystack");
-      setPaystackCountry("Ghana");
-      didInit.current = true;
-      return;
-    }
-    if (tz === "Africa/Johannesburg") {
-      setCurrency("ZAR");
-      setProvider("paystack");
-      setPaystackCountry("South Africa");
-      didInit.current = true;
-      return;
-    }
-  }, [me?.preferredCurrency]);
-
   const plans = useMemo(() => pricingTableDualCurrency(), []);
-  const selectedPlan = plans.find((p) => (plan === "starter" ? p.plan === "STARTER" : p.plan === "GROWTH"));
+  const planKey = (value: typeof plan) =>
+    value === "starter"
+      ? "STARTER"
+      : value === "pro"
+        ? "PRO"
+        : value === "growth"
+          ? "GROWTH"
+          : "BUSINESS";
+  const selectedPlan = plans.find((p) => p.plan === planKey(plan));
   const planLabelMap: Record<string, { en: string; fr: string }> = {
     Starter: { en: "Starter", fr: "Starter" },
     Pro: { en: "Pro", fr: "Pro" },
+    Growth: { en: "Growth", fr: "Growth" },
+    Business: { en: "Business", fr: "Business" },
     Enterprise: { en: "Enterprise", fr: "Entreprise" },
   };
-  const paystackCountries = marketingCountries.PAYSTACK;
-  const paystackCountryLabels: Record<string, string> = useMemo(
-    () => ({
-      Nigeria: "NGN",
-      Ghana: "GHS",
-      Kenya: "KES",
-      "South Africa": "ZAR",
-      "Cote d'Ivoire": "XOF",
-    }),
-    []
-  );
-  const countryFlags: Record<string, string> = {
-    Nigeria: "\u{1F1F3}\u{1F1EC}",
-    Ghana: "\u{1F1EC}\u{1F1ED}",
-    Kenya: "\u{1F1F0}\u{1F1EA}",
-    "South Africa": "\u{1F1FF}\u{1F1E6}",
-    "Cote d'Ivoire": "\u{1F1E8}\u{1F1EE}",
-    Uganda: "\u{1F1FA}\u{1F1EC}",
-    Tanzania: "\u{1F1F9}\u{1F1FF}",
-    Rwanda: "\u{1F1F7}\u{1F1FC}",
-    Zambia: "\u{1F1FF}\u{1F1F2}",
-    Mozambique: "\u{1F1F2}\u{1F1FF}",
-    Egypt: "\u{1F1EA}\u{1F1EC}",
-    "United States": "\u{1F1FA}\u{1F1F8}",
-    "United Kingdom": "\u{1F1EC}\u{1F1E7}",
-    Europe: "\u{1F1EA}\u{1F1FA}",
-  };
-  const formatCountryLabel = (country: string, currencyCode?: string) => {
-    const flag = countryFlags[country] || "";
-    const base = currencyCode ? `${currencyCode} (${country})` : country;
-    return flag ? `${flag} ${base}` : base;
-  };
-  const paystackEnabledCurrencies = getPaystackEnabledCurrencies();
-  const filteredPaystackCountries = paystackCountries.filter((country) => {
-    const code = paystackCountryLabels[country];
-    return !code || paystackEnabledCurrencies.includes(code);
-  });
-  const paystackCountryOptions = filteredPaystackCountries.map((country) => ({
-    value: country,
-    label: paystackCountryLabels[country]
-      ? formatCountryLabel(country, paystackCountryLabels[country])
-      : formatCountryLabel(country),
+  const paystackCurrencyOptions = paystackEnabledCurrencies.map((code) => ({
+    code,
+    label: code,
   }));
-  const paystackCurrency =
-    paystackCountryLabels[paystackCountry] || paystackEnabledCurrencies[0] || "NGN";
+  const flutterwaveCurrencyOptions = providerSupport.FLUTTERWAVE.map((code) => ({
+    code,
+    label: code,
+  }));
   const selectedCurrency = provider === "paystack" ? paystackCurrency : currency;
-  const flutterwaveCurrencies = [
-    { code: "NGN", country: "Nigeria" },
-    { code: "GHS", country: "Ghana" },
-    { code: "KES", country: "Kenya" },
-    { code: "ZAR", country: "South Africa" },
-    { code: "XOF", country: "Cote d'Ivoire" },
-    { code: "UGX", country: "Uganda" },
-    { code: "TZS", country: "Tanzania" },
-    { code: "RWF", country: "Rwanda" },
-    { code: "ZMW", country: "Zambia" },
-    { code: "MZN", country: "Mozambique" },
-    { code: "EGP", country: "Egypt" },
-    { code: "USD", country: "United States" },
-    { code: "GBP", country: "United Kingdom" },
-    { code: "EUR", country: "Europe" },
-  ];
   const availableCurrencies =
-    provider === "paystack"
-      ? []
-      : flutterwaveCurrencies.map((item) => ({
-          code: item.code,
-          label: formatCountryLabel(item.country, item.code),
-        }));
+    provider === "paystack" ? paystackCurrencyOptions : flutterwaveCurrencyOptions;
 
   const paymentRows = Array.isArray(payments) ? payments : [];
 
   useEffect(() => {
     if (provider !== "paystack") return;
-    if (!filteredPaystackCountries.includes(paystackCountry)) {
-      setPaystackCountry(filteredPaystackCountries[0] || marketingCountries.PAYSTACK[0] || "Nigeria");
+    if (!paystackEnabledCurrencies.includes(paystackCurrency)) {
+      setPaystackCurrency(paystackEnabledCurrencies[0] || "NGN");
+      return;
     }
     setCurrency(paystackCurrency);
-  }, [provider, paystackCountry, paystackCurrency, filteredPaystackCountries]);
+  }, [provider, paystackCurrency, paystackEnabledCurrencies.join(",")]);
 
   useEffect(() => {
     if (didInit.current) return;
     const preferred = normalizeCurrency(me?.preferredCurrency || "");
     if (!preferred || !isAllowedCurrency(preferred)) return;
     if (isPaystackCurrencyEnabled(preferred)) {
-      const match = Object.entries(paystackCountryLabels).find(([, code]) => code === preferred)?.[0];
-      if (match) setPaystackCountry(match);
       setProvider("paystack");
+      setPaystackCurrency(preferred);
       setCurrency(preferred);
     } else {
       setProvider("flutterwave");
       setCurrency(preferred);
     }
     didInit.current = true;
-  }, [me?.preferredCurrency, paystackCountryLabels]);
+  }, [me?.preferredCurrency]);
 
   const payWithFlutterwave = async () => {
     setMessage(null);
@@ -172,6 +100,7 @@ export default function PaymentsPage() {
       body: JSON.stringify({
         plan,
         currency,
+        interval: billingInterval,
       }),
     });
     const data = await res.json();
@@ -185,12 +114,21 @@ export default function PaymentsPage() {
     const res = await fetch("/api/payments/paystack", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ plan, currency: paystackCurrency }),
+      body: JSON.stringify({ plan, currency: paystackCurrency, interval: billingInterval }),
     });
     const data = await res.json();
     if (data?.data?.authorization_url) window.location.href = data.data.authorization_url;
     else setMessage(data.error || t("Paystack init failed", "Echec initialisation Paystack"));
   };
+
+  const formatUsd = (amount: number) =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(amount);
+  const getUsdPriceForPlan = (planId: string) =>
+    getPlanPriceForInterval(
+      planId as "STARTER" | "PRO" | "GROWTH" | "BUSINESS" | "PREMIUM" | "ENTERPRISE",
+      "USD",
+      billingInterval
+    );
 
   return (
     <div className="space-y-6 max-md:space-y-7">
@@ -205,10 +143,34 @@ export default function PaymentsPage() {
             </h1>
             <p className="text-sm text-muted-foreground">
               {t(
-                "Select a plan and continue to secure checkout to add a payment method. Prices include 7.5% VAT.",
-                "Choisissez un plan puis continuez vers le paiement securise. Prix TVA 7.5% incluse."
+                "Select a plan and continue to secure checkout to add a payment method. Prices shown in USD; you'll be charged in local currency where supported. VAT included where applicable.",
+                "Choisissez un plan puis continuez vers le paiement securise. Prix en USD, facturation en devise locale si disponible. TVA incluse si applicable."
               )}
             </p>
+          </div>
+          <div className="flex items-center gap-2 rounded-full border border-border bg-card/60 p-1 text-xs">
+            <button
+              type="button"
+              onClick={() => setBillingInterval("monthly")}
+              className={`rounded-full px-3 py-1 font-semibold transition ${
+                billingInterval === "monthly"
+                  ? "bg-indigo-600 text-white"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t("Monthly", "Mensuel")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setBillingInterval("yearly")}
+              className={`rounded-full px-3 py-1 font-semibold transition ${
+                billingInterval === "yearly"
+                  ? "bg-indigo-600 text-white"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t("Yearly (Save 15%)", "Annuel (15% off)")}
+            </button>
           </div>
         </div>
         {message && <div className="mt-4"><Alert variant="error">{message}</Alert></div>}
@@ -219,31 +181,40 @@ export default function PaymentsPage() {
             {plans
               .filter((p) => p.plan !== "ENTERPRISE")
               .map((p) => {
-                const isSelected = (plan === "starter" ? "STARTER" : "GROWTH") === p.plan;
+                const isSelected = planKey(plan) === p.plan;
                 const mappedLabel = planLabelMap[p.label];
                 const label = mappedLabel ? t(mappedLabel.en, mappedLabel.fr) : p.label;
+                const usdPrice = p.plan === "ENTERPRISE" ? null : getUsdPriceForPlan(p.plan);
                 return (
                   <button
                     key={p.plan}
                     type="button"
-                    onClick={() => setPlan(p.plan === "STARTER" ? "starter" : "pro")}
+                    onClick={() =>
+                      setPlan(
+                        p.plan === "STARTER"
+                          ? "starter"
+                          : p.plan === "PRO"
+                            ? "pro"
+                            : p.plan === "GROWTH"
+                              ? "growth"
+                              : "business"
+                      )
+                    }
                     className={`rounded-2xl border p-4 text-left transition ${
                       isSelected ? "border-indigo-500 bg-indigo-500/10" : "border-border bg-card/50 hover:bg-muted/50"
                     }`}
                   >
                     <p className="text-sm font-semibold text-foreground">{label}</p>
                     <div className="mt-2 text-2xl font-semibold text-foreground">
-                      {p.plan === "ENTERPRISE"
+                      {p.plan === "ENTERPRISE" || usdPrice == null
                         ? t("Contact sales", "Contacter ventes")
-                        : formatCurrency(
-                            getPlanPriceForCurrency(p.plan, selectedCurrency) || 0,
-                            selectedCurrency,
-                            { maximumFractionDigits: 0 }
-                          )}
+                        : formatUsd(usdPrice)}
                     </div>
                     {p.plan !== "ENTERPRISE" && (
                       <p className="text-xs text-muted-foreground">
-                        {selectedCurrency} {t("/ mo", "/ mois")}
+                        {billingInterval === "yearly"
+                          ? t("per year (USD)", "par an (USD)")
+                          : t("per month (USD)", "par mois (USD)")}
                       </p>
                     )}
                   </button>
@@ -279,14 +250,14 @@ export default function PaymentsPage() {
             </div>
             {provider === "paystack" ? (
               <label className="flex items-center justify-between rounded-xl border border-border bg-card/60 px-3 py-2 text-sm max-md:flex-col max-md:items-start max-md:gap-2">
-                <span className="text-muted-foreground">{t("Paystack country", "Pays Paystack")}</span>
+                <span className="text-muted-foreground">{t("Paystack currency", "Devise Paystack")}</span>
                 <select
-                  value={paystackCountry}
-                  onChange={(e) => setPaystackCountry(e.target.value)}
+                  value={paystackCurrency}
+                  onChange={(e) => setPaystackCurrency(e.target.value)}
                   className="rounded-lg border border-input bg-background px-2 py-1 text-sm text-foreground"
                 >
-                  {paystackCountryOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
+                  {paystackCurrencyOptions.map((option) => (
+                    <option key={option.code} value={option.code}>
                       {option.label}
                     </option>
                   ))}
@@ -329,6 +300,9 @@ export default function PaymentsPage() {
                   {planLabelMap[selectedPlan.label]
                     ? t(planLabelMap[selectedPlan.label].en, planLabelMap[selectedPlan.label].fr)
                     : selectedPlan.label}
+                </span>
+                <span className="ml-2 text-muted-foreground">
+                  {billingInterval === "yearly" ? t("(Yearly)", "(Annuel)") : t("(Monthly)", "(Mensuel)")}
                 </span>
               </div>
             ) : null}

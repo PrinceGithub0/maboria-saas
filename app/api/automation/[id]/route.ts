@@ -38,7 +38,7 @@ export const GET = withErrorHandling(async (req: Request, { params }: Params) =>
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "automations",
     requiredPlan: "starter",
-    allowTrial: true,
+    allowTrial: false,
   });
   if (!entitlement.ok) {
     return NextResponse.json(
@@ -71,7 +71,7 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "automations",
     requiredPlan: "starter",
-    allowTrial: true,
+    allowTrial: false,
   });
   if (!entitlement.ok) {
     return NextResponse.json(
@@ -131,7 +131,7 @@ export const DELETE = withErrorHandling(async (req: Request, { params }: Params)
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "automations",
     requiredPlan: "starter",
-    allowTrial: true,
+    allowTrial: false,
   });
   if (!entitlement.ok) {
     return NextResponse.json(

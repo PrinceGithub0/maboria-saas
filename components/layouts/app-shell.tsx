@@ -33,23 +33,10 @@ export function AppShell({
   const plan = typeof me?.plan === "string" ? me.plan : undefined;
   const subs = Array.isArray(me?.subscriptions) ? me.subscriptions : [];
   const now = Date.now();
-  const hasActiveOrTrial = subs.some((sub: any) => {
-    if (sub?.status === "ACTIVE") return true;
-    if (sub?.status === "TRIALING") {
-      if (!sub?.trialEndsAt) return true;
-      const trialEnd = new Date(sub.trialEndsAt).getTime();
-      return trialEnd >= now;
-    }
-    return false;
-  });
+  const hasActive = subs.some((sub: any) => sub?.status === "ACTIVE");
   const hasCanceled = subs.some((sub: any) => ["CANCELED", "INACTIVE"].includes(sub?.status));
   const hasPastDue = subs.some((sub: any) => sub?.status === "PAST_DUE");
-  const hasExpiredTrial = subs.some((sub: any) => {
-    if (sub?.status !== "TRIALING" || !sub?.trialEndsAt) return false;
-    return new Date(sub.trialEndsAt).getTime() < now;
-  });
-  const isCanceledOnly =
-    subs.length > 0 && !hasActiveOrTrial && (hasCanceled || hasPastDue || hasExpiredTrial);
+  const isCanceledOnly = subs.length > 0 && !hasActive && (hasCanceled || hasPastDue);
   const billingLocked = Boolean(session && plan === "free" && effectiveRole !== "ADMIN");
   const billingAllowed =
     pathname.startsWith("/dashboard/payments") || pathname.startsWith("/dashboard/subscription");
@@ -83,8 +70,8 @@ export function AppShell({
                     </p>
                     <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-amber-100">
                       {t(
-                        "Your trial ended or your subscription was cancelled. Choose a plan to regain access.",
-                        "Votre essai est termine ou votre abonnement est annule. Choisissez un plan pour retrouver l acces."
+                        "Your subscription is cancelled or inactive. Choose a plan to regain access.",
+                        "Votre abonnement est annule ou inactif. Choisissez un plan pour retrouver l acces."
                       )}
                     </p>
                   </div>
@@ -122,8 +109,8 @@ export function AppShell({
                     </h1>
                     <p className="mt-2 text-sm text-muted-foreground">
                       {t(
-                        "Your subscription is cancelled or your trial has ended. You can view the dashboard, but actions are disabled until you choose a new plan.",
-                        "Votre abonnement est annule ou votre essai est termine. Vous pouvez voir le tableau, mais les actions sont desactivees jusqu a un nouveau plan."
+                        "Your subscription is cancelled or inactive. You can view the dashboard, but actions are disabled until you choose a new plan.",
+                        "Votre abonnement est annule ou inactif. Vous pouvez voir le tableau, mais les actions sont desactivees jusqu a un nouveau plan."
                       )}
                     </p>
                     <div className="mt-4 flex flex-wrap justify-center gap-3">

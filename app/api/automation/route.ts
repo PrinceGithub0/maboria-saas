@@ -10,6 +10,7 @@ import {
   flowLimits,
   getUserPlan,
   isPlanAtLeast,
+  nextPlanAfter,
   requiredPlanForSteps,
 } from "@/lib/entitlements";
 
@@ -20,7 +21,7 @@ export const GET = withErrorHandling(async () => {
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "automations",
     requiredPlan: "starter",
-    allowTrial: true,
+    allowTrial: false,
   });
   if (!entitlement.ok) {
     return NextResponse.json(
@@ -48,7 +49,7 @@ export const POST = withErrorHandling(async (req: Request) => {
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "automations",
     requiredPlan: "starter",
-    allowTrial: true,
+    allowTrial: false,
   });
   if (!entitlement.ok) {
     return NextResponse.json(
@@ -97,6 +98,7 @@ export const POST = withErrorHandling(async (req: Request) => {
           error: "Limit reached",
           type: "limit_reached" as const,
           category: "automations",
+          requiredPlan: nextPlanAfter(plan),
           plan,
           limit: limitValue,
           used,

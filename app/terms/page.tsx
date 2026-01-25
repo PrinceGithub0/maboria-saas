@@ -38,12 +38,6 @@ export default function TermsPage() {
           "Maboria propose des plans payants avec limites d usage. Paiements via Flutterwave et Paystack selon monnaies prises en charge. Facturation d avance et renouvellement automatique sauf annulation."
         )}
       </p>
-      <p>
-        {t(
-          "Trials may be offered for a limited period. If a trial is started, it will convert to a paid subscription unless cancelled. Refunds are handled fairly on a case-by-case basis and where required by law.",
-          "Des essais peuvent etre proposes pour une periode limitee. L essai passe en abonnement payant sauf annulation. Les remboursements sont traites au cas par cas et selon la loi."
-        )}
-      </p>
 
       <h2 className="text-xl font-semibold">{t("4. AI Features", "4. Fonctions IA")}</h2>
       <p>

@@ -18,8 +18,8 @@ const faqs = [
   {
     q: { en: "How does billing work?", fr: "Comment fonctionne la facturation ?" },
     a: {
-      en: "Choose local currency via Paystack in supported markets or multi-currency via Flutterwave; subscriptions renew monthly.",
-      fr: "Choisissez la monnaie locale via Paystack ou multi-monnaie via Flutterwave; abonnement mensuel.",
+      en: "Choose supported currencies via Paystack or multi-currency via Flutterwave; subscriptions renew monthly.",
+      fr: "Choisissez les devises prises en charge via Paystack ou multi-devise via Flutterwave; abonnement mensuel.",
     },
   },
   {

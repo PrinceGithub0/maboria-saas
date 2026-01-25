@@ -1,18 +1,5 @@
 import { allowedCurrencies, normalizeCurrency } from "./payments/currency-allowlist";
-
-export const SUPPORTED_COUNTRY_CODES = [
-  "NG",
-  "GH",
-  "KE",
-  "ZA",
-  "CI",
-  "EG",
-  "RW",
-  "UG",
-  "TZ",
-  "ZM",
-  "MZ",
-] as const;
+import { countryCodes } from "./countries";
 
 export const SUPPORTED_BUSINESS_CURRENCIES = allowedCurrencies;
 
@@ -31,7 +18,5 @@ export function normalizeCurrencyCode(value: string) {
 
 export function isSupportedCountry(value: string) {
   const normalized = normalizeCountryCode(value);
-  return SUPPORTED_COUNTRY_CODES.includes(
-    normalized as (typeof SUPPORTED_COUNTRY_CODES)[number]
-  );
+  return countryCodes.includes(normalized);
 }

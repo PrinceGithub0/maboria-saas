@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { aiRouter } from "@/lib/ai/router";
-import { enforceEntitlement, enforceUsageLimit } from "@/lib/entitlements";
+import { enforceEntitlement, enforceUsageLimit, nextPlanAfter } from "@/lib/entitlements";
 import {
   addAiMessage,
   ensureDefaultAiConversation,
@@ -18,7 +18,7 @@ export const GET = withErrorHandling(async (req: Request) => {
 
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "ai",
-    requiredPlan: "pro",
+    requiredPlan: "starter",
     allowTrial: false,
   });
   if (!entitlement.ok) {
@@ -26,7 +26,7 @@ export const GET = withErrorHandling(async (req: Request) => {
       {
         error: "Upgrade required",
         type: entitlement.type,
-        requiredPlan: "pro",
+        requiredPlan: "starter",
         reason: entitlement.reason,
       },
       { status: 403 }
@@ -66,7 +66,7 @@ export const POST = withErrorHandling(async (req: Request) => {
 
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "ai",
-    requiredPlan: "pro",
+    requiredPlan: "starter",
     allowTrial: false,
   });
   if (!entitlement.ok) {
@@ -74,7 +74,7 @@ export const POST = withErrorHandling(async (req: Request) => {
       {
         error: "Upgrade required",
         type: entitlement.type,
-        requiredPlan: "pro",
+        requiredPlan: "starter",
         reason: entitlement.reason,
       },
       { status: 403 }
@@ -99,7 +99,7 @@ export const POST = withErrorHandling(async (req: Request) => {
         error: "Upgrade required",
         type: "limit_reached",
         reason: "AI usage limit reached for this month",
-        requiredPlan: "pro",
+        requiredPlan: nextPlanAfter(usage.plan),
         plan: usage.plan,
         limit: usage.limit,
         used: usage.used,

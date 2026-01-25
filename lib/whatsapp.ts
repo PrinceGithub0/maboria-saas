@@ -2,6 +2,7 @@ import "server-only";
 
 import { prisma } from "./prisma";
 import { log } from "./logger";
+import { enforceEntitlement, enforceUsageLimit } from "./entitlements";
 
 const WHATSAPP_ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN || "";
 const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID || "";
@@ -264,6 +265,35 @@ export async function notifyInvoiceCreated({
   total?: number;
   currency?: string;
 }) {
+  const entitlement = await enforceEntitlement(userId, {
+    feature: "whatsapp",
+    requiredPlan: "starter",
+    allowTrial: false,
+  });
+  if (!entitlement.ok) {
+    log("info", "whatsapp_send_blocked", {
+      userId,
+      invoiceNumber,
+      reason: entitlement.reason,
+      type: entitlement.type,
+      requiredPlan: entitlement.requiredPlan,
+    });
+    return;
+  }
+
+  const usage = await enforceUsageLimit(userId, "whatsappMessages", false);
+  if (!usage.ok) {
+    log("info", "whatsapp_send_blocked", {
+      userId,
+      invoiceNumber,
+      reason: "limit_reached",
+      plan: usage.plan,
+      limit: usage.limit,
+      used: usage.used,
+    });
+    return;
+  }
+
   const profile = await prisma.businessProfile.findUnique({ where: { userId } });
   if (!profile?.businessPhone) {
     log("info", "whatsapp_invoice_skipped_no_phone", { userId, invoiceNumber });
@@ -326,6 +356,35 @@ export async function notifyPaymentSucceeded({
   currency: string;
   reference: string;
 }) {
+  const entitlement = await enforceEntitlement(userId, {
+    feature: "whatsapp",
+    requiredPlan: "starter",
+    allowTrial: false,
+  });
+  if (!entitlement.ok) {
+    log("info", "whatsapp_send_blocked", {
+      userId,
+      reference,
+      reason: entitlement.reason,
+      type: entitlement.type,
+      requiredPlan: entitlement.requiredPlan,
+    });
+    return;
+  }
+
+  const usage = await enforceUsageLimit(userId, "whatsappMessages", false);
+  if (!usage.ok) {
+    log("info", "whatsapp_send_blocked", {
+      userId,
+      reference,
+      reason: "limit_reached",
+      plan: usage.plan,
+      limit: usage.limit,
+      used: usage.used,
+    });
+    return;
+  }
+
   const profile = await prisma.businessProfile.findUnique({ where: { userId } });
   if (!profile?.businessPhone) {
     log("info", "whatsapp_payment_skipped_no_phone", { userId, reference });

@@ -5,23 +5,12 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { CountrySelect } from "@/components/ui/country-select";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { allowedCurrencies, formatCurrencyOption } from "@/lib/payments/currency-allowlist";
 import { useLanguage } from "@/components/providers/language-provider";
 
 const currencyOptions = allowedCurrencies.map((code) => ({ code, label: formatCurrencyOption(code) }));
-const countryOptions = [
-  { code: "NG", label: "Nigeria (NG)" },
-  { code: "GH", label: "Ghana (GH)" },
-  { code: "KE", label: "Kenya (KE)" },
-  { code: "ZA", label: "South Africa (ZA)" },
-  { code: "CI", label: "Cote d'Ivoire (CI)" },
-  { code: "EG", label: "Egypt (EG)" },
-  { code: "RW", label: "Rwanda (RW)" },
-  { code: "UG", label: "Uganda (UG)" },
-  { code: "TZ", label: "Tanzania (TZ)" },
-  { code: "ZM", label: "Zambia (ZM)" },
-  { code: "MZ", label: "Mozambique (MZ)" },
-];
 
 export default function OnboardingWizard() {
   const { language } = useLanguage();
@@ -31,8 +20,9 @@ export default function OnboardingWizard() {
     businessName: "",
     businessType: "",
     goals: "",
-    country: "NG",
+    country: "US",
     currency: "USD",
+    businessPhone: "",
   });
   const suggestions = [
     t("Invoice reminder sequence", "Sequence de rappel de facture"),
@@ -80,20 +70,20 @@ export default function OnboardingWizard() {
               value={form.goals}
               onChange={(e) => setForm({ ...form, goals: e.target.value })}
             />
-            <label className="flex flex-col gap-1 text-sm text-foreground">
-              {t("Country", "Pays")}
-              <select
-                value={form.country}
-                onChange={(e) => setForm({ ...form, country: e.target.value })}
-                className="rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:border-indigo-400 focus:outline-none"
-              >
-                {countryOptions.map((option) => (
-                  <option key={option.code} value={option.code}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <PhoneInput
+              label={t("Business phone", "Telephone entreprise")}
+              value={form.businessPhone}
+              required
+              locale={language === "fr" ? "fr" : "en"}
+              onChange={(value) => setForm({ ...form, businessPhone: value })}
+            />
+            <CountrySelect
+              label={t("Country", "Pays")}
+              value={form.country}
+              locale={language === "fr" ? "fr" : "en"}
+              required
+              onChange={(value) => setForm({ ...form, country: value })}
+            />
             <label className="flex flex-col gap-1 text-sm text-foreground">
               {t("Preferred currency", "Devise preferee")}
               <select

@@ -407,16 +407,16 @@ export function AssistantChat() {
         } else if (data.type === "upgrade_required") {
           setStatus(
             `${data.error || t("Upgrade required.", "Mise a niveau requise.")} ${t(
-              "Required plan: Pro.",
-              "Plan requis: Pro."
+              "Required plan: Pro or higher.",
+              "Plan requis: Pro ou plus."
             )}`
           );
           setStatusVariant("error");
         } else if (data.type === "limit_reached") {
           setStatus(
             `${data.error || t("AI limit reached.", "Limite IA atteinte.")} ${t(
-              "Required plan: Pro.",
-              "Plan requis: Pro."
+              "Required plan: Pro or higher.",
+              "Plan requis: Pro ou plus."
             )}`
           );
           setStatusVariant("error");

@@ -32,6 +32,7 @@ import { useLanguage } from "@/components/providers/language-provider";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { CommandPalette, CommandItem } from "@/components/ui/command-palette";
+import { translateNotificationMessage } from "@/lib/notifications/translate";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -65,6 +66,7 @@ export function Navbar() {
       Runs: language === "fr" ? "Executions" : "Runs",
       "AI Assistant": language === "fr" ? "Assistant IA" : "AI Assistant",
       Inbox: language === "fr" ? "Boite de reception" : "Inbox",
+      Team: language === "fr" ? "Equipe" : "Team",
       Invoices: language === "fr" ? "Factures" : "Invoices",
       Subscription: language === "fr" ? "Abonnement" : "Subscription",
       Reports: language === "fr" ? "Rapports" : "Reports",
@@ -89,6 +91,7 @@ export function Navbar() {
       { label: labelMap.Runs, href: "/dashboard/runs", icon: Activity },
       { label: labelMap["AI Assistant"], href: "/dashboard/assistant", icon: Sparkles },
       { label: labelMap.Inbox, href: "/dashboard/inbox", icon: MessageSquare },
+      { label: labelMap.Team, href: "/dashboard/team", icon: Users },
       { label: labelMap.Invoices, href: "/dashboard/invoices", icon: FileText },
       { label: labelMap.Subscription, href: "/dashboard/subscription", icon: CreditCard },
       { label: labelMap.Reports, href: "/dashboard/usage", icon: Gauge },
@@ -308,7 +311,9 @@ export function Navbar() {
                           item.read ? "bg-background" : "bg-indigo-500/10"
                         )}
                       >
-                        <span className="text-sm font-semibold text-foreground">{item.message}</span>
+                        <span className="text-sm font-semibold text-foreground">
+                          {translateNotificationMessage({ message: item.message, language })}
+                        </span>
                         <span className="text-xs text-muted-foreground">
                           {new Date(item.createdAt).toLocaleString()}
                         </span>

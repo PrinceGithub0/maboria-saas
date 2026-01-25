@@ -4,6 +4,19 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { businessSchema } from "@/lib/validators";
 
+function addUtcMonths(date: Date, months: number) {
+  return new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth() + months,
+      date.getUTCDate(),
+      date.getUTCHours(),
+      date.getUTCMinutes(),
+      date.getUTCSeconds()
+    )
+  );
+}
+
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -23,11 +36,30 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const parsed = businessSchema.parse(body);
+    const sub = await prisma.subscription.findFirst({
+      where: { userId: session.user.id, status: "ACTIVE" },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    });
+    const anchor = sub?.createdAt ?? new Date();
+    const billingCycleStartAt = new Date(
+      Date.UTC(
+        anchor.getUTCFullYear(),
+        anchor.getUTCMonth(),
+        anchor.getUTCDate(),
+        anchor.getUTCHours(),
+        anchor.getUTCMinutes(),
+        anchor.getUTCSeconds()
+      )
+    );
+    const usageResetAt = addUtcMonths(billingCycleStartAt, 1);
     const business = await prisma.business.create({
       data: {
         name: parsed.name,
         domain: parsed.domain,
         ownerId: session.user.id,
+        billingCycleStartAt,
+        usageResetAt,
         members: { create: [{ userId: session.user.id, role: "owner" }] },
       },
     });

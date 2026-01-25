@@ -16,7 +16,9 @@ enum Role {
 
 enum SubscriptionPlan {
   STARTER
+  PRO
   GROWTH
+  BUSINESS
   ENTERPRISE
   PREMIUM
 }
@@ -357,8 +359,11 @@ model Business {
   whatsappPhoneNumberId String?  @unique
   owner       User               @relation("OwnedBusinesses", fields: [ownerId], references: [id])
   ownerId     String
+  billingCycleStartAt DateTime?
+  usageResetAt DateTime?
   createdAt   DateTime           @default(now())
   members     BusinessMember[]
+  invites     BusinessInvite[]
   workflows   AutomationFlow[]
   conversations Conversation[]
 }
@@ -371,6 +376,24 @@ model BusinessMember {
   businessId String
   role       String   @default("member")
   createdAt  DateTime @default(now())
+}
+
+model BusinessInvite {
+  id          String   @id @default(cuid())
+  business    Business @relation(fields: [businessId], references: [id])
+  businessId  String
+  email       String
+  role        String   @default("member")
+  token       String   @unique
+  status      String   @default("PENDING")
+  expiresAt   DateTime?
+  acceptedAt  DateTime?
+  invitedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([businessId, email])
+  @@index([email])
 }
 
 model BusinessProfile {

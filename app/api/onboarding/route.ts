@@ -17,6 +17,7 @@ const onboardingSchema = z.object({
   goals: z.string().optional(),
   country: z.string().length(2),
   currency: z.string().length(3),
+  businessPhone: z.string().regex(/^\+[1-9]\d{7,14}$/, "Invalid phone number"),
 });
 
 export const POST = withErrorHandling(async (req: Request) => {
@@ -51,6 +52,7 @@ export const POST = withErrorHandling(async (req: Request) => {
           businessName: parsed.businessName.trim(),
           country: normalizedCountry,
           defaultCurrency: normalizedCurrency,
+          businessPhone: parsed.businessPhone.trim(),
         },
       });
       const auditPayload = { fields: ["businessName", "country", "defaultCurrency"], source: "onboarding" };

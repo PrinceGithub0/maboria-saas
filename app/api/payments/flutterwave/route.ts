@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
-import { getPlanPriceForCurrency } from "@/lib/pricing";
+import { getPlanPriceForInterval, type BillingInterval } from "@/lib/pricing";
 import { z } from "zod";
 import { isAllowedCurrency, isProviderCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
 
@@ -17,9 +17,10 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
 
   const parsed = z
     .object({
-      plan: z.enum(["starter", "pro", "enterprise"]).optional(),
+      plan: z.enum(["starter", "pro", "growth", "business", "enterprise"]).optional(),
       currency: z.string().optional(),
       amount: z.number().optional(),
+      interval: z.enum(["monthly", "yearly"]).optional(),
     })
     .parse(await req.json());
 
@@ -40,8 +41,16 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     return NextResponse.json({ error: "Unsupported currency" }, { status: 400 });
   }
   const plan = parsed.plan ?? "starter";
-  const planCurrency = plan === "pro" ? "GROWTH" : "STARTER";
-  const planAmount = getPlanPriceForCurrency(planCurrency, currency);
+  const interval: BillingInterval = parsed.interval === "yearly" ? "yearly" : "monthly";
+  const planCurrency =
+    plan === "pro"
+      ? "PRO"
+      : plan === "growth"
+        ? "GROWTH"
+        : plan === "business"
+          ? "BUSINESS"
+          : "STARTER";
+  const planAmount = getPlanPriceForInterval(planCurrency, currency, interval);
 
   if (!planAmount) {
     return NextResponse.json({ error: "Pricing not configured for selected currency" }, { status: 400 });
@@ -69,6 +78,7 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     metadata: {
       userId: session.user.id,
       plan: planCurrency,
+      interval,
     },
   });
 

@@ -5,7 +5,7 @@ import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { aiRouter } from "@/lib/ai/router";
 import { prisma } from "@/lib/prisma";
-import { enforceEntitlement, enforceUsageLimit } from "@/lib/entitlements";
+import { enforceEntitlement, enforceUsageLimit, nextPlanAfter } from "@/lib/entitlements";
 
 export const POST = withErrorHandling(async () => {
   const session = await getServerSession(authOptions);
@@ -13,7 +13,7 @@ export const POST = withErrorHandling(async () => {
 
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "ai",
-    requiredPlan: "pro",
+    requiredPlan: "starter",
     allowTrial: false,
   });
   if (!entitlement.ok) {
@@ -34,7 +34,7 @@ export const POST = withErrorHandling(async () => {
         error: "Upgrade required",
         type: "limit_reached",
         reason: "AI usage limit reached",
-        requiredPlan: "pro",
+        requiredPlan: nextPlanAfter(usageLimit.plan),
         ...usageLimit,
       },
       { status: 402 }

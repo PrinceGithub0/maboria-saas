@@ -7,7 +7,7 @@ import { createInvoiceRecord } from "@/lib/invoice";
 import { parseDateInput } from "@/lib/date";
 import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
-import { enforceEntitlement, enforceUsageLimit } from "@/lib/entitlements";
+import { enforceEntitlement, enforceUsageLimit, nextPlanAfter } from "@/lib/entitlements";
 import { isAllowedCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
 
 export const runtime = "nodejs";
@@ -19,7 +19,7 @@ export const GET = withErrorHandling(async () => {
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "invoices",
     requiredPlan: "starter",
-    allowTrial: true,
+    allowTrial: false,
   });
   if (!entitlement.ok) {
     return NextResponse.json(
@@ -48,7 +48,7 @@ export const POST = withErrorHandling(async (req: Request) => {
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "invoices",
     requiredPlan: "starter",
-    allowTrial: true,
+    allowTrial: false,
   });
   if (!entitlement.ok) {
     return NextResponse.json(
@@ -80,7 +80,7 @@ export const POST = withErrorHandling(async (req: Request) => {
         error: "Upgrade required",
         type: "limit_reached",
         reason: "Invoice limit reached for this month",
-        requiredPlan: usage.plan === "free" ? "starter" : "pro",
+        requiredPlan: nextPlanAfter(usage.plan),
         plan: usage.plan,
         limit: usage.limit,
         used: usage.used,

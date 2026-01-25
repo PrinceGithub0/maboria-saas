@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import { Card } from "@/components/ui/card";
@@ -10,12 +10,14 @@ import { Table } from "@/components/ui/table";
 import { Alert } from "@/components/ui/alert";
 import { Modal } from "@/components/ui/modal";
 import { EmptyState } from "@/components/ui/empty-state";
+import { CountrySelect } from "@/components/ui/country-select";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { formatCurrencyWithCode } from "@/lib/currency";
 import { parseDateInput } from "@/lib/date";
 import { allowedCurrencies, formatCurrencyOption } from "@/lib/payments/currency-allowlist";
 import { useSession } from "next-auth/react";
-import { getTaxIdLabel } from "@/lib/tax-labels";
 import { useLanguage } from "@/components/providers/language-provider";
+import { formatBusinessAddress, hasRequiredAddress } from "@/lib/address";
 
 const fetcher = async (url: string) => {
   const res = await fetch(url, { cache: "no-store" });
@@ -77,32 +79,24 @@ export default function InvoicesPage() {
   });
   const [profileForm, setProfileForm] = useState({
     businessName: "",
-    country: "NG",
+    country: "US",
     defaultCurrency: "USD",
-    businessAddress: "",
+    streetAddress: "",
+    city: "",
+    postalCode: "",
     businessEmail: "",
     businessPhone: "",
     taxId: "",
   });
   const [profileStatus, setProfileStatus] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
-  const taxLabel = getTaxIdLabel(profileForm.country);
-  const currencyToCountry: Record<string, string> = {
-    NGN: "NG",
-    GHS: "GH",
-    KES: "KE",
-    ZAR: "ZA",
-    XOF: "CI",
-    EGP: "EG",
-    RWF: "RW",
-    UGX: "UG",
-    TZS: "TZ",
-    ZMW: "ZM",
-    MZN: "MZ",
-    USD: "US",
-    GBP: "GB",
-    EUR: "EU",
-  };
+  const [profileLogoFile, setProfileLogoFile] = useState<File | null>(null);
+  const [profileLogoError, setProfileLogoError] = useState<string | null>(null);
+  const [profileLogoInfoOpen, setProfileLogoInfoOpen] = useState(false);
+  const [profileLogoUploading, setProfileLogoUploading] = useState(false);
+  const [profileLogoPreviewUrl, setProfileLogoPreviewUrl] = useState<string | null>(null);
+  const profileLogoInfoRef = useRef<HTMLSpanElement | null>(null);
+  const profileLogoInputRef = useRef<HTMLInputElement | null>(null);
   const scrollToCreate = () => {
     if (typeof window === "undefined") return;
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -127,6 +121,7 @@ export default function InvoicesPage() {
 
   const profileMissing =
     businessProfile?.status === 404 || businessProfile?.data?.error === "Not found";
+  const requiredMessage = t("This field is required", "This field is required");
 
   useEffect(() => {
     if (businessProfile?.data?.id) return;
@@ -136,18 +131,80 @@ export default function InvoicesPage() {
     setProfileForm((prev) => ({
       ...prev,
       defaultCurrency: preferred,
-      country: currencyToCountry[preferred] || prev.country,
     }));
   }, [businessProfile?.data?.id, me?.preferredCurrency]);
+
+  useEffect(() => {
+    if (profileLogoFile) {
+      const url = URL.createObjectURL(profileLogoFile);
+      setProfileLogoPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }
+    if (businessProfile?.data?.logoUrl) {
+      setProfileLogoPreviewUrl(String(businessProfile.data.logoUrl));
+      return;
+    }
+    setProfileLogoPreviewUrl(null);
+  }, [profileLogoFile, businessProfile?.data?.logoUrl]);
+
+  useEffect(() => {
+    if (!profileLogoInfoOpen) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!profileLogoInfoRef.current) return;
+      if (!profileLogoInfoRef.current.contains(event.target as Node)) {
+        setProfileLogoInfoOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+    };
+  }, [profileLogoInfoOpen]);
 
   const createBusinessProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setProfileStatus(null);
     setProfileError(null);
+    setProfileLogoError(null);
+    if (!profileForm.businessName.trim()) {
+      setProfileError(requiredMessage);
+      return;
+    }
+    if (!profileForm.country.trim() || !profileForm.defaultCurrency.trim()) {
+      setProfileError(requiredMessage);
+      return;
+    }
+    if (!profileForm.businessEmail.trim()) {
+      setProfileError(requiredMessage);
+      return;
+    }
+    if (!profileForm.businessPhone.trim()) {
+      setProfileError(requiredMessage);
+      return;
+    }
+    const addressFields = {
+      streetAddress: profileForm.streetAddress,
+      city: profileForm.city,
+      postalCode: profileForm.postalCode,
+    };
+    if (!hasRequiredAddress(addressFields)) {
+      setProfileError(requiredMessage);
+      return;
+    }
+    const formattedAddress = formatBusinessAddress(addressFields);
+    const payload = {
+      businessName: profileForm.businessName,
+      country: profileForm.country,
+      defaultCurrency: profileForm.defaultCurrency,
+      businessAddress: formattedAddress,
+      businessEmail: profileForm.businessEmail,
+      businessPhone: profileForm.businessPhone,
+      taxId: profileForm.taxId,
+    };
     const res = await fetch("/api/business-profile", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(profileForm),
+      body: JSON.stringify(payload),
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -156,6 +213,44 @@ export default function InvoicesPage() {
     }
     setProfileStatus(t("Business profile saved.", "Profil enregistre."));
     refreshBusinessProfile();
+    if (profileLogoFile) {
+      setProfileLogoUploading(true);
+      try {
+        const formData = new FormData();
+        formData.append("logo", profileLogoFile);
+        const uploadRes = await fetch("/api/business-profile/logo", {
+          method: "POST",
+          body: formData,
+        });
+        const uploadData = await uploadRes.json().catch(() => ({}));
+        if (!uploadRes.ok) {
+          setProfileLogoError(uploadData.error || t("Logo upload failed.", "Echec du televersement du logo."));
+        } else {
+          setProfileLogoFile(null);
+          refreshBusinessProfile();
+        }
+      } catch {
+        setProfileLogoError(t("Logo upload failed.", "Echec du televersement du logo."));
+      } finally {
+        setProfileLogoUploading(false);
+      }
+    }
+  };
+
+  const removeProfileLogo = async () => {
+    setProfileLogoError(null);
+    setProfileLogoFile(null);
+    try {
+      const res = await fetch("/api/business-profile/logo", { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setProfileLogoError(data.error || t("Could not remove logo.", "Impossible de supprimer le logo."));
+        return;
+      }
+      refreshBusinessProfile();
+    } catch {
+      setProfileLogoError(t("Could not remove logo.", "Impossible de supprimer le logo."));
+    }
   };
 
   const createInvoice = async (e: React.FormEvent) => {
@@ -263,23 +358,7 @@ export default function InvoicesPage() {
   };
 
   const currencyOptions = allowedCurrencies.map((code) => ({ code, label: formatCurrencyOption(code) }));
-  const businessCurrencyOptions = allowedCurrencies.map((code) => ({ code, label: code }));
-  const businessCountryOptions = [
-    { code: "NG", label: "Nigeria (NG)" },
-    { code: "GH", label: "Ghana (GH)" },
-    { code: "KE", label: "Kenya (KE)" },
-    { code: "ZA", label: "South Africa (ZA)" },
-    { code: "CI", label: "Cote d'Ivoire (CI)" },
-    { code: "EG", label: "Egypt (EG)" },
-    { code: "RW", label: "Rwanda (RW)" },
-    { code: "UG", label: "Uganda (UG)" },
-    { code: "TZ", label: "Tanzania (TZ)" },
-    { code: "ZM", label: "Zambia (ZM)" },
-    { code: "MZ", label: "Mozambique (MZ)" },
-    { code: "US", label: "United States (US)" },
-    { code: "GB", label: "United Kingdom (GB)" },
-    { code: "EU", label: "Europe (EU)" },
-  ];
+  const businessCurrencyOptions = allowedCurrencies.map((code) => ({ code, label: formatCurrencyOption(code) }));
 
   const scopedInvoices =
     !invoicesError && Array.isArray(invoices)
@@ -474,6 +553,7 @@ export default function InvoicesPage() {
         <Card title={t("Business profile required", "Profil requis")}>
           {profileStatus && <Alert variant="success">{profileStatus}</Alert>}
           {profileError && <Alert variant="error">{profileError}</Alert>}
+          {profileLogoError && <Alert variant="error">{profileLogoError}</Alert>}
           <p className="text-sm text-muted-foreground">
             {t(
               "Add your business profile before creating invoices.",
@@ -488,21 +568,19 @@ export default function InvoicesPage() {
               label={t("Business name", "Nom de l entreprise")}
               value={profileForm.businessName}
               onChange={(e) => setProfileForm({ ...profileForm, businessName: e.target.value })}
+              onFocus={(e) => {
+                const length = e.currentTarget.value.length;
+                e.currentTarget.setSelectionRange(length, length);
+              }}
+              required
             />
-            <label className="flex flex-col gap-1 text-sm text-foreground">
-              {t("Country", "Pays")}
-              <select
-                value={profileForm.country}
-                onChange={(e) => setProfileForm({ ...profileForm, country: e.target.value })}
-                className="rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:border-indigo-400 focus:outline-none"
-              >
-                {businessCountryOptions.map((option) => (
-                  <option key={option.code} value={option.code}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <CountrySelect
+              label={t("Country", "Pays")}
+              value={profileForm.country}
+              locale={language === "fr" ? "fr" : "en"}
+              required
+              onChange={(value) => setProfileForm({ ...profileForm, country: value })}
+            />
             <label className="flex flex-col gap-1 text-sm text-foreground">
               {t("Default currency", "Devise par defaut")}
               <select
@@ -522,23 +600,107 @@ export default function InvoicesPage() {
               type="email"
               value={profileForm.businessEmail}
               onChange={(e) => setProfileForm({ ...profileForm, businessEmail: e.target.value })}
+              required
             />
-            <Input
+            <PhoneInput
               label={t("Business phone", "Telephone entreprise")}
               value={profileForm.businessPhone}
-              onChange={(e) => setProfileForm({ ...profileForm, businessPhone: e.target.value })}
+              required
+              locale={language === "fr" ? "fr" : "en"}
+              onChange={(value) => setProfileForm({ ...profileForm, businessPhone: value })}
             />
             <Input
-              label={t("Business address", "Adresse entreprise")}
-              value={profileForm.businessAddress}
-              onChange={(e) => setProfileForm({ ...profileForm, businessAddress: e.target.value })}
+              label={t("Street address", "Adresse")}
+              value={profileForm.streetAddress}
+              onChange={(e) => setProfileForm({ ...profileForm, streetAddress: e.target.value })}
+              required
             />
             <Input
-              label={t(`${taxLabel.long} (optional)`, `${taxLabel.long} (optionnel)`)}
-              value={profileForm.taxId}
-              onChange={(e) => setProfileForm({ ...profileForm, taxId: e.target.value })}
+              label={t("City", "Ville")}
+              value={profileForm.city}
+              onChange={(e) => setProfileForm({ ...profileForm, city: e.target.value })}
+              required
             />
-            <div className="col-span-2 max-md:col-span-1">
+            <Input
+              label={t("Postal code / ZIP (optional)", "Code postal / ZIP (optionnel)")}
+              value={profileForm.postalCode}
+              onChange={(e) => setProfileForm({ ...profileForm, postalCode: e.target.value })}
+            />
+            <label className="col-span-2 flex flex-col gap-1 text-sm text-foreground max-md:order-9 max-md:col-span-1 md:col-span-1">
+              <span className="flex items-center gap-2">
+                {t("Business logo (optional)", "Logo entreprise (optionnel)")}
+                <span ref={profileLogoInfoRef} className="relative">
+                  <button
+                    type="button"
+                    aria-label={t("Logo upload info", "Infos televersement logo")}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setProfileLogoInfoOpen((open) => !open);
+                    }}
+                    className="flex h-5 w-5 items-center justify-center rounded-full border border-border text-[10px] font-semibold text-muted-foreground"
+                  >
+                    i
+                  </button>
+                  <div
+                    className={`absolute right-0 top-7 z-20 w-48 rounded-lg border border-border bg-background px-3 py-2 text-[11px] text-foreground shadow-lg transition ${
+                      profileLogoInfoOpen ? "opacity-100" : "pointer-events-none opacity-0"
+                    }`}
+                  >
+                    <div>{t("Accepted formats: PNG, JPG, SVG", "Formats acceptes : PNG, JPG, SVG")}</div>
+                    <div>{t("Max size: 2MB", "Taille max : 2MB")}</div>
+                  </div>
+              </span>
+            </span>
+            <input
+              type="file"
+              accept=".png,.jpg,.jpeg,.svg"
+              onChange={(e) => setProfileLogoFile(e.target.files?.[0] || null)}
+              disabled={profileLogoUploading}
+              ref={profileLogoInputRef}
+              className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground file:mr-4 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-sm file:font-semibold"
+            />
+            {profileLogoPreviewUrl && (
+              <div className="mt-2 flex flex-col gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 overflow-hidden rounded-xl border border-transparent bg-white ring-1 ring-border max-md:rounded-2xl">
+                    <img
+                      src={profileLogoPreviewUrl}
+                      alt={t("Business logo preview", "Apercu du logo")}
+                      className="h-full w-full object-contain"
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <button
+                      type="button"
+                      onClick={() => profileLogoInputRef.current?.click()}
+                      className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-foreground"
+                    >
+                      {t("Change logo", "Modifier le logo")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={removeProfileLogo}
+                      className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-foreground"
+                    >
+                      {t("Remove logo", "Supprimer le logo")}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </label>
+            <div className="space-y-1 max-md:order-8">
+              <Input
+                label={t("Tax ID (optional)", "ID fiscal (optionnel)")}
+                value={profileForm.taxId}
+                onChange={(e) => setProfileForm({ ...profileForm, taxId: e.target.value })}
+                onFocus={(e) => {
+                  const length = e.currentTarget.value.length;
+                  e.currentTarget.setSelectionRange(length, length);
+                }}
+              />
+            </div>
+            <div className="col-span-2 max-md:col-span-1 max-md:order-10">
               <Button type="submit" className="max-md:w-full">
                 {t("Save business profile", "Enregistrer le profil")}
               </Button>

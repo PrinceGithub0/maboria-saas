@@ -46,6 +46,7 @@ export function Sidebar({ role }: Props) {
     Runs: language === "fr" ? "Executions" : "Runs",
     "AI Assistant": language === "fr" ? "Assistant IA" : "AI Assistant",
     Inbox: language === "fr" ? "Boite de reception" : "Inbox",
+    Team: language === "fr" ? "Equipe" : "Team",
     Invoices: language === "fr" ? "Factures" : "Invoices",
     Subscription: language === "fr" ? "Abonnement" : "Subscription",
     Payments: language === "fr" ? "Paiements" : "Payments",
@@ -76,6 +77,7 @@ export function Sidebar({ role }: Props) {
       icon: MessageSquare,
       badge: unreadBadge,
     },
+    { href: "/dashboard/team", label: labelMap.Team, icon: Users },
   ];
   const billingItems: NavItem[] = [
     { href: "/dashboard/invoices", label: labelMap.Invoices, icon: FileText },

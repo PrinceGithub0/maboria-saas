@@ -6,7 +6,10 @@ import { buildSubscriptionReceiptPdfBuffer } from "@/lib/subscription-receipt";
 
 function mapPlanLabel(plan?: string | null) {
   if (!plan) return "Subscription";
-  if (plan === "GROWTH") return "Pro";
+  if (plan === "PRO") return "Pro";
+  if (plan === "GROWTH") return "Growth";
+  if (plan === "BUSINESS") return "Business";
+  if (plan === "PREMIUM") return "Business";
   if (plan === "STARTER") return "Starter";
   if (plan === "ENTERPRISE") return "Enterprise";
   return "Subscription";

@@ -175,8 +175,8 @@ export default function UsagePage() {
         {aiError && (
           <p className="mt-3 text-xs text-muted-foreground">
             {t(
-              "AI usage is unavailable. Upgrade to Pro to unlock AI usage metrics.",
-              "Usage IA indisponible. Passez a Pro pour debloquer les metriques."
+              "AI usage is unavailable. Upgrade to Starter to unlock AI usage metrics.",
+              "Usage IA indisponible. Passez a Starter pour debloquer les metriques."
             )}
           </p>
         )}

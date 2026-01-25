@@ -5,9 +5,56 @@ import { signupSchema } from "@/lib/validators";
 import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
-import { addDays } from "date-fns";
 import { log } from "@/lib/logger";
 import { generatePublicId } from "@/lib/public-id";
+
+async function acceptBusinessInvite({
+  userId,
+  email,
+  inviteToken,
+}: {
+  userId: string;
+  email: string;
+  inviteToken?: string;
+}) {
+  const now = new Date();
+  const invite = await prisma.businessInvite.findFirst({
+    where: {
+      email,
+      status: "PENDING",
+      ...(inviteToken ? { token: inviteToken } : {}),
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!invite) return;
+
+  const existingMember = await prisma.businessMember.findFirst({
+    where: { businessId: invite.businessId, userId },
+  });
+  if (!existingMember) {
+    await prisma.businessMember.create({
+      data: {
+        businessId: invite.businessId,
+        userId,
+        role: invite.role || "member",
+      },
+    });
+  }
+  await prisma.businessInvite.update({
+    where: { id: invite.id },
+    data: { status: "ACCEPTED", acceptedAt: now },
+  });
+  await prisma.activityLog.create({
+    data: {
+      userId,
+      action: "TEAM_INVITE_ACCEPTED",
+      resourceType: "business",
+      resourceId: invite.businessId,
+      metadata: { inviteId: invite.id },
+    },
+  });
+}
 
 // Credentials signup endpoint: validates payload, hashes password, prevents duplicates, returns clear errors.
 export const POST = withRequestLogging(
@@ -57,42 +104,28 @@ export const POST = withRequestLogging(
       return NextResponse.json({ error: "Unable to create a unique user ID" }, { status: 500 });
     }
 
+    await acceptBusinessInvite({
+      userId: created.id,
+      email,
+      inviteToken: parsed.inviteToken,
+    });
+
     const intent = parsed.planIntent;
-    if (intent === "trial") {
-      // 7-day trial by default (maps to "Pro" features via SubscriptionPlan.GROWTH).
-      const trialEndsAt = addDays(new Date(), 7);
-      try {
-        const trial = await prisma.subscription.create({
-          data: {
-            userId: created.id,
-            plan: "GROWTH",
-            status: "TRIALING",
-            renewalDate: trialEndsAt,
-            trialEndsAt,
-            currency: "USD",
-            interval: "monthly",
-          },
-        });
-        await prisma.activityLog.create({
-          data: {
-            userId: created.id,
-            action: "TRIAL_STARTED",
-            metadata: { trialEndsAt: trial.trialEndsAt, subscriptionId: trial.id },
-          },
-        });
-      } catch (error: any) {
-        log("warn", "Trial subscription create failed", { userId: created.id, error: error?.message });
-      }
-    } else {
-      const plan = intent === "starter" ? "STARTER" : "GROWTH";
-      await prisma.activityLog.create({
-        data: {
-          userId: created.id,
-          action: "PLAN_INTENT",
-          metadata: { plan, autoRenew: true },
-        },
-      });
-    }
+    const plan =
+      intent === "starter"
+        ? "STARTER"
+        : intent === "pro"
+          ? "PRO"
+          : intent === "growth"
+            ? "GROWTH"
+            : "BUSINESS";
+    await prisma.activityLog.create({
+      data: {
+        userId: created.id,
+        action: "PLAN_INTENT",
+        metadata: { plan, autoRenew: true },
+      },
+    });
 
     return NextResponse.json(
       { success: true, userId: created.publicId, planIntent: intent },

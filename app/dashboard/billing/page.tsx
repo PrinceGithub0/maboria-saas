@@ -27,18 +27,39 @@ export default function BillingPage() {
   const { language } = useLanguage();
   const t = (en: string, fr: string) => (language === "fr" ? fr : en);
   const featureMap: Record<string, { en: string; fr: string }> = {
-    "Core automations": { en: "Core automations", fr: "Automatisations de base" },
-    Invoices: { en: "Invoices", fr: "Factures" },
-    "Email notifications": { en: "Email notifications", fr: "Notifications email" },
-    "Team-ready basics": { en: "Team-ready basics", fr: "Bases equipe" },
-    "AI assistant": { en: "AI assistant", fr: "Assistant IA" },
-    "WhatsApp automation": { en: "WhatsApp automation", fr: "Automatisation WhatsApp" },
-    "Higher usage limits": { en: "Higher usage limits", fr: "Limites plus elevees" },
+    "Invoices: 50 / month": { en: "Invoices: 50 / month", fr: "Factures : 50 / mois" },
+    "Payments (cards & bank transfer)": {
+      en: "Payments (cards & bank transfer)",
+      fr: "Paiements (carte et virement)",
+    },
+    "WhatsApp messages: 100 / month": { en: "WhatsApp messages: 100 / month", fr: "WhatsApp : 100 / mois" },
+    "AI usage: 50 / month": { en: "AI usage: 50 / month", fr: "IA : 50 / mois" },
+    "Automations: 3 total": { en: "Automations: 3 total", fr: "Automatisations : 3" },
+    "1 user": { en: "1 user", fr: "1 utilisateur" },
+    "Invoices: 300 / month": { en: "Invoices: 300 / month", fr: "Factures : 300 / mois" },
+    "WhatsApp messages: 1,000 / month": { en: "WhatsApp messages: 1,000 / month", fr: "WhatsApp : 1 000 / mois" },
+    "AI usage: 300 / month": { en: "AI usage: 300 / month", fr: "IA : 300 / mois" },
+    "Automations: 10 total": { en: "Automations: 10 total", fr: "Automatisations : 10" },
+    "Up to 3 team members": { en: "Up to 3 team members", fr: "Jusqu a 3 membres" },
+    "Invoices: 1,000 / month": { en: "Invoices: 1,000 / month", fr: "Factures : 1 000 / mois" },
+    "WhatsApp messages: 3,000 / month": { en: "WhatsApp messages: 3,000 / month", fr: "WhatsApp : 3 000 / mois" },
+    "AI usage: 1,000 / month": { en: "AI usage: 1,000 / month", fr: "IA : 1 000 / mois" },
+    "Automations: 25 total": { en: "Automations: 25 total", fr: "Automatisations : 25" },
+    "Up to 5 team members": { en: "Up to 5 team members", fr: "Jusqu a 5 membres" },
     "Priority support": { en: "Priority support", fr: "Support prioritaire" },
-    "Custom limits": { en: "Custom limits", fr: "Limites personnalisees" },
-    "Advanced controls": { en: "Advanced controls", fr: "Controles avances" },
-    "SLA options": { en: "SLA options", fr: "Options SLA" },
-    "Dedicated support": { en: "Dedicated support", fr: "Support dedie" },
+    "Invoices: 3,000 / month": { en: "Invoices: 3,000 / month", fr: "Factures : 3 000 / mois" },
+    "WhatsApp messages: 7,500 / month": { en: "WhatsApp messages: 7,500 / month", fr: "WhatsApp : 7 500 / mois" },
+    "AI usage: 3,000 / month": { en: "AI usage: 3,000 / month", fr: "IA : 3 000 / mois" },
+    "Automations: Unlimited": { en: "Automations: Unlimited", fr: "Automatisations illimitees" },
+    "Up to 10 team members": { en: "Up to 10 team members", fr: "Jusqu a 10 membres" },
+    "Role-based access": { en: "Role-based access", fr: "Acces par roles" },
+    "Phone + priority support": { en: "Phone + priority support", fr: "Support telephone + prioritaire" },
+    "Unlimited invoices": { en: "Unlimited invoices", fr: "Factures illimitees" },
+    "Unlimited WhatsApp (fair-use)": { en: "Unlimited WhatsApp (fair-use)", fr: "WhatsApp illimite (fair-use)" },
+    "Unlimited AI": { en: "Unlimited AI", fr: "IA illimitee" },
+    "Unlimited team members": { en: "Unlimited team members", fr: "Membres illimites" },
+    "Dedicated account manager": { en: "Dedicated account manager", fr: "Responsable dedie" },
+    "SLA & custom integrations": { en: "SLA & custom integrations", fr: "SLA et integrations sur mesure" },
   };
   const translateFeature = (feature: string) =>
     language === "fr" ? featureMap[feature]?.fr || feature : featureMap[feature]?.en || feature;
@@ -65,20 +86,14 @@ export default function BillingPage() {
               <Card key={p.plan} className="bg-card/60" title={p.label}>
                 <div className="space-y-3">
                   <div className="text-2xl font-semibold text-foreground">
-                    {p.ngn == null ? (
+                    {p.usd == null ? (
                       t("Contact sales", "Contacter ventes")
                     ) : (
                       <div className="flex flex-col gap-1">
                         <div>
-                          {formatMoney(p.ngn, "NGN")}
+                          {formatMoney(p.usd, "USD")}
                           <span className="text-sm text-muted-foreground">{t("/mo", "/mois")}</span>
                         </div>
-                        {p.usd != null && (
-                          <div className="text-sm font-medium text-muted-foreground">
-                            {formatMoney(p.usd, "USD")}
-                            {t("/mo", "/mois")}
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>

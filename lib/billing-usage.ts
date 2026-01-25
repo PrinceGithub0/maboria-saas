@@ -3,7 +3,7 @@ import { addDays } from "date-fns";
 
 export async function trackUsage(userId: string, category: string, amount: number) {
   const sub = await prisma.subscription.findFirst({
-    where: { userId, status: { in: ["ACTIVE", "TRIALING"] } },
+    where: { userId, status: { in: ["ACTIVE"] } },
   });
   const usageLimit = sub?.usageLimit ?? 0;
   if (usageLimit > 0 && amount > 0) {
@@ -32,7 +32,7 @@ export async function trackUsage(userId: string, category: string, amount: numbe
 export async function resetUsageForPeriod() {
   // run daily cron to reset monthly usage
   const subs = await prisma.subscription.findMany({
-    where: { status: { in: ["ACTIVE", "TRIALING"] } },
+    where: { status: { in: ["ACTIVE"] } },
   });
   for (const sub of subs) {
     if (sub.usagePeriod === "monthly") {

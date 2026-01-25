@@ -13,7 +13,11 @@ import {
   verifyFlutterwaveTransactionByReference,
 } from "@/lib/payments/flutterwave";
 import { subscriptionPlanToUserPlan } from "@/lib/entitlements";
-import { getPlanFromAmount, getPlanPriceForCurrency } from "@/lib/pricing";
+import {
+  getPlanFromAmountWithInterval,
+  getPlanPriceForInterval,
+  type BillingInterval,
+} from "@/lib/pricing";
 import { fromMinorUnits } from "@/lib/payments/currency-allowlist";
 import { log } from "@/lib/logger";
 
@@ -42,51 +46,65 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     }
     const amount = fromMinorUnits(Number(data?.amount || 0), data?.currency || "NGN");
     const currency = (data?.currency || "NGN").toUpperCase();
-    const inferredPlan = getPlanFromAmount(currency, amount);
+    const inferred = getPlanFromAmountWithInterval(currency, amount);
     const userId = (data?.metadata?.userId as string | undefined) || session.user.id;
-    const plan = (data?.metadata?.plan as string | undefined) || inferredPlan;
+    const plan = (data?.metadata?.plan as string | undefined) || inferred?.plan;
+    const rawInterval = String(data?.metadata?.interval || "");
+    const interval: BillingInterval =
+      rawInterval === "yearly" ? "yearly" : rawInterval === "monthly" ? "monthly" : inferred?.interval || "monthly";
     if (data?.metadata?.userId && data?.metadata?.userId !== session.user.id) {
       return NextResponse.json({ error: "Invalid user for payment" }, { status: 403 });
     }
 
-    data.metadata = { ...(data?.metadata || {}), userId, plan };
+    const normalizedPlan = plan === "PREMIUM" ? "BUSINESS" : plan;
+    data.metadata = { ...(data?.metadata || {}), userId, plan: normalizedPlan ?? plan, interval };
 
-    if (plan) {
+    if (normalizedPlan) {
       const planKey =
-        plan === "STARTER" || plan === "GROWTH" || plan === "ENTERPRISE" ? plan : null;
-      const expected = planKey ? getPlanPriceForCurrency(planKey, currency) : null;
+        normalizedPlan === "STARTER" ||
+        normalizedPlan === "PRO" ||
+        normalizedPlan === "GROWTH" ||
+        normalizedPlan === "BUSINESS" ||
+        normalizedPlan === "PREMIUM" ||
+        normalizedPlan === "ENTERPRISE"
+          ? normalizedPlan
+          : null;
+      const expected = planKey ? getPlanPriceForInterval(planKey, currency, interval) : null;
       if (expected && Math.abs(amount - expected) > 0.01) {
-        log("warn", "paystack_amount_mismatch", { userId, plan, amount, expected, source: "verify" });
+        log("warn", "paystack_amount_mismatch", { userId, plan: normalizedPlan, amount, expected, source: "verify" });
         return NextResponse.json({ status: "pending" });
       }
     }
 
     await recordPaystackPayment(data);
-    if (plan === "STARTER" || plan === "GROWTH") {
-      const renewalDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    if (normalizedPlan === "STARTER" || normalizedPlan === "PRO" || normalizedPlan === "GROWTH" || normalizedPlan === "BUSINESS") {
+      const renewalDate =
+        interval === "yearly"
+          ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       const existingForPlan = await prisma.subscription.findFirst({
-        where: { userId, plan },
+        where: { userId, plan: normalizedPlan },
         orderBy: { createdAt: "desc" },
       });
       if (existingForPlan) {
         await prisma.subscription.update({
           where: { id: existingForPlan.id },
-          data: { status: "ACTIVE", renewalDate, currency },
+          data: { status: "ACTIVE", renewalDate, currency, interval, plan: normalizedPlan },
         });
       } else {
         await prisma.subscription.create({
           data: {
             userId,
-            plan,
+            plan: normalizedPlan,
             status: "ACTIVE",
             renewalDate,
             currency,
-            interval: "monthly",
+            interval,
           },
         });
       }
-      log("info", "paystack_subscription_synced", { userId, plan, status: "ACTIVE", source: "verify" });
-      const newPlan = subscriptionPlanToUserPlan(plan);
+      log("info", "paystack_subscription_synced", { userId, plan: normalizedPlan, status: "ACTIVE", source: "verify" });
+      const newPlan = subscriptionPlanToUserPlan(normalizedPlan);
       log("info", "billing_plan_transition", {
         provider: "paystack",
         event: "verify",
@@ -113,49 +131,63 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
 
   const amount = Number(verified?.amount || 0);
   const currency = (verified?.currency || "USD").toUpperCase();
-  const inferredPlan = getPlanFromAmount(currency, amount);
+  const inferred = getPlanFromAmountWithInterval(currency, amount);
   const userId = (verified?.meta?.userId as string | undefined) || session.user.id;
-  const plan = (verified?.meta?.plan as string | undefined) || inferredPlan;
+  const plan = (verified?.meta?.plan as string | undefined) || inferred?.plan;
+  const rawInterval = String(verified?.meta?.interval || "");
+  const interval: BillingInterval =
+    rawInterval === "yearly" ? "yearly" : rawInterval === "monthly" ? "monthly" : inferred?.interval || "monthly";
   if (verified?.meta?.userId && verified?.meta?.userId !== session.user.id) {
     return NextResponse.json({ error: "Invalid user for payment" }, { status: 403 });
   }
 
-  if (plan) {
+  const normalizedPlan = plan === "PREMIUM" ? "BUSINESS" : plan;
+  if (normalizedPlan) {
     const planKey =
-      plan === "STARTER" || plan === "GROWTH" || plan === "ENTERPRISE" ? plan : null;
-    const expected = planKey ? getPlanPriceForCurrency(planKey, currency) : null;
+      normalizedPlan === "STARTER" ||
+      normalizedPlan === "PRO" ||
+      normalizedPlan === "GROWTH" ||
+      normalizedPlan === "BUSINESS" ||
+      normalizedPlan === "PREMIUM" ||
+      normalizedPlan === "ENTERPRISE"
+        ? normalizedPlan
+        : null;
+    const expected = planKey ? getPlanPriceForInterval(planKey, currency, interval) : null;
     if (expected && Math.abs(amount - expected) > 0.01) {
-      log("warn", "flutterwave_amount_mismatch", { userId, plan, amount, expected, source: "verify" });
+      log("warn", "flutterwave_amount_mismatch", { userId, plan: normalizedPlan, amount, expected, source: "verify" });
       return NextResponse.json({ status: "pending" });
     }
   }
 
-  await recordFlutterwavePayment({ ...verified, meta: { ...(verified?.meta || {}), userId, plan } });
-  if (plan === "STARTER" || plan === "GROWTH") {
-    const renewalDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  await recordFlutterwavePayment({ ...verified, meta: { ...(verified?.meta || {}), userId, plan: normalizedPlan ?? plan, interval } });
+  if (normalizedPlan === "STARTER" || normalizedPlan === "PRO" || normalizedPlan === "GROWTH" || normalizedPlan === "BUSINESS") {
+    const renewalDate =
+      interval === "yearly"
+        ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     const existingForPlan = await prisma.subscription.findFirst({
-      where: { userId, plan },
+      where: { userId, plan: normalizedPlan },
       orderBy: { createdAt: "desc" },
     });
     if (existingForPlan) {
       await prisma.subscription.update({
         where: { id: existingForPlan.id },
-        data: { status: "ACTIVE", renewalDate, currency },
+        data: { status: "ACTIVE", renewalDate, currency, interval, plan: normalizedPlan },
       });
     } else {
       await prisma.subscription.create({
         data: {
           userId,
-          plan,
+          plan: normalizedPlan,
           status: "ACTIVE",
           renewalDate,
           currency,
-          interval: "monthly",
+          interval,
         },
       });
     }
-    log("info", "flutterwave_subscription_synced", { userId, plan, status: "ACTIVE", source: "verify" });
-    const newPlan = subscriptionPlanToUserPlan(plan);
+    log("info", "flutterwave_subscription_synced", { userId, plan: normalizedPlan, status: "ACTIVE", source: "verify" });
+    const newPlan = subscriptionPlanToUserPlan(normalizedPlan);
     log("info", "billing_plan_transition", {
       provider: "flutterwave",
       event: "verify",

@@ -25,9 +25,14 @@ export default function SubscriptionPage() {
     switch ((plan || "").toUpperCase()) {
       case "STARTER":
         return language === "fr" ? "Starter" : "Starter";
-      case "GROWTH":
-      case "PREMIUM":
+      case "PRO":
         return language === "fr" ? "Pro" : "Pro";
+      case "GROWTH":
+        return language === "fr" ? "Growth" : "Growth";
+      case "BUSINESS":
+        return language === "fr" ? "Business" : "Business";
+      case "PREMIUM":
+        return language === "fr" ? "Business" : "Business";
       case "ENTERPRISE":
         return language === "fr" ? "Entreprise" : "Enterprise";
       default:
@@ -35,28 +40,8 @@ export default function SubscriptionPage() {
     }
   };
 
-  const trialSub = subs.find((sub: any) => sub.status === "TRIALING");
-  const activeSub = subs.find((sub: any) => ["ACTIVE", "TRIALING", "PAST_DUE"].includes(sub.status));
+  const activeSub = subs.find((sub: any) => ["ACTIVE", "PAST_DUE"].includes(sub.status));
   const currentPlan = activeSub?.plan ? formatPlan(activeSub.plan) : t("No active plan", "Aucun plan actif");
-
-  const cancelTrial = async () => {
-    if (!trialSub) return;
-    setActionStatus(null);
-    const res = await fetch("/api/subscription/cancel-trial", { method: "POST" });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setActionStatus({
-        message: json.error || t("Could not cancel trial.", "Impossible d annuler l essai."),
-        variant: "error",
-      });
-      return;
-    }
-    setActionStatus({
-      message: t("Trial cancelled. Your account is now on the free plan.", "Essai annule. Votre compte est en plan gratuit."),
-      variant: "success",
-    });
-    mutate();
-  };
 
   return (
     <div className="space-y-4 max-md:space-y-6">
@@ -116,21 +101,6 @@ export default function SubscriptionPage() {
           />
         )}
       </Card>
-      {trialSub ? (
-        <Card title={t("Trial cancellation", "Annulation essai")}>
-          <p className="text-sm text-muted-foreground">
-            {t(
-              "Your trial will auto-renew unless you cancel it before the end date.",
-              "L essai se renouvelle automatiquement sauf annulation."
-            )}
-          </p>
-          <div className="mt-3">
-            <Button variant="secondary" className="max-md:w-full" onClick={cancelTrial}>
-              {t("Cancel trial", "Annuler essai")}
-            </Button>
-          </div>
-        </Card>
-      ) : null}
     </div>
   );
 }

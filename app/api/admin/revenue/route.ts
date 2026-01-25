@@ -10,7 +10,7 @@ export const GET = withErrorHandling(async () => {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const [mrrUsd, mrrNgn, activeSubs, trials, failed] = await Promise.all([
+  const [mrrUsd, mrrNgn, activeSubs, failed] = await Promise.all([
     prisma.subscription.aggregate({
       where: { status: "ACTIVE", currency: "USD" },
       _count: { _all: true },
@@ -20,7 +20,6 @@ export const GET = withErrorHandling(async () => {
       _count: { _all: true },
     }),
     prisma.subscription.count({ where: { status: "ACTIVE" } }),
-    prisma.subscription.count({ where: { status: "TRIALING" } }),
     prisma.payment.count({ where: { status: "FAILED" } }),
   ]);
 
@@ -33,7 +32,6 @@ export const GET = withErrorHandling(async () => {
     mrrUsd: mrrUsd._count._all,
     mrrNgn: mrrNgn._count._all,
     activeSubs,
-    trials,
     failedPayments: failed,
     revenueByCurrency: revenueByCurrency.map((r) => ({ currency: r.currency, amount: Number(r._sum.amount) })),
   });

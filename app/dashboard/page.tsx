@@ -12,7 +12,7 @@ import { RestartTourButton } from "@/components/ui/tour";
 import { formatCurrency } from "@/lib/currency";
 import { PaymentSuccessToast } from "@/components/ui/payment-success-toast";
 import { format } from "date-fns";
-import { currencyDisplay, normalizeCurrency } from "@/lib/payments/currency-allowlist";
+import { normalizeCurrency } from "@/lib/payments/currency-allowlist";
 import { LangText } from "@/components/ui/lang-text";
 import {
   Activity,
@@ -137,15 +137,12 @@ export default async function DashboardPage({
     INVOICE_DELETED: { en: "Invoice deleted", fr: "Facture supprimee", icon: FileText },
     SUBSCRIPTION_CREATED: { en: "Subscription started", fr: "Abonnement demarre", icon: CreditCard },
     SUBSCRIPTION_UPDATED: { en: "Subscription updated", fr: "Abonnement mis a jour", icon: CreditCard },
-    SUBSCRIPTION_CANCELED: { en: "Subscription canceled", fr: "Abonnement annule", icon: CreditCard },
+    SUBSCRIPTION_CANCELED: { en: "Subscription cancelled", fr: "Abonnement annule", icon: CreditCard },
     ADMIN_SUBSCRIPTION_CANCELED: {
-      en: "Subscription canceled by admin",
+      en: "Subscription cancelled by admin",
       fr: "Abonnement annule par admin",
       icon: CreditCard,
     },
-    TRIAL_STARTED: { en: "Trial started", fr: "Essai demarre", icon: CalendarClock },
-    TRIAL_EXPIRED: { en: "Trial expired", fr: "Essai expire", icon: CalendarClock },
-    TRIAL_CANCELED: { en: "Trial canceled", fr: "Essai annule", icon: CalendarClock },
     PLAN_INTENT: { en: "Plan selection", fr: "Choix de plan", icon: CreditCard },
     USER_SIGNIN: { en: "Signed in", fr: "Connexion", icon: Activity },
     USER_SIGNOUT: { en: "Signed out", fr: "Deconnexion", icon: Activity },
@@ -210,8 +207,7 @@ export default async function DashboardPage({
       } as const);
     const statusLabelMap: Record<string, { en: string; fr: string }> = {
       active: { en: "active", fr: "actif" },
-      trialing: { en: "trialing", fr: "essai" },
-      canceled: { en: "canceled", fr: "annule" },
+      canceled: { en: "cancelled", fr: "annule" },
       cancelled: { en: "cancelled", fr: "annule" },
       failed: { en: "failed", fr: "echec" },
       paid: { en: "paid", fr: "paye" },
@@ -222,9 +218,9 @@ export default async function DashboardPage({
     };
     const planLabelMap: Record<string, { en: string; fr: string }> = {
       free: { en: "free", fr: "gratuit" },
-      trial: { en: "trial", fr: "essai" },
       starter: { en: "starter", fr: "starter" },
       pro: { en: "pro", fr: "pro" },
+      premium: { en: "business", fr: "business" },
       enterprise: { en: "enterprise", fr: "entreprise" },
     };
     const descriptionEn =
@@ -264,7 +260,7 @@ export default async function DashboardPage({
   const selectedCurrency = (() => {
     if (candidateCurrency && availableCurrencies.includes(candidateCurrency)) return candidateCurrency;
     if (availableCurrencies.length > 0) return availableCurrencies[0];
-    return candidateCurrency || "NGN";
+    return candidateCurrency || "USD";
   })();
   const chartStart = new Date(now);
   chartStart.setDate(chartStart.getDate() - (rangeDays - 1));
@@ -309,9 +305,7 @@ export default async function DashboardPage({
     return suffix ? `/dashboard?${suffix}` : "/dashboard";
   };
   const formatCurrencyChip = (code: string) => {
-    const normalized = normalizeCurrency(code);
-    const meta = currencyDisplay[normalized as keyof typeof currencyDisplay];
-    return meta ? `${meta.flag} ${normalized}` : normalized;
+    return normalizeCurrency(code);
   };
   const systemLabelMap: Record<string, { en: string; fr: string }> = {
     API: { en: "API", fr: "API" },
@@ -371,8 +365,8 @@ export default async function DashboardPage({
         <Card title={t("Quick start", "Demarrage rapide")}>
           <p className="text-sm text-muted-foreground">
             {t(
-              "Start by creating your first automation or sending an invoice. Pro unlocks AI workflows and WhatsApp automations.",
-              "Commencez par creer votre premiere automatisation ou envoyer une facture. Pro debloque l IA et WhatsApp."
+              "Start by creating your first automation or sending an invoice. Paid plans unlock AI workflows and WhatsApp automations.",
+              "Commencez par creer votre premiere automatisation ou envoyer une facture. Les plans payants debloquent l IA et WhatsApp."
             )}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -386,7 +380,7 @@ export default async function DashboardPage({
             </Link>
             <Link href="/dashboard/subscription">
               <Button size="sm" variant="ghost">
-                {t("Upgrade to Pro", "Passer a Pro")}
+                {t("View plans", "Voir les plans")}
               </Button>
             </Link>
           </div>

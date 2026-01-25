@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -9,23 +9,33 @@ import { Alert } from "@/components/ui/alert";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { useLanguage } from "@/components/providers/language-provider";
+import { useSearchParams } from "next/navigation";
 
 export default function SignupPage() {
   const [form, setForm] = useState({
     name: "",
     email: "",
     password: "",
-    planIntent: "trial",
+    planIntent: "starter",
     autoRenew: false,
   });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
-  const [intent, setIntent] = useState<"trial" | "starter" | "pro">("trial");
+  const [intent, setIntent] = useState<"starter" | "pro" | "growth" | "business">("starter");
   const [loading, setLoading] = useState(false);
   const logoSrc = "/branding/Maboria%20Company%20logo.png";
   const { language } = useLanguage();
   const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const searchParams = useSearchParams();
+  const inviteToken = searchParams.get("invite") || undefined;
+  const inviteEmail = searchParams.get("email") || "";
+
+  useEffect(() => {
+    if (inviteEmail && !form.email) {
+      setForm((prev) => ({ ...prev, email: inviteEmail }));
+    }
+  }, [inviteEmail, form.email]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +50,7 @@ export default function SignupPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, email }),
+        body: JSON.stringify({ ...form, email, inviteToken }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -132,12 +142,10 @@ export default function SignupPage() {
             {error && <Alert variant="error">{error}</Alert>}
             {success && (
               <Alert variant="success">
-                {intent === "trial"
-                  ? t("Trial started. Please sign in to continue.", "Essai demarre. Connectez-vous pour continuer.")
-                  : t(
-                      "Account created. Please sign in to complete subscription.",
-                      "Compte cree. Connectez-vous pour finaliser l abonnement."
-                    )}
+                {t(
+                  "Account created. Please sign in to complete subscription.",
+                  "Compte cree. Connectez-vous pour finaliser l abonnement."
+                )}
                 {userId ? ` Your user ID: ${userId}.` : ""}
               </Alert>
             )}
@@ -180,26 +188,6 @@ export default function SignupPage() {
                 <input
                   type="radio"
                   name="planIntent"
-                  value="trial"
-                  checked={form.planIntent === "trial"}
-                  onChange={() => setForm({ ...form, planIntent: "trial" })}
-                />
-                <div>
-                  <p className="text-sm font-medium text-foreground">
-                    {t("Start 7-day free trial", "Demarrer essai 7 jours")}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {t(
-                      "Auto-renews to a paid plan unless cancelled.",
-                      "Renouvellement automatique sauf annulation."
-                    )}
-                  </p>
-                </div>
-              </label>
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-muted/40 p-3">
-                <input
-                  type="radio"
-                  name="planIntent"
                   value="starter"
                   checked={form.planIntent === "starter"}
                   onChange={() => setForm({ ...form, planIntent: "starter" })}
@@ -229,6 +217,46 @@ export default function SignupPage() {
                     {t(
                       "Unlock AI workflows and WhatsApp automation.",
                       "Debloquez IA et automatisation WhatsApp."
+                    )}
+                  </p>
+                </div>
+              </label>
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-muted/40 p-3">
+                <input
+                  type="radio"
+                  name="planIntent"
+                  value="growth"
+                  checked={form.planIntent === "growth"}
+                  onChange={() => setForm({ ...form, planIntent: "growth" })}
+                />
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {t("Subscribe to Growth", "S'abonner a Growth")}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t(
+                      "Best for growing operations with higher usage limits.",
+                      "Ideal pour operations en croissance avec limites plus elevees."
+                    )}
+                  </p>
+                </div>
+              </label>
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-muted/40 p-3">
+                <input
+                  type="radio"
+                  name="planIntent"
+                  value="business"
+                  checked={form.planIntent === "business"}
+                  onChange={() => setForm({ ...form, planIntent: "business" })}
+                />
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    {t("Subscribe to Business", "S'abonner a Business")}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t(
+                      "Best for teams of 1-10 scaling operations.",
+                      "Ideal pour equipes de 1 a 10 en croissance."
                     )}
                   </p>
                 </div>
@@ -263,15 +291,10 @@ export default function SignupPage() {
               required
             />
             <span>
-              {form.planIntent === "trial"
-                ? t(
-                    "I understand my trial will auto-renew unless I cancel before the renewal date.",
-                    "Je comprends que l'essai se renouvelle sauf annulation avant la date."
-                  )
-                : t(
-                    "I understand my subscription will auto-renew unless I cancel before the renewal date.",
-                    "Je comprends que l'abonnement se renouvelle sauf annulation avant la date."
-                  )}
+              {t(
+                "I understand my subscription will auto-renew unless I cancel before the renewal date.",
+                "Je comprends que l'abonnement se renouvelle sauf annulation avant la date."
+              )}
             </span>
           </label>
           <p className="text-xs text-muted-foreground">

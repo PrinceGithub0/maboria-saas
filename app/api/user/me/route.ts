@@ -47,7 +47,6 @@ export const GET = withRequestLogging(withErrorHandling(async () => {
             plan: "ENTERPRISE",
             status: "ACTIVE",
             renewalDate: new Date().toISOString(),
-            trialEndsAt: null,
             usageLimit: null,
             usagePeriod: "monthly",
             currency: user.preferredCurrency || "USD",

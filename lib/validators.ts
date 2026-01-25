@@ -1,10 +1,12 @@
 import { z } from "zod";
+import { countryCodes } from "./countries";
 
 export const signupSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(8),
-  planIntent: z.enum(["trial", "starter", "pro"]),
+  planIntent: z.enum(["starter", "pro", "growth", "business"]),
+  inviteToken: z.string().min(10).optional(),
   autoRenew: z.boolean().refine((val) => val === true, {
     message: "Auto-renew consent is required",
   }),
@@ -54,6 +56,11 @@ const optionalEmail = z.preprocess(
   z.string().email().optional()
 );
 
+const requiredEmail = z.preprocess(
+  (value) => (typeof value === "string" ? value.trim() : value),
+  z.string().min(1, "This field is required").email("Invalid email address")
+);
+
 const optionalString = z.preprocess(
   (value) => {
     if (typeof value !== "string") return value;
@@ -62,6 +69,35 @@ const optionalString = z.preprocess(
   },
   z.string().optional()
 );
+
+const optionalNonEmptyString = z.preprocess(
+  (value) => {
+    if (typeof value !== "string") return value;
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : undefined;
+  },
+  z.string().min(2).optional()
+);
+
+const E164_REGEX = /^\+[1-9]\d{7,14}$/;
+const optionalE164 = z.preprocess(
+  (value) => {
+    if (typeof value !== "string") return value;
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : undefined;
+  },
+  z.string().regex(E164_REGEX, "Invalid phone number").optional()
+);
+
+const requiredE164 = z.preprocess(
+  (value) => (typeof value === "string" ? value.trim() : value),
+  z.string().regex(E164_REGEX, "Invalid phone number")
+);
+
+const countryCodeSchema = z.string().length(2).refine((value) => {
+  const normalized = String(value || "").toUpperCase();
+  return countryCodes.includes(normalized);
+}, "Invalid country code");
 
 export const invoiceSchema = z.object({
   invoiceNumber: z.string().min(3),
@@ -116,22 +152,36 @@ export const businessSchema = z.object({
 
 export const businessProfileCreateSchema = z.object({
   businessName: z.string().min(2),
-  country: z.string().length(2),
+  country: countryCodeSchema,
   defaultCurrency: z.string().length(3),
-  businessAddress: z.string().min(3).optional(),
-  businessEmail: z.string().email().optional(),
-  businessPhone: z.string().min(6).optional(),
-  taxId: z.string().min(3).optional(),
+  businessAddress: optionalString,
+  businessEmail: requiredEmail,
+  businessPhone: requiredE164,
+  taxId: z.preprocess(
+    (value) => {
+      if (typeof value !== "string") return value;
+      const trimmed = value.trim();
+      return trimmed.length ? trimmed : undefined;
+    },
+    z.string().max(64).optional()
+  ),
 });
 
 export const businessProfileUpdateSchema = z.object({
-  businessName: z.string().min(2).optional(),
-  country: z.string().length(2).optional(),
+  businessName: optionalNonEmptyString,
+  country: countryCodeSchema.optional(),
   defaultCurrency: z.string().length(3).optional(),
-  businessAddress: z.string().min(3).optional(),
-  businessEmail: z.string().email().optional(),
-  businessPhone: z.string().min(6).optional(),
-  taxId: z.string().min(3).optional(),
+  businessAddress: optionalString,
+  businessEmail: optionalEmail,
+  businessPhone: optionalE164,
+  taxId: z.preprocess(
+    (value) => {
+      if (typeof value !== "string") return value;
+      const trimmed = value.trim();
+      return trimmed.length ? trimmed : undefined;
+    },
+    z.string().max(64).optional()
+  ),
 });
 
 export const merchantAccountSchema = z.object({
@@ -172,10 +222,9 @@ export const workflowSchema = z.object({
 });
 
 export const subscriptionSchema = z.object({
-  plan: z.enum(["STARTER", "GROWTH", "ENTERPRISE", "PREMIUM"]),
-  status: z.enum(["ACTIVE", "TRIALING", "PAST_DUE", "CANCELED", "INACTIVE"]).default("TRIALING"),
+  plan: z.enum(["STARTER", "PRO", "GROWTH", "BUSINESS", "ENTERPRISE", "PREMIUM"]),
+  status: z.enum(["ACTIVE", "PAST_DUE", "CANCELED", "INACTIVE"]).default("ACTIVE"),
   renewalDate: z.string(),
-  trialEndsAt: z.string().optional(),
   usageLimit: z.number().optional(),
   usagePeriod: z.string().optional(),
   currency: z

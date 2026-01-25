@@ -31,16 +31,10 @@ async function run() {
   }
   const meJson = JSON.parse(me.body || "{}");
   const plan = String(meJson.plan || "free").toLowerCase();
-  const subscriptions = Array.isArray(meJson.subscriptions) ? meJson.subscriptions : [];
-  const trialActive = subscriptions.some((sub) => {
-    if (!sub || sub.status !== "TRIALING") return false;
-    if (!sub.trialEndsAt) return true;
-    return new Date(sub.trialEndsAt).getTime() > Date.now();
-  });
 
-  const canAutomation = trialActive || ["starter", "pro", "enterprise"].includes(plan);
+  const canAutomation = ["starter", "pro", "business", "enterprise"].includes(plan);
   const canInvoices = canAutomation;
-  const canAI = !trialActive && ["pro", "enterprise"].includes(plan);
+  const canAI = ["pro", "business", "enterprise"].includes(plan);
 
   await expect("/api/automation", canAutomation ? 200 : 403);
   await expect("/api/invoice", canInvoices ? 200 : 403);

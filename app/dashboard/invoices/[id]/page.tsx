@@ -76,7 +76,7 @@ export default async function InvoiceDetailPage({ params, searchParams }: PagePr
   const entitlement = await enforceEntitlement(userId, {
     feature: "invoices",
     requiredPlan: "starter",
-    allowTrial: true,
+    allowTrial: false,
   });
   if (!entitlement.ok) {
     return (

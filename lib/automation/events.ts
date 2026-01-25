@@ -1,5 +1,12 @@
 import { prisma } from "../prisma";
 import { log } from "../logger";
+import {
+  enforceEntitlement,
+  enforceUsageLimit,
+  getUserPlan,
+  isPlanAtLeast,
+  requiredPlanForSteps,
+} from "../entitlements";
 
 const normalizeStatus = (value: unknown) => String(value || "").trim().toUpperCase();
 
@@ -43,8 +50,48 @@ export async function triggerInvoiceStatusAutomations({
   let triggered = 0;
   try {
     const { executeAutomationRun } = await import("./engine");
+    const plan = await getUserPlan(userId);
     for (const trigger of matched) {
       try {
+        const entitlement = await enforceEntitlement(userId, {
+          feature: "automations",
+          requiredPlan: "starter",
+          allowTrial: false,
+        });
+        if (!entitlement.ok) {
+          log("info", "invoice_status_trigger_blocked", {
+            userId,
+            flowId: trigger.flowId,
+            reason: entitlement.reason,
+            type: entitlement.type,
+          });
+          continue;
+        }
+
+        const required = requiredPlanForSteps((trigger.flow.steps as any[]) || []);
+        if (required && !isPlanAtLeast(plan, required.plan)) {
+          log("info", "invoice_status_trigger_blocked", {
+            userId,
+            flowId: trigger.flowId,
+            reason: required.reason,
+            requiredPlan: required.plan,
+          });
+          continue;
+        }
+
+        const usage = await enforceUsageLimit(userId, "automationRuns");
+        if (!usage.ok) {
+          log("info", "invoice_status_trigger_blocked", {
+            userId,
+            flowId: trigger.flowId,
+            reason: "Automation run limit reached",
+            plan: usage.plan,
+            limit: usage.limit,
+            used: usage.used,
+          });
+          continue;
+        }
+
         await executeAutomationRun(trigger.flow as any, {
           event: "invoice_status",
           invoice: { id: invoiceId, invoiceNumber, status: normalized },

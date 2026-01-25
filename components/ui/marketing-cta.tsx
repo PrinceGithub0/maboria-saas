@@ -4,7 +4,6 @@ import Link from "next/link";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { TRIAL_DAYS } from "@/lib/pricing";
 import { useLanguage } from "@/components/providers/language-provider";
 
 const fetcher = async (url: string) => {
@@ -15,24 +14,11 @@ const fetcher = async (url: string) => {
 
 function isCanceledOrExpired(subs: any[]) {
   if (!subs.length) return false;
-  const now = Date.now();
-  const hasActiveOrTrial = subs.some((sub) => {
-    if (sub?.status === "ACTIVE") return true;
-    if (sub?.status === "TRIALING") {
-      if (!sub?.trialEndsAt) return true;
-      const trialEnd = new Date(sub.trialEndsAt).getTime();
-      return trialEnd >= now;
-    }
-    return false;
-  });
+  const hasActive = subs.some((sub) => sub?.status === "ACTIVE");
   const hasCanceled = subs.some((sub) => ["CANCELED", "INACTIVE"].includes(sub?.status));
   const hasPastDue = subs.some((sub) => sub?.status === "PAST_DUE");
-  const hasExpiredTrial = subs.some((sub) => {
-    if (sub?.status !== "TRIALING" || !sub?.trialEndsAt) return false;
-    return new Date(sub.trialEndsAt).getTime() < now;
-  });
 
-  return !hasActiveOrTrial && (hasCanceled || hasPastDue || hasExpiredTrial);
+  return !hasActive && (hasCanceled || hasPastDue);
 }
 
 type Variant = "hero" | "header" | "mobileCard" | "mobileBar";
@@ -90,7 +76,7 @@ export function MarketingCta({ variant }: { variant: Variant }) {
     return (
       <div className="mt-3 flex flex-col gap-2">
         <Link href="/signup">
-          <Button className="w-full">{t("Create free account", "Creer un compte gratuit")}</Button>
+          <Button className="w-full">{t("Create account", "Creer un compte")}</Button>
         </Link>
         <Link href="/login">
           <Button variant="secondary" className="w-full">
@@ -147,8 +133,8 @@ export function MarketingCta({ variant }: { variant: Variant }) {
         </div>
         <p className="text-sm text-muted-foreground max-md:text-xs">
           {t(
-            "Your trial ended or your subscription was cancelled. Choose a plan to continue.",
-            "Votre essai est termine ou votre abonnement est annule. Choisissez une offre."
+            "Your subscription is cancelled or inactive. Choose a plan to continue.",
+            "Votre abonnement est annule ou inactif. Choisissez une offre."
           )}
         </p>
       </>
@@ -160,7 +146,7 @@ export function MarketingCta({ variant }: { variant: Variant }) {
       <div className="flex flex-wrap gap-3 max-md:flex-col max-md:items-stretch">
         <Link href="/signup">
           <Button size="md" className="max-md:w-full">
-            {t("Start free trial", "Demarrer l essai gratuit")}
+            {t("Get started", "Commencer")}
           </Button>
         </Link>
         <Link href="/pricing">
@@ -169,12 +155,6 @@ export function MarketingCta({ variant }: { variant: Variant }) {
           </Button>
         </Link>
       </div>
-      <p className="text-sm text-muted-foreground max-md:text-xs">
-        {t(
-          `No credit card required. Trial is ${TRIAL_DAYS} days.`,
-          `Aucune carte requise. Essai de ${TRIAL_DAYS} jours.`
-        )}
-      </p>
     </>
   );
 }

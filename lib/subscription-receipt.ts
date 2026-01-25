@@ -13,9 +13,9 @@ const logoPath = path.join(process.cwd(), "public", "branding", "Maboria Company
 
 const issuer = {
   name: process.env.SUBSCRIPTION_RECEIPT_NAME || "Maboria",
-  address: process.env.SUBSCRIPTION_RECEIPT_ADDRESS || "100 Alexander Avenue, Ikoyi, Lagos, Nigeria",
+  address: process.env.SUBSCRIPTION_RECEIPT_ADDRESS || "Address on file",
   email: process.env.SUBSCRIPTION_RECEIPT_EMAIL || "info@maboria.com",
-  phone: process.env.SUBSCRIPTION_RECEIPT_PHONE || "+2347063310000",
+  phone: process.env.SUBSCRIPTION_RECEIPT_PHONE || "Phone on file",
 };
 
 function ensureFontPath() {
@@ -220,8 +220,14 @@ export async function maybeSendSubscriptionReceipt({
   }
 
   const planLabel =
-    plan === "GROWTH"
+    plan === "PRO"
       ? "Pro"
+      : plan === "GROWTH"
+        ? "Growth"
+      : plan === "BUSINESS"
+        ? "Business"
+      : plan === "PREMIUM"
+        ? "Business"
       : plan === "STARTER"
         ? "Starter"
         : plan === "ENTERPRISE"

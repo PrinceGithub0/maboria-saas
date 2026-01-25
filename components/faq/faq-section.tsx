@@ -66,8 +66,8 @@ const faqs: FaqItem[] = [
     categoryId: "what",
     question: { en: "What is Maboria?", fr: "Qu est-ce que Maboria ?" },
     answer: {
-      en: "Maboria is a web app for managing workflows, customers, invoices, payments, subscriptions, and notifications in one place. It's built for African businesses. You use it from a dashboard after signing in.",
-      fr: "Maboria est une application pour gerer workflows, clients, factures, paiements, abonnements et notifications au meme endroit. Elle est adaptee aux entreprises africaines. Vous l utilisez depuis un tableau de bord apres connexion.",
+      en: "Maboria is a web app for managing workflows, customers, invoices, payments, subscriptions, and notifications in one place. It's built for modern businesses. You use it from a dashboard after signing in.",
+      fr: "Maboria est une application pour gerer workflows, clients, factures, paiements, abonnements et notifications au meme endroit. Elle est adaptee aux entreprises modernes. Vous l utilisez depuis un tableau de bord apres connexion.",
     },
   },
   {

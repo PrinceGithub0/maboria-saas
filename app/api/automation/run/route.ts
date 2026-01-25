@@ -11,6 +11,7 @@ import {
   enforceUsageLimit,
   getUserPlan,
   isPlanAtLeast,
+  nextPlanAfter,
 } from "@/lib/entitlements";
 
 export const POST = withErrorHandling(async (req: Request) => {
@@ -26,7 +27,7 @@ export const POST = withErrorHandling(async (req: Request) => {
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "automations",
     requiredPlan: "starter",
-    allowTrial: true,
+    allowTrial: false,
   });
   if (!entitlement.ok) {
     return NextResponse.json(
@@ -58,7 +59,7 @@ export const POST = withErrorHandling(async (req: Request) => {
         error: "Upgrade required",
         type: "limit_reached",
         reason: "Automation run limit reached for this month",
-        requiredPlan: usage.plan === "free" ? "starter" : "pro",
+        requiredPlan: nextPlanAfter(usage.plan),
         plan: usage.plan,
         limit: usage.limit,
         used: usage.used,
@@ -80,7 +81,7 @@ export const POST = withErrorHandling(async (req: Request) => {
   if (usesAi) {
     const aiEntitlement = await enforceEntitlement(session.user.id, {
       feature: "ai",
-      requiredPlan: "pro",
+      requiredPlan: "starter",
       allowTrial: false,
     });
     if (!aiEntitlement.ok) {
@@ -88,9 +89,9 @@ export const POST = withErrorHandling(async (req: Request) => {
         {
           error: "Upgrade required",
           type: aiEntitlement.type,
-          requiredPlan: "pro",
+          requiredPlan: aiEntitlement.requiredPlan ?? "starter",
           plan,
-          reason: "AI steps are a Pro feature",
+          reason: "AI steps are a Starter feature",
         },
         { status: 403 }
       );
@@ -100,7 +101,7 @@ export const POST = withErrorHandling(async (req: Request) => {
   if (usesWhatsApp) {
     const whatsappEntitlement = await enforceEntitlement(session.user.id, {
       feature: "whatsapp",
-      requiredPlan: "pro",
+      requiredPlan: "starter",
       allowTrial: false,
     });
     if (!whatsappEntitlement.ok) {
@@ -108,9 +109,9 @@ export const POST = withErrorHandling(async (req: Request) => {
         {
           error: "Upgrade required",
           type: whatsappEntitlement.type,
-          requiredPlan: "pro",
+          requiredPlan: whatsappEntitlement.requiredPlan ?? "starter",
           plan,
-          reason: "WhatsApp automation is a Pro feature",
+          reason: "WhatsApp automation is a Starter feature",
         },
         { status: 403 }
       );
@@ -119,7 +120,34 @@ export const POST = withErrorHandling(async (req: Request) => {
 
   const result = await executeAutomationRun(flow, input || {});
   if ((result as any).status === "FAILED") {
-    if (isPlanAtLeast(plan, "pro")) {
+    if (isPlanAtLeast(plan, "starter")) {
+      const aiUsage = await enforceUsageLimit(session.user.id, "aiRequests", false);
+      if (!aiUsage.ok) {
+        if (aiUsage.code === "payment_required") {
+          return NextResponse.json(
+            {
+              error: "Payment required",
+              type: "payment_required",
+              reason: "Active subscription required to use AI",
+              plan: aiUsage.plan,
+            },
+            { status: 403 }
+          );
+        }
+        return NextResponse.json(
+          {
+            error: "Upgrade required",
+            type: "limit_reached",
+            reason: "AI usage limit reached for this month",
+            requiredPlan: nextPlanAfter(aiUsage.plan),
+            plan: aiUsage.plan,
+            limit: aiUsage.limit,
+            used: aiUsage.used,
+          },
+          { status: 402 }
+        );
+      }
+
       const diagnosis = await aiRouter({
         mode: "diagnose",
         prompt: "Diagnose automation failure",

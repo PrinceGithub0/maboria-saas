@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getUsageCountThisMonth } from "@/lib/entitlements";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -23,33 +24,32 @@ export async function GET() {
   });
 
   const now = new Date();
-  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0));
   const [automationRuns, invoices, aiRequests] = await Promise.all([
-    prisma.automationRun.count({ where: { userId: session.user.id, createdAt: { gte: start } } }),
-    prisma.invoice.count({ where: { userId: session.user.id, generatedAt: { gte: start } } }),
-    prisma.aiUsageLog.count({ where: { userId: session.user.id, createdAt: { gte: start } } }),
+    getUsageCountThisMonth(session.user.id, "automationRuns"),
+    getUsageCountThisMonth(session.user.id, "invoices"),
+    getUsageCountThisMonth(session.user.id, "aiRequests"),
   ]);
-  const currentKey = `${start.getUTCFullYear()}-${String(start.getUTCMonth() + 1).padStart(2, "0")}`;
+  const currentKey = now.toISOString().slice(0, 7);
   const existingKeys = new Set(
     usage.map((row) => `${row.category}:${row.createdAt.toISOString().slice(0, 7)}`)
   );
   const summary = [
     {
-      id: `summary-automation-${start.toISOString()}`,
+      id: `summary-automation-${currentKey}`,
       category: "Automation runs",
       amount: automationRuns,
       period: "monthly",
       createdAt: now,
     },
     {
-      id: `summary-invoices-${start.toISOString()}`,
+      id: `summary-invoices-${currentKey}`,
       category: "Invoices",
       amount: invoices,
       period: "monthly",
       createdAt: now,
     },
     {
-      id: `summary-ai-${start.toISOString()}`,
+      id: `summary-ai-${currentKey}`,
       category: "AI requests",
       amount: aiRequests,
       period: "monthly",

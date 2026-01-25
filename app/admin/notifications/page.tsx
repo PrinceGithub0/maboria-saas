@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Table } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLanguage } from "@/components/providers/language-provider";
+import { translateNotificationMessage } from "@/lib/notifications/translate";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -76,7 +77,15 @@ export default function AdminNotificationsPage() {
                   </span>
                 ),
               },
-              { key: "message", label: t("Message", "Message") },
+              {
+                key: "message",
+                label: t("Message", "Message"),
+                render: (row: any) =>
+                  translateNotificationMessage({
+                    message: row.message,
+                    language: language === "fr" ? "fr" : "en",
+                  }),
+              },
               {
                 key: "createdAt",
                 label: t("Time", "Heure"),

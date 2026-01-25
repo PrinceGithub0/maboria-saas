@@ -40,11 +40,10 @@ export const POST = withErrorHandling(async (req: Request) => {
 
   const now = new Date();
   const result = await prisma.subscription.updateMany({
-    where: { userId: user.id, status: { in: ["ACTIVE", "TRIALING", "PAST_DUE"] } },
+    where: { userId: user.id, status: { in: ["ACTIVE", "PAST_DUE"] } },
     data: {
       status: "CANCELED",
       renewalDate: now,
-      trialEndsAt: now,
       cancellationReason: "Admin cancellation",
     },
   });

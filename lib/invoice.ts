@@ -14,6 +14,7 @@ import { formatDateDMY } from "./date";
 import { ensureInvoicePaymentLink } from "./invoice-payments";
 import { triggerInvoiceStatusAutomations } from "./automation/events";
 import { STANDARD_VAT_RATE } from "./vat";
+import { enforceEntitlement, enforceUsageLimit } from "./entitlements";
 
 export type InvoiceItem = {
   name: string;
@@ -121,6 +122,25 @@ export async function createInvoiceRecord({
   issueDate?: Date;
   dueDate?: Date;
 }) {
+  const entitlement = await enforceEntitlement(userId, {
+    feature: "invoices",
+    requiredPlan: "starter",
+    allowTrial: false,
+  });
+  if (!entitlement.ok) {
+    const error = new Error(entitlement.reason || "Access denied");
+    (error as any).status = 403;
+    throw error;
+  }
+
+  const usage = await enforceUsageLimit(userId, "invoices");
+  if (!usage.ok) {
+    const error = new Error("Invoice limit reached for this month");
+    (error as any).status = usage.code === "payment_required" ? 403 : 402;
+    (error as any).code = "limit_reached";
+    throw error;
+  }
+
   const normalizedStatus = String(status || "DRAFT").toUpperCase();
   const profile = await prisma.businessProfile.findUnique({
     where: { userId },

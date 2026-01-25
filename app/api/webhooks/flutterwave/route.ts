@@ -8,7 +8,7 @@ import {
   verifyFlutterwaveTransactionByReference,
 } from "@/lib/payments/flutterwave";
 import { recordInvoicePayment } from "@/lib/invoice-payments";
-import { getPlanFromAmount, getPlanPriceForCurrency } from "@/lib/pricing";
+import { getPlanFromAmount, getPlanPriceForInterval, type BillingInterval } from "@/lib/pricing";
 import {
   beginWebhookEvent,
   hashWebhookPayload,
@@ -101,8 +101,11 @@ export const POST = withErrorHandling(async (req: Request) => {
     const userId = data?.meta?.userId as string | undefined;
     const customerEmail = data?.customer?.email as string | undefined;
     const rawPlan = String(data?.meta?.plan || "").toUpperCase();
-    let plan = (["STARTER", "GROWTH", "PREMIUM", "ENTERPRISE"].includes(rawPlan)
-      ? (rawPlan as SubscriptionPlan)
+    const normalizedPlan = rawPlan === "PREMIUM" ? "BUSINESS" : rawPlan;
+    const rawInterval = String(data?.meta?.interval || "");
+    const interval: BillingInterval = rawInterval === "yearly" ? "yearly" : "monthly";
+    let plan = (["STARTER", "PRO", "GROWTH", "BUSINESS", "ENTERPRISE"].includes(normalizedPlan)
+      ? (normalizedPlan as SubscriptionPlan)
       : null);
 
     let resolvedUserId = userId;
@@ -145,9 +148,20 @@ export const POST = withErrorHandling(async (req: Request) => {
       return NextResponse.json({ received: true, needsReview: true });
     }
 
-    const expected = getPlanPriceForCurrency(plan as "STARTER" | "GROWTH" | "ENTERPRISE", currency);
+    const expected = getPlanPriceForInterval(
+      plan as "STARTER" | "PRO" | "GROWTH" | "BUSINESS" | "PREMIUM" | "ENTERPRISE",
+      currency,
+      interval
+    );
     if (expected == null || Math.abs(amount - expected) > 0.01) {
-      log("warn", "flutterwave_amount_mismatch", { userId: resolvedUserId, txRef, currency, amount, expected });
+      log("warn", "flutterwave_amount_mismatch", {
+        userId: resolvedUserId,
+        txRef,
+        currency,
+        amount,
+        expected,
+        interval,
+      });
       await markWebhookFailed(webhookEvent.id, "Amount verification failed");
       return NextResponse.json({ error: "Amount verification failed" }, { status: 400 });
     }
@@ -155,7 +169,10 @@ export const POST = withErrorHandling(async (req: Request) => {
     const oldPlan = await getUserPlan(resolvedUserId);
     await recordFlutterwavePayment({ ...data, meta: { ...(data?.meta || {}), userId: resolvedUserId, plan } });
 
-    const renewalDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const renewalDate =
+      interval === "yearly"
+        ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     let subscriptionId: string | null = null;
     await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${resolvedUserId}))`;
@@ -166,7 +183,7 @@ export const POST = withErrorHandling(async (req: Request) => {
       if (existingForPlan) {
         await tx.subscription.update({
           where: { id: existingForPlan.id },
-          data: { status: "ACTIVE", renewalDate, currency },
+          data: { status: "ACTIVE", renewalDate, currency, interval },
         });
         subscriptionId = existingForPlan.id;
       } else {
@@ -177,7 +194,7 @@ export const POST = withErrorHandling(async (req: Request) => {
             status: "ACTIVE",
             renewalDate,
             currency,
-            interval: "monthly",
+            interval,
           },
         });
         subscriptionId = created.id;

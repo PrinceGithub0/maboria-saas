@@ -12,7 +12,7 @@ export const GET = withErrorHandling(async () => {
 
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "whatsapp",
-    requiredPlan: "pro",
+    requiredPlan: "starter",
     allowTrial: false,
   });
   if (!entitlement.ok) {

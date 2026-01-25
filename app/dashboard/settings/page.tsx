@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import useSWR from "swr";
 import Image from "next/image";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
+import { CountrySelect } from "@/components/ui/country-select";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { allowedCurrencies, formatCurrencyOption } from "@/lib/payments/currency-allowlist";
-import { getTaxIdLabel } from "@/lib/tax-labels";
 import { useLanguage } from "@/components/providers/language-provider";
+import { formatBusinessAddress, hasRequiredAddress, parseBusinessAddress } from "@/lib/address";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 const profileFetcher = async (url: string) => {
@@ -40,11 +42,20 @@ export default function SettingsPage() {
   const [payoutBankCode, setPayoutBankCode] = useState("");
   const [payoutAccountNumber, setPayoutAccountNumber] = useState("");
   const [payoutAccountName, setPayoutAccountName] = useState("");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const [logoInfoOpen, setLogoInfoOpen] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
+  const logoInfoRef = useRef<HTMLSpanElement | null>(null);
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
   const [businessForm, setBusinessForm] = useState({
     businessName: "",
-    country: "NG",
+    country: "US",
     defaultCurrency: "USD",
-    businessAddress: "",
+    streetAddress: "",
+    city: "",
+    postalCode: "",
     businessEmail: "",
     businessPhone: "",
     taxId: "",
@@ -59,43 +70,11 @@ export default function SettingsPage() {
   const enabled = Boolean(totpStatus?.enabled);
   const businessProfile = businessProfileResponse?.data;
   const businessExists = Boolean(businessProfile?.id);
-  const taxLabel = getTaxIdLabel(businessForm.country);
   const payoutBankUrl = `/api/merchant-account/banks?provider=${payoutProvider}&country=${businessForm.country}&currency=${businessForm.defaultCurrency}`;
   const { data: payoutBanks } = useSWR(payoutBankUrl, fetcher);
 
-  const businessCountryOptions = [
-    { code: "NG", label: "Nigeria (NG)" },
-    { code: "GH", label: "Ghana (GH)" },
-    { code: "KE", label: "Kenya (KE)" },
-    { code: "ZA", label: "South Africa (ZA)" },
-    { code: "CI", label: "Cote d'Ivoire (CI)" },
-    { code: "EG", label: "Egypt (EG)" },
-    { code: "RW", label: "Rwanda (RW)" },
-    { code: "UG", label: "Uganda (UG)" },
-    { code: "TZ", label: "Tanzania (TZ)" },
-    { code: "ZM", label: "Zambia (ZM)" },
-    { code: "MZ", label: "Mozambique (MZ)" },
-    { code: "US", label: "United States (US)" },
-    { code: "GB", label: "United Kingdom (GB)" },
-    { code: "EU", label: "Europe (EU)" },
-  ];
   const businessCurrencyOptions = allowedCurrencies.map((code) => ({ code, label: formatCurrencyOption(code) }));
-  const currencyToCountry: Record<string, string> = {
-    NGN: "NG",
-    GHS: "GH",
-    KES: "KE",
-    ZAR: "ZA",
-    XOF: "CI",
-    EGP: "EG",
-    RWF: "RW",
-    UGX: "UG",
-    TZS: "TZ",
-    ZMW: "ZM",
-    MZN: "MZ",
-    USD: "US",
-    GBP: "GB",
-    EUR: "EU",
-  };
+  const requiredMessage = t("This field is required", "This field is required");
 
   useEffect(() => {
     if (me?.name || me?.email) {
@@ -105,11 +84,14 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (businessProfile?.id) {
+      const parsedAddress = parseBusinessAddress(businessProfile.businessAddress);
       setBusinessForm({
         businessName: businessProfile.businessName || "",
-        country: businessProfile.country || "NG",
+        country: businessProfile.country || "US",
         defaultCurrency: businessProfile.defaultCurrency || "USD",
-        businessAddress: businessProfile.businessAddress || "",
+        streetAddress: parsedAddress.streetAddress || "",
+        city: parsedAddress.city || "",
+        postalCode: parsedAddress.postalCode || "",
         businessEmail: businessProfile.businessEmail || "",
         businessPhone: businessProfile.businessPhone || "",
         taxId: businessProfile.taxId || "",
@@ -127,6 +109,33 @@ export default function SettingsPage() {
   ]);
 
   useEffect(() => {
+    if (logoFile) {
+      const url = URL.createObjectURL(logoFile);
+      setLogoPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }
+    if (businessProfile?.logoUrl) {
+      setLogoPreviewUrl(String(businessProfile.logoUrl));
+      return;
+    }
+    setLogoPreviewUrl(null);
+  }, [logoFile, businessProfile?.logoUrl]);
+
+  useEffect(() => {
+    if (!logoInfoOpen) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!logoInfoRef.current) return;
+      if (!logoInfoRef.current.contains(event.target as Node)) {
+        setLogoInfoOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+    };
+  }, [logoInfoOpen]);
+
+  useEffect(() => {
     if (businessProfile?.id) return;
     if (!me?.preferredCurrency) return;
     const preferred = String(me.preferredCurrency).toUpperCase();
@@ -134,7 +143,6 @@ export default function SettingsPage() {
     setBusinessForm((prev) => ({
       ...prev,
       defaultCurrency: preferred,
-      country: currencyToCountry[preferred] || prev.country,
     }));
   }, [businessProfile?.id, me?.preferredCurrency]);
 
@@ -236,10 +244,46 @@ export default function SettingsPage() {
   const saveBusinessProfile = async () => {
     setBusinessStatus(null);
     setBusinessError(null);
+    setLogoError(null);
+    if (!businessForm.businessName.trim()) {
+      setBusinessError(requiredMessage);
+      return;
+    }
+    if (!businessForm.country.trim() || !businessForm.defaultCurrency.trim()) {
+      setBusinessError(requiredMessage);
+      return;
+    }
+    if (!businessForm.businessEmail.trim()) {
+      setBusinessError(requiredMessage);
+      return;
+    }
+    if (!businessForm.businessPhone.trim()) {
+      setBusinessError(requiredMessage);
+      return;
+    }
+    const addressFields = {
+      streetAddress: businessForm.streetAddress,
+      city: businessForm.city,
+      postalCode: businessForm.postalCode,
+    };
+    if (!hasRequiredAddress(addressFields)) {
+      setBusinessError(requiredMessage);
+      return;
+    }
+    const formattedAddress = formatBusinessAddress(addressFields);
+    const payload = {
+      businessName: businessForm.businessName,
+      country: businessForm.country,
+      defaultCurrency: businessForm.defaultCurrency,
+      businessAddress: formattedAddress,
+      businessEmail: businessForm.businessEmail,
+      businessPhone: businessForm.businessPhone,
+      taxId: businessForm.taxId,
+    };
     const res = await fetch("/api/business-profile", {
       method: businessExists ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(businessForm),
+      body: JSON.stringify(payload),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -252,6 +296,44 @@ export default function SettingsPage() {
         : t("Business profile saved.", "Profil entreprise enregistre.")
     );
     refreshBusinessProfile();
+    if (logoFile) {
+      setLogoUploading(true);
+      try {
+        const formData = new FormData();
+        formData.append("logo", logoFile);
+        const uploadRes = await fetch("/api/business-profile/logo", {
+          method: "POST",
+          body: formData,
+        });
+        const uploadData = await uploadRes.json().catch(() => ({}));
+        if (!uploadRes.ok) {
+          setLogoError(uploadData.error || t("Logo upload failed.", "Echec du televersement du logo."));
+        } else {
+          setLogoFile(null);
+          refreshBusinessProfile();
+        }
+      } catch {
+        setLogoError(t("Logo upload failed.", "Echec du televersement du logo."));
+      } finally {
+        setLogoUploading(false);
+      }
+    }
+  };
+
+  const removeBusinessLogo = async () => {
+    setLogoError(null);
+    setLogoFile(null);
+    try {
+      const res = await fetch("/api/business-profile/logo", { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setLogoError(data.error || t("Could not remove logo.", "Impossible de supprimer le logo."));
+        return;
+      }
+      refreshBusinessProfile();
+    } catch {
+      setLogoError(t("Could not remove logo.", "Impossible de supprimer le logo."));
+    }
   };
 
   const createPayoutAccount = async () => {
@@ -345,26 +427,25 @@ export default function SettingsPage() {
       <Card title={t("Business profile", "Profil entreprise")}>
         {businessStatus && <Alert variant="success">{businessStatus}</Alert>}
         {businessError && <Alert variant="error">{businessError}</Alert>}
+        {logoError && <Alert variant="error">{logoError}</Alert>}
         <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1 max-md:gap-3">
           <Input
             label={t("Business name", "Nom de l entreprise")}
             value={businessForm.businessName}
             onChange={(e) => setBusinessForm({ ...businessForm, businessName: e.target.value })}
+            onFocus={(e) => {
+              const length = e.currentTarget.value.length;
+              e.currentTarget.setSelectionRange(length, length);
+            }}
+            required
           />
-          <label className="flex flex-col gap-1 text-sm text-foreground">
-            {t("Country", "Pays")}
-            <select
-              value={businessForm.country}
-              onChange={(e) => setBusinessForm({ ...businessForm, country: e.target.value })}
-              className="rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:border-indigo-400 focus:outline-none"
-            >
-              {businessCountryOptions.map((option) => (
-                <option key={option.code} value={option.code}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <CountrySelect
+            label={t("Country", "Pays")}
+            value={businessForm.country}
+            locale={language === "fr" ? "fr" : "en"}
+            required
+            onChange={(value) => setBusinessForm({ ...businessForm, country: value })}
+          />
           <label className="flex flex-col gap-1 text-sm text-foreground">
             {t("Default currency", "Devise par defaut")}
             <select
@@ -384,23 +465,106 @@ export default function SettingsPage() {
             type="email"
             value={businessForm.businessEmail}
             onChange={(e) => setBusinessForm({ ...businessForm, businessEmail: e.target.value })}
+            required
           />
-          <Input
+          <PhoneInput
             label={t("Business phone", "Telephone entreprise")}
             value={businessForm.businessPhone}
-            onChange={(e) => setBusinessForm({ ...businessForm, businessPhone: e.target.value })}
+            required
+            locale={language === "fr" ? "fr" : "en"}
+            onChange={(value) => setBusinessForm({ ...businessForm, businessPhone: value })}
           />
           <Input
-            label={t("Business address", "Adresse entreprise")}
-            value={businessForm.businessAddress}
-            onChange={(e) => setBusinessForm({ ...businessForm, businessAddress: e.target.value })}
+            label={t("Street address", "Adresse")}
+            value={businessForm.streetAddress}
+            onChange={(e) => setBusinessForm({ ...businessForm, streetAddress: e.target.value })}
+            required
           />
           <Input
-            label={`${taxLabel.long} ${t("(optional)", "(optionnel)")}`}
+            label={t("City", "Ville")}
+            value={businessForm.city}
+            onChange={(e) => setBusinessForm({ ...businessForm, city: e.target.value })}
+            required
+          />
+          <Input
+            label={t("Postal code / ZIP (optional)", "Code postal / ZIP (optionnel)")}
+            value={businessForm.postalCode}
+            onChange={(e) => setBusinessForm({ ...businessForm, postalCode: e.target.value })}
+          />
+          <label className="col-span-2 flex flex-col gap-1 text-sm text-foreground max-md:order-9 max-md:col-span-1 md:col-span-1">
+            <span className="flex items-center gap-2">
+              {t("Business logo (optional)", "Logo entreprise (optionnel)")}
+              <span ref={logoInfoRef} className="relative">
+                <button
+                  type="button"
+                  aria-label={t("Logo upload info", "Infos televersement logo")}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setLogoInfoOpen((open) => !open);
+                  }}
+                  className="flex h-5 w-5 items-center justify-center rounded-full border border-border text-[10px] font-semibold text-muted-foreground"
+                >
+                  i
+                </button>
+                <div
+                  className={`absolute right-0 top-7 z-20 w-48 rounded-lg border border-border bg-background px-3 py-2 text-[11px] text-foreground shadow-lg transition ${
+                    logoInfoOpen ? "opacity-100" : "pointer-events-none opacity-0"
+                  }`}
+                >
+                  <div>{t("Accepted formats: PNG, JPG, SVG", "Formats acceptes : PNG, JPG, SVG")}</div>
+                  <div>{t("Max size: 2MB", "Taille max : 2MB")}</div>
+                </div>
+              </span>
+            </span>
+            <input
+              type="file"
+              accept=".png,.jpg,.jpeg,.svg"
+              onChange={(e) => setLogoFile(e.target.files?.[0] || null)}
+              disabled={logoUploading}
+              ref={logoInputRef}
+              className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground file:mr-4 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-sm file:font-semibold"
+            />
+            {logoPreviewUrl && (
+              <div className="mt-2 flex flex-col gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 overflow-hidden rounded-xl border border-transparent bg-white ring-1 ring-border max-md:rounded-2xl">
+                    <img
+                      src={logoPreviewUrl}
+                      alt={t("Business logo preview", "Apercu du logo")}
+                      className="h-full w-full object-contain"
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <button
+                      type="button"
+                      onClick={() => logoInputRef.current?.click()}
+                      className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-foreground"
+                    >
+                      {t("Change logo", "Modifier le logo")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={removeBusinessLogo}
+                      className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-foreground"
+                    >
+                      {t("Remove logo", "Supprimer le logo")}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </label>
+          <Input
+            label={t("Tax ID (optional)", "ID fiscal (optionnel)")}
             value={businessForm.taxId}
             onChange={(e) => setBusinessForm({ ...businessForm, taxId: e.target.value })}
+            onFocus={(e) => {
+              const length = e.currentTarget.value.length;
+              e.currentTarget.setSelectionRange(length, length);
+            }}
+            className="max-md:order-8"
           />
-          <div className="col-span-2 max-md:col-span-1">
+          <div className="col-span-2 max-md:col-span-1 max-md:order-10">
             <Button className="max-md:w-full" onClick={saveBusinessProfile}>
               {businessExists
                 ? t("Update business profile", "Mettre a jour le profil entreprise")

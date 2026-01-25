@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { log } from "@/lib/logger";
 import { SubscriptionStatus } from "@prisma/client";
 
-export type UserPlan = "free" | "starter" | "pro" | "enterprise";
+export type UserPlan = "free" | "starter" | "pro" | "growth" | "business" | "enterprise";
 export type EntitlementStatus = SubscriptionStatus | "INACTIVE";
 export type EntitlementFeature = "dashboard" | "automations" | "workflows" | "invoices" | "ai" | "whatsapp";
 
@@ -22,20 +22,45 @@ const planRank: Record<UserPlan, number> = {
   free: 0,
   starter: 1,
   pro: 2,
-  enterprise: 3,
+  growth: 3,
+  business: 4,
+  enterprise: 5,
 };
 
 export function isPlanAtLeast(current: UserPlan, required: UserPlan) {
   return planRank[current] >= planRank[required];
 }
 
+export function nextPlanAfter(plan: UserPlan): UserPlan {
+  switch (plan) {
+    case "free":
+      return "starter";
+    case "starter":
+      return "pro";
+    case "pro":
+      return "growth";
+    case "growth":
+      return "business";
+    case "business":
+      return "enterprise";
+    case "enterprise":
+    default:
+      return "enterprise";
+  }
+}
+
 export function subscriptionPlanToUserPlan(plan?: string | null): UserPlan {
   switch ((plan || "").toUpperCase()) {
     case "STARTER":
       return "starter";
-    case "GROWTH":
-    case "PREMIUM":
+    case "PRO":
       return "pro";
+    case "GROWTH":
+      return "growth";
+    case "BUSINESS":
+      return "business";
+    case "PREMIUM":
+      return "business";
     case "ENTERPRISE":
       return "enterprise";
     default:
@@ -51,7 +76,7 @@ export async function getUserPlan(userId: string): Promise<UserPlan> {
   }
 
   const sub = await prisma.subscription.findFirst({
-    where: { userId, status: { in: ["ACTIVE", "TRIALING"] } },
+    where: { userId, status: "ACTIVE" },
     orderBy: { createdAt: "desc" },
   });
 
@@ -59,13 +84,8 @@ export async function getUserPlan(userId: string): Promise<UserPlan> {
     log("info", "plan_resolved", { userId, plan: "free", reason: "no_active_subscription" });
     return "free";
   }
-  if (sub.status === "TRIALING" && sub.trialEndsAt && sub.trialEndsAt.getTime() < Date.now()) {
-    log("info", "plan_resolved", { userId, plan: "free", reason: "trial_expired", subId: sub.id });
-    return "free";
-  }
-
   const plan = subscriptionPlanToUserPlan(sub.plan);
-  if ((sub.status === "ACTIVE" || sub.status === "TRIALING") && plan === "free") {
+  if (sub.status === "ACTIVE" && plan === "free") {
     log("warn", "plan_invariant_violation", {
       userId,
       status: sub.status,
@@ -113,30 +133,7 @@ export async function getEntitlementForUser(userId: string): Promise<UserEntitle
     };
   }
 
-  const trialActive = Boolean(
-    sub.status === "TRIALING" && sub.trialEndsAt && sub.trialEndsAt.getTime() > Date.now()
-  );
-
-  if (sub.status === "TRIALING" && !trialActive) {
-    log("info", "plan_resolved", { userId, plan: "free", reason: "trial_expired", subId: sub.id });
-    const existingTrialLog = await prisma.activityLog.findFirst({
-      where: { action: "TRIAL_EXPIRED", resourceId: sub.id },
-      select: { id: true },
-    });
-    if (!existingTrialLog) {
-      await prisma.activityLog.create({
-        data: {
-          userId,
-          action: "TRIAL_EXPIRED",
-          resourceType: "subscription",
-          resourceId: sub.id,
-          metadata: { trialEndsAt: sub.trialEndsAt },
-        },
-      });
-    }
-  }
-
-  const active = sub.status === "ACTIVE" || trialActive;
+  const active = sub.status === "ACTIVE";
   const resolvedPlan = subscriptionPlanToUserPlan(sub.plan);
   const plan = active ? resolvedPlan : "free";
 
@@ -164,17 +161,17 @@ export async function getEntitlementForUser(userId: string): Promise<UserEntitle
   return {
     plan,
     status: active ? sub.status : "INACTIVE",
-    isTrialActive: trialActive,
+    isTrialActive: false,
     canDashboard: active,
     canAutomations: active,
     canWorkflows: active,
     canInvoices: active,
-    canAI: active && plan !== "starter" && !trialActive && isPlanAtLeast(plan, "pro"),
-    canWhatsapp: active && !trialActive && isPlanAtLeast(plan, "pro"),
+    canAI: active && isPlanAtLeast(plan, "starter"),
+    canWhatsapp: active && isPlanAtLeast(plan, "starter"),
   };
 }
 
-export type UsageCategory = "automationRuns" | "invoices" | "aiRequests";
+export type UsageCategory = "automationRuns" | "invoices" | "aiRequests" | "whatsappMessages";
 
 export type FlowCategory = "automations" | "workflows";
 
@@ -183,24 +180,40 @@ export const planLimits: Record<
   Partial<Record<UsageCategory, number | null>>
 > = {
   free: {
-    automationRuns: 10,
-    invoices: 5,
+    automationRuns: 0,
+    invoices: 0,
     aiRequests: 0,
+    whatsappMessages: 0,
   },
   starter: {
-    automationRuns: 100,
+    automationRuns: 3,
     invoices: 50,
-    aiRequests: 0,
+    aiRequests: 50,
+    whatsappMessages: 100,
   },
   pro: {
-    automationRuns: 1000,
-    invoices: 500,
+    automationRuns: 10,
+    invoices: 300,
     aiRequests: 300,
+    whatsappMessages: 1000,
+  },
+  growth: {
+    automationRuns: 25,
+    invoices: 1000,
+    aiRequests: 1000,
+    whatsappMessages: 3000,
+  },
+  business: {
+    automationRuns: null,
+    invoices: 3000,
+    aiRequests: 3000,
+    whatsappMessages: 7500,
   },
   enterprise: {
     automationRuns: null,
     invoices: null,
     aiRequests: null,
+    whatsappMessages: null,
   },
 };
 
@@ -209,16 +222,24 @@ export const flowLimits: Record<
   Partial<Record<FlowCategory, number | null>>
 > = {
   free: {
+    automations: 0,
+    workflows: 0,
+  },
+  starter: {
     automations: 3,
     workflows: 3,
   },
-  starter: {
+  pro: {
+    automations: 10,
+    workflows: 10,
+  },
+  growth: {
     automations: 25,
     workflows: 25,
   },
-  pro: {
-    automations: 200,
-    workflows: 200,
+  business: {
+    automations: null,
+    workflows: null,
   },
   enterprise: {
     automations: null,
@@ -226,46 +247,156 @@ export const flowLimits: Record<
   },
 };
 
-function monthWindow() {
+function addUtcMonths(date: Date, months: number) {
+  const next = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, date.getUTCDate(), date.getUTCHours(), date.getUTCMinutes(), date.getUTCSeconds()));
+  return next;
+}
+
+async function resolveUsageScope(userId: string) {
+  const owned = await prisma.business.findFirst({
+    where: { ownerId: userId },
+    select: {
+      id: true,
+      ownerId: true,
+      billingCycleStartAt: true,
+      usageResetAt: true,
+      createdAt: true,
+    },
+  });
+  if (owned) {
+    return { business: owned };
+  }
+  const member = await prisma.businessMember.findFirst({
+    where: { userId },
+    select: {
+      business: {
+        select: {
+          id: true,
+          ownerId: true,
+          billingCycleStartAt: true,
+          usageResetAt: true,
+          createdAt: true,
+        },
+      },
+    },
+  });
+  return { business: member?.business ?? null };
+}
+
+async function ensureUsageWindow(userId: string) {
   const now = new Date();
-  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0));
-  return { start, now };
+  const scope = await resolveUsageScope(userId);
+  const business = scope.business;
+  if (!business) {
+    const sub = await prisma.subscription.findFirst({
+      where: { userId, status: "ACTIVE" },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    });
+    const start =
+      sub?.createdAt ??
+      new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0));
+    return { start, businessId: null, ownerId: userId, userIds: [userId] };
+  }
+
+  let billingCycleStartAt = business.billingCycleStartAt ?? null;
+  let usageResetAt = business.usageResetAt ?? null;
+
+  if (!billingCycleStartAt || !usageResetAt) {
+    const sub = await prisma.subscription.findFirst({
+      where: { userId: business.ownerId, status: "ACTIVE" },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    });
+    const anchor = sub?.createdAt ?? business.createdAt ?? now;
+    billingCycleStartAt = billingCycleStartAt ?? anchor;
+    usageResetAt = usageResetAt ?? addUtcMonths(billingCycleStartAt, 1);
+  }
+
+  if (usageResetAt <= now) {
+    let nextStart = usageResetAt;
+    let nextReset = addUtcMonths(nextStart, 1);
+    while (nextReset <= now) {
+      nextStart = nextReset;
+      nextReset = addUtcMonths(nextStart, 1);
+    }
+    billingCycleStartAt = nextStart;
+    usageResetAt = nextReset;
+    await prisma.business.update({
+      where: { id: business.id },
+      data: { billingCycleStartAt, usageResetAt },
+    });
+  } else if (!business.billingCycleStartAt || !business.usageResetAt) {
+    await prisma.business.update({
+      where: { id: business.id },
+      data: { billingCycleStartAt, usageResetAt },
+    });
+  }
+
+  const members = await prisma.businessMember.findMany({
+    where: { businessId: business.id },
+    select: { userId: true },
+  });
+  const userIds = Array.from(new Set([business.ownerId, ...members.map((m) => m.userId)]));
+  return { start: billingCycleStartAt, businessId: business.id, ownerId: business.ownerId, userIds };
 }
 
 export async function getUsageCountThisMonth(userId: string, category: UsageCategory) {
-  const { start } = monthWindow();
+  const { start, businessId, userIds } = await ensureUsageWindow(userId);
   switch (category) {
     case "automationRuns":
       return prisma.automationRun.count({
-        where: { userId, createdAt: { gte: start } },
+        where: {
+          userId: { in: userIds },
+          createdAt: { gte: start },
+          runStatus: "SUCCESS",
+        },
       });
     case "invoices":
       return prisma.invoice.count({
-        where: { userId, generatedAt: { gte: start } },
+        where: { userId: { in: userIds }, generatedAt: { gte: start } },
       });
     case "aiRequests":
       return prisma.aiUsageLog.count({
-        where: { userId, createdAt: { gte: start } },
+        where: { userId: { in: userIds }, createdAt: { gte: start } },
+      });
+    case "whatsappMessages":
+      if (!businessId) return 0;
+      return prisma.message.count({
+        where: {
+          conversation: { businessId },
+          direction: "OUTBOUND",
+          status: { in: ["SENT", "DELIVERED"] },
+          createdAt: { gte: start },
+        },
       });
     default:
       return 0;
   }
 }
 
+export async function getTeamSeatUsageThisMonth(userId: string) {
+  const { start, businessId, ownerId } = await ensureUsageWindow(userId);
+  if (!businessId || !ownerId) return 0;
+  return prisma.usageRecord.count({
+    where: { userId: ownerId, category: "team_seat", createdAt: { gte: start } },
+  });
+}
+
 export async function enforceUsageLimit(
   userId: string,
   category: UsageCategory,
-  allowTrial = true
+  allowTrial = false
 ) {
   const entitlement = await getEntitlementForUser(userId);
-  if (!entitlement.canDashboard || (!allowTrial && entitlement.isTrialActive)) {
+  if (!entitlement.canDashboard) {
     return {
       ok: false as const,
       plan: entitlement.plan,
       limit: 0,
       used: 0,
       code: "payment_required" as const,
-      reason: entitlement.isTrialActive ? "trial_restricted" : "payment_required",
+      reason: "payment_required",
     };
   }
 
@@ -300,17 +431,17 @@ async function getFlowCount(userId: string, category: FlowCategory) {
 export async function enforceFlowLimit(
   userId: string,
   category: FlowCategory,
-  allowTrial = true
+  allowTrial = false
 ) {
   const entitlement = await getEntitlementForUser(userId);
-  if (!entitlement.canDashboard || (!allowTrial && entitlement.isTrialActive)) {
+  if (!entitlement.canDashboard) {
     return {
       ok: false as const,
       plan: entitlement.plan,
       limit: 0,
       used: 0,
       code: "payment_required" as const,
-      reason: entitlement.isTrialActive ? "trial_restricted" : "payment_required",
+      reason: "payment_required",
     };
   }
 
@@ -330,7 +461,7 @@ export async function enforceEntitlement(
   options: { feature: EntitlementFeature; requiredPlan?: UserPlan; allowTrial?: boolean }
 ) {
   const entitlement = await getEntitlementForUser(userId);
-  const allowTrial = options.allowTrial ?? true;
+  const allowTrial = options.allowTrial ?? false;
 
   if (!entitlement.canDashboard) {
     return {
@@ -348,8 +479,8 @@ export async function enforceEntitlement(
       type: "feature_locked" as const,
       plan: entitlement.plan,
       status: entitlement.status,
-      requiredPlan: options.requiredPlan ?? "pro",
-      reason: "Trial plan does not include this feature",
+      requiredPlan: options.requiredPlan ?? "starter",
+      reason: "Payment required",
     };
   }
 
@@ -370,8 +501,8 @@ export async function enforceEntitlement(
       type: "upgrade_required" as const,
       plan: entitlement.plan,
       status: entitlement.status,
-      requiredPlan: "pro",
-      reason: "AI is available on Pro and Enterprise only",
+      requiredPlan: "starter",
+      reason: "AI is available on Starter and higher plans",
     };
   }
 
@@ -381,8 +512,8 @@ export async function enforceEntitlement(
       type: "upgrade_required" as const,
       plan: entitlement.plan,
       status: entitlement.status,
-      requiredPlan: "pro",
-      reason: "WhatsApp automation is a Pro feature",
+      requiredPlan: "starter",
+      reason: "WhatsApp automation is available on Starter and higher plans",
     };
   }
 
@@ -400,12 +531,13 @@ function stepRequiresPlan(step: StepLike | null | undefined) {
 
   if (required === "enterprise") return { plan: "enterprise" as const, reason: "Enterprise-only feature" };
   if (required === "pro") return { plan: "pro" as const, reason: "Pro-only feature" };
+  if (required === "starter") return { plan: "starter" as const, reason: "Starter-only feature" };
 
   if (rawType.includes("whatsapp")) {
-    return { plan: "pro" as const, reason: "WhatsApp automation is a Pro feature" };
+    return { plan: "starter" as const, reason: "WhatsApp automation is a Starter feature" };
   }
   if (rawType.startsWith("ai")) {
-    return { plan: "pro" as const, reason: "AI steps are a Pro feature" };
+    return { plan: "starter" as const, reason: "AI steps are a Starter feature" };
   }
   return null;
 }

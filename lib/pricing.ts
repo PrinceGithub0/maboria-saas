@@ -1,28 +1,79 @@
 import { STANDARD_VAT_RATE, applyVatToSubtotal } from "./vat";
 
-type Plan = "STARTER" | "GROWTH" | "ENTERPRISE";
+type Plan = "STARTER" | "PRO" | "GROWTH" | "BUSINESS" | "PREMIUM" | "ENTERPRISE";
+export type BillingInterval = "monthly" | "yearly";
 type Currency = "USD" | "NGN";
 
 type PricingMeta = { usd?: number; ngn?: number; displayName: string; features: string[] };
 
-export const TRIAL_DAYS = 7;
-
 // Pricing is intentionally kept as a small, hardcoded table so UI can render without a DB dependency.
-// "GROWTH" maps to the "Pro" plan label in the UI to avoid breaking existing SubscriptionPlan values.
+// "BUSINESS" is the canonical plan name; "PREMIUM" is kept as a legacy alias for older data.
+const businessMeta: PricingMeta = {
+  ngn: 187050,
+  usd: 129,
+  displayName: "Business",
+  features: [
+    "Invoices: 3,000 / month",
+    "WhatsApp messages: 7,500 / month",
+    "AI usage: 3,000 / month",
+    "Automations: Unlimited",
+    "Up to 10 team members",
+    "Role-based access",
+    "Phone + priority support",
+  ],
+};
+
 const pricingTable: Record<Plan, PricingMeta> = {
   STARTER: {
-    ngn: 15000,
+    ngn: 24650,
+    usd: 17,
     displayName: "Starter",
-    features: ["Core automations", "Invoices", "Email notifications", "Team-ready basics"],
+    features: [
+      "Invoices: 50 / month",
+      "Payments (cards & bank transfer)",
+      "WhatsApp messages: 100 / month",
+      "AI usage: 50 / month",
+      "Automations: 3 total",
+      "1 user",
+    ],
+  },
+  PRO: {
+    ngn: 56550,
+    usd: 39,
+    displayName: "Pro",
+    features: [
+      "Invoices: 300 / month",
+      "WhatsApp messages: 1,000 / month",
+      "AI usage: 300 / month",
+      "Automations: 10 total",
+      "Up to 3 team members",
+    ],
   },
   GROWTH: {
-    ngn: 40000,
-    displayName: "Pro",
-    features: ["AI assistant", "WhatsApp automation", "Higher usage limits", "Priority support"],
+    ngn: 100050,
+    usd: 69,
+    displayName: "Growth",
+    features: [
+      "Invoices: 1,000 / month",
+      "WhatsApp messages: 3,000 / month",
+      "AI usage: 1,000 / month",
+      "Automations: 25 total",
+      "Up to 5 team members",
+      "Priority support",
+    ],
   },
+  BUSINESS: businessMeta,
+  PREMIUM: businessMeta,
   ENTERPRISE: {
     displayName: "Enterprise",
-    features: ["Custom limits", "Advanced controls", "SLA options", "Dedicated support"],
+    features: [
+      "Unlimited invoices",
+      "Unlimited WhatsApp (fair-use)",
+      "Unlimited AI",
+      "Unlimited team members",
+      "Dedicated account manager",
+      "SLA & custom integrations",
+    ],
   },
 };
 
@@ -46,6 +97,9 @@ export const FX_RATES_NGN_PER: Record<string, number> = {
 
 export function getPlanPriceForCurrency(plan: Plan, currency: string) {
   const data = pricingTable[plan];
+  if (currency.toUpperCase() === "USD" && data.usd != null) {
+    return data.usd;
+  }
   const ngn = data.ngn ?? null;
   if (!ngn) return null;
   const rate = FX_RATES_NGN_PER[currency.toUpperCase()] ?? FX_RATES_NGN_PER.NGN;
@@ -54,15 +108,39 @@ export function getPlanPriceForCurrency(plan: Plan, currency: string) {
   return Math.round(total * 100) / 100;
 }
 
-export function getPlanFromAmount(currency: string, amount: number) {
+export function getPlanPriceForInterval(
+  plan: Plan,
+  currency: string,
+  interval: BillingInterval
+) {
+  const monthly = getPlanPriceForCurrency(plan, currency);
+  if (monthly == null) return null;
+  if (interval === "yearly") {
+    const yearly = monthly * 12 * 0.85;
+    return Math.round(yearly * 100) / 100;
+  }
+  return monthly;
+}
+
+export function getPlanFromAmountWithInterval(currency: string, amount: number) {
   const normalized = currency.toUpperCase();
-  const ordered: Plan[] = ["STARTER", "GROWTH", "ENTERPRISE"];
+  const ordered: Plan[] = ["STARTER", "PRO", "GROWTH", "BUSINESS", "ENTERPRISE"];
   for (const plan of ordered) {
-    const expected = getPlanPriceForCurrency(plan, normalized);
-    if (expected == null) continue;
-    if (Math.abs(expected - amount) < 0.01) return plan;
+    const monthly = getPlanPriceForCurrency(plan, normalized);
+    if (monthly != null && Math.abs(monthly - amount) < 0.01) {
+      return { plan, interval: "monthly" as const };
+    }
+    const yearly = getPlanPriceForInterval(plan, normalized, "yearly");
+    if (yearly != null && Math.abs(yearly - amount) < 0.01) {
+      return { plan, interval: "yearly" as const };
+    }
   }
   return null;
+}
+
+export function getPlanFromAmount(currency: string, amount: number) {
+  const match = getPlanFromAmountWithInterval(currency, amount);
+  return match?.plan ?? null;
 }
 
 export function getPlanPrice(plan: Plan, currency: Currency) {
@@ -75,7 +153,7 @@ export function getPlanPrice(plan: Plan, currency: Currency) {
 }
 
 export function pricingTableForUI(currency: Currency) {
-  const ordered: Plan[] = ["STARTER", "GROWTH", "ENTERPRISE"];
+  const ordered: Plan[] = ["STARTER", "PRO", "GROWTH", "BUSINESS", "ENTERPRISE"];
   return ordered.map((plan) => {
     const meta = pricingTable[plan];
     const ngnWithVat = meta.ngn ? applyVatToSubtotal(meta.ngn, STANDARD_VAT_RATE).total : null;
@@ -89,7 +167,7 @@ export function pricingTableForUI(currency: Currency) {
 }
 
 export function pricingTableDualCurrency() {
-  const ordered: Plan[] = ["STARTER", "GROWTH", "ENTERPRISE"];
+  const ordered: Plan[] = ["STARTER", "PRO", "GROWTH", "BUSINESS", "ENTERPRISE"];
   return ordered.map((plan) => {
     const meta = pricingTable[plan];
     const ngnWithVat = meta.ngn ? applyVatToSubtotal(meta.ngn, STANDARD_VAT_RATE).total : null;

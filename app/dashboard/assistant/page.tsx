@@ -23,7 +23,13 @@ export default function AssistantPage() {
   const { data: session } = useSession();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const isAdmin = user?.role === "ADMIN" || session?.user?.role === "ADMIN";
-  const canUseAI = isAdmin || user?.plan === "pro" || user?.plan === "enterprise";
+  const canUseAI =
+    isAdmin ||
+    user?.plan === "starter" ||
+    user?.plan === "pro" ||
+    user?.plan === "growth" ||
+    user?.plan === "business" ||
+    user?.plan === "enterprise";
   const showGate = !isLoading && !canUseAI;
 
   return (
@@ -47,7 +53,7 @@ export default function AssistantPage() {
               variant="default"
               className="badge-pro-feature w-fit dark:border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-200"
             >
-              {t("Pro feature", "Fonction Pro")}
+              {t("Starter feature", "Fonction Starter")}
             </Badge>
           )}
         </div>
@@ -86,12 +92,15 @@ export default function AssistantPage() {
           <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl border border-border bg-background/70 backdrop-blur">
             <div className="max-w-sm space-y-2 text-center">
               <p className="text-sm font-semibold text-foreground">
-                {t("Upgrade to Pro to use the AI Assistant", "Passez a Pro pour utiliser l assistant IA")}
+                {t(
+                  "Upgrade to Starter to use the AI Assistant",
+                  "Passez a Starter pour utiliser l assistant IA"
+                )}
               </p>
               <p className="text-xs text-muted-foreground">
                 {t(
-                  "AI features are available on Pro and Enterprise plans.",
-                  "Fonctions IA disponibles pour Pro et Enterprise."
+                  "AI features are available on Starter and higher plans.",
+                  "Fonctions IA disponibles des plans Starter et plus."
                 )}
               </p>
               <Button onClick={() => setUpgradeOpen(true)}>{t("Upgrade", "Mettre a niveau")}</Button>
@@ -103,7 +112,7 @@ export default function AssistantPage() {
         </div>
       </div>
 
-      <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} requiredPlan="pro" />
+      <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} requiredPlan="starter" />
     </div>
   );
 }
