@@ -1,20 +1,26 @@
 import PDFDocument from "pdfkit";
 import crypto from "crypto";
 import fs from "fs/promises";
-import { existsSync, readFileSync } from "fs";
+import { existsSync, readFileSync, readdirSync } from "fs";
 import path from "path";
 import { prisma } from "./prisma";
 import { sendEmail } from "./email";
 import { log } from "./logger";
-import { formatCurrencyCode } from "./currency";
+import { formatCurrency } from "./currency";
 import { isAllowedCurrency, normalizeCurrency } from "./payments/currency-allowlist";
 import { notifyInvoiceCreated } from "./whatsapp";
-import { getTaxIdLabel } from "./tax-labels";
 import { formatDateDMY } from "./date";
 import { ensureInvoicePaymentLink } from "./invoice-payments";
+import { getOrCreateInvoicePublicLink } from "./invoice-public-link";
+import { env } from "./env";
 import { triggerInvoiceStatusAutomations } from "./automation/events";
-import { STANDARD_VAT_RATE } from "./vat";
 import { enforceEntitlement, enforceUsageLimit } from "./entitlements";
+import { calculateVatFromAmount, normalizeVatSettings, VatSettings } from "./vat";
+import {
+  INVOICE_TOTALS_GAP,
+  INVOICE_TOTALS_LABEL_WIDTH,
+  INVOICE_TOTALS_VALUE_WIDTH,
+} from "./invoice-totals-layout";
 
 export type InvoiceItem = {
   name: string;
@@ -24,6 +30,9 @@ export type InvoiceItem = {
 };
 
 const interFontPath = path.join(process.cwd(), "assets", "fonts", "Inter.ttf");
+const businessLogoDir = path.join(process.cwd(), "uploads", "business-logos");
+const paystackLogoPath = path.join(process.cwd(), "public", "announcements", "paystack.png");
+const flutterwaveLogoPath = path.join(process.cwd(), "public", "payment-logos", "flutterwave.png");
 const INVOICE_PDF_VERSION = "inv24-v7";
 const ensureInvoiceFont = () => {
   if (!existsSync(interFontPath)) {
@@ -32,6 +41,47 @@ const ensureInvoiceFont = () => {
   return interFontPath;
 };
 const getPdfFontPath = () => "Inter";
+type BusinessLogoInfo = {
+  buffer: Buffer;
+  mime: string;
+  ext: string;
+};
+
+const readBusinessLogoInfo = (userId: string): BusinessLogoInfo | null => {
+  try {
+    if (!existsSync(businessLogoDir)) return null;
+    const files = readdirSync(businessLogoDir);
+    const match = files.find((file) => file.startsWith(`${userId}.`));
+    if (!match) return null;
+    const ext = path.extname(match).toLowerCase();
+    const filePath = path.join(businessLogoDir, match);
+    const buffer = readFileSync(filePath);
+    const mime =
+      ext === ".png"
+        ? "image/png"
+        : ext === ".jpg" || ext === ".jpeg"
+          ? "image/jpeg"
+          : ext === ".svg"
+            ? "image/svg+xml"
+            : "application/octet-stream";
+    return { buffer, mime, ext };
+  } catch {
+    return null;
+  }
+};
+
+export const getBusinessLogoBuffer = (userId: string) => {
+  const info = readBusinessLogoInfo(userId);
+  if (!info) return null;
+  if (info.ext === ".svg") return null;
+  return info.buffer;
+};
+
+export const getBusinessLogoDataUrl = (userId: string) => {
+  const info = readBusinessLogoInfo(userId);
+  if (!info) return null;
+  return `data:${info.mime};base64,${info.buffer.toString("base64")}`;
+};
 
 type BusinessProfileSnapshot = {
   businessName: string;
@@ -41,12 +91,18 @@ type BusinessProfileSnapshot = {
   businessEmail?: string | null;
   businessPhone?: string | null;
   taxId?: string | null;
+  vatEnabled?: boolean | null;
+  vatRate?: number | null;
+  vatPricingMode?: string | null;
 };
 
 type CustomerSnapshot = {
   name?: string | null;
   email?: string | null;
   address?: string | null;
+  type?: "INDIVIDUAL" | "BUSINESS" | null;
+  companyName?: string | null;
+  taxId?: string | null;
 };
 
 export function resolveInvoiceCustomer(metadata: any): CustomerSnapshot | null {
@@ -59,29 +115,60 @@ export function resolveInvoiceCustomer(metadata: any): CustomerSnapshot | null {
     raw.addressLine1 ??
     metadata?.customerAddress ??
     metadata?.customer_address;
-  if (!name && !email && !address) return null;
-  return { name, email, address };
+  const type = (raw.type ?? metadata?.customerType ?? "").toString().toUpperCase();
+  const companyName = raw.companyName ?? raw.company ?? metadata?.customerCompany;
+  const taxId = raw.taxId ?? metadata?.customerTaxId;
+  if (!name && !email && !address && !companyName && !taxId) return null;
+  return {
+    name,
+    email,
+    address,
+    type: type === "BUSINESS" ? "BUSINESS" : type === "INDIVIDUAL" ? "INDIVIDUAL" : undefined,
+    companyName,
+    taxId,
+  };
 }
 
-export function calculateTotals(items: InvoiceItem[], tax = 0, discount = 0) {
+export function calculateTotals(
+  items: InvoiceItem[],
+  vatSettings: VatSettings,
+  discount = 0
+) {
   const subtotal = items.reduce((sum, item) => sum + item.quantity * item.price, 0);
-  const taxAmount = (subtotal * tax) / 100;
   const discountAmount = (subtotal * discount) / 100;
-  const total = subtotal + taxAmount - discountAmount;
-  return { subtotal, taxAmount, discountAmount, total };
+  const baseAmount = subtotal - discountAmount;
+  const vatTotals = calculateVatFromAmount(baseAmount, vatSettings);
+  return {
+    subtotal: vatTotals.subtotal,
+    taxAmount: vatTotals.vatAmount,
+    discountAmount,
+    total: vatTotals.total,
+    vatRate: vatTotals.rate,
+    vatMode: vatSettings.mode,
+    vatEnabled: vatSettings.enabled,
+  };
 }
 
 export function calculateTotalsFromAmounts(
   items: InvoiceItem[],
-  taxAmount = 0,
+  vatSettings: VatSettings,
   discountAmount = 0
 ) {
   const subtotal = items.reduce((sum, item) => sum + item.quantity * item.price, 0);
-  const total = subtotal + taxAmount - discountAmount;
-  return { subtotal, taxAmount, discountAmount, total };
+  const baseAmount = subtotal - discountAmount;
+  const vatTotals = calculateVatFromAmount(baseAmount, vatSettings);
+  return {
+    subtotal: vatTotals.subtotal,
+    taxAmount: vatTotals.vatAmount,
+    discountAmount,
+    total: vatTotals.total,
+    vatRate: vatTotals.rate,
+    vatMode: vatSettings.mode,
+    vatEnabled: vatSettings.enabled,
+  };
 }
 
-const normalizeInvoiceItems = (value: unknown): InvoiceItem[] => {
+export const normalizeInvoiceItems = (value: unknown): InvoiceItem[] => {
   let items: unknown = value;
   if (typeof items === "string") {
     try {
@@ -91,12 +178,26 @@ const normalizeInvoiceItems = (value: unknown): InvoiceItem[] => {
     }
   }
   if (!Array.isArray(items)) return [];
-  return items.map((item: any) => ({
-    name: typeof item?.name === "string" && item.name.trim() ? item.name.trim() : "Item",
-    quantity: Number(item?.quantity || 0),
-    price: Number(item?.price || 0),
-    description: typeof item?.description === "string" ? item.description : undefined,
-  }));
+  return items.map((item: any) => {
+    const rawName =
+      typeof item?.name === "string" && item.name.trim()
+        ? item.name.trim()
+        : typeof item?.description === "string" && item.description.trim()
+          ? item.description.trim()
+          : "Item";
+    const quantity = Number(item?.quantity ?? item?.qty ?? 0);
+    const priceCandidate = item?.price ?? item?.unitPrice ?? item?.unit_price;
+    const price =
+      Number(priceCandidate ?? 0) ||
+      (quantity > 0 && Number(item?.total ?? item?.lineTotal ?? 0) / quantity) ||
+      0;
+    return {
+      name: rawName,
+      quantity,
+      price,
+      description: typeof item?.description === "string" ? item.description : undefined,
+    };
+  });
 };
 
 export async function createInvoiceRecord({
@@ -105,22 +206,22 @@ export async function createInvoiceRecord({
   currency,
   items,
   status,
-  tax,
   discount,
   customer,
   issueDate,
   dueDate,
+  note,
 }: {
   userId: string;
   invoiceNumber: string;
   currency: string;
   items: InvoiceItem[];
   status: string;
-  tax?: number;
   discount?: number;
   customer?: CustomerSnapshot | null;
   issueDate?: Date;
   dueDate?: Date;
+  note?: string;
 }) {
   const entitlement = await enforceEntitlement(userId, {
     feature: "invoices",
@@ -152,6 +253,9 @@ export async function createInvoiceRecord({
       businessEmail: true,
       businessPhone: true,
       taxId: true,
+      vatEnabled: true,
+      vatRate: true,
+      vatPricingMode: true,
     },
   });
   if (!profile) {
@@ -175,9 +279,19 @@ export async function createInvoiceRecord({
     businessEmail: profile.businessEmail ?? null,
     businessPhone: profile.businessPhone ?? null,
     taxId: profile.taxId ?? null,
+    vatEnabled: profile.vatEnabled ?? false,
+    vatRate: profile.vatRate ? Number(profile.vatRate) : 0,
+    vatPricingMode: profile.vatPricingMode ?? "EXCLUSIVE",
   };
-  const vatRate = STANDARD_VAT_RATE;
-  const totals = calculateTotals(items, vatRate, discount);
+  const vatSettings = normalizeVatSettings({
+    enabled: businessSnapshot.vatEnabled ?? false,
+    rate: businessSnapshot.vatRate ?? 0,
+    mode:
+      String(businessSnapshot.vatPricingMode || "EXCLUSIVE").toLowerCase() === "inclusive"
+        ? "inclusive"
+        : "exclusive",
+  });
+  const totals = calculateTotals(items, vatSettings, discount);
   const base = invoiceNumber;
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const candidate = attempt === 0 ? base : `${base}-${crypto.randomInt(1000, 10000)}`;
@@ -198,6 +312,7 @@ export async function createInvoiceRecord({
             customer,
             dueDate: dueDate ? dueDate.toISOString() : undefined,
             organizationId: userId,
+            note: note ? String(note).trim() : undefined,
           },
         },
       });
@@ -258,8 +373,17 @@ export type InvoicePdfInput = {
   items: InvoiceItem[];
   totals: ReturnType<typeof calculateTotals>;
   business: BusinessProfileSnapshot;
-  billTo?: { name?: string | null; email?: string | null; address?: string | null } | null;
-  hideStatus?: boolean;
+  billTo?: {
+    name?: string | null;
+    email?: string | null;
+    address?: string | null;
+    type?: "INDIVIDUAL" | "BUSINESS" | null;
+    companyName?: string | null;
+    taxId?: string | null;
+  } | null;
+  paymentLink?: string;
+  logoBuffer?: Buffer | null;
+  note?: string | null;
 };
 
 function sanitizeFilename(value: string) {
@@ -294,7 +418,6 @@ export function buildInvoicePdfBuffer(input: InvoicePdfInput) {
       return;
     }
     const fontPath = ensureInvoiceFont();
-    const fontBuffer = readFileSync(fontPath);
     const doc = new PDFDocument({ margin: 48, size: "A4", font: fontPath });
     const chunks: Buffer[] = [];
 
@@ -302,350 +425,353 @@ export function buildInvoicePdfBuffer(input: InvoicePdfInput) {
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", (err) => reject(err));
 
-    const fontName = getPdfFontPath();
-    const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-    const startX = doc.page.margins.left;
+    doc.registerFont("Inter", fontPath);
+    doc.font("Inter");
+
+    const left = doc.page.margins.left;
+    const right = doc.page.width - doc.page.margins.right;
+    const pageWidth = right - left;
     let y = doc.page.margins.top;
 
-    doc.registerFont("Inter", fontBuffer);
-    doc.font(fontName);
-
     const colors = {
-      text: "#0b1220",
-      muted: "#475569",
-      line: "#d1d5db",
-      lightLine: "#e5e7eb",
-      headerBg: "#111827",
-      headerText: "#f9fafb",
+      text: "#0f172a",
+      muted: "#64748b",
+      line: "#e2e8f0",
+      card: "#f8fafc",
+      primary: "#2563eb",
+      due: "#d97706",
+      paid: "#16a34a",
     };
 
-    const text = (
-      value: string,
-      x: number,
-      yPos: number,
-      options: PDFKit.Mixins.TextOptions = {},
-      size = 9,
-      color = colors.text
-    ) => {
-      doc.font(fontName).fontSize(size).fillColor(color).text(value, x, yPos, options);
-    };
-    const textBold = (
-      value: string,
-      x: number,
-      yPos: number,
-      options: PDFKit.Mixins.TextOptions = {},
-      size = 9
-    ) => {
-      doc.font(fontName).fontSize(size).fillColor(colors.text).text(value, x, yPos, options);
-      doc.font(fontName).fontSize(size).fillColor(colors.text).text(value, x + 0.4, yPos, options);
-    };
-    const setSpacing = (value: number) => {
-      const fn = (doc as PDFKit.PDFDocument & { characterSpacing?: (v: number) => void }).characterSpacing;
-      if (typeof fn === "function") {
-        fn.call(doc, value);
+    const formatMoney = (value: number) => formatCurrency(value, normalizedCurrency);
+    const statusLabel = String(input.status || "DUE").toUpperCase() === "PAID" ? "PAID" : "DUE";
+    const loadPaymentLogo = (logoPath: string) => {
+      try {
+        return existsSync(logoPath) ? readFileSync(logoPath) : null;
+      } catch {
+        return null;
       }
     };
+    const paystackLogo = loadPaymentLogo(paystackLogoPath);
+    const flutterwaveLogo = loadPaymentLogo(flutterwaveLogoPath);
 
-    const lineHeight = 14;
-    const rightColumnWidth = pageWidth * 0.38;
-    const leftColumnWidth = pageWidth - rightColumnWidth;
-    const rightX = startX + leftColumnWidth;
-
-    const headerTop = y;
-    textBold(input.business.businessName, startX, headerTop, { width: leftColumnWidth }, 24);
-
-    setSpacing(1.4);
-    textBold("INVOICE", rightX, headerTop + 2, { width: rightColumnWidth, align: "right" }, 18);
-    setSpacing(0);
-
-    const metaStartY = headerTop + 32;
-    const statusLabel = String(input.status || "DRAFT").toUpperCase();
-    const metaItems: { label: string; value: string }[] = [];
-    if (!input.hideStatus) {
-      metaItems.push({ label: "Status", value: statusLabel });
-    }
-    metaItems.push({ label: "Invoice Number", value: input.invoiceNumber });
-    metaItems.push({ label: "Invoice Date", value: formatDateDMY(input.issuedAt) });
-    if (input.dueDate) {
-      metaItems.push({ label: "Due Date", value: formatDateDMY(input.dueDate) });
-    }
-    const metaRows = metaItems.length;
-    const metaLabelWidth = rightColumnWidth * 0.5;
-    const metaValue = (label: string, value: string, row: number) => {
-      const rowY = metaStartY + row * lineHeight;
-      text(label, rightX, rowY, { width: metaLabelWidth }, 8, colors.muted);
-      text(value, rightX, rowY, { width: rightColumnWidth, align: "right" }, 9, colors.text);
-    };
-    metaItems.forEach((item, index) => metaValue(item.label, item.value, index));
-
-    const leftBlockHeight = doc.heightOfString(input.business.businessName, {
-      width: leftColumnWidth,
-    });
-    const rightBlockEnd = metaStartY + metaRows * lineHeight;
-    const headerBottom = Math.max(headerTop + leftBlockHeight, rightBlockEnd);
-    y = headerBottom + 22;
-    doc
-      .moveTo(startX, y)
-      .lineTo(startX + pageWidth, y)
-      .strokeColor(colors.line)
-      .lineWidth(0.9)
-      .stroke();
-    y += 12;
-
-    const columnGap = 20;
-    const columnWidth = (pageWidth - columnGap * 2) / 3;
-    const taxLabel = getTaxIdLabel(input.business.country);
-    const sellerLines = [
-      input.business.businessName,
-      input.business.businessAddress,
-      input.business.businessEmail,
-      input.business.businessPhone,
-      input.business.taxId ? `${taxLabel.long}: ${input.business.taxId}` : null,
-    ].filter(Boolean) as string[];
-    const billToLines = [
-      input.billTo?.name || "Customer",
-      input.billTo?.address || null,
-      input.billTo?.email || null,
-    ].filter(Boolean) as string[];
-    const paymentDetails = [] as string[];
-    const paymentMeta = (input as any)?.paymentDetails;
-    if (Array.isArray(paymentMeta)) {
-      paymentDetails.push(...paymentMeta.filter(Boolean));
-    } else if (typeof paymentMeta === "string") {
-      paymentDetails.push(...paymentMeta.split("\n").map((line: string) => line.trim()).filter(Boolean));
-    }
-    if (paymentDetails.length === 0) {
-      paymentDetails.push("Provided via checkout or bank transfer.");
-    }
-
-    const columnTop = y;
-    setSpacing(0.8);
-    textBold("SELLER", startX, columnTop, {}, 9);
-    textBold("BILL TO", startX + columnWidth + columnGap, columnTop, {}, 9);
-    textBold("PAYMENT DETAILS", startX + (columnWidth + columnGap) * 2, columnTop, {}, 9);
-    setSpacing(0);
-
-    const columnStartY = columnTop + 14;
-    const renderColumn = (
+    const drawLabel = (
+      textValue: string,
       x: number,
-      lines: string[],
-      options: { boldFirst?: boolean; width?: number } = {}
+      yPos: number,
+      size = 9,
+      color = colors.muted,
+      options: PDFKit.Mixins.TextOptions = {}
     ) => {
-      const width = options.width ?? columnWidth;
-      let cursor = columnStartY;
-      lines.forEach((line, idx) => {
-        const isFirst = idx === 0 && options.boldFirst;
-        const size = isFirst ? 10 : 9;
-        const color = isFirst ? colors.text : colors.muted;
-        doc.font(fontName).fontSize(size).fillColor(color);
-        doc.text(line, x, cursor, { width, lineGap: 2 });
-        const height = doc.heightOfString(line, { width, lineGap: 2 });
-        cursor += height + 2;
-      });
-      return cursor;
+      doc.font("Inter").fontSize(size).fillColor(color).text(textValue, x, yPos, options);
+    };
+    const drawText = (
+      textValue: string,
+      x: number,
+      yPos: number,
+      size = 10,
+      color = colors.text,
+      options: PDFKit.Mixins.TextOptions = {}
+    ) => {
+      doc.font("Inter").fontSize(size).fillColor(color).text(textValue, x, yPos, options);
+    };
+    const drawBold = (
+      textValue: string,
+      x: number,
+      yPos: number,
+      size = 11,
+      options: PDFKit.Mixins.TextOptions = {}
+    ) => {
+      doc.font("Inter").fontSize(size).fillColor(colors.text).text(textValue, x, yPos, options);
+      doc.font("Inter").fontSize(size).fillColor(colors.text).text(textValue, x + 0.4, yPos, options);
     };
 
-    const sellerEnd = renderColumn(startX, sellerLines, { boldFirst: true });
-    const billToEnd = renderColumn(startX + columnWidth + columnGap, billToLines, { boldFirst: true });
-    const paymentEnd = renderColumn(
-      startX + (columnWidth + columnGap) * 2,
-      paymentDetails,
-      { boldFirst: false }
-    );
+    const logoSize = 68;
+    if (input.logoBuffer) {
+      try {
+        doc.image(input.logoBuffer, left, y, { width: logoSize, height: logoSize });
+      } catch (error) {
+        log("warn", "invoice_logo_failed", { error });
+      }
+    }
 
-    y = Math.max(sellerEnd, billToEnd, paymentEnd) + 12;
+    const headerX = input.logoBuffer ? left + logoSize + 12 : left;
+    drawBold(input.business.businessName, headerX, y + 2, 24);
+    if (input.business.businessEmail) {
+      drawLabel(input.business.businessEmail, headerX, y + 26, 10);
+    }
+    if (input.business.businessAddress) {
+      drawLabel(input.business.businessAddress, headerX, y + 42, 10);
+    }
+
+    const metaLabelWidth = 92;
+    const metaValueWidth = 140;
+    const metaX = right - (metaLabelWidth + metaValueWidth);
+    const metaRow = (label: string, value: string, yPos: number) => {
+      drawLabel(label, metaX, yPos, 9, colors.muted, { width: metaLabelWidth, align: "left" });
+      drawText(value, metaX + metaLabelWidth, yPos, 9.5, colors.text, {
+        width: metaValueWidth,
+        align: "right",
+      });
+    };
+    const headerMetaY = y + 2;
+    metaRow("Invoice No:", input.invoiceNumber, headerMetaY);
+    metaRow("Date:", formatDateDMY(input.issuedAt), headerMetaY + 18);
+    if (input.dueDate) {
+      metaRow("Due Date:", formatDateDMY(input.dueDate), headerMetaY + 36);
+    }
+
+    const badgeWidth = 56;
+    const badgeHeight = 18;
+    const badgeX = right - badgeWidth;
+    const badgeY = headerMetaY + 56;
+    doc
+      .roundedRect(badgeX, badgeY, badgeWidth, badgeHeight, 5)
+      .fill(statusLabel === "PAID" ? colors.paid : colors.due);
+    doc.font("Inter").fontSize(9).fillColor("#FFFFFF").text(statusLabel, badgeX, badgeY + 4, {
+      width: badgeWidth,
+      align: "center",
+    });
+
+    const headerBottom = y + Math.max(logoSize, 68) + 12;
+    y = headerBottom + 28;
+    drawBold("Invoice", left, y, 22, { width: pageWidth, align: "center" });
+    y += 26;
+    doc.moveTo(left, y).lineTo(right, y).strokeColor(colors.line).lineWidth(1).stroke();
+    y += 28;
+
+    const columnGap = 48;
+    const columnWidth = (pageWidth - columnGap) / 2;
+    drawBold("Billed To", left, y, 11);
+    drawBold("Invoiced By", left + columnWidth + columnGap, y, 11);
+    doc.moveTo(left, y + 16).lineTo(left + columnWidth, y + 16).strokeColor(colors.line).lineWidth(1).stroke();
+    doc
+      .moveTo(left + columnWidth + columnGap, y + 16)
+      .lineTo(left + columnWidth + columnGap + columnWidth, y + 16)
+      .strokeColor(colors.line)
+      .lineWidth(1)
+      .stroke();
+
+    const billLines = [
+      input.billTo?.name || "Customer",
+      input.billTo?.email || "",
+      input.billTo?.companyName || "",
+      input.billTo?.address || "",
+      input.billTo?.taxId ? `Tax ID: ${input.billTo.taxId}` : "",
+    ].filter((line) => line && String(line).trim().length > 0);
+    const businessLines = [
+      input.business.businessName,
+      input.business.businessEmail || "",
+      input.business.businessAddress || "",
+    ].filter((line) => line && String(line).trim().length > 0);
+
+    const lineGap = 14;
+    billLines.forEach((line, idx) => {
+      drawText(String(line), left, y + 26 + idx * lineGap, 10);
+    });
+    businessLines.forEach((line, idx) => {
+      drawText(String(line), left + columnWidth + columnGap, y + 26 + idx * lineGap, 10);
+    });
+
+    y += 26 + Math.max(billLines.length, businessLines.length) * lineGap + 22;
+
+    const cardGap = 24;
+    const cardWidth = (pageWidth - cardGap) / 2;
+    const cardHeight = 132;
+    const cardY = y;
+    doc.roundedRect(left, cardY, cardWidth, cardHeight, 10).fill(colors.card).strokeColor(colors.line).stroke();
+    doc
+      .roundedRect(left + cardWidth + cardGap, cardY, cardWidth, cardHeight, 10)
+      .fill(colors.card)
+      .strokeColor(colors.line)
+      .stroke();
+
+    drawBold("Invoice Details", left + 16, cardY + 14, 11);
+    const descriptionSummary =
+      input.items.length === 1 ? input.items[0].name : `${input.items.length} items`;
+    drawLabel("Description", left + 16, cardY + 36, 9);
+    drawText(descriptionSummary, left + 16, cardY + 50, 10);
+    const paymentLabelY = cardY + 70;
+    const paymentLabelWidth = 64;
+    const paymentLogoHeight = 14;
+    const paymentLogoWidth = 90;
+    const flutterwaveLogoHeight = 24;
+    const flutterwaveLogoWidth = 168;
+    drawLabel("Payment:", left + 16, paymentLabelY, 9);
+    let paymentLogoX = left + 16 + paymentLabelWidth;
+    if (paystackLogo) {
+      doc.opacity(0.9);
+      doc.image(paystackLogo, paymentLogoX, paymentLabelY - 3, {
+        fit: [paymentLogoWidth, paymentLogoHeight],
+      });
+      doc.opacity(1);
+      paymentLogoX += paymentLogoWidth + 10;
+    }
+    if (flutterwaveLogo) {
+      doc.opacity(0.9);
+      doc.image(flutterwaveLogo, paymentLogoX, paymentLabelY - 8, {
+        fit: [flutterwaveLogoWidth, flutterwaveLogoHeight],
+      });
+      doc.opacity(1);
+    }
+
+    const showTax =
+      Boolean((input.totals as any).vatEnabled) && Number((input.totals as any).vatRate || 0) > 0;
+    const taxRate = Number((input.totals as any).vatRate || 0);
+    if (showTax) {
+      const taxBoxWidth = 120;
+      const taxBoxHeight = 46;
+      const taxBoxX = left + cardWidth - taxBoxWidth - 14;
+      const taxBoxY = cardY + 38;
+      doc
+        .roundedRect(taxBoxX, taxBoxY, taxBoxWidth, taxBoxHeight, 8)
+        .strokeColor(colors.line)
+        .fill("#ffffff")
+        .stroke();
+      drawLabel(
+        `VAT (${taxRate ? taxRate.toFixed(1).replace(/\\.0$/, "") : "0"}%)`,
+        taxBoxX + 8,
+        taxBoxY + 8,
+        8
+      );
+      drawBold(formatMoney(input.totals.taxAmount), taxBoxX + 8, taxBoxY + 22, 10);
+    }
+
+    drawBold("Amount Due", left + cardWidth + cardGap + 16, cardY + 14, 11);
+    drawBold(formatMoney(input.totals.total), left + cardWidth + cardGap + 16, cardY + 44, 20);
+    const buttonWidth = 140;
+    const buttonHeight = 28;
+    const buttonX = left + cardWidth + cardGap + 16;
+    const buttonY = cardY + 74;
+    doc.roundedRect(buttonX, buttonY, buttonWidth, buttonHeight, 6).fill(colors.primary);
+    doc.font("Inter").fontSize(10).fillColor("#FFFFFF").text("Pay Now", buttonX, buttonY + 7, {
+      width: buttonWidth,
+      align: "center",
+    });
+    if (input.paymentLink) {
+      doc.link(buttonX, buttonY, buttonWidth, buttonHeight, input.paymentLink);
+    }
+
+    y = cardY + cardHeight + 28;
 
     const tableTop = y;
-    const tableInnerX = startX;
-    const tableInnerWidth = pageWidth;
-    const tableRadius = 10;
-    const colWidths = [
-      tableInnerWidth * 0.34,
-      tableInnerWidth * 0.1,
-      tableInnerWidth * 0.21,
-      tableInnerWidth * 0.21,
-      tableInnerWidth * 0.14,
+    const headerHeight = 26;
+    const columnWidths = [
+      pageWidth * 0.5,
+      pageWidth * 0.125,
+      pageWidth * 0.1875,
+      pageWidth * 0.1875,
     ];
-    const colAlignments: PDFKit.Mixins.TextOptions["align"][] = [
-      "left",
-      "center",
-      "right",
-      "right",
-      "center",
-    ];
-    const headers = ["DESCRIPTION", "QTY", "UNIT PRICE", "SUBTOTAL", "VAT"];
-    const headerHeight = 24;
-    const drawTableHeader = (headerY: number) => {
-      doc.save();
-      doc.roundedRect(tableInnerX, headerY, tableInnerWidth, headerHeight, tableRadius).clip();
-      doc.rect(tableInnerX, headerY, tableInnerWidth, headerHeight).fill(colors.headerBg);
-      doc.restore();
-      doc.fontSize(9).fillColor(colors.headerText);
-      headers.reduce((x, header, idx) => {
-        doc.text(header, x + 6, headerY + 6, {
-          width: colWidths[idx] - 12,
-          align: colAlignments[idx] || "left",
-        });
-        return x + colWidths[idx];
-      }, tableInnerX);
+    const headerLabels = ["Description", "Qty", "Unit Price", "Total"];
+    const drawTableHeader = (yPos: number) => {
+      doc.rect(left, yPos, pageWidth, headerHeight).fill("#f1f5f9");
+      headerLabels.reduce((x, label, idx) => {
+        const width = columnWidths[idx];
+        const align = idx === 0 ? "left" : "center";
+        drawBold(label, x + 8, yPos + 8, 9, { width: width - 16, align, lineBreak: false });
+        return x + width;
+      }, left);
     };
     drawTableHeader(tableTop);
-    y = tableTop + headerHeight + 6;
-    let tableSectionStart = tableTop;
-    const drawTableBox = (startY: number, endY: number) => {
-      if (endY <= startY) return;
-      doc
-        .roundedRect(tableInnerX, startY, tableInnerWidth, endY - startY, tableRadius)
-        .strokeColor(colors.line)
-        .lineWidth(0.8)
-        .stroke();
-    };
+    y = tableTop + headerHeight;
 
-    doc.fontSize(9).fillColor(colors.text);
-    const subtotal = input.totals.subtotal || 0;
-    const vatRate = subtotal > 0 ? input.totals.taxAmount / subtotal : 0;
-    const rowLineColor = colors.lightLine;
-
-    const renderRow = (values: string[]) => {
-      const description = values[0] || "";
-      const descriptionHeight = doc.heightOfString(description, {
-        width: colWidths[0] - 12,
-        lineGap: 2,
-      });
-      const rowHeight = Math.max(24, descriptionHeight + 10);
-      if (y + rowHeight + 120 > doc.page.height - doc.page.margins.bottom) {
-        drawTableBox(tableSectionStart, y);
+    const maxTableY = doc.page.height - doc.page.margins.bottom - 180;
+    const renderRow = (item: InvoiceItem) => {
+      const rowHeight = Math.max(24, doc.heightOfString(item.name, { width: columnWidths[0] - 16 }) + 10);
+      if (y + rowHeight > maxTableY) {
         doc.addPage();
         y = doc.page.margins.top;
-        doc.font(fontName);
-        tableSectionStart = y;
         drawTableHeader(y);
-        y += headerHeight + 6;
-        doc.fontSize(9).fillColor(colors.text);
+        y += headerHeight;
       }
-      values.reduce((x, value, idx) => {
-        const isDescription = idx === 0;
-        doc.fontSize(isDescription ? 9 : 8).fillColor(colors.text);
-        doc.text(value, x + 6, y + 6, {
-          width: colWidths[idx] - 12,
-          align: colAlignments[idx] || (isDescription ? "left" : "right"),
-          lineBreak: true,
-        });
-        return x + colWidths[idx];
-      }, tableInnerX);
+      drawText(item.name, left + 8, y + 6, 10, colors.text, { width: columnWidths[0] - 16 });
+      drawText(String(item.quantity), left + columnWidths[0] + 8, y + 6, 10, colors.text, {
+        width: columnWidths[1] - 16,
+        align: "center",
+        lineBreak: false,
+      });
+      drawText(
+        formatMoney(item.price),
+        left + columnWidths[0] + columnWidths[1] + 8,
+        y + 6,
+        10,
+        colors.text,
+        { width: columnWidths[2] - 16, align: "center", lineBreak: false }
+      );
+      drawText(
+        formatMoney(item.price * item.quantity),
+        left + columnWidths[0] + columnWidths[1] + columnWidths[2] + 8,
+        y + 6,
+        10,
+        colors.text,
+        { width: columnWidths[3] - 16, align: "center", lineBreak: false }
+      );
       y += rowHeight;
-      doc
-        .moveTo(tableInnerX, y)
-        .lineTo(tableInnerX + tableInnerWidth, y)
-        .strokeColor(rowLineColor)
-        .lineWidth(0.5)
-        .stroke();
+      doc.moveTo(left, y).lineTo(right, y).strokeColor(colors.line).lineWidth(0.8).stroke();
     };
+    input.items.forEach((item) => renderRow(item));
 
-    input.items.forEach((item) => {
-      const itemSubtotal = item.quantity * item.price;
-      const vatAmount = vatRate > 0 ? itemSubtotal * vatRate : 0;
-      renderRow([
-        item.name,
-        String(item.quantity),
-        formatCurrencyCode(item.price, normalizedCurrency),
-        formatCurrencyCode(itemSubtotal, normalizedCurrency),
-        vatAmount ? formatCurrencyCode(vatAmount, normalizedCurrency) : "-",
-      ]);
-    });
-
-    if (input.totals.discountAmount > 0) {
-      renderRow([
-        "Discount",
-        "-",
-        "-",
-        formatCurrencyCode(-input.totals.discountAmount, normalizedCurrency),
-        "-",
-      ]);
-    }
-
-    drawTableBox(tableSectionStart, y);
-    y += 18;
-    const totalsX = startX + pageWidth * 0.6;
-    const totalsWidth = pageWidth * 0.4;
-    const totalsLabelWidth = totalsWidth * 0.45;
-    const totalsValueWidth = totalsWidth - totalsLabelWidth;
-    const totalsRowHeight = 16;
-    doc.fontSize(9).fillColor(colors.text);
-    const fitValueSize = (value: string, maxWidth: number, baseSize = 14, minSize = 10) => {
-      let size = baseSize;
-      doc.font(fontName).fontSize(size);
-      while (size > minSize && doc.widthOfString(value) > maxWidth) {
-        size -= 0.5;
-        doc.fontSize(size);
-      }
-      return size;
-    };
-    const drawValue = (value: string, yPos: number, size: number) => {
-      doc.font(fontName).fontSize(size).fillColor(colors.text);
-      const valueWidth = doc.widthOfString(value);
-      const maxX = totalsX + totalsWidth;
-      const minX = totalsX + totalsLabelWidth;
-      const x = Math.max(minX, maxX - valueWidth);
-      doc.text(value, x, yPos, { lineBreak: false });
-    };
-    text("Subtotal", totalsX, y, { width: totalsLabelWidth }, 9, colors.muted);
-    const subtotalValue = formatCurrencyCode(input.totals.subtotal, normalizedCurrency);
-    drawValue(
-      subtotalValue,
-      y,
-      fitValueSize(subtotalValue, totalsValueWidth, 12, 9)
-    );
-    y += totalsRowHeight;
-    if (input.totals.taxAmount > 0) {
-      const vatPercent =
-        vatRate > 0 ? (vatRate * 100).toFixed(1).replace(/\.0$/, "") : "";
-      text(`VAT (${vatPercent || ""}%)`, totalsX, y, { width: totalsLabelWidth }, 9, colors.muted);
-      const taxValue = formatCurrencyCode(input.totals.taxAmount, normalizedCurrency);
-      drawValue(taxValue, y, fitValueSize(taxValue, totalsValueWidth, 12, 9));
-      y += totalsRowHeight;
-    }
-    y += 6;
-    textBold("Total to Pay", totalsX, y, { width: totalsLabelWidth }, 14);
-    const totalValue = formatCurrencyCode(input.totals.total, normalizedCurrency);
-    const totalSize = fitValueSize(totalValue, totalsValueWidth, 14, 9);
-    doc.font(fontName).fontSize(totalSize).fillColor(colors.text);
-    const totalWidth = doc.widthOfString(totalValue);
-    const totalMaxX = totalsX + totalsWidth;
-    const totalMinX = totalsX + totalsLabelWidth;
-    const totalX = Math.max(totalMinX, totalMaxX - totalWidth);
-    doc.text(totalValue, totalX, y, { lineBreak: false });
-    doc.text(totalValue, totalX + 0.4, y, { lineBreak: false });
-
-    y += 10;
-    const amountInWords = (input as any)?.amountInWords as string | undefined;
-    if (amountInWords) {
-      text(amountInWords, startX, y, { width: pageWidth }, 8, colors.muted);
+    y += 20;
+    const totalsLabelWidth = INVOICE_TOTALS_LABEL_WIDTH;
+    const totalsValueWidth = INVOICE_TOTALS_VALUE_WIDTH;
+    const totalsX = right - (totalsLabelWidth + INVOICE_TOTALS_GAP + totalsValueWidth);
+    const totalRow = (label: string, value: string, bold = false) => {
+      const size = bold ? 12 : 10;
+      drawLabel(label, totalsX, y, 10, colors.muted, {
+        width: totalsLabelWidth,
+        align: "left",
+        lineBreak: false,
+      });
+      doc.font("Inter").fontSize(size).fillColor(colors.text).text(
+        value,
+        totalsX + totalsLabelWidth + INVOICE_TOTALS_GAP,
+        y,
+        {
+          width: totalsValueWidth,
+          align: "right",
+          lineBreak: false,
+        }
+      );
       y += 14;
+    };
+    totalRow("Subtotal", formatMoney(input.totals.subtotal));
+    if (showTax) {
+      totalRow(
+        `VAT (${taxRate ? taxRate.toFixed(1).replace(/\\.0$/, "") : "0"}%)`,
+        formatMoney(input.totals.taxAmount)
+      );
     }
-    const notes = (input as any)?.notes as string | undefined;
-    if (notes) {
-      doc.moveTo(startX, y).lineTo(startX + pageWidth, y).strokeColor(colors.line).lineWidth(0.5).stroke();
-      y += 12;
-      text(notes, startX, y, { width: pageWidth, align: "center" }, 8, colors.muted);
-      y += 8;
+    totalRow("Total Due", formatMoney(input.totals.total), true);
+
+    y += 18;
+    const paymentLogoBox = { width: 100, height: 14 };
+    drawBold("Pay Now", left, y, 11);
+    y += 12;
+    doc.rect(left, y, pageWidth, 54).strokeColor(colors.line).lineWidth(1).stroke();
+    const logoRowY = y + 9;
+    let cursorX = left + 14;
+    if (paystackLogo) {
+      doc.opacity(0.85);
+      doc.image(paystackLogo, cursorX, logoRowY, { fit: [paymentLogoBox.width, paymentLogoBox.height] });
+      doc.opacity(1);
+      cursorX += paymentLogoBox.width + 12;
+    }
+    if (flutterwaveLogo) {
+      doc.image(flutterwaveLogo, cursorX, logoRowY - 6, {
+        fit: [flutterwaveLogoWidth, flutterwaveLogoHeight],
+      });
+    }
+    drawLabel("Please make the payment by the due date. Thank you for your business.", left + 14, y + 28, 9);
+    // Payment links are delivered via email, not printed on the PDF.
+
+    if (input.note) {
+      y += 72;
+      drawBold("Note", left, y, 10);
+      drawText(input.note, left, y + 14, 9.5, colors.muted, { width: pageWidth });
     }
 
-    const footerY = doc.page.height - doc.page.margins.bottom - 14;
-    doc
-      .moveTo(startX, footerY - 10)
-      .lineTo(startX + pageWidth, footerY - 10)
-      .strokeColor(colors.lightLine)
-      .lineWidth(0.5)
-      .stroke();
-    text(
-      "Generated with Maboria",
-      startX,
-      footerY,
-      { width: pageWidth, align: "center" },
-      7,
-      colors.muted
-    );
+    const footerY = doc.page.height - doc.page.margins.bottom - 12;
+    doc.font("Inter").fontSize(8).fillColor(colors.muted).text("Generated with Maboria", 0, footerY, { align: "center" });
 
     doc.end();
   });
@@ -668,6 +794,7 @@ export async function ensureInvoicePdf({
     discount?: any;
     pdfUrl?: string | null;
     metadata?: any;
+    userId?: string;
   };
   business: BusinessProfileSnapshot;
   billTo?: CustomerSnapshot | null;
@@ -680,10 +807,7 @@ export async function ensureInvoicePdf({
 
   const metadata = (invoice as any).metadata || {};
   const currentPdfVersion = metadata?.pdfVersion || null;
-  const normalizedStatus = String(invoice.status || "DRAFT").toUpperCase();
-  const currentPdfStatus = String(metadata?.pdfStatus || "").toUpperCase();
-  const shouldRegenerate =
-    currentPdfVersion !== INVOICE_PDF_VERSION || currentPdfStatus !== normalizedStatus;
+  const shouldRegenerate = currentPdfVersion !== INVOICE_PDF_VERSION;
   const dueDateValue = metadata?.dueDate ? new Date(metadata.dueDate) : undefined;
   const dueDate = dueDateValue && !Number.isNaN(dueDateValue.getTime()) ? dueDateValue : undefined;
 
@@ -699,11 +823,17 @@ export async function ensureInvoicePdf({
   }
 
   const normalizedItems = normalizeInvoiceItems(invoice.items);
-  const totals = calculateTotalsFromAmounts(
-    normalizedItems,
-    Number(invoice.tax || 0),
-    Number(invoice.discount || 0)
-  );
+  const vatSettings = normalizeVatSettings({
+    enabled: business.vatEnabled ?? false,
+    rate: business.vatRate ?? 0,
+    mode:
+      String(business.vatPricingMode || "EXCLUSIVE").toLowerCase() === "inclusive"
+        ? "inclusive"
+        : "exclusive",
+  });
+  const totals = calculateTotalsFromAmounts(normalizedItems, vatSettings, Number(invoice.discount || 0));
+  const publicLink = await getOrCreateInvoicePublicLink(invoice.id);
+  const paymentLink = `${env.appUrl}/pay/invoice/${encodeURIComponent(publicLink.token)}`;
   const pdfBuffer = await buildInvoicePdfBuffer({
     invoiceNumber: invoice.invoiceNumber,
     status: invoice.status,
@@ -714,6 +844,9 @@ export async function ensureInvoicePdf({
     totals,
     business,
     billTo,
+    paymentLink,
+    logoBuffer: getBusinessLogoBuffer(invoice.userId || ""),
+    note: metadata?.note ?? null,
   });
   const pdfUrl = await persistInvoicePdf(invoice.id, invoice.invoiceNumber, pdfBuffer);
   await prisma.invoice.update({
@@ -723,7 +856,6 @@ export async function ensureInvoicePdf({
       metadata: {
         ...metadata,
         pdfVersion: INVOICE_PDF_VERSION,
-        pdfStatus: normalizedStatus,
       },
     },
   });
@@ -741,6 +873,7 @@ export async function generateAndStoreInvoicePdf(
     tax?: any;
     discount?: any;
     pdfUrl?: string | null;
+    userId?: string;
   },
   business: BusinessProfileSnapshot,
   billTo?: CustomerSnapshot | null
@@ -791,6 +924,7 @@ export async function sendInvoiceEmailToCustomer(
     discount?: any;
     pdfUrl?: string | null;
     metadata?: any;
+    userId?: string;
   },
   business: BusinessProfileSnapshot,
   customer?: CustomerSnapshot | null,
@@ -801,21 +935,28 @@ export async function sendInvoiceEmailToCustomer(
     log("info", "invoice_email_skipped_missing_customer", { invoiceNumber: invoice.invoiceNumber });
     return;
   }
-  const paymentLink = await ensureInvoicePaymentLink({
+  const publicLink = await getOrCreateInvoicePublicLink(invoice.id);
+  await ensureInvoicePaymentLink({
     invoice,
     customerName: customer?.name ?? null,
+    returnUrl: `${env.appUrl}/api/invoice/confirm/${encodeURIComponent(publicLink.token)}`,
   });
+  const paymentLink = `${env.appUrl}/pay/invoice/${encodeURIComponent(publicLink.token)}`;
   let resolvedBuffer: Buffer;
   try {
     const metadata = (invoice as any).metadata || {};
     const dueDateValue = metadata?.dueDate ? new Date(metadata.dueDate) : undefined;
     const dueDate = dueDateValue && !Number.isNaN(dueDateValue.getTime()) ? dueDateValue : undefined;
     const normalizedItems = normalizeInvoiceItems(invoice.items);
-    const totals = calculateTotalsFromAmounts(
-      normalizedItems,
-      Number(invoice.tax || 0),
-      Number(invoice.discount || 0)
-    );
+    const vatSettings = normalizeVatSettings({
+      enabled: business.vatEnabled ?? false,
+      rate: business.vatRate ?? 0,
+      mode:
+        String(business.vatPricingMode || "EXCLUSIVE").toLowerCase() === "inclusive"
+          ? "inclusive"
+          : "exclusive",
+    });
+    const totals = calculateTotalsFromAmounts(normalizedItems, vatSettings, Number(invoice.discount || 0));
     const normalizedCurrency = normalizeCurrency(
       invoice.currency || business.defaultCurrency || "USD"
     );
@@ -829,7 +970,9 @@ export async function sendInvoiceEmailToCustomer(
       totals,
       business,
       billTo: customer,
-      hideStatus: true,
+      paymentLink,
+      logoBuffer: getBusinessLogoBuffer(invoice.userId || ""),
+      note: metadata?.note ?? null,
     });
   } catch (error) {
     log("warn", "invoice_email_pdf_fallback", { invoiceId: invoice.id, error });
@@ -846,6 +989,6 @@ export async function sendInvoiceEmailToCustomer(
     invoiceNumber: invoice.invoiceNumber,
     pdfBuffer: resolvedBuffer,
     businessName: business.businessName,
-    paymentLink: paymentLink.paymentUrl,
+    paymentLink,
   });
 }

@@ -8,6 +8,7 @@ import { assertRateLimit } from "@/lib/rate-limit";
 import {
   enforceEntitlement,
   flowLimits,
+  getWorkspaceScope,
   getUserPlan,
   isPlanAtLeast,
   requiredPlanForSteps,
@@ -86,12 +87,14 @@ export const POST = withErrorHandling(async (req: Request) => {
   const workflowFilter = {
     OR: [{ triggers: { some: {} } }, { actions: { some: {} } }],
   };
+  const scope = await getWorkspaceScope(session.user.id);
+  const lockKey = scope.businessId ?? session.user.id;
 
   const result = await prisma.$transaction(async (tx) => {
     if (limitValue != null) {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${session.user.id}))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
       const used = await tx.automationFlow.count({
-        where: { userId: session.user.id, ...workflowFilter },
+        where: { userId: { in: scope.userIds }, ...workflowFilter },
       });
       if (used >= limitValue) {
         return {

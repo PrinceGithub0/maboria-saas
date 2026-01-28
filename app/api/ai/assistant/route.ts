@@ -81,7 +81,7 @@ export const POST = withErrorHandling(async (req: Request) => {
     );
   }
 
-  const usage = await enforceUsageLimit(session.user.id, "aiRequests", false);
+  const usage = await enforceUsageLimit(session.user.id, "aiRequests");
   if (!usage.ok) {
     if (usage.code === "payment_required") {
       return NextResponse.json(

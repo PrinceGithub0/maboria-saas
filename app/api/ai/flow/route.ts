@@ -5,7 +5,7 @@ import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { aiRouter } from "@/lib/ai/router";
 import { prisma } from "@/lib/prisma";
-import { enforceEntitlement, enforceUsageLimit, nextPlanAfter } from "@/lib/entitlements";
+import { enforceEntitlement, enforceFlowLimit, enforceUsageLimit, nextPlanAfter } from "@/lib/entitlements";
 
 export const POST = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
@@ -27,7 +27,7 @@ export const POST = withErrorHandling(async (req: Request) => {
       { status: 403 }
     );
   }
-  const usage = await enforceUsageLimit(session.user.id, "aiRequests", false);
+  const usage = await enforceUsageLimit(session.user.id, "aiRequests");
   if (!usage.ok) {
     if (usage.code === "payment_required") {
       return NextResponse.json(
@@ -44,6 +44,26 @@ export const POST = withErrorHandling(async (req: Request) => {
         ...usage,
       },
       { status: 403 }
+    );
+  }
+
+  const flowLimit = await enforceFlowLimit(session.user.id, "automations");
+  if (!flowLimit.ok) {
+    if (flowLimit.code === "payment_required") {
+      return NextResponse.json(
+        { error: "Payment required", type: "payment_required", reason: "Active subscription required" },
+        { status: 403 }
+      );
+    }
+    return NextResponse.json(
+      {
+        error: "Upgrade required",
+        type: "limit_reached",
+        reason: "Automation limit reached",
+        requiredPlan: nextPlanAfter(flowLimit.plan),
+        ...flowLimit,
+      },
+      { status: 402 }
     );
   }
 

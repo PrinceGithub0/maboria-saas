@@ -121,7 +121,7 @@ export const POST = withErrorHandling(async (req: Request) => {
   const result = await executeAutomationRun(flow, input || {});
   if ((result as any).status === "FAILED") {
     if (isPlanAtLeast(plan, "starter")) {
-      const aiUsage = await enforceUsageLimit(session.user.id, "aiRequests", false);
+      const aiUsage = await enforceUsageLimit(session.user.id, "aiRequests");
       if (!aiUsage.ok) {
         if (aiUsage.code === "payment_required") {
           return NextResponse.json(

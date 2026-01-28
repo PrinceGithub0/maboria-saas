@@ -7,13 +7,14 @@ import { invoiceSchema } from "@/lib/validators";
 import { parseDateInput } from "@/lib/date";
 import { enforceEntitlement } from "@/lib/entitlements";
 import {
+  calculateTotalsFromAmounts,
   generateAndStoreInvoicePdf,
   resolveInvoiceCustomer,
   sendInvoiceEmailToCustomer,
 } from "@/lib/invoice";
 import { isAllowedCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
 import { triggerInvoiceStatusAutomations } from "@/lib/automation/events";
-import { STANDARD_VAT_RATE, applyVatToSubtotal } from "@/lib/vat";
+import { normalizeVatSettings } from "@/lib/vat";
 
 type Params = { params: { id: string } };
 
@@ -131,16 +132,28 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
   const shouldUpdateCustomer =
     parsed.customerEmail !== undefined ||
     parsed.customerName !== undefined ||
-    parsed.customerAddress !== undefined;
+    parsed.customerAddress !== undefined ||
+    parsed.customerType !== undefined ||
+    parsed.customerCompany !== undefined ||
+    parsed.customerTaxId !== undefined;
   const shouldUpdateDates = parsed.issueDate !== undefined || parsed.dueDate !== undefined;
+  const shouldUpdateNote = parsed.note !== undefined;
   const nextItems = (parsed.items ?? (existing as any).items) as any[];
-  const subtotal = Array.isArray(nextItems)
-    ? nextItems.reduce((sum, item: any) => sum + Number(item.quantity || 0) * Number(item.price || 0), 0)
-    : 0;
   const discountAmount =
     typeof parsed.discount === "number" ? parsed.discount : Number((existing as any).discount || 0);
-  const vatTotals = applyVatToSubtotal(subtotal, STANDARD_VAT_RATE);
-  const total = Math.max(0, vatTotals.total - discountAmount);
+  const businessProfile = await prisma.businessProfile.findUnique({
+    where: { userId: session.user.id },
+    select: { vatEnabled: true, vatRate: true, vatPricingMode: true },
+  });
+  const vatSettings = normalizeVatSettings({
+    enabled: businessProfile?.vatEnabled ?? false,
+    rate: businessProfile?.vatRate ? Number(businessProfile.vatRate) : 0,
+    mode:
+      String(businessProfile?.vatPricingMode || "EXCLUSIVE").toLowerCase() === "inclusive"
+        ? "inclusive"
+        : "exclusive",
+  });
+  const totals = calculateTotalsFromAmounts(nextItems, vatSettings, discountAmount);
 
   const updated = await prisma.invoice.update({
     where: { id: existing.id },
@@ -150,10 +163,10 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
       currency: nextCurrency,
       status: parsed.status as any,
       generatedAt: issueDate ?? undefined,
-      tax: vatTotals.vat,
+      tax: totals.taxAmount,
       discount: discountAmount,
-      total,
-      metadata: shouldUpdateCustomer || shouldUpdateDates
+      total: totals.total,
+      metadata: shouldUpdateCustomer || shouldUpdateDates || shouldUpdateNote
         ? {
             ...existingMeta,
             customer: shouldUpdateCustomer
@@ -161,9 +174,17 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
                   name: parsed.customerName ?? existingCustomer.name ?? undefined,
                   email: parsed.customerEmail ?? existingCustomer.email ?? undefined,
                   address: parsed.customerAddress ?? existingCustomer.address ?? undefined,
+                  type: (parsed.customerType as any) ?? (existingCustomer as any).type ?? undefined,
+                  companyName:
+                    parsed.customerCompany ?? (existingCustomer as any).companyName ?? undefined,
+                  taxId: parsed.customerTaxId ?? (existingCustomer as any).taxId ?? undefined,
                 }
               : existingMeta?.customer,
             dueDate: parsed.dueDate ? dueDate?.toISOString() : existingMeta?.dueDate,
+            note: shouldUpdateNote ? parsed.note ?? null : existingMeta?.note,
+            vatRate: totals.vatRate,
+            vatMode: totals.vatMode,
+            vatEnabled: totals.vatEnabled,
           }
         : undefined,
     },

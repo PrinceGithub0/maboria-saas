@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Table } from "@/components/ui/table";
 import { Alert } from "@/components/ui/alert";
 import { Modal } from "@/components/ui/modal";
@@ -15,6 +16,8 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { formatCurrencyWithCode } from "@/lib/currency";
 import { parseDateInput } from "@/lib/date";
 import { allowedCurrencies, formatCurrencyOption } from "@/lib/payments/currency-allowlist";
+import { calculateTotalsFromAmounts } from "@/lib/invoice-calculations";
+import { normalizeVatSettings } from "@/lib/vat";
 import { useSession } from "next-auth/react";
 import { useLanguage } from "@/components/providers/language-provider";
 import { formatBusinessAddress, hasRequiredAddress } from "@/lib/address";
@@ -61,8 +64,12 @@ export default function InvoicesPage() {
     customerName: "",
     customerEmail: "",
     customerAddress: "",
+    customerType: "INDIVIDUAL",
+    customerCompany: "",
+    customerTaxId: "",
     issueDate: todayValue,
     dueDate: "",
+    note: "",
     items: [{ name: "Service", quantity: 1, price: 100 }],
   });
   const [status, setStatus] = useState<{ message: string; variant: "success" | "error" | "info" } | null>(null);
@@ -267,18 +274,26 @@ export default function InvoicesPage() {
       currency: string;
       status: string;
       customerName?: string;
-      customerEmail?: string;
-      customerAddress?: string;
-      issueDate?: string;
-      dueDate?: string;
-      items: { name: string; quantity: number; price: number }[];
-    } = {
-      ...form,
-      invoiceNumber: form.invoiceNumber.trim(),
-      customerName: form.customerName.trim() || undefined,
-      customerEmail: form.customerEmail.trim() || undefined,
-      customerAddress: form.customerAddress.trim() || undefined,
-    };
+    customerEmail?: string;
+    customerAddress?: string;
+    customerType?: string;
+    customerCompany?: string;
+    customerTaxId?: string;
+    issueDate?: string;
+    dueDate?: string;
+    note?: string;
+    items: { name: string; quantity: number; price: number }[];
+  } = {
+    ...form,
+    invoiceNumber: form.invoiceNumber.trim(),
+    customerName: form.customerName.trim() || undefined,
+    customerEmail: form.customerEmail.trim() || undefined,
+    customerAddress: form.customerAddress.trim() || undefined,
+    customerType: form.customerType,
+    customerCompany: form.customerCompany.trim() || undefined,
+    customerTaxId: form.customerTaxId.trim() || undefined,
+    note: form.note.trim() || undefined,
+  };
     const issueDateParsed = form.issueDate ? parseDateInput(form.issueDate) : null;
     if (form.issueDate && !issueDateParsed) {
       setStatus({
@@ -347,8 +362,12 @@ export default function InvoicesPage() {
           customerName: "",
           customerEmail: "",
           customerAddress: "",
+          customerType: "INDIVIDUAL",
+          customerCompany: "",
+          customerTaxId: "",
           issueDate: todayValue,
           dueDate: "",
+          note: "",
           items: [{ name: "Service", quantity: 1, price: 100 }],
         });
       }
@@ -359,6 +378,17 @@ export default function InvoicesPage() {
 
   const currencyOptions = allowedCurrencies.map((code) => ({ code, label: formatCurrencyOption(code) }));
   const businessCurrencyOptions = allowedCurrencies.map((code) => ({ code, label: formatCurrencyOption(code) }));
+  const draftVatSettings = normalizeVatSettings({
+    enabled: businessProfile?.data?.vatEnabled ?? false,
+    rate: businessProfile?.data?.vatRate ? Number(businessProfile.data.vatRate) : 0,
+    mode:
+      String(businessProfile?.data?.vatPricingMode || "EXCLUSIVE").toLowerCase() === "inclusive"
+        ? "inclusive"
+        : "exclusive",
+  });
+  const draftTotals = calculateTotalsFromAmounts(form.items, draftVatSettings, 0);
+  const showDraftTax =
+    Boolean(draftTotals.vatEnabled) && Number(draftTotals.vatRate || 0) > 0;
 
   const scopedInvoices =
     !invoicesError && Array.isArray(invoices)
@@ -663,6 +693,7 @@ export default function InvoicesPage() {
               <div className="mt-2 flex flex-col gap-2">
                 <div className="flex items-center gap-3">
                   <div className="h-12 w-12 overflow-hidden rounded-xl border border-transparent bg-white ring-1 ring-border max-md:rounded-2xl">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={profileLogoPreviewUrl}
                       alt={t("Business logo preview", "Apercu du logo")}
@@ -694,10 +725,6 @@ export default function InvoicesPage() {
                 label={t("Tax ID (optional)", "ID fiscal (optionnel)")}
                 value={profileForm.taxId}
                 onChange={(e) => setProfileForm({ ...profileForm, taxId: e.target.value })}
-                onFocus={(e) => {
-                  const length = e.currentTarget.value.length;
-                  e.currentTarget.setSelectionRange(length, length);
-                }}
               />
             </div>
             <div className="col-span-2 max-md:col-span-1 max-md:order-10">
@@ -726,6 +753,17 @@ export default function InvoicesPage() {
               value={form.customerEmail}
               onChange={(e) => setForm({ ...form, customerEmail: e.target.value })}
             />
+            <label className="flex flex-col gap-1 text-sm text-foreground">
+              {t("Customer type", "Type de client")}
+              <select
+                value={form.customerType}
+                onChange={(e) => setForm({ ...form, customerType: e.target.value })}
+                className="rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:border-indigo-400 focus:outline-none"
+              >
+                <option value="INDIVIDUAL">{t("Individual", "Particulier")}</option>
+                <option value="BUSINESS">{t("Business", "Entreprise")}</option>
+              </select>
+            </label>
             <Input
               label={t("Issue date", "Date d emission")}
               type="date"
@@ -768,33 +806,144 @@ export default function InvoicesPage() {
               value={form.customerAddress}
               onChange={(e) => setForm({ ...form, customerAddress: e.target.value })}
             />
-            <Input
-              label={t("Item name", "Nom de l article")}
-              value={form.items[0].name}
-              onChange={(e) =>
-                setForm({ ...form, items: [{ ...form.items[0], name: e.target.value }] })
-              }
-            />
-            <div className="space-y-1">
-              <Input
-                label={t(`Item price (${form.currency})`, `Prix (${form.currency})`)}
-                type="number"
-                value={form.items[0].price}
-                min={0}
-                step={0.01}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    items: [{ ...form.items[0], price: Number(e.target.value) }],
-                  })
-                }
+            {form.customerType === "BUSINESS" ? (
+              <>
+                <Input
+                  label={t("Company name (optional)", "Entreprise (optionnel)")}
+                  value={form.customerCompany}
+                  onChange={(e) => setForm({ ...form, customerCompany: e.target.value })}
+                />
+                <Input
+                  label={t("Tax ID (optional)", "ID fiscal (optionnel)")}
+                  value={form.customerTaxId}
+                  onChange={(e) => setForm({ ...form, customerTaxId: e.target.value })}
+                />
+              </>
+            ) : (
+              <div className="col-span-2 max-md:col-span-1" />
+            )}
+            <div className="col-span-2 max-md:col-span-1">
+              <div className="rounded-2xl border border-border bg-muted/10 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-foreground">{t("Line items", "Articles")}</p>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        items: [...prev.items, { name: "", quantity: 1, price: 0 }],
+                      }))
+                    }
+                  >
+                    {t("Add item", "Ajouter")}
+                  </Button>
+                </div>
+                <div className="mt-3 space-y-3">
+                  {form.items.map((item, index) => (
+                    <div
+                      key={`item-${index}`}
+                      className="grid grid-cols-[2fr_0.6fr_0.8fr_0.8fr_auto] gap-3 max-md:grid-cols-1"
+                    >
+                      <Input
+                        label={t("Description", "Description")}
+                        value={item.name}
+                        onChange={(e) =>
+                          setForm((prev) => {
+                            const next = [...prev.items];
+                            next[index] = { ...next[index], name: e.target.value };
+                            return { ...prev, items: next };
+                          })
+                        }
+                      />
+                      <Input
+                        label={t("Qty", "Qt")}
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={item.quantity}
+                        onChange={(e) =>
+                          setForm((prev) => {
+                            const next = [...prev.items];
+                            next[index] = { ...next[index], quantity: Math.max(1, Number(e.target.value)) };
+                            return { ...prev, items: next };
+                          })
+                        }
+                      />
+                      <Input
+                        label={t("Unit price", "Prix unitaire")}
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        value={item.price}
+                        onChange={(e) =>
+                          setForm((prev) => {
+                            const next = [...prev.items];
+                            next[index] = { ...next[index], price: Number(e.target.value) };
+                            return { ...prev, items: next };
+                          })
+                        }
+                      />
+                      <div className="space-y-1">
+                        <label className="flex flex-col gap-1 text-sm text-foreground">
+                          {t("Line total", "Total ligne")}
+                          <div className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground">
+                            {formatCurrencyWithCode(item.quantity * item.price, form.currency)}
+                          </div>
+                        </label>
+                      </div>
+                      <div className="flex items-end max-md:items-start">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() =>
+                            setForm((prev) => {
+                              if (prev.items.length === 1) return prev;
+                              const next = prev.items.filter((_, idx) => idx !== index);
+                              return { ...prev, items: next };
+                            })
+                          }
+                        >
+                          {t("Remove", "Supprimer")}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <div className="w-full max-w-xs space-y-2 border-t border-border/60 pt-3 text-sm text-foreground">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="font-semibold">{t("Subtotal", "Sous-total")}</span>
+                      <span className="font-semibold tabular-nums">
+                        {formatCurrencyWithCode(draftTotals.subtotal, form.currency)}
+                      </span>
+                    </div>
+                    {showDraftTax ? (
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="font-semibold">
+                          {t("VAT", "TVA")} ({Number(draftTotals.vatRate || 0).toFixed(1).replace(/\\.0$/, "")}%)
+                        </span>
+                        <span className="font-semibold tabular-nums">
+                          {formatCurrencyWithCode(draftTotals.taxAmount, form.currency)}
+                        </span>
+                      </div>
+                    ) : null}
+                    <div className="flex items-center justify-between gap-4 text-base font-semibold">
+                      <span>{t("Total Due", "Total du")}</span>
+                      <span className="tabular-nums">
+                        {formatCurrencyWithCode(draftTotals.total, form.currency)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="col-span-2 max-md:col-span-1">
+              <Textarea
+                label={t("Note to customer (optional)", "Note au client (optionnel)")}
+                value={form.note}
+                onChange={(e) => setForm({ ...form, note: e.target.value })}
               />
-              <p className="text-xs text-muted-foreground">
-                {t(
-                  `Displayed as ${formatCurrencyWithCode(form.items[0].price || 0, form.currency)}.`,
-                  `Affiche comme ${formatCurrencyWithCode(form.items[0].price || 0, form.currency)}.`
-                )}
-              </p>
             </div>
             <div className="col-span-2 max-md:col-span-1">
               <Button type="submit" className="max-md:w-full">

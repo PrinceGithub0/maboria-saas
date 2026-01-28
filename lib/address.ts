@@ -23,8 +23,8 @@ export function parseBusinessAddress(value: string | null | undefined): Business
     parts = [raw];
   }
   const normalized = parts.map(normalize);
-  let streetAddress = normalized[0] || "";
-  let city = normalized[1] || "";
+  const streetAddress = normalized[0] || "";
+  const city = normalized[1] || "";
   let region = normalized[2] || "";
   let postalCode = normalized[3] || "";
   if (normalized.length === 3) {

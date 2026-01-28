@@ -6,9 +6,16 @@ import { prisma } from "@/lib/prisma";
 import { enforceEntitlement } from "@/lib/entitlements";
 import { InvoicePreview } from "@/components/invoices/invoice-preview";
 import { Alert } from "@/components/ui/alert";
-import { InvoiceItem, calculateTotalsFromAmounts, resolveInvoiceCustomer } from "@/lib/invoice";
+import {
+  calculateTotalsFromAmounts,
+  resolveInvoiceCustomer,
+  normalizeInvoiceItems,
+  getBusinessLogoDataUrl,
+} from "@/lib/invoice";
 import { isAllowedCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
 import { LangText } from "@/components/ui/lang-text";
+import { getOrCreateInvoicePublicLink } from "@/lib/invoice-public-link";
+import { normalizeVatSettings } from "@/lib/vat";
 
 type PageProps = {
   searchParams?: Record<string, string | string[] | undefined>;
@@ -112,6 +119,7 @@ export default async function InvoiceDetailPage({ searchParams }: PageProps) {
   const metadata = (invoice.metadata as any) || {};
   let business = metadata.businessProfile;
   const customer = resolveInvoiceCustomer(metadata);
+  const note = typeof metadata?.note === "string" ? metadata.note : null;
   const dueDateValue = metadata?.dueDate ? new Date(metadata.dueDate) : undefined;
   const dueDate = dueDateValue && !Number.isNaN(dueDateValue.getTime()) ? dueDateValue : undefined;
   if (!business?.businessName) {
@@ -125,6 +133,9 @@ export default async function InvoiceDetailPage({ searchParams }: PageProps) {
         businessEmail: true,
         businessPhone: true,
         taxId: true,
+        vatEnabled: true,
+        vatRate: true,
+        vatPricingMode: true,
       },
     });
     if (profile) {
@@ -132,12 +143,19 @@ export default async function InvoiceDetailPage({ searchParams }: PageProps) {
     }
   }
   const businessMissing = !business?.businessName;
-  const items = (invoice.items as InvoiceItem[]) || [];
-  const totals = calculateTotalsFromAmounts(
-    items,
-    Number(invoice.tax || 0),
-    Number(invoice.discount || 0)
-  );
+  const items = normalizeInvoiceItems(invoice.items);
+  const vatSettings = normalizeVatSettings({
+    enabled: business?.vatEnabled ?? false,
+    rate: business?.vatRate ? Number(business.vatRate) : 0,
+    mode:
+      String(business?.vatPricingMode || "EXCLUSIVE").toLowerCase() === "inclusive"
+        ? "inclusive"
+        : "exclusive",
+  });
+  const totals = calculateTotalsFromAmounts(items, vatSettings, Number(invoice.discount || 0));
+  const publicLink = await getOrCreateInvoicePublicLink(invoice.id);
+  const paymentLink = `/pay/invoice/${encodeURIComponent(publicLink.token)}`;
+  const logoDataUrl = getBusinessLogoDataUrl(invoice.userId || userId);
   const downloadUrl = `/api/invoice/${encodeURIComponent(
     String(invoice.id)
   )}/pdf?fresh=1&v=${invoice.generatedAt?.getTime?.() ?? Date.now()}`;
@@ -206,8 +224,11 @@ export default async function InvoiceDetailPage({ searchParams }: PageProps) {
           currency={normalizedCurrency}
           items={items}
           totals={totals}
+          paymentLink={paymentLink}
+          logoDataUrl={logoDataUrl}
           business={business}
           billTo={customer}
+          note={note}
         />
       ) : null}
     </div>

@@ -31,6 +31,11 @@ enum SubscriptionStatus {
   INACTIVE
 }
 
+enum VatPricingMode {
+  EXCLUSIVE
+  INCLUSIVE
+}
+
 enum PaymentProvider {
   PAYSTACK
   FLUTTERWAVE
@@ -64,6 +69,7 @@ enum InvoiceStatus {
   FAILED
   OVERDUE
   CANCELED
+  EXPIRED
 }
 
 enum SupportStatus {
@@ -111,6 +117,7 @@ model User {
   subscriptions  Subscription[]
   payments       Payment[]
   invoicePayments InvoicePayment[]
+  receipts      Receipt[]
   automationFlows AutomationFlow[]
   automationRuns AutomationRun[]    @relation("UserAutomationRuns")
   invoices       Invoice[]
@@ -146,12 +153,17 @@ model Subscription {
   usageLimit  Int?
   usagePeriod String?            @default("monthly")
   currency    String             @default("USD")
-  graceEndsAt DateTime?
-  cancellationReason String?
-  overageUsed Int               @default(0)
-  interval    String            @default("monthly")
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+    graceEndsAt DateTime?
+    cancellationReason String?
+    overageUsed Int               @default(0)
+    interval    String            @default("monthly")
+    receiptUrl  String?
+    receiptNumber String?
+    receiptIssuedAt DateTime?
+    lastPaymentReference String?
+    lastPaymentProvider PaymentProvider?
+    createdAt   DateTime           @default(now())
+    updatedAt   DateTime           @updatedAt
   invoices    Invoice[]
 }
 
@@ -165,13 +177,15 @@ model Payment {
   status    PaymentStatus
   createdAt DateTime         @default(now())
   metadata  Json?
-  reference String?          @unique
+  reference String?
   gatewayResponse Json?
   originalAmount Decimal?    @db.Decimal(14, 2)
   originalCurrency String?
   amountUsd Decimal?         @db.Decimal(14, 2)
   amountNgn Decimal?         @db.Decimal(14, 2)
   conversations Conversation[] @relation("PaymentConversations")
+
+  @@unique([provider, reference])
 }
 
 model AutomationFlow {
@@ -223,6 +237,8 @@ model Invoice {
   metadata      Json?
   pdfUrl        String?
   invoicePayments InvoicePayment[]
+  publicLinks   InvoicePublicLink[]
+  receipts      Receipt[]
   subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
   subscriptionId String?
   customerId    String?
@@ -240,10 +256,47 @@ model InvoicePayment {
   status    PaymentStatus
   amount    Decimal        @db.Decimal(14, 2)
   currency  String
-  reference String         @unique
+  reference String
   metadata  Json?
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
+  receipt   Receipt?
+
+  @@index([invoiceId])
+  @@index([userId])
+  @@unique([provider, reference])
+}
+
+model InvoicePublicLink {
+  id        String   @id @default(cuid())
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId String
+  token     String   @unique
+  createdAt DateTime @default(now())
+  usedAt    DateTime?
+  expiresAt DateTime?
+
+  @@index([invoiceId])
+}
+
+model Receipt {
+  id              String          @id @default(cuid())
+  invoicePayment  InvoicePayment  @relation(fields: [invoicePaymentId], references: [id], onDelete: Cascade)
+  invoicePaymentId String         @unique
+  invoice         Invoice         @relation(fields: [invoiceId], references: [id])
+  invoiceId       String
+  user            User            @relation(fields: [userId], references: [id])
+  userId          String
+  receiptNumber   String          @unique
+  amount          Decimal         @db.Decimal(14, 2)
+  currency        String
+  provider        PaymentProvider
+  paymentMethod   String?
+  reference       String?
+  customerEmail   String?
+  issuedAt        DateTime        @default(now())
+  pdfUrl          String?
+  metadata        Json?
 
   @@index([invoiceId])
   @@index([userId])
@@ -407,6 +460,9 @@ model BusinessProfile {
   businessEmail    String?
   businessPhone    String?
   taxId            String?
+  vatEnabled       Boolean  @default(false)
+  vatRate          Decimal? @db.Decimal(5, 2)
+  vatPricingMode   VatPricingMode @default(EXCLUSIVE)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }

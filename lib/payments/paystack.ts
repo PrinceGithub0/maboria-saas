@@ -8,9 +8,31 @@ import { notifyPaymentSucceeded } from "../whatsapp";
 import { maybeSendSubscriptionReceipt } from "../subscription-receipt";
 import { recordInvoicePayment } from "../invoice-payments";
 import { fromMinorUnits } from "./currency-allowlist";
+import type { BillingInterval } from "../pricing";
+import { finalizeSubscriptionPayment } from "./subscription";
 
 const PAYSTACK_SECRET = env.paystackSecret || "";
 const PAYSTACK_BASE = "https://api.paystack.co";
+
+export function normalizePaystackPaymentMethod(data: any) {
+  const channel =
+    String(
+      data?.authorization?.channel ||
+        data?.channel ||
+        data?.authorization?.bank ||
+        data?.authorization?.card_type ||
+        ""
+    ).toLowerCase();
+  if (channel.includes("bank") || channel.includes("transfer")) return "Bank transfer";
+  if (channel.includes("ussd")) return "USSD";
+  if (channel.includes("mobile") || channel.includes("wallet")) return "Wallet";
+  if (channel.includes("card") || channel.includes("visa") || channel.includes("master")) return "Card";
+  return "Card";
+}
+
+function normalizeInterval(value: unknown): BillingInterval {
+  return String(value || "").toLowerCase() === "yearly" ? "yearly" : "monthly";
+}
 
 export async function initializePaystackTransaction({
   amount,
@@ -162,73 +184,59 @@ export async function recordPaystackPayment(data: any) {
     return;
   }
 
-  const existing = await prisma.payment.findFirst({ where: { reference } });
-  if (existing) {
-    const receiptSentAt = (existing.metadata as any)?.receiptSentAt;
-    const plan = (existing.metadata as any)?.plan ?? data?.metadata?.plan;
-    if (existing.status === "SUCCEEDED" && !receiptSentAt) {
-      try {
-        await maybeSendSubscriptionReceipt({
-          paymentId: existing.id,
-          userId: existing.userId,
-          amount: Number(existing.amount),
-          currency: existing.currency,
-          provider: "PAYSTACK",
-          reference,
-          paidAt: existing.createdAt,
-          plan,
-        });
-      } catch (error: any) {
-        log("error", "paystack_receipt_failed", { userId, reference, error: error.message });
-      }
-    }
-    return;
-  }
-
   const currency = (data.currency || "NGN").toUpperCase();
   const amount = typeof data.amount === "number" ? fromMinorUnits(data.amount, currency) : 0;
   const status = data.status === "success" ? "SUCCEEDED" : "FAILED";
   const plan = data?.metadata?.plan as string | undefined;
-  const metadata = { ...(data?.metadata || {}), userId: resolvedUserId, plan };
+  const interval = normalizeInterval(data?.metadata?.interval);
+  const paymentMethod = data?.metadata?.paymentMethod || normalizePaystackPaymentMethod(data);
+  const verified = data?.metadata?.verified === true;
+  if (status !== "SUCCEEDED" || !verified) {
+    log("warn", "paystack_payment_not_verified", { reference, status, verified });
+    return;
+  }
 
-  const created = await prisma.payment.create({
-    data: {
+  const finalized = await finalizeSubscriptionPayment({
+    provider: "PAYSTACK",
+    reference,
+    amount,
+    currency,
+    userId: resolvedUserId,
+    plan,
+    interval,
+    paymentMethod,
+    verifiedAt: data?.paid_at || data?.paidAt || data?.transaction_date,
+    rawPayload: data,
+  });
+
+  if (!finalized?.payment) return;
+
+  try {
+    await maybeSendSubscriptionReceipt({
+      paymentId: finalized.payment.id,
       userId: resolvedUserId,
       amount,
       currency,
       provider: "PAYSTACK",
-      status,
       reference,
-      metadata,
-    },
-  });
-
-  log("info", "Paystack payment recorded", { userId: resolvedUserId, amount, currency, reference });
-  if (status === "SUCCEEDED") {
-    try {
-      await maybeSendSubscriptionReceipt({
-        paymentId: created.id,
-        userId: resolvedUserId,
-        amount,
-        currency,
-        provider: "PAYSTACK",
-        reference,
-        paidAt: created.createdAt,
-        plan,
-      });
-    } catch (error: any) {
-      log("error", "paystack_receipt_failed", { userId: resolvedUserId, reference, error: error.message });
-    }
-    try {
-      await notifyPaymentSucceeded({
-        userId: resolvedUserId,
-        provider: "PAYSTACK",
-        amount,
-        currency,
-        reference,
-      });
-    } catch (error: any) {
-      log("error", "paystack_whatsapp_failed", { userId, reference, error: error.message });
-    }
+      paidAt: finalized.payment.createdAt,
+      plan: finalized.plan,
+      interval: finalized.interval,
+      paymentMethod,
+      verified: true,
+    });
+  } catch (error: any) {
+    log("error", "paystack_receipt_failed", { userId: resolvedUserId, reference, error: error.message });
+  }
+  try {
+    await notifyPaymentSucceeded({
+      userId: resolvedUserId,
+      provider: "PAYSTACK",
+      amount,
+      currency,
+      reference,
+    });
+  } catch (error: any) {
+    log("error", "paystack_whatsapp_failed", { userId: resolvedUserId, reference, error: error.message });
   }
 }

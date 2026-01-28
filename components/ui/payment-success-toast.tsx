@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Toast } from "@/components/ui/toast";
 import { formatCurrency } from "@/lib/currency";
@@ -10,7 +10,7 @@ export function PaymentSuccessToast() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { language } = useLanguage();
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const t = useCallback((en: string, fr: string) => (language === "fr" ? fr : en), [language]);
   const handledRef = useRef(false);
   const [show, setShow] = useState(false);
   const [message, setMessage] = useState<React.ReactNode>(
@@ -82,7 +82,7 @@ export function PaymentSuccessToast() {
       router.replace("/dashboard", { scroll: false });
       return () => clearTimeout(timer);
     }
-  }, [searchParams, router]);
+  }, [searchParams, router, t]);
 
   return <Toast message={message} show={show} />;
 }

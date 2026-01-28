@@ -96,11 +96,18 @@ export const POST = withErrorHandling(async (req: Request) => {
     return NextResponse.json({ error: "Unsupported currency" }, { status: 400 });
   }
   const customer =
-    parsed.customerEmail || parsed.customerName || parsed.customerAddress
+    parsed.customerEmail ||
+    parsed.customerName ||
+    parsed.customerAddress ||
+    parsed.customerCompany ||
+    parsed.customerTaxId
       ? {
           name: parsed.customerName,
           email: parsed.customerEmail,
           address: parsed.customerAddress,
+          type: parsed.customerType,
+          companyName: parsed.customerCompany,
+          taxId: parsed.customerTaxId,
         }
       : null;
   const issueDate = parsed.issueDate ? parseDateInput(parsed.issueDate) : undefined;
@@ -118,11 +125,11 @@ export const POST = withErrorHandling(async (req: Request) => {
     currency: normalizedCurrency,
     items: parsed.items,
     status: parsed.status,
-    tax: parsed.tax,
     discount: parsed.discount,
     customer,
     issueDate,
     dueDate,
+    note: parsed.note,
   });
   await prisma.activityLog.create({
     data: {

@@ -1,7 +1,6 @@
 import { prisma } from "./prisma";
 import { createInvoiceRecord } from "./invoice";
 import { log } from "./logger";
-import { STANDARD_VAT_RATE } from "./vat";
 
 export async function meterUsage(userId: string, category: string, amount: number, period: string) {
   await prisma.usageRecord.create({
@@ -23,7 +22,6 @@ export async function autoInvoiceFromUsage(userId: string, currency = "USD") {
     currency,
     items: usage.map((u) => ({ name: `${u.category} (${u.period})`, quantity: 1, price: u.amount })),
     status: "SENT",
-    tax: STANDARD_VAT_RATE,
     discount: 0,
   });
   await prisma.usageRecord.deleteMany({ where: { userId } });

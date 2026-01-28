@@ -15,6 +15,7 @@ import {
   isSupportedCountry,
 } from "@/lib/business-profile";
 import { hasRequiredAddress, parseBusinessAddress } from "@/lib/address";
+import { normalizeVatSettings } from "@/lib/vat";
 import path from "path";
 import fs from "fs/promises";
 
@@ -86,6 +87,11 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
   const country = normalizeCountryCode(parsed.country);
   const currency = normalizeCurrencyCode(parsed.defaultCurrency);
   const addressFields = parseBusinessAddress(parsed.businessAddress);
+  const vatSettings = normalizeVatSettings({
+    enabled: parsed.vatEnabled ?? false,
+    rate: parsed.vatRate ?? 0,
+    mode: parsed.vatPricingMode ?? "exclusive",
+  });
 
   if (!parsed.businessName?.trim()) {
     return NextResponse.json({ error: REQUIRED_MESSAGE }, { status: 400 });
@@ -105,6 +111,12 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
   if (!isSupportedBusinessCurrency(currency)) {
     return NextResponse.json({ error: "Unsupported currency" }, { status: 400 });
   }
+  if (parsed.vatEnabled && (parsed.vatRate === undefined || parsed.vatRate === null)) {
+    return NextResponse.json({ error: REQUIRED_MESSAGE }, { status: 400 });
+  }
+  if (parsed.vatRate !== undefined && (parsed.vatRate < 0 || parsed.vatRate > 30)) {
+    return NextResponse.json({ error: "Invalid VAT rate" }, { status: 400 });
+  }
 
   const created = await profileClient.create({
     data: {
@@ -116,6 +128,9 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
       businessEmail: parsed.businessEmail?.toLowerCase().trim(),
       businessPhone: parsed.businessPhone?.trim(),
       taxId: parsed.taxId?.trim(),
+      vatEnabled: vatSettings.enabled,
+      vatRate: vatSettings.enabled ? vatSettings.rate : 0,
+      vatPricingMode: vatSettings.mode.toUpperCase(),
     },
   });
 
@@ -180,6 +195,16 @@ export const PUT = withRequestLogging(withErrorHandling(async (req: Request) => 
   if (parsed.businessEmail !== undefined) updateData.businessEmail = parsed.businessEmail?.toLowerCase().trim();
   if (parsed.businessPhone !== undefined) updateData.businessPhone = parsed.businessPhone?.trim();
   if (parsed.taxId !== undefined) updateData.taxId = parsed.taxId?.trim();
+  if (parsed.vatEnabled !== undefined) {
+    updateData.vatEnabled = parsed.vatEnabled;
+    if (parsed.vatEnabled === false && parsed.vatRate === undefined) {
+      updateData.vatRate = 0;
+    }
+  }
+  if (parsed.vatRate !== undefined) updateData.vatRate = parsed.vatRate;
+  if (parsed.vatPricingMode !== undefined) {
+    updateData.vatPricingMode = parsed.vatPricingMode.toUpperCase();
+  }
 
   if (Object.keys(updateData).length === 0) {
     return NextResponse.json({ error: "No updates provided" }, { status: 400 });
@@ -192,6 +217,9 @@ export const PUT = withRequestLogging(withErrorHandling(async (req: Request) => 
     businessAddress: updateData.businessAddress ?? existing.businessAddress,
     businessEmail: updateData.businessEmail ?? existing.businessEmail,
     businessPhone: updateData.businessPhone ?? existing.businessPhone,
+    vatEnabled: updateData.vatEnabled ?? existing.vatEnabled ?? false,
+    vatRate: updateData.vatRate ?? existing.vatRate ?? 0,
+    vatPricingMode: updateData.vatPricingMode ?? existing.vatPricingMode ?? "EXCLUSIVE",
   };
   const nextAddress = parseBusinessAddress(nextProfile.businessAddress);
   if (
@@ -204,6 +232,12 @@ export const PUT = withRequestLogging(withErrorHandling(async (req: Request) => 
     !hasRequiredAddress(nextAddress)
   ) {
     return NextResponse.json({ error: REQUIRED_MESSAGE }, { status: 400 });
+  }
+  if (nextProfile.vatEnabled && (nextProfile.vatRate === null || nextProfile.vatRate === undefined)) {
+    return NextResponse.json({ error: REQUIRED_MESSAGE }, { status: 400 });
+  }
+  if (nextProfile.vatRate !== null && (Number(nextProfile.vatRate) < 0 || Number(nextProfile.vatRate) > 30)) {
+    return NextResponse.json({ error: "Invalid VAT rate" }, { status: 400 });
   }
 
   const updated = await profileClient.update({

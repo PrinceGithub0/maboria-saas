@@ -3,6 +3,7 @@ import {
   recordFlutterwavePayment,
   verifyFlutterwaveTransaction,
   verifyFlutterwaveWebhook,
+  normalizeFlutterwavePaymentMethod,
 } from "@/lib/payments/flutterwave";
 import { recordInvoicePayment } from "@/lib/invoice-payments";
 import { withErrorHandling } from "@/lib/api-handler";
@@ -100,7 +101,15 @@ export const POST = withErrorHandling(async (req: Request) => {
     }
 
     if (status === "successful") {
-      await recordFlutterwavePayment({ ...verified, meta: verified?.meta || data?.meta });
+      const verifiedMeta = {
+        ...(verified?.meta || data?.meta || {}),
+        userId,
+        plan,
+        interval,
+        verified: true,
+        paymentMethod: normalizeFlutterwavePaymentMethod(verified),
+      };
+      await recordFlutterwavePayment({ ...verified, meta: verifiedMeta });
       if (userId) {
         const existing = await prisma.subscription.findFirst({
           where: { userId, status: { in: ["ACTIVE", "PAST_DUE", "CANCELED", "INACTIVE"] } },

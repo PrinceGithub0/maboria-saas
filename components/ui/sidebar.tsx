@@ -61,6 +61,7 @@ export function Sidebar({ role }: Props) {
     "Automation Errors": language === "fr" ? "Erreurs automatisation" : "Automation Errors",
     Prelaunch: language === "fr" ? "Prelaunch" : "Prelaunch",
     "System Flags": language === "fr" ? "Drapeaux systeme" : "System Flags",
+    "Receipt Preview": language === "fr" ? "Apercu recu" : "Receipt Preview",
     Core: language === "fr" ? "Principal" : "Core",
     Billing: language === "fr" ? "Facturation" : "Billing",
     SupportSettings: language === "fr" ? "Support et parametres" : "Support & Settings",
@@ -101,6 +102,7 @@ export function Sidebar({ role }: Props) {
           { href: "/admin/automation/errors", label: labelMap["Automation Errors"], icon: Bot },
           { href: "/admin/prelaunch", label: labelMap.Prelaunch, icon: Gauge },
           { href: "/admin/system-flags", label: labelMap["System Flags"], icon: Settings },
+          { href: "/admin/receipt-preview", label: labelMap["Receipt Preview"], icon: FileText },
         ]
       : [];
 

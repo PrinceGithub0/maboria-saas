@@ -104,11 +104,14 @@ export const invoiceSchema = z.object({
   currency: z.string().length(3),
   status: z.enum(["DRAFT", "SENT", "PAID", "FAILED", "OVERDUE", "CANCELED"]).default("DRAFT"),
   items: z.array(invoiceItemSchema),
-  tax: z.number().nonnegative().optional(),
   discount: z.number().nonnegative().optional(),
   customerName: optionalString,
   customerEmail: optionalEmail,
   customerAddress: optionalString,
+  customerType: z.enum(["INDIVIDUAL", "BUSINESS"]).optional(),
+  customerCompany: optionalString,
+  customerTaxId: optionalString,
+  note: optionalString,
   issueDate: z.string().optional(),
   dueDate: z.string().optional(),
 });
@@ -157,6 +160,9 @@ export const businessProfileCreateSchema = z.object({
   businessAddress: optionalString,
   businessEmail: requiredEmail,
   businessPhone: requiredE164,
+  vatEnabled: z.boolean().optional(),
+  vatRate: z.number().min(0).max(30).optional(),
+  vatPricingMode: z.enum(["exclusive", "inclusive"]).optional(),
   taxId: z.preprocess(
     (value) => {
       if (typeof value !== "string") return value;
@@ -174,6 +180,9 @@ export const businessProfileUpdateSchema = z.object({
   businessAddress: optionalString,
   businessEmail: optionalEmail,
   businessPhone: optionalE164,
+  vatEnabled: z.boolean().optional(),
+  vatRate: z.number().min(0).max(30).optional(),
+  vatPricingMode: z.enum(["exclusive", "inclusive"]).optional(),
   taxId: z.preprocess(
     (value) => {
       if (typeof value !== "string") return value;

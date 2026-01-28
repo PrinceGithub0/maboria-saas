@@ -17,7 +17,7 @@ export default function SubscriptionPage() {
   const subs = data || [];
   const { language } = useLanguage();
   const t = (en: string, fr: string) => (language === "fr" ? fr : en);
-  const [actionStatus, setActionStatus] = useState<{ message: string; variant: "info" | "success" | "error" } | null>(
+  const [actionStatus] = useState<{ message: string; variant: "info" | "success" | "error" } | null>(
     null
   );
 
@@ -42,6 +42,10 @@ export default function SubscriptionPage() {
 
   const activeSub = subs.find((sub: any) => ["ACTIVE", "PAST_DUE"].includes(sub.status));
   const currentPlan = activeSub?.plan ? formatPlan(activeSub.plan) : t("No active plan", "Aucun plan actif");
+  const hasReceipt = subs.some((sub: any) => Boolean(sub?.receiptUrl));
+  const downloadReceipt = () => {
+    window.open("/api/subscription/receipt", "_blank", "noopener,noreferrer");
+  };
 
   return (
     <div className="space-y-4 max-md:space-y-6">
@@ -82,23 +86,30 @@ export default function SubscriptionPage() {
         {subs.length === 0 ? (
           <Alert variant="info">{t("No subscription yet.", "Aucun abonnement pour le moment.")}</Alert>
         ) : (
-          <Table
-            data={subs}
-            keyExtractor={(row: any) => row.id}
-            columns={[
-              { key: "plan", label: t("Plan", "Plan"), render: (row: any) => formatPlan(row.plan) },
-              { key: "status", label: t("Status", "Statut") },
-              {
-                key: "renewalDate",
-                label: t("Renews", "Renouvellement"),
-                render: (row: any) =>
-                  row?.id === "admin-override"
-                    ? t("Unlimited", "Illimite")
-                    : new Date(row.renewalDate).toLocaleDateString(),
-              },
-              { key: "usageLimit", label: t("Usage limit", "Limite d usage") },
-            ]}
-          />
+          <div className="space-y-3">
+            {hasReceipt && (
+              <Button type="button" variant="secondary" onClick={downloadReceipt}>
+                {t("Download receipt", "Telecharger le recu")}
+              </Button>
+            )}
+            <Table
+              data={subs}
+              keyExtractor={(row: any) => row.id}
+              columns={[
+                { key: "plan", label: t("Plan", "Plan"), render: (row: any) => formatPlan(row.plan) },
+                { key: "status", label: t("Status", "Statut") },
+                {
+                  key: "renewalDate",
+                  label: t("Renews", "Renouvellement"),
+                  render: (row: any) =>
+                    row?.id === "admin-override"
+                      ? t("Unlimited", "Illimite")
+                      : new Date(row.renewalDate).toLocaleDateString(),
+                },
+                { key: "usageLimit", label: t("Usage limit", "Limite d usage") },
+              ]}
+            />
+          </div>
         )}
       </Card>
     </div>

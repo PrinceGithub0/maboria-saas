@@ -6,11 +6,16 @@ import { prisma } from "@/lib/prisma";
 import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
-import { recordPaystackPayment, verifyPaystackTransaction } from "@/lib/payments/paystack";
+import {
+  recordPaystackPayment,
+  verifyPaystackTransaction,
+  normalizePaystackPaymentMethod,
+} from "@/lib/payments/paystack";
 import {
   recordFlutterwavePayment,
   verifyFlutterwaveTransaction,
   verifyFlutterwaveTransactionByReference,
+  normalizeFlutterwavePaymentMethod,
 } from "@/lib/payments/flutterwave";
 import { subscriptionPlanToUserPlan } from "@/lib/entitlements";
 import {
@@ -57,7 +62,14 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     }
 
     const normalizedPlan = plan === "PREMIUM" ? "BUSINESS" : plan;
-    data.metadata = { ...(data?.metadata || {}), userId, plan: normalizedPlan ?? plan, interval };
+    data.metadata = {
+      ...(data?.metadata || {}),
+      userId,
+      plan: normalizedPlan ?? plan,
+      interval,
+      verified: true,
+      paymentMethod: normalizePaystackPaymentMethod(data),
+    };
 
     if (normalizedPlan) {
       const planKey =
@@ -159,7 +171,17 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     }
   }
 
-  await recordFlutterwavePayment({ ...verified, meta: { ...(verified?.meta || {}), userId, plan: normalizedPlan ?? plan, interval } });
+  await recordFlutterwavePayment({
+    ...verified,
+    meta: {
+      ...(verified?.meta || {}),
+      userId,
+      plan: normalizedPlan ?? plan,
+      interval,
+      verified: true,
+      paymentMethod: normalizeFlutterwavePaymentMethod(verified),
+    },
+  });
   if (normalizedPlan === "STARTER" || normalizedPlan === "PRO" || normalizedPlan === "GROWTH" || normalizedPlan === "BUSINESS") {
     const renewalDate =
       interval === "yearly"

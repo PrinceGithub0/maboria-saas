@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { Search, X } from "lucide-react";
@@ -30,7 +30,7 @@ export function CommandPalette({
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const { language } = useLanguage();
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const t = useCallback((en: string, fr: string) => (language === "fr" ? fr : en), [language]);
 
   useEffect(() => {
     if (!open) return;
@@ -64,7 +64,7 @@ export function CommandPalette({
       map.set(key, list);
     }
     return Array.from(map.entries());
-  }, [filtered, language]);
+  }, [filtered, t]);
 
   const handleSelect = (item: CommandItem) => {
     onOpenChange(false);

@@ -57,7 +57,7 @@ export const POST = withErrorHandling(async (req: Request) => {
     );
   }
 
-  const usage = await enforceUsageLimit(session.user.id, "whatsappMessages", false);
+  const usage = await enforceUsageLimit(session.user.id, "whatsappMessages");
   if (!usage.ok) {
     const requiredPlan = nextPlanAfter(usage.plan);
     return NextResponse.json(

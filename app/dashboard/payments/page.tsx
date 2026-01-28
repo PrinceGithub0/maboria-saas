@@ -31,7 +31,7 @@ export default function PaymentsPage() {
   const [currency, setCurrency] = useState<string>("USD");
   const [provider, setProvider] = useState<"paystack" | "flutterwave">("flutterwave");
   const [billingInterval, setBillingInterval] = useState<BillingInterval>("monthly");
-  const paystackEnabledCurrencies = getPaystackEnabledCurrencies();
+  const paystackEnabledCurrencies = useMemo(() => getPaystackEnabledCurrencies(), []);
   const [paystackCurrency, setPaystackCurrency] = useState<string>(
     paystackEnabledCurrencies[0] || "NGN"
   );
@@ -61,7 +61,6 @@ export default function PaymentsPage() {
     code,
     label: code,
   }));
-  const selectedCurrency = provider === "paystack" ? paystackCurrency : currency;
   const availableCurrencies =
     provider === "paystack" ? paystackCurrencyOptions : flutterwaveCurrencyOptions;
 
@@ -74,7 +73,7 @@ export default function PaymentsPage() {
       return;
     }
     setCurrency(paystackCurrency);
-  }, [provider, paystackCurrency, paystackEnabledCurrencies.join(",")]);
+  }, [provider, paystackCurrency, paystackEnabledCurrencies]);
 
   useEffect(() => {
     if (didInit.current) return;

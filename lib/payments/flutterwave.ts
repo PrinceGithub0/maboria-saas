@@ -6,8 +6,22 @@ import { log } from "../logger";
 import { notifyPaymentSucceeded } from "../whatsapp";
 import { maybeSendSubscriptionReceipt } from "../subscription-receipt";
 import { recordInvoicePayment } from "../invoice-payments";
+import type { BillingInterval } from "../pricing";
 
 const FLUTTERWAVE_BASE = "https://api.flutterwave.com/v3";
+
+export function normalizeFlutterwavePaymentMethod(data: any) {
+  const raw = String(data?.payment_type || data?.payment_type || "").toLowerCase();
+  if (raw.includes("bank") || raw.includes("transfer")) return "Bank transfer";
+  if (raw.includes("ussd")) return "USSD";
+  if (raw.includes("mobile") || raw.includes("wallet")) return "Wallet";
+  if (raw.includes("card") || raw.includes("visa") || raw.includes("master")) return "Card";
+  return "Card";
+}
+
+function normalizeInterval(value: unknown): BillingInterval {
+  return String(value || "").toLowerCase() === "yearly" ? "yearly" : "monthly";
+}
 
 export async function initializeFlutterwavePayment({
   amount,
@@ -189,9 +203,13 @@ export async function recordFlutterwavePayment(data: any) {
 
   const existing = await prisma.payment.findFirst({ where: { reference } });
   if (existing) {
-    const receiptSentAt = (existing.metadata as any)?.receiptSentAt;
-    const plan = (existing.metadata as any)?.plan ?? data?.meta?.plan;
-    if (existing.status === "SUCCEEDED" && !receiptSentAt) {
+    const existingMeta = (existing.metadata as any) || {};
+    const receiptSentAt = existingMeta?.receiptSentAt;
+    const plan = existingMeta?.plan ?? data?.meta?.plan;
+    const interval = normalizeInterval(existingMeta?.interval || data?.meta?.interval);
+    const paymentMethod = existingMeta?.paymentMethod || normalizeFlutterwavePaymentMethod(data);
+    const verified = existingMeta?.verified === true;
+    if (existing.status === "SUCCEEDED" && !receiptSentAt && verified) {
       try {
         await maybeSendSubscriptionReceipt({
           paymentId: existing.id,
@@ -202,6 +220,9 @@ export async function recordFlutterwavePayment(data: any) {
           reference,
           paidAt: existing.createdAt,
           plan,
+          interval,
+          paymentMethod,
+          verified,
         });
       } catch (error: any) {
         log("error", "flutterwave_receipt_failed", { userId, reference, error: error.message });
@@ -214,7 +235,17 @@ export async function recordFlutterwavePayment(data: any) {
   const currency = (data.currency || "NGN").toUpperCase();
   const status = data.status === "successful" ? "SUCCEEDED" : "FAILED";
   const plan = data?.meta?.plan as string | undefined;
-  const metadata = { ...(data?.meta || {}), userId: resolvedUserId, plan };
+  const interval = normalizeInterval(data?.meta?.interval);
+  const paymentMethod = data?.meta?.paymentMethod || normalizeFlutterwavePaymentMethod(data);
+  const verified = data?.meta?.verified === true;
+  const metadata = {
+    ...(data?.meta || {}),
+    userId: resolvedUserId,
+    plan,
+    interval,
+    paymentMethod,
+    verified,
+  };
 
   const created = await prisma.payment.create({
     data: {
@@ -229,7 +260,7 @@ export async function recordFlutterwavePayment(data: any) {
   });
 
   log("info", "Flutterwave payment recorded", { userId: resolvedUserId, amount, currency, reference });
-  if (status === "SUCCEEDED") {
+  if (status === "SUCCEEDED" && verified) {
     try {
       await maybeSendSubscriptionReceipt({
         paymentId: created.id,
@@ -240,6 +271,9 @@ export async function recordFlutterwavePayment(data: any) {
         reference,
         paidAt: created.createdAt,
         plan,
+        interval,
+        paymentMethod,
+        verified,
       });
     } catch (error: any) {
       log("error", "flutterwave_receipt_failed", { userId: resolvedUserId, reference, error: error.message });

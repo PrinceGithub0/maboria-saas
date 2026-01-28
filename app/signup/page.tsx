@@ -22,7 +22,6 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
-  const [intent, setIntent] = useState<"starter" | "pro" | "growth" | "business">("starter");
   const [loading, setLoading] = useState(false);
   const logoSrc = "/branding/Maboria%20Company%20logo.png";
   const { language } = useLanguage();

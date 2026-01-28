@@ -3,6 +3,7 @@ import {
   verifyPaystackWebhook,
   verifyPaystackTransaction,
   recordPaystackPayment,
+  normalizePaystackPaymentMethod,
 } from "@/lib/payments/paystack";
 import { recordInvoicePayment } from "@/lib/invoice-payments";
 import { withErrorHandling } from "@/lib/api-handler";
@@ -35,6 +36,7 @@ export const POST = withErrorHandling(async (req: Request) => {
   const isInvoicePayment = data?.metadata?.type === "invoice_payment";
   const rawInterval = String(data?.metadata?.interval || "");
   const interval: BillingInterval = rawInterval === "yearly" ? "yearly" : "monthly";
+  let subscriptionPayload = data;
 
   const eventId = String(data?.id || data?.reference || `${event}:${payloadHash}`);
   const webhookEvent = await beginWebhookEvent({
@@ -81,12 +83,40 @@ export const POST = withErrorHandling(async (req: Request) => {
         verified: true,
         verifiedAt: verified?.paid_at || verified?.paidAt || verified?.transaction_date,
         rawPayload: verified,
+        paymentMethod: normalizePaystackPaymentMethod(verified),
       });
       await markWebhookProcessed(webhookEvent.id);
       return NextResponse.json({ received: true, invoice: true });
     }
 
-    await recordPaystackPayment(data);
+    if (event === "charge.success" && !isInvoicePayment) {
+      const reference = data?.reference as string | undefined;
+      if (!reference) {
+        await markWebhookFailed(webhookEvent.id, "Missing reference");
+        return NextResponse.json({ error: "Missing reference" }, { status: 400 });
+      }
+      const verification = await verifyPaystackTransaction(reference);
+      const verified = verification?.data;
+      if (!verification?.status || !verified || verified?.status !== "success") {
+        await markWebhookFailed(webhookEvent.id, "Verification failed");
+        return NextResponse.json({ error: "Verification failed" }, { status: 400 });
+      }
+      subscriptionPayload = verified;
+
+      const verifiedMeta = {
+        ...(verified?.metadata || {}),
+        userId: userIdFromMeta || verified?.metadata?.userId,
+        plan: normalizedPlan || verified?.metadata?.plan,
+        interval,
+        verified: true,
+        paymentMethod: normalizePaystackPaymentMethod(verified),
+      };
+
+      await recordPaystackPayment({
+        ...verified,
+        metadata: verifiedMeta,
+      });
+    }
     if (event === "charge.success" && userIdFromMeta) {
       const existing = await prisma.subscription.findFirst({
         where: { userId: userIdFromMeta, status: { in: ["ACTIVE", "PAST_DUE", "CANCELED", "INACTIVE"] } },
@@ -102,13 +132,13 @@ export const POST = withErrorHandling(async (req: Request) => {
       });
     }
 
-    if (data.status !== "success") {
+    if (subscriptionPayload.status !== "success") {
       await createAdminNotification("Paystack payment failed");
     }
 
     // If payment was for a plan purchase, sync/extend subscription (simplified monthly renewal).
     if (
-      data.status === "success" &&
+      subscriptionPayload.status === "success" &&
       userIdFromMeta &&
       (normalizedPlan === "STARTER" ||
         normalizedPlan === "PRO" ||
@@ -124,7 +154,7 @@ export const POST = withErrorHandling(async (req: Request) => {
         interval === "yearly"
           ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
           : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-      const currency = normalizeCurrency(data?.currency || "NGN");
+      const currency = normalizeCurrency(subscriptionPayload?.currency || "NGN");
       let subscriptionId: string | null = null;
       await prisma.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userIdFromMeta}))`;

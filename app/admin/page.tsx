@@ -16,7 +16,14 @@ export default async function AdminPage() {
   if (!session?.user || session.user.role !== "ADMIN") {
     redirect("/dashboard");
   }
-  const language = cookies().get("maboria_language")?.value === "fr" ? "fr" : "en";
+  const cookieStore = cookies();
+  const resolvedCookies =
+    typeof (cookieStore as any)?.then === "function" ? await (cookieStore as any) : cookieStore;
+  const languageCookie =
+    typeof resolvedCookies?.get === "function"
+      ? resolvedCookies.get("maboria_language")?.value
+      : undefined;
+  const language = languageCookie === "fr" ? "fr" : "en";
   const t = (en: string, fr: string) => (language === "fr" ? fr : en);
 
   const now = Date.now();
@@ -177,6 +184,9 @@ export default async function AdminPage() {
           <div className="flex flex-wrap gap-2">
             <Link href="/admin/logs">
               <Button size="sm" variant="secondary">{t("System logs", "Journaux systeme")}</Button>
+            </Link>
+            <Link href="/api/payments/receipt/preview" prefetch={false}>
+              <Button size="sm" variant="secondary">{t("Preview receipt", "Apercu recu")}</Button>
             </Link>
             <Link href="/admin/users">
               <Button size="sm" variant="secondary">{t("Manage users", "Gerer utilisateurs")}</Button>

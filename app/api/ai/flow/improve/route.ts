@@ -27,7 +27,7 @@ export const POST = withErrorHandling(async (req: Request) => {
       { status: 403 }
     );
   }
-  const usage = await enforceUsageLimit(session.user.id, "aiRequests", false);
+  const usage = await enforceUsageLimit(session.user.id, "aiRequests");
   if (!usage.ok) {
     if (usage.code === "payment_required") {
       return NextResponse.json(

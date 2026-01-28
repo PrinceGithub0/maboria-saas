@@ -281,7 +281,7 @@ export async function notifyInvoiceCreated({
     return;
   }
 
-  const usage = await enforceUsageLimit(userId, "whatsappMessages", false);
+  const usage = await enforceUsageLimit(userId, "whatsappMessages");
   if (!usage.ok) {
     log("info", "whatsapp_send_blocked", {
       userId,
@@ -372,7 +372,7 @@ export async function notifyPaymentSucceeded({
     return;
   }
 
-  const usage = await enforceUsageLimit(userId, "whatsappMessages", false);
+  const usage = await enforceUsageLimit(userId, "whatsappMessages");
   if (!usage.ok) {
     log("info", "whatsapp_send_blocked", {
       userId,

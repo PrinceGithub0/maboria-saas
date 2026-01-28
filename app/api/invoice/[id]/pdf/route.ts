@@ -72,6 +72,9 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
         businessEmail: true,
         businessPhone: true,
         taxId: true,
+        vatEnabled: true,
+        vatRate: true,
+        vatPricingMode: true,
       },
     });
     if (profile) {
@@ -93,6 +96,9 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
         businessEmail: account?.email || null,
         businessPhone: null,
         taxId: null,
+        vatEnabled: false,
+        vatRate: 0,
+        vatPricingMode: "EXCLUSIVE",
       };
     }
     await prisma.invoice.update({

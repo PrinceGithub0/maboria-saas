@@ -32,7 +32,6 @@ export function AppShell({
   const effectiveRole = role || session?.user?.role;
   const plan = typeof me?.plan === "string" ? me.plan : undefined;
   const subs = Array.isArray(me?.subscriptions) ? me.subscriptions : [];
-  const now = Date.now();
   const hasActive = subs.some((sub: any) => sub?.status === "ACTIVE");
   const hasCanceled = subs.some((sub: any) => ["CANCELED", "INACTIVE"].includes(sub?.status));
   const hasPastDue = subs.some((sub: any) => sub?.status === "PAST_DUE");

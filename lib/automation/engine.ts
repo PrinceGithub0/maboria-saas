@@ -5,7 +5,7 @@ import OpenAI from "openai";
 import { prisma } from "../prisma";
 import { sendEmail } from "../email";
 import { createInvoiceRecord, calculateTotals } from "../invoice";
-import { STANDARD_VAT_RATE } from "../vat";
+import { normalizeVatSettings } from "../vat";
 import { log } from "../logger";
 import { meterUsage, autoInvoiceFromUsage, recoverFailedPayment } from "../billing";
 import { enqueueJob } from "../jobs";
@@ -117,7 +117,6 @@ export async function executeAutomationRun(
             currency: config.currency || "USD",
             items,
             status: "SENT",
-            tax: STANDARD_VAT_RATE,
             discount: config.discount ?? 0,
           });
           context.invoice = invoice;
@@ -140,7 +139,11 @@ export async function executeAutomationRun(
         }
         case "generateReport": {
           const totals = context.invoice
-            ? calculateTotals(context.invoice.items as any[], 0, 0)
+            ? calculateTotals(
+                context.invoice.items as any[],
+                normalizeVatSettings({ enabled: false, rate: 0, mode: "exclusive" }),
+                0
+              )
             : { total: 0 };
           const report = {
             title: flow.title,

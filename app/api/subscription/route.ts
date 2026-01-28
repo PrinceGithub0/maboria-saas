@@ -28,6 +28,11 @@ export const GET = withErrorHandling(async () => {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         invoices: [],
+        receiptUrl: null,
+        receiptNumber: null,
+        receiptIssuedAt: null,
+        lastPaymentReference: null,
+        lastPaymentProvider: null,
       },
     ]);
   }

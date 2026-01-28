@@ -341,6 +341,10 @@ async function ensureUsageWindow(userId: string) {
   return { start: billingCycleStartAt, businessId: business.id, ownerId: business.ownerId, userIds };
 }
 
+export async function getWorkspaceScope(userId: string) {
+  return ensureUsageWindow(userId);
+}
+
 export async function getUsageCountThisMonth(userId: string, category: UsageCategory) {
   const { start, businessId, userIds } = await ensureUsageWindow(userId);
   switch (category) {
@@ -385,8 +389,7 @@ export async function getTeamSeatUsageThisMonth(userId: string) {
 
 export async function enforceUsageLimit(
   userId: string,
-  category: UsageCategory,
-  allowTrial = false
+  category: UsageCategory
 ) {
   const entitlement = await getEntitlementForUser(userId);
   if (!entitlement.canDashboard) {
@@ -412,26 +415,25 @@ export async function enforceUsageLimit(
 }
 
 async function getFlowCount(userId: string, category: FlowCategory) {
+  const { userIds } = await ensureUsageWindow(userId);
   const workflowFilter = {
     OR: [{ triggers: { some: {} } }, { actions: { some: {} } }],
   };
 
   if (category === "workflows") {
-    return prisma.automationFlow.count({ where: { userId, ...workflowFilter } });
+    return prisma.automationFlow.count({ where: { userId: { in: userIds }, ...workflowFilter } });
   }
 
   return prisma.automationFlow.count({
     where: {
-      userId,
-      NOT: workflowFilter,
+      userId: { in: userIds },
     },
   });
 }
 
 export async function enforceFlowLimit(
   userId: string,
-  category: FlowCategory,
-  allowTrial = false
+  category: FlowCategory
 ) {
   const entitlement = await getEntitlementForUser(userId);
   if (!entitlement.canDashboard) {

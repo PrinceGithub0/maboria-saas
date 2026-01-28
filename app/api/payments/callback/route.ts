@@ -6,11 +6,16 @@ import { fromMinorUnits } from "@/lib/payments/currency-allowlist";
 import { log } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { subscriptionPlanToUserPlan } from "@/lib/entitlements";
-import { recordPaystackPayment, verifyPaystackTransaction } from "@/lib/payments/paystack";
+import {
+  recordPaystackPayment,
+  verifyPaystackTransaction,
+  normalizePaystackPaymentMethod,
+} from "@/lib/payments/paystack";
 import {
   recordFlutterwavePayment,
   verifyFlutterwaveTransaction,
   verifyFlutterwaveTransactionByReference,
+  normalizeFlutterwavePaymentMethod,
 } from "@/lib/payments/flutterwave";
 
 function redirectWithStatus(origin: string, provider: string, status: string, params?: Record<string, string>) {
@@ -56,7 +61,14 @@ export const GET = withRequestLogging(withErrorHandling(async (req: Request) => 
       rawInterval === "yearly" ? "yearly" : rawInterval === "monthly" ? "monthly" : inferred?.interval || "monthly";
 
     const normalizedPlan = plan === "PREMIUM" ? "BUSINESS" : plan;
-    data.metadata = { ...(data?.metadata || {}), userId, plan: normalizedPlan ?? plan, interval };
+    data.metadata = {
+      ...(data?.metadata || {}),
+      userId,
+      plan: normalizedPlan ?? plan,
+      interval,
+      verified: true,
+      paymentMethod: normalizePaystackPaymentMethod(data),
+    };
     await recordPaystackPayment(data);
 
     if (userId && (normalizedPlan === "STARTER" || normalizedPlan === "PRO" || normalizedPlan === "GROWTH" || normalizedPlan === "BUSINESS")) {
@@ -128,7 +140,17 @@ export const GET = withRequestLogging(withErrorHandling(async (req: Request) => 
     rawInterval === "yearly" ? "yearly" : rawInterval === "monthly" ? "monthly" : inferred?.interval || "monthly";
 
   const normalizedPlan = plan === "PREMIUM" ? "BUSINESS" : plan;
-  await recordFlutterwavePayment({ ...verified, meta: { ...(verified?.meta || {}), userId, plan: normalizedPlan ?? plan, interval } });
+  await recordFlutterwavePayment({
+    ...verified,
+    meta: {
+      ...(verified?.meta || {}),
+      userId,
+      plan: normalizedPlan ?? plan,
+      interval,
+      verified: true,
+      paymentMethod: normalizeFlutterwavePaymentMethod(verified),
+    },
+  });
 
   if (userId && (normalizedPlan === "STARTER" || normalizedPlan === "PRO" || normalizedPlan === "GROWTH" || normalizedPlan === "BUSINESS")) {
     const renewalDate =

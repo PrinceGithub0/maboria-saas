@@ -5,7 +5,6 @@ import { signupSchema } from "@/lib/validators";
 import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
-import { log } from "@/lib/logger";
 import { generatePublicId } from "@/lib/public-id";
 
 async function acceptBusinessInvite({

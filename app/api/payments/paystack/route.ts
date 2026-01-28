@@ -84,7 +84,13 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     callback_url: `${appUrl}/dashboard?payment=success&provider=paystack&amount=${price}&currency=${currency}&reference=${encodeURIComponent(
       reference
     )}`,
-    metadata: { userId: user.id, plan: planCurrency, interval },
+    metadata: {
+      type: "subscription_payment",
+      userId: user.id,
+      user_id: user.id,
+      plan: planCurrency,
+      interval,
+    },
   });
   return NextResponse.json(init);
 }));

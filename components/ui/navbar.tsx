@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { Button } from "./button";
 import useSWR from "swr";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThemeSwitcher } from "@/components/ui/theme-switcher";
@@ -57,7 +57,7 @@ export function Navbar() {
   const displayName = me?.name ?? data?.user?.name ?? "User";
   const displayEmail = me?.email ?? data?.user?.email ?? "";
   const logoSrc = "/branding/Maboria%20Company%20logo.png";
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const t = useCallback((en: string, fr: string) => (language === "fr" ? fr : en), [language]);
   const labelMap = useMemo(
     () => ({
       Dashboard: language === "fr" ? "Tableau" : "Dashboard",
@@ -80,6 +80,7 @@ export function Navbar() {
       "Automation Errors": language === "fr" ? "Erreurs automatisation" : "Automation Errors",
       Prelaunch: language === "fr" ? "Prelaunch" : "Prelaunch",
       "System Flags": language === "fr" ? "Drapeaux systeme" : "System Flags",
+      "Receipt Preview": language === "fr" ? "Apercu recu" : "Receipt Preview",
     }),
     [language]
   );
@@ -108,6 +109,7 @@ export function Navbar() {
             { label: labelMap["Automation Errors"], href: "/admin/automation/errors", icon: Bot },
             { label: labelMap.Prelaunch, href: "/admin/prelaunch", icon: Gauge },
             { label: labelMap["System Flags"], href: "/admin/system-flags", icon: Settings },
+            { label: labelMap["Receipt Preview"], href: "/admin/receipt-preview", icon: FileText },
           ]
         : []),
     ],

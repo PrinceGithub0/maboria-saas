@@ -59,6 +59,9 @@ export default function SettingsPage() {
     businessEmail: "",
     businessPhone: "",
     taxId: "",
+    vatEnabled: false,
+    vatRate: "",
+    vatPricingMode: "exclusive",
   });
 
   const { data: totpStatus, mutate: refreshTotp } = useSWR("/api/auth/2fa/totp", fetcher);
@@ -95,6 +98,15 @@ export default function SettingsPage() {
         businessEmail: businessProfile.businessEmail || "",
         businessPhone: businessProfile.businessPhone || "",
         taxId: businessProfile.taxId || "",
+        vatEnabled: Boolean(businessProfile.vatEnabled),
+        vatRate:
+          businessProfile.vatRate === null || businessProfile.vatRate === undefined
+            ? ""
+            : String(businessProfile.vatRate),
+        vatPricingMode:
+          String(businessProfile.vatPricingMode || "EXCLUSIVE").toLowerCase() === "inclusive"
+            ? "inclusive"
+            : "exclusive",
       });
     }
   }, [
@@ -106,6 +118,9 @@ export default function SettingsPage() {
     businessProfile?.businessEmail,
     businessProfile?.businessPhone,
     businessProfile?.taxId,
+    businessProfile?.vatEnabled,
+    businessProfile?.vatRate,
+    businessProfile?.vatPricingMode,
   ]);
 
   useEffect(() => {
@@ -261,6 +276,10 @@ export default function SettingsPage() {
       setBusinessError(requiredMessage);
       return;
     }
+    if (businessForm.vatEnabled && !String(businessForm.vatRate).trim()) {
+      setBusinessError(requiredMessage);
+      return;
+    }
     const addressFields = {
       streetAddress: businessForm.streetAddress,
       city: businessForm.city,
@@ -279,6 +298,9 @@ export default function SettingsPage() {
       businessEmail: businessForm.businessEmail,
       businessPhone: businessForm.businessPhone,
       taxId: businessForm.taxId,
+      vatEnabled: businessForm.vatEnabled,
+      vatRate: businessForm.vatEnabled ? Number(businessForm.vatRate) : 0,
+      vatPricingMode: businessForm.vatPricingMode,
     };
     const res = await fetch("/api/business-profile", {
       method: businessExists ? "PUT" : "POST",
@@ -491,6 +513,36 @@ export default function SettingsPage() {
             value={businessForm.postalCode}
             onChange={(e) => setBusinessForm({ ...businessForm, postalCode: e.target.value })}
           />
+          <label className="flex items-center gap-2 text-sm text-foreground">
+            <input
+              type="checkbox"
+              checked={businessForm.vatEnabled}
+              onChange={(e) => setBusinessForm({ ...businessForm, vatEnabled: e.target.checked })}
+              className="h-4 w-4 rounded border border-input accent-indigo-600"
+            />
+            {t("Enable VAT", "Activer la TVA")}
+          </label>
+          <Input
+            label={t("VAT rate (%)", "Taux TVA (%)")}
+            type="number"
+            min="0"
+            max="30"
+            step="0.1"
+            value={businessForm.vatRate}
+            onChange={(e) => setBusinessForm({ ...businessForm, vatRate: e.target.value })}
+            required={businessForm.vatEnabled}
+          />
+          <label className="flex flex-col gap-1 text-sm text-foreground">
+            {t("VAT pricing mode", "Mode TVA")}
+            <select
+              value={businessForm.vatPricingMode}
+              onChange={(e) => setBusinessForm({ ...businessForm, vatPricingMode: e.target.value })}
+              className="rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:border-indigo-400 focus:outline-none"
+            >
+              <option value="exclusive">{t("Exclusive", "Exclusif")}</option>
+              <option value="inclusive">{t("Inclusive", "Inclusif")}</option>
+            </select>
+          </label>
           <label className="col-span-2 flex flex-col gap-1 text-sm text-foreground max-md:order-9 max-md:col-span-1 md:col-span-1">
             <span className="flex items-center gap-2">
               {t("Business logo (optional)", "Logo entreprise (optionnel)")}
@@ -528,6 +580,7 @@ export default function SettingsPage() {
               <div className="mt-2 flex flex-col gap-2">
                 <div className="flex items-center gap-3">
                   <div className="h-12 w-12 overflow-hidden rounded-xl border border-transparent bg-white ring-1 ring-border max-md:rounded-2xl">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={logoPreviewUrl}
                       alt={t("Business logo preview", "Apercu du logo")}

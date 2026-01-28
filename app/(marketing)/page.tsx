@@ -165,15 +165,6 @@ const securityItems = [
   },
 ];
 
-function formatMoney(amount: number, currency: "NGN" | "USD") {
-  const locale = currency === "NGN" ? "en-NG" : "en-US";
-  return new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
 export default function LandingPage() {
   const logoSrc = "/branding/Maboria%20Company%20logo.png";
   return (

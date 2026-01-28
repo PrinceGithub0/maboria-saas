@@ -12,6 +12,8 @@ import { initializePaystackTransaction } from "./payments/paystack";
 import { initializeFlutterwavePayment } from "./payments/flutterwave";
 import { env } from "./env";
 import { triggerInvoiceStatusAutomations } from "./automation/events";
+import { markInvoicePublicLinksUsed } from "./invoice-public-link";
+import { maybeCreateInvoiceReceipt } from "./invoice-receipt";
 
 type InvoicePaymentLink = {
   provider: "PAYSTACK" | "FLUTTERWAVE";
@@ -35,9 +37,11 @@ const getInvoiceCustomerEmail = (invoice: any) =>
 export async function ensureInvoicePaymentLink({
   invoice,
   customerName,
+  returnUrl,
 }: {
   invoice: any;
   customerName?: string | null;
+  returnUrl?: string;
 }): Promise<InvoicePaymentLink> {
   const metadata = (invoice.metadata as any) || {};
   const organizationId = metadata?.organizationId || invoice.userId;
@@ -96,7 +100,7 @@ export async function ensureInvoicePaymentLink({
       amount: toMinorUnits(amount, currency),
       email: customerEmail,
       currency,
-      callback_url: env.appUrl,
+      callback_url: returnUrl || env.appUrl,
       reference,
       metadata: {
         type: "invoice_payment",
@@ -121,7 +125,7 @@ export async function ensureInvoicePaymentLink({
       email: customerEmail,
       name: customerName || undefined,
       txRef: reference,
-      redirectUrl: env.appUrl,
+      redirectUrl: returnUrl || env.appUrl,
       metadata: {
         type: "invoice_payment",
         invoice_id: invoice.id,
@@ -188,6 +192,7 @@ export async function recordInvoicePayment({
   verified,
   verifiedAt,
   rawPayload,
+  paymentMethod,
 }: {
   provider: "PAYSTACK" | "FLUTTERWAVE";
   reference: string;
@@ -201,6 +206,7 @@ export async function recordInvoicePayment({
   verified: boolean;
   verifiedAt?: string | Date | null;
   rawPayload?: any;
+  paymentMethod?: string | null;
 }) {
   if (!verified) {
     log("warn", "invoice_payment_unverified", { reference, provider });
@@ -285,18 +291,66 @@ export async function recordInvoicePayment({
     return;
   }
 
-  const existing = await prisma.invoicePayment.findFirst({ where: { reference } });
-  if (existing) {
-    if (existing.status === "SUCCEEDED") {
-      return;
+  const paidAt = verifiedAt ? new Date(verifiedAt) : new Date();
+  const shouldMarkPaid = status === "SUCCEEDED" && invoice.status === "SENT";
+  const shouldMarkFailed = status === "FAILED" && invoice.status === "SENT";
+  let invoicePaymentId: string | null = null;
+
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.invoicePayment.findFirst({ where: { provider, reference } });
+    if (existing) {
+      invoicePaymentId = existing.id;
+      if (existing.status !== status) {
+        await tx.invoicePayment.update({
+          where: { id: existing.id },
+          data: { status, amount: receivedAmount, currency: normalizedCurrency, metadata: rawPayload || undefined },
+        });
+      }
+    } else {
+      const created = await tx.invoicePayment.create({
+        data: {
+          invoiceId: invoice.id,
+          userId: invoice.userId,
+          provider,
+          status,
+          amount: receivedAmount,
+          currency: normalizedCurrency,
+          reference,
+          metadata: {
+            ...(rawPayload || {}),
+            verificationStatus: "verified",
+            verifiedAt: paidAt.toISOString(),
+          },
+        },
+      });
+      invoicePaymentId = created.id;
     }
-    await prisma.invoicePayment.update({
-      where: { id: existing.id },
-      data: { status, amount, currency: normalizedCurrency, metadata: rawPayload || undefined },
-    });
-    if (status === "SUCCEEDED" && invoice.status === "SENT") {
+
+    const existingPayment = await tx.payment.findFirst({ where: { provider, reference } });
+    if (!existingPayment) {
+      await tx.payment.create({
+        data: {
+          userId: invoice.userId,
+          provider,
+          status,
+          amount: receivedAmount,
+          currency: normalizedCurrency,
+          reference,
+          metadata: {
+            type: "invoice_payment",
+            invoiceId: invoice.id,
+            invoiceNumber: invoice.invoiceNumber,
+            userId: invoice.userId,
+            organizationId: invoiceOrgId,
+            paymentMethod,
+          },
+        },
+      });
+    }
+
+    if (shouldMarkPaid) {
       const metadata = (invoice.metadata as any) || {};
-      await prisma.invoice.update({
+      await tx.invoice.update({
         where: { id: invoice.id },
         data: {
           status: "PAID",
@@ -309,7 +363,7 @@ export async function recordInvoicePayment({
               status: "PAID",
               amount: receivedAmount,
               currency: normalizedCurrency,
-              paidAt: (verifiedAt ? new Date(verifiedAt) : new Date()).toISOString(),
+              paidAt: paidAt.toISOString(),
               verifiedAt: new Date().toISOString(),
               verificationStatus: "verified",
               invoiceId: invoice.id,
@@ -319,17 +373,11 @@ export async function recordInvoicePayment({
           },
         },
       });
-      triggerInvoiceStatusAutomations({
-        userId: invoice.userId,
-        invoiceId: invoice.id,
-        invoiceNumber: invoice.invoiceNumber,
-        status: "PAID",
-      }).catch((error) => {
-        log("error", "invoice_status_trigger_failed", { invoiceId: invoice.id, error });
-      });
-    } else if (status === "FAILED" && invoice.status === "SENT") {
+    }
+
+    if (shouldMarkFailed) {
       const metadata = (invoice.metadata as any) || {};
-      await prisma.invoice.update({
+      await tx.invoice.update({
         where: { id: invoice.id },
         data: {
           status: "FAILED",
@@ -351,72 +399,22 @@ export async function recordInvoicePayment({
           },
         },
       });
-      triggerInvoiceStatusAutomations({
-        userId: invoice.userId,
-        invoiceId: invoice.id,
-        invoiceNumber: invoice.invoiceNumber,
-        status: "FAILED",
-      }).catch((error) => {
-        log("error", "invoice_status_trigger_failed", { invoiceId: invoice.id, error });
-      });
-    } else if (status === "SUCCEEDED" && invoice.status !== "SENT") {
-      log("warn", "invoice_payment_invalid_state", {
-        invoiceId: invoice.id,
-        reference,
-        provider,
-        status: invoice.status,
-      });
     }
-    log("info", "invoice_payment_updated", {
-      invoiceId: invoice.id,
-      reference,
-      provider,
-      status,
-    });
-    return;
-  }
+  });
 
-  await prisma.invoicePayment.create({
-    data: {
+  if (invoicePaymentId && shouldMarkPaid) {
+    await markInvoicePublicLinksUsed(invoice.id);
+    await maybeCreateInvoiceReceipt({
+      invoicePaymentId,
       invoiceId: invoice.id,
       userId: invoice.userId,
       provider,
-      status,
+      reference,
       amount: receivedAmount,
       currency: normalizedCurrency,
-      reference,
-      metadata: {
-        ...(rawPayload || {}),
-        verificationStatus: "verified",
-        verifiedAt: (verifiedAt ? new Date(verifiedAt) : new Date()).toISOString(),
-      },
-    },
-  });
-
-  if (status === "SUCCEEDED" && invoice.status === "SENT") {
-    const metadata = (invoice.metadata as any) || {};
-    await prisma.invoice.update({
-      where: { id: invoice.id },
-      data: {
-        status: "PAID",
-        metadata: {
-          ...metadata,
-          payment: {
-            ...(metadata?.payment || {}),
-            provider,
-            reference,
-            status: "PAID",
-            amount: receivedAmount,
-            currency: normalizedCurrency,
-            paidAt: (verifiedAt ? new Date(verifiedAt) : new Date()).toISOString(),
-            verifiedAt: new Date().toISOString(),
-            verificationStatus: "verified",
-            invoiceId: invoice.id,
-            userId: invoice.userId,
-            organizationId: invoiceOrgId,
-          },
-        },
-      },
+      paymentMethod: paymentMethod || undefined,
+      paidAt,
+      rawPayload,
     });
     triggerInvoiceStatusAutomations({
       userId: invoice.userId,
@@ -426,30 +424,9 @@ export async function recordInvoicePayment({
     }).catch((error) => {
       log("error", "invoice_status_trigger_failed", { invoiceId: invoice.id, error });
     });
-  } else if (status === "FAILED" && invoice.status === "SENT") {
-    const metadata = (invoice.metadata as any) || {};
-    await prisma.invoice.update({
-      where: { id: invoice.id },
-      data: {
-        status: "FAILED",
-        metadata: {
-          ...metadata,
-          payment: {
-            ...(metadata?.payment || {}),
-            provider,
-            reference,
-            status: "FAILED",
-            amount: receivedAmount,
-            currency: normalizedCurrency,
-            verifiedAt: new Date().toISOString(),
-            verificationStatus: "verified",
-            invoiceId: invoice.id,
-            userId: invoice.userId,
-            organizationId: invoiceOrgId,
-          },
-        },
-      },
-    });
+  }
+
+  if (shouldMarkFailed) {
     triggerInvoiceStatusAutomations({
       userId: invoice.userId,
       invoiceId: invoice.id,
@@ -458,7 +435,9 @@ export async function recordInvoicePayment({
     }).catch((error) => {
       log("error", "invoice_status_trigger_failed", { invoiceId: invoice.id, error });
     });
-  } else if (status === "SUCCEEDED" && invoice.status !== "SENT") {
+  }
+
+  if (status === "SUCCEEDED" && invoice.status !== "SENT") {
     log("warn", "invoice_payment_invalid_state", {
       invoiceId: invoice.id,
       reference,
