@@ -125,15 +125,24 @@ export async function createFlutterwaveSubaccount({
   bankCode,
   country,
   phone,
+  payoutType,
+  iban,
+  bicSwift,
+  currency,
 }: {
   businessName: string;
   businessEmail: string;
   accountName: string;
-  accountNumber: string;
-  bankCode: string;
+  accountNumber?: string | null;
+  bankCode?: string | null;
   country: string;
   phone: string;
+  payoutType?: "local" | "sepa";
+  iban?: string | null;
+  bicSwift?: string | null;
+  currency?: string | null;
 }) {
+  const isSepa = payoutType === "sepa";
   const res = await fetch(`${FLUTTERWAVE_BASE}/subaccounts`, {
     method: "POST",
     headers: {
@@ -141,13 +150,15 @@ export async function createFlutterwaveSubaccount({
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      account_bank: bankCode,
-      account_number: accountNumber,
+      account_bank: isSepa ? "IBAN" : bankCode,
+      account_number: isSepa ? iban : accountNumber,
       business_name: businessName,
       business_email: businessEmail,
       business_contact: accountName,
       business_contact_mobile: phone,
       country,
+      ...(currency ? { currency } : {}),
+      ...(isSepa && bicSwift ? { beneficiary_swift: bicSwift } : {}),
     }),
   });
 

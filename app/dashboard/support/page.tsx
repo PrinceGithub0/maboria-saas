@@ -78,52 +78,117 @@ export default function DashboardSupportPage() {
 
   return (
     <div className="space-y-6 max-md:space-y-7">
-      <div className="md:contents max-md:rounded-[28px] max-md:border max-md:border-border/60 max-md:bg-card max-md:p-4 max-md:shadow-[0_16px_36px_rgba(15,23,42,0.18)]">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">{t("Support", "Support")}</p>
-          <h1 className="text-3xl font-semibold text-foreground">{t("Contact support", "Contacter le support")}</h1>
-          <p className="text-sm text-muted-foreground">
-            {t("Send a ticket directly from your dashboard.", "Envoyez un ticket directement depuis votre tableau.")}
-          </p>
+      <section className="rounded-[28px] border border-border bg-white px-6 py-7 shadow-[0_18px_44px_rgba(15,23,42,0.08)] dark:bg-card max-md:px-5 max-md:py-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.24em] text-indigo-600 dark:text-indigo-300">
+              {t("Support", "Support")}
+            </p>
+            <h1 className="mt-2 text-[32px] font-semibold leading-tight text-foreground">
+              {t("Contact support", "Contacter le support")}
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              {t(
+                "Send a ticket directly from your dashboard. Share what you were trying to do and what you saw.",
+                "Envoyez un ticket depuis votre tableau de bord. Indiquez ce que vous faisiez et ce que vous avez vu."
+              )}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-200">
+              {t("Response within 1 business day", "Reponse sous 1 jour ouvrable")}
+            </span>
+            <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground">
+              {t("Priority routing for paid plans", "Priorite pour les plans payants")}
+            </span>
+          </div>
         </div>
-
         {status && (
           <div className="mt-4">
             <Alert variant={status.variant}>{status.message}</Alert>
           </div>
         )}
-      </div>
+      </section>
 
-      <Card title={t("Submit a ticket", "Soumettre un ticket")}>
-        <div className="space-y-4">
-          <Input
-            label={t("Subject", "Sujet")}
-            placeholder={t("Billing, automation, AI...", "Facturation, automatisation, IA...")}
-            value={form.subject}
-            onChange={(e) => {
-              setForm((f) => ({ ...f, subject: e.target.value }));
-              if (errors.subject) setErrors((prev) => ({ ...prev, subject: undefined }));
-            }}
-            minLength={5}
-            required
-            error={errors.subject}
-          />
-          <Textarea
-            placeholder={t("Describe the issue", "Decrivez le probleme")}
-            value={form.message}
-            onChange={(e) => {
-              setForm((f) => ({ ...f, message: e.target.value }));
-              if (errors.message) setErrors((prev) => ({ ...prev, message: undefined }));
-            }}
-            minLength={10}
-            required
-            error={errors.message}
-          />
-          <Button onClick={submit} loading={sending} className="w-full sm:w-auto">
-            {t("Submit ticket", "Envoyer le ticket")}
-          </Button>
-        </div>
-      </Card>
+      <div className="grid gap-6 lg:grid-cols-[1.05fr_1.4fr]">
+        <Card
+          title={t("Support overview", "Apercu support")}
+          className="bg-[var(--support-card-bg)] text-slate-900 dark:text-slate-100 [--support-card-bg:#ffffff] dark:[--support-card-bg:#020617]"
+        >
+          <div className="space-y-5 text-sm text-muted-foreground">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
+                {t("Channels", "Canaux")}
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-foreground">
+                {t("Email-first support", "Support prioritaire par email")}
+              </p>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                {t("We reply from info@maboria.com", "Reponse depuis info@maboria.com")}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
+                {t("What to include", "A inclure")}
+              </p>
+              <ul className="mt-3 space-y-3">
+                {[
+                  t("What you were trying to do", "Ce que vous tentiez de faire"),
+                  t("The exact error message", "Le message d erreur exact"),
+                  t("Steps you took and expected outcome", "Etapes suivies et resultat attendu"),
+                ].map((item) => (
+                  <li
+                    key={item}
+                    className="text-sm leading-relaxed text-slate-700 dark:rounded-xl dark:border dark:border-slate-800 dark:bg-slate-900/70 dark:px-3 dark:py-2 dark:text-xs dark:text-slate-100 dark:shadow-[0_8px_16px_rgba(15,23,42,0.06)]"
+                    style={{ backgroundColor: "transparent", border: "none", boxShadow: "none", padding: 0 }}
+                  >
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div
+              className="text-sm leading-relaxed text-slate-700 dark:rounded-xl dark:border dark:border-slate-800 dark:bg-slate-900/70 dark:px-3 dark:py-2 dark:text-xs dark:text-slate-100 dark:shadow-[0_8px_16px_rgba(15,23,42,0.06)]"
+              style={{ backgroundColor: "transparent", border: "none", boxShadow: "none", padding: 0 }}
+            >
+              {t("Urgent billing issues are routed to senior support.", "Les urgences de facturation sont priorisees.")}
+            </div>
+          </div>
+        </Card>
+
+        <Card title={t("Submit a ticket", "Soumettre un ticket")}>
+          <div className="space-y-4">
+            <Input
+              label={t("Subject", "Sujet")}
+              placeholder={t("Billing, automation, AI...", "Facturation, automatisation, IA...")}
+              value={form.subject}
+              onChange={(e) => {
+                setForm((f) => ({ ...f, subject: e.target.value }));
+                if (errors.subject) setErrors((prev) => ({ ...prev, subject: undefined }));
+              }}
+              minLength={5}
+              required
+              error={errors.subject}
+            />
+            <Textarea
+              placeholder={t("Describe the issue", "Decrivez le probleme")}
+              value={form.message}
+              onChange={(e) => {
+                setForm((f) => ({ ...f, message: e.target.value }));
+                if (errors.message) setErrors((prev) => ({ ...prev, message: undefined }));
+              }}
+              minLength={10}
+              required
+              error={errors.message}
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <Button onClick={submit} loading={sending} className="w-full sm:w-auto">
+                {t("Submit ticket", "Envoyer le ticket")}
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import useSWR from "swr";
-import { Activity, FileText, Sparkles } from "lucide-react";
+import { Activity, FileText, MessageSquare, Sparkles, Info } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { MiniAreaChart } from "@/components/charts/area-chart";
 import { Table } from "@/components/ui/table";
@@ -14,68 +15,27 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 export default function UsagePage() {
   const { language } = useLanguage();
   const t = (en: string, fr: string) => (language === "fr" ? fr : en);
-  const { data: usage, isLoading } = useSWR("/api/usage", fetcher);
-  const { data: aiLogs } = useSWR("/api/ai/usage", fetcher);
-
-  const usageList = Array.isArray(usage) ? usage : [];
-  const usageSorted = [...usageList].sort((a: any, b: any) => {
-    const aTime = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
-    const bTime = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
-    return bTime - aTime;
-  });
-
-  const aiLogList = Array.isArray(aiLogs) ? aiLogs : [];
-  const hasTokenData = aiLogList.some(
-    (log: any) => typeof log.tokens === "number" && log.tokens > 0
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const { data, isLoading } = useSWR(
+    `/api/analytics/usage?tz=${encodeURIComponent(timeZone)}&range=30`,
+    fetcher,
+    { refreshInterval: 10000, dedupingInterval: 10000, revalidateOnFocus: true }
   );
-  const aiByDay = new Map<string, number>();
-  for (const log of aiLogList) {
-    const dateKey = log?.createdAt
-      ? new Date(log.createdAt).toISOString().slice(0, 10)
-      : "unknown";
-    const increment = hasTokenData ? Number(log.tokens || 0) : 1;
-    aiByDay.set(dateKey, (aiByDay.get(dateKey) || 0) + increment);
-  }
-  const sortedEntries = Array.from(aiByDay.entries())
-    .filter(([key]) => key !== "unknown")
-    .sort((a, b) => a[0].localeCompare(b[0]));
-  const unknownEntry = aiByDay.has("unknown")
-    ? ([["unknown", aiByDay.get("unknown") ?? 0]] as [string, number][])
-    : [];
-  const orderedEntries = [...sortedEntries, ...unknownEntry];
-  const limitedEntries =
-    orderedEntries.length > 12 ? orderedEntries.slice(-12) : orderedEntries;
+  const { data: automationBreakdown } = useSWR(
+    data?.range?.cycleStart ? `/api/analytics/automation-breakdown` : null,
+    fetcher,
+    { refreshInterval: 10000, dedupingInterval: 10000, revalidateOnFocus: true }
+  );
+
+  const rows = Array.isArray(data?.rows) ? data.rows : [];
   const formatDayLabel = (key: string) => {
-    if (key === "unknown") return "";
     const parts = key.split("-");
     if (parts.length !== 3) return key;
     return `${parts[2]}-${parts[1]}`;
   };
-  const rawChartData = limitedEntries.map(([key, value], idx) => ({
-    name: key === "unknown" ? idx.toString() : formatDayLabel(key),
-    value,
-  }));
-  const fallbackChartData = Array.from({ length: 12 }, (_, idx) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (11 - idx));
-    const iso = date.toISOString().slice(0, 10);
-    return { name: formatDayLabel(iso), value: 0 };
-  });
-  const chartData = rawChartData.length > 0 ? rawChartData : fallbackChartData;
-  const aiHasData = rawChartData.some((point) => Number(point.value) > 0);
-  const aiError =
-    !Array.isArray(aiLogs) && aiLogs && typeof aiLogs === "object" && "error" in aiLogs;
-  const showingRequestActivity = aiLogList.length > 0 && !hasTokenData;
-  const aiValues = chartData.map((point) => Number(point.value) || 0);
-  const totalAi = aiValues.reduce((sum, value) => sum + value, 0);
-  const avgAi = aiValues.length ? Math.round(totalAi / aiValues.length) : 0;
-  const peakPoint = chartData.reduce(
-    (best, point) => (Number(point.value) > Number(best.value) ? point : best),
-    chartData[0] || { name: "--", value: 0 }
-  );
-  const peakLabel = peakPoint.name || "--";
+  const aiError = data && typeof data === "object" && "error" in data;
   const formatNumber = (value: number) => new Intl.NumberFormat().format(value);
-  const unitLabel = hasTokenData ? t("tokens", "jetons") : t("requests", "requetes");
+  const unitLabel = t("tokens", "jetons");
   const formatDate = (value?: string | Date) => {
     if (!value) return "--";
     const date = new Date(value);
@@ -85,52 +45,172 @@ export default function UsagePage() {
     const year = date.getFullYear();
     return `${day}-${month}-${year}`;
   };
-  const latestUsageDate = usageSorted.length ? usageSorted[0]?.createdAt : undefined;
-
-  const normalizeCategory = (value?: string) => (value || "").toLowerCase();
-  const categoryKey = (value?: string) => {
-    const normalized = normalizeCategory(value);
-    if (normalized.includes("automation")) return "automation";
-    if (normalized.includes("invoice")) return "invoice";
-    if (normalized.includes("ai")) return "ai";
-    return "other";
+  const formatDateKey = (value?: string | Date) => {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(date);
   };
-  const latestByCategory = new Map<string, any>();
-  const totalsByCategory = new Map<string, number>();
-  for (const row of usageSorted) {
-    const key = categoryKey(row?.category);
-    const amount = Number(row?.amount || 0);
-    totalsByCategory.set(key, (totalsByCategory.get(key) || 0) + amount);
-    if (!latestByCategory.has(key)) {
-      latestByCategory.set(key, row);
-    }
-  }
+  const latestUsageDate = data?.range?.lastUpdated;
+  const cycleStart = data?.range?.cycleStart;
+  const cycleEnd = data?.range?.cycleEnd;
+
+  const totalsByCategory = {
+    automation: rows.reduce((sum: number, row: any) => sum + (Number(row.automationRuns) || 0), 0),
+    invoice: rows.reduce((sum: number, row: any) => sum + (Number(row.invoices) || 0), 0),
+    ai: rows.reduce((sum: number, row: any) => sum + (Number(row.aiRequests) || 0), 0),
+    whatsapp: rows.reduce((sum: number, row: any) => sum + (Number(row.whatsappMessages) || 0), 0),
+  };
+  const latestRow = rows[rows.length - 1] || {};
+  const getLimitSummary = (key: keyof typeof data.limits | string) => {
+    const entry = (data?.limits as any)?.[key];
+    if (!entry) return null;
+    if (entry.limit == null) return t("Unlimited", "Illimite");
+    return `${formatNumber(entry.used || 0)} / ${formatNumber(entry.limit || 0)}`;
+  };
+  const getRemainingSummary = (key: keyof typeof data.limits | string) => {
+    const entry = (data?.limits as any)?.[key];
+    if (!entry) return null;
+    if (entry.limit == null) return t("Unlimited", "Illimite");
+    return formatNumber(entry.remaining || 0);
+  };
+
   const usageHighlights = [
     {
       key: "automation",
       label: t("Automation runs", "Executions automatisation"),
-      total: Number(totalsByCategory.get("automation") || 0),
-      latest: Number(latestByCategory.get("automation")?.amount || 0),
-      period: latestByCategory.get("automation")?.period || "--",
       icon: Activity,
+      limit: getLimitSummary("automationRuns"),
+      remaining: getRemainingSummary("automationRuns"),
     },
     {
       key: "invoice",
       label: t("Invoices", "Factures"),
-      total: Number(totalsByCategory.get("invoice") || 0),
-      latest: Number(latestByCategory.get("invoice")?.amount || 0),
-      period: latestByCategory.get("invoice")?.period || "--",
       icon: FileText,
+      limit: getLimitSummary("invoices"),
+      remaining: getRemainingSummary("invoices"),
     },
     {
       key: "ai",
       label: t("AI requests", "Requetes IA"),
-      total: Number(totalsByCategory.get("ai") || 0),
-      latest: Number(latestByCategory.get("ai")?.amount || 0),
-      period: latestByCategory.get("ai")?.period || "--",
       icon: Sparkles,
+      limit: getLimitSummary("aiRequests"),
+      remaining: getRemainingSummary("aiRequests"),
+    },
+    {
+      key: "aiTokens",
+      label: t("AI tokens", "Jetons IA"),
+      icon: Sparkles,
+      limit: getLimitSummary("aiTokens"),
+      remaining: getRemainingSummary("aiTokens"),
+    },
+    {
+      key: "whatsapp",
+      label: t("WhatsApp messages", "Messages WhatsApp"),
+      icon: MessageSquare,
+      limit: getLimitSummary("whatsappMessages"),
+      remaining: getRemainingSummary("whatsappMessages"),
     },
   ];
+  const tableRows = [
+    {
+      id: `usage-automation-${data?.range?.endDate || "now"}`,
+      category: t("Automation runs", "Executions automatisation"),
+      amount: totalsByCategory.automation,
+      period: t("daily", "quotidien"),
+      createdAt: data?.range?.endDate,
+    },
+    {
+      id: `usage-invoice-${data?.range?.endDate || "now"}`,
+      category: t("Invoices", "Factures"),
+      amount: totalsByCategory.invoice,
+      period: t("daily", "quotidien"),
+      createdAt: data?.range?.endDate,
+    },
+    {
+      id: `usage-ai-${data?.range?.endDate || "now"}`,
+      category: t("AI requests", "Requetes IA"),
+      amount: totalsByCategory.ai,
+      period: t("daily", "quotidien"),
+      createdAt: data?.range?.endDate,
+    },
+    {
+      id: `usage-whatsapp-${data?.range?.endDate || "now"}`,
+      category: t("WhatsApp messages", "Messages WhatsApp"),
+      amount: totalsByCategory.whatsapp,
+      period: t("daily", "quotidien"),
+      createdAt: data?.range?.endDate,
+    },
+  ];
+
+  const cycleStartKey = formatDateKey(cycleStart);
+  const cycleEndKey = formatDateKey(cycleEnd);
+  const cycleRows =
+    cycleStartKey && cycleEndKey
+      ? rows.filter((row: any) => row.date >= cycleStartKey && row.date <= cycleEndKey)
+      : [];
+  const [cycleOffset, setCycleOffset] = useState(0);
+  const baseCycleStart = cycleStart ? new Date(cycleStart) : null;
+  const baseCycleEnd = cycleEnd ? new Date(cycleEnd) : null;
+  const addMonths = (value: Date, months: number) =>
+    new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth() + months, value.getUTCDate(), 0, 0, 0));
+  const viewCycleStart = baseCycleStart ? addMonths(baseCycleStart, cycleOffset) : null;
+  const viewCycleEnd = baseCycleEnd ? addMonths(baseCycleEnd, cycleOffset) : null;
+  const viewStartKey = formatDateKey(viewCycleStart);
+  const viewEndKey = formatDateKey(viewCycleEnd);
+  const viewRows =
+    viewStartKey && viewEndKey
+      ? rows.filter((row: any) => row.date >= viewStartKey && row.date <= viewEndKey)
+      : cycleRows;
+  const chartData = viewRows.map((row: any) => ({
+    name: formatDayLabel(row.date),
+    value: Number(row.aiTokens) || 0,
+  }));
+  const aiHasData = chartData.some((point) => Number(point.value) > 0);
+  const aiValues = chartData.map((point) => Number(point.value) || 0);
+  const totalAi = aiValues.reduce((sum, value) => sum + value, 0);
+  const avgAi = aiValues.length ? Math.round(totalAi / aiValues.length) : 0;
+  const peakPoint = chartData.reduce(
+    (best, point) => (Number(point.value) > Number(best.value) ? point : best),
+    chartData[0] || { name: "--", value: 0 }
+  );
+  const peakLabel = peakPoint.name || "--";
+  const canNextCycle = viewCycleEnd ? viewCycleEnd < new Date() : false;
+  const exportRows = (items: any[]) =>
+    items.map((row: any) => ({
+      date: row.date,
+      invoices: row.invoices,
+      automation_runs: row.automationRuns,
+      ai_requests: row.aiRequests,
+      ai_tokens: row.aiTokens,
+      whatsapp_messages: row.whatsappMessages,
+    }));
+  const toCsv = (items: any[]) => {
+    if (!items.length) return "";
+    const headers = Object.keys(items[0]);
+    const lines = items.map((row) =>
+      headers.map((key) => JSON.stringify((row as any)[key] ?? "")).join(",")
+    );
+    return [headers.join(","), ...lines].join("\n");
+  };
+  const downloadCsv = (filename: string, items: any[]) => {
+    const csv = toCsv(items);
+    if (!csv) return;
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-4 max-md:space-y-6">
@@ -144,7 +224,33 @@ export default function UsagePage() {
           </h1>
         </div>
       </div>
-      <Card title={t("AI token usage", "Utilisation tokens IA")} className="space-y-4">
+      <Card
+        title={t("AI token usage", "Utilisation tokens IA")}
+        className="space-y-4"
+        actions={
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <button
+              type="button"
+              className="rounded-full border border-border/70 bg-background/60 px-2.5 py-1 text-foreground disabled:opacity-40"
+              onClick={() => setCycleOffset((value) => value - 1)}
+              disabled={!baseCycleStart}
+            >
+              {t("Previous", "Precedent")}
+            </button>
+            <span className="rounded-full border border-border/70 bg-background/60 px-2.5 py-1 text-foreground">
+              {formatDate(viewCycleStart ?? cycleStart)} – {formatDate(viewCycleEnd ?? cycleEnd)}
+            </span>
+            <button
+              type="button"
+              className="rounded-full border border-border/70 bg-background/60 px-2.5 py-1 text-foreground disabled:opacity-40"
+              onClick={() => setCycleOffset((value) => value + 1)}
+              disabled={!baseCycleEnd || !canNextCycle}
+            >
+              {t("Next", "Suivant")}
+            </button>
+          </div>
+        }
+      >
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-border/70 bg-background/60 px-3 py-2">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -180,14 +286,6 @@ export default function UsagePage() {
             )}
           </p>
         )}
-        {showingRequestActivity && (
-          <p className="mt-3 text-xs text-muted-foreground">
-            {t(
-              "Showing AI request activity because token totals are unavailable.",
-              "Affichage des requetes IA car les tokens sont indisponibles."
-            )}
-          </p>
-        )}
         {!aiError && !aiHasData && (
           <p className="mt-3 text-xs text-muted-foreground">
             {t(
@@ -203,10 +301,54 @@ export default function UsagePage() {
         actions={
           <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
             <span className="rounded-full border border-border/70 bg-background/60 px-2.5 py-1 text-foreground">
-              {t("Total:", "Total:")} {formatNumber(usageSorted.length)}
+              {t("Total:", "Total:")} {formatNumber(tableRows.length)}
             </span>
             <span className="rounded-full border border-border/70 bg-background/60 px-2.5 py-1 text-foreground">
               {t("Last update:", "Derniere maj:")} {formatDate(latestUsageDate)}
+            </span>
+            <span className="rounded-full border border-border/70 bg-background/60 px-2.5 py-1 text-foreground">
+              {t("Cycle:", "Cycle:")} {formatDate(cycleStart)} – {formatDate(cycleEnd)}
+            </span>
+            <button
+              type="button"
+              className="rounded-full border border-border/70 bg-background/60 px-2.5 py-1 text-foreground hover:bg-background"
+              onClick={() => downloadCsv("usage-history.csv", exportRows(rows))}
+            >
+              {t("Export history CSV", "Exporter historique CSV")}
+            </button>
+            <button
+              type="button"
+              className="rounded-full border border-border/70 bg-background/60 px-2.5 py-1 text-foreground hover:bg-background"
+              onClick={() => downloadCsv("usage-cycle.csv", exportRows(cycleRows))}
+            >
+              {t("Export cycle CSV", "Exporter cycle CSV")}
+            </button>
+            <span
+              className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/60 px-2.5 py-1 text-foreground"
+              title={t(
+                "Usage resets at the start of each billing cycle.",
+                "L usage est reinitialise au debut de chaque cycle."
+              )}
+            >
+              <Info className="h-3 w-3" /> {t("Reset info", "Infos cycle")}
+            </span>
+            <span
+              className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/60 px-2.5 py-1 text-foreground"
+              title={t(
+                "Unlimited means no cap for the current plan.",
+                "Illimite signifie aucun plafond pour ce plan."
+              )}
+            >
+              <Info className="h-3 w-3" /> {t("Unlimited", "Illimite")}
+            </span>
+            <span
+              className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/60 px-2.5 py-1 text-foreground"
+              title={t(
+                "Counts only successful actions: invoices sent, automation runs, AI requests, WhatsApp sent.",
+                "Compter uniquement les actions reussies."
+              )}
+            >
+              <Info className="h-3 w-3" /> {t("What counts", "Ce qui compte")}
             </span>
           </div>
         }
@@ -216,7 +358,7 @@ export default function UsagePage() {
             <Skeleton className="h-6" />
             <Skeleton className="h-6" />
           </div>
-        ) : usageSorted.length ? (
+        ) : tableRows.length ? (
           <>
             <div className="grid gap-3 sm:grid-cols-3">
               {usageHighlights.map((item) => {
@@ -230,11 +372,18 @@ export default function UsagePage() {
                       <p className="text-xs uppercase tracking-wide text-muted-foreground">
                         {item.label}
                       </p>
-                      <p className="text-lg font-semibold text-foreground">
-                        {formatNumber(item.total)}
-                      </p>
+                      {item.limit && (
+                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                          {t("Used/Limit:", "Utilise/Limite:")} {item.limit}
+                        </p>
+                      )}
+                      {item.remaining && (
+                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                          {t("Remaining:", "Restant:")} {item.remaining}
+                        </p>
+                      )}
                       <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                        {t("Latest:", "Dernier:")} {formatNumber(item.latest)} - {item.period}
+                        {t("Cycle start:", "Debut cycle:")} {formatDate(cycleStart)}
                       </p>
                     </div>
                     <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background/80 text-indigo-500">
@@ -245,7 +394,7 @@ export default function UsagePage() {
               })}
             </div>
             <Table
-              data={usageSorted}
+              data={tableRows}
               keyExtractor={(row: any) => row.id}
               columns={[
                 {
@@ -283,6 +432,26 @@ export default function UsagePage() {
                 },
               ]}
             />
+            {Array.isArray(automationBreakdown?.items) && automationBreakdown.items.length > 0 && (
+              <div className="space-y-2 rounded-xl border border-border/70 bg-background/60 p-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  {t("Automation breakdown", "Repartition automatisations")}
+                </p>
+                <div className="grid gap-2">
+                  {automationBreakdown.items.map((item: any) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between text-sm text-foreground"
+                    >
+                      <span className="font-medium">{item.name}</span>
+                      <span className="text-muted-foreground">
+                        {formatNumber(Number(item.count) || 0)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <EmptyState

@@ -9,6 +9,7 @@ import { normalizeCountryCode } from "@/lib/business-profile";
 import { isProviderCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
 import { createPaystackSubaccount } from "@/lib/payments/paystack";
 import { createFlutterwaveSubaccount } from "@/lib/payments/flutterwave";
+import { isSepaCountry, isValidIban, normalizeIban } from "@/lib/payments/sepa";
 
 export const POST = withRequestLogging(
   withErrorHandling(async (req: Request) => {
@@ -20,7 +21,51 @@ export const POST = withRequestLogging(
     const parsed = merchantAccountCreateSchema.parse(await req.json());
     const provider = parsed.provider;
     const country = normalizeCountryCode(parsed.country);
-    const currency = normalizeCurrency(parsed.currency);
+    const payoutType = parsed.payoutType || (isSepaCountry(country) ? "sepa" : "local");
+    const currency = payoutType === "sepa" ? "EUR" : normalizeCurrency(parsed.currency);
+    const existingAccount = await prisma.merchantAccount.findUnique({
+      where: { userId: session.user.id },
+    });
+
+    if (payoutType === "sepa" && provider !== "FLUTTERWAVE") {
+      return NextResponse.json(
+        { error: "SEPA payouts are available through Flutterwave only." },
+        { status: 400 }
+      );
+    }
+
+    const accountNumber = parsed.accountNumber?.trim() || null;
+    const bankCode = parsed.bankCode?.trim() || null;
+    const iban = parsed.iban ? normalizeIban(parsed.iban) : null;
+    const bicSwift = parsed.bicSwift?.trim() || null;
+
+    if (payoutType === "sepa") {
+      if (!iban || !isValidIban(iban)) {
+        return NextResponse.json(
+          { error: "Please enter a valid IBAN." },
+          { status: 400 }
+        );
+      }
+      if (accountNumber || bankCode) {
+        return NextResponse.json(
+          { error: "SEPA payouts require IBAN only. Remove bank and account number fields." },
+          { status: 400 }
+        );
+      }
+    } else {
+      if (!accountNumber || !bankCode) {
+        return NextResponse.json(
+          { error: "Bank and account number are required for local payouts." },
+          { status: 400 }
+        );
+      }
+      if (iban) {
+        return NextResponse.json(
+          { error: "IBAN is only allowed for SEPA payouts." },
+          { status: 400 }
+        );
+      }
+    }
 
     if (provider === "PAYSTACK" && !isProviderCurrency("PAYSTACK", currency)) {
       return NextResponse.json(
@@ -31,6 +76,40 @@ export const POST = withRequestLogging(
       );
     }
 
+    if (existingAccount) {
+      const nextProvider = provider;
+      const nextPayoutType = payoutType === "sepa" ? "SEPA" : "LOCAL";
+      const hasProviderChange =
+        existingAccount.provider && existingAccount.provider !== nextProvider;
+      const hasPayoutTypeChange =
+        existingAccount.payoutType && existingAccount.payoutType !== nextPayoutType;
+      const hasCurrencyChange = existingAccount.currency && existingAccount.currency !== currency;
+
+      if (hasProviderChange || hasPayoutTypeChange || hasCurrencyChange) {
+        const unpaidInvoices = await prisma.invoice.findMany({
+          where: {
+            userId: session.user.id,
+            status: { in: ["SENT", "OVERDUE"] },
+          },
+          select: { id: true, currency: true },
+        });
+        const incompatible = unpaidInvoices.find((inv) => {
+          const invCurrency = normalizeCurrency(inv.currency || "");
+          if (nextPayoutType === "SEPA" && invCurrency !== "EUR") return true;
+          return !isProviderCurrency(nextProvider, invCurrency);
+        });
+        if (incompatible) {
+          return NextResponse.json(
+            {
+              error:
+                "You have unpaid invoices that require your current payout configuration. Settle or cancel them before switching payout settings.",
+            },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     let paystackSubaccountCode: string | null = null;
     let flutterwaveSubaccountId: string | null = null;
 
@@ -39,8 +118,8 @@ export const POST = withRequestLogging(
       try {
         response = await createPaystackSubaccount({
           businessName: parsed.businessName,
-          bankCode: parsed.bankCode,
-          accountNumber: parsed.accountNumber,
+          bankCode: bankCode || "",
+          accountNumber: accountNumber || "",
         });
       } catch {
         return NextResponse.json(
@@ -65,10 +144,14 @@ export const POST = withRequestLogging(
           businessName: parsed.businessName,
           businessEmail: parsed.businessEmail,
           accountName: parsed.accountName,
-          accountNumber: parsed.accountNumber,
-          bankCode: parsed.bankCode,
+          accountNumber,
+          bankCode,
           country,
           phone: parsed.phone,
+          payoutType,
+          iban,
+          bicSwift,
+          currency,
         });
       } catch {
         return NextResponse.json(
@@ -94,10 +177,26 @@ export const POST = withRequestLogging(
         userId: session.user.id,
         paystackSubaccountCode,
         flutterwaveSubaccountId,
+        provider,
+        payoutType: payoutType === "sepa" ? "SEPA" : "LOCAL",
+        accountName: parsed.accountName,
+        accountNumber,
+        iban,
+        bicSwift,
+        currency,
+        country,
       },
       update: {
         paystackSubaccountCode,
         flutterwaveSubaccountId,
+        provider,
+        payoutType: payoutType === "sepa" ? "SEPA" : "LOCAL",
+        accountName: parsed.accountName,
+        accountNumber,
+        iban,
+        bicSwift,
+        currency,
+        country,
       },
     });
 

@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { withErrorHandling } from "@/lib/api-handler";
 import { invoiceSchema } from "@/lib/validators";
 import { parseDateInput } from "@/lib/date";
-import { enforceEntitlement } from "@/lib/entitlements";
+import { enforceEntitlement, getWorkspaceScope } from "@/lib/entitlements";
 import {
   calculateTotalsFromAmounts,
   generateAndStoreInvoicePdf,
@@ -15,6 +15,7 @@ import {
 import { isAllowedCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
 import { triggerInvoiceStatusAutomations } from "@/lib/automation/events";
 import { normalizeVatSettings } from "@/lib/vat";
+import { recordAnalyticsEvent } from "@/lib/analytics";
 
 type Params = { params: { id: string } };
 
@@ -103,6 +104,13 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  if (nextCurrency && existing.status !== "DRAFT") {
+    return NextResponse.json(
+      { error: "Invoice currency cannot be changed after issuance." },
+      { status: 400 }
+    );
+  }
+
   if (existing.status === "PAID") {
     return NextResponse.json(
       { error: "Paid invoices cannot be edited." },
@@ -122,6 +130,44 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
     if (!parsed.customerEmail && !existingCustomerEmail) {
       return NextResponse.json(
         { error: "Customer email is required to send an invoice." },
+        { status: 400 }
+      );
+    }
+    const invoiceCurrency = nextCurrency || normalizeCurrency((existing as any)?.currency || "USD");
+    const merchant = await prisma.merchantAccount.findUnique({
+      where: { userId: session.user.id },
+    });
+    if (!merchant) {
+      return NextResponse.json(
+        {
+          error:
+            "Payment setup required. Add your Paystack or Flutterwave subaccount in Settings > Invoice payout setup.",
+        },
+        { status: 400 }
+      );
+    }
+    if (merchant.currency && normalizeCurrency(merchant.currency) !== invoiceCurrency) {
+      return NextResponse.json(
+        { error: "Your payout account currency is not compatible with this invoice currency." },
+        { status: 400 }
+      );
+    }
+    if (merchant.payoutType === "SEPA" && invoiceCurrency !== "EUR") {
+      return NextResponse.json(
+        { error: "Your payout account cannot settle this invoice currency." },
+        { status: 400 }
+      );
+    }
+    let providerOk = false;
+    if (merchant.paystackSubaccountCode && isProviderCurrency("PAYSTACK", invoiceCurrency)) {
+      providerOk = true;
+    }
+    if (merchant.flutterwaveSubaccountId && isProviderCurrency("FLUTTERWAVE", invoiceCurrency)) {
+      providerOk = true;
+    }
+    if (!providerOk) {
+      return NextResponse.json(
+        { error: "No payout account can settle this invoice currency." },
         { status: 400 }
       );
     }
@@ -215,6 +261,19 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
           { status: (error as any)?.status || 500 }
         );
       }
+    }
+    try {
+      const usageScope = await getWorkspaceScope(session.user.id);
+      const workspaceId = usageScope.businessId ?? session.user.id;
+      await recordAnalyticsEvent({
+        userId: session.user.id,
+        workspaceId,
+        orgId: usageScope.businessId ?? session.user.id,
+        type: "INVOICE_SENT",
+        count: 1,
+      });
+    } catch (error) {
+      console.error("invoice_sent_analytics_failed", error);
     }
     await prisma.activityLog.create({
       data: {

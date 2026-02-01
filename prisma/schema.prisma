@@ -48,6 +48,11 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum PayoutType {
+  LOCAL
+  SEPA
+}
+
 enum AutomationStatus {
   DRAFT
   ACTIVE
@@ -77,6 +82,21 @@ enum SupportStatus {
   IN_PROGRESS
   RESOLVED
   CLOSED
+}
+
+enum AnalyticsCategory {
+  INVOICE_CREATED
+  AUTOMATION_SUCCESS
+  AI_REQUEST
+}
+
+enum AnalyticsEventType {
+  AI_REQUEST
+  AI_TOKENS
+  INVOICE_SENT
+  AUTOMATION_RUN
+  WHATSAPP_MESSAGE
+  WHATSAPP_MESSAGE_SENT
 }
 
 enum ConversationStatus {
@@ -140,6 +160,7 @@ model User {
   ownedBusinesses Business[]     @relation("OwnedBusinesses")
   usageRecords   UsageRecord[]
   transactions   Transaction[]
+  analyticsEvents AnalyticsEvent[]
 }
 
 model Subscription {
@@ -473,6 +494,14 @@ model MerchantAccount {
   userId                 String   @unique
   paystackSubaccountCode String?  @unique
   flutterwaveSubaccountId String? @unique
+  provider               PaymentProvider?
+  payoutType             PayoutType @default(LOCAL)
+  accountName            String?
+  accountNumber          String?
+  iban                   String?
+  bicSwift               String?
+  currency               String?
+  country                String?
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 }
@@ -587,6 +616,25 @@ model UsageRecord {
   amount    Int
   period    String
   createdAt DateTime @default(now())
+}
+
+model AnalyticsEvent {
+  id         String            @id @default(cuid())
+  user       User              @relation(fields: [userId], references: [id])
+  userId     String
+  orgId      String?
+  workspaceId String?
+  type       AnalyticsEventType?
+  day        DateTime?
+  category   AnalyticsCategory?
+  count      Int               @default(1)
+  tokenCount Int?
+  source     String            @default("system")
+  createdAt  DateTime          @default(now())
+
+  @@index([userId, createdAt])
+  @@index([workspaceId, type, day])
+  @@index([orgId])
 }
 
 model Transaction {

@@ -36,6 +36,17 @@ export const PUT = withRequestLogging(
     const paystackCode = parsed.paystackSubaccountCode?.trim() || null;
     const flutterwaveId = parsed.flutterwaveSubaccountId?.trim() || null;
 
+    const existing = await prisma.merchantAccount.findUnique({
+      where: { userId: session.user.id },
+    });
+
+    if (existing?.payoutType === "SEPA" && paystackCode) {
+      return NextResponse.json(
+        { error: "Paystack is not supported for SEPA payouts." },
+        { status: 400 }
+      );
+    }
+
     if (!paystackCode && !flutterwaveId) {
       return NextResponse.json(
         { error: "At least one payout account is required." },

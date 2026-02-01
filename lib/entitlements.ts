@@ -296,7 +296,7 @@ async function ensureUsageWindow(userId: string) {
     const start =
       sub?.createdAt ??
       new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0));
-    return { start, businessId: null, ownerId: userId, userIds: [userId] };
+    return { start, resetAt: addUtcMonths(start, 1), businessId: null, ownerId: userId, userIds: [userId] };
   }
 
   let billingCycleStartAt = business.billingCycleStartAt ?? null;
@@ -338,7 +338,7 @@ async function ensureUsageWindow(userId: string) {
     select: { userId: true },
   });
   const userIds = Array.from(new Set([business.ownerId, ...members.map((m) => m.userId)]));
-  return { start: billingCycleStartAt, businessId: business.id, ownerId: business.ownerId, userIds };
+  return { start: billingCycleStartAt, resetAt: usageResetAt, businessId: business.id, ownerId: business.ownerId, userIds };
 }
 
 export async function getWorkspaceScope(userId: string) {

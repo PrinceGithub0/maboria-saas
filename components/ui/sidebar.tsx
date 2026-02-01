@@ -193,7 +193,7 @@ export function Sidebar({ role }: Props) {
   );
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-64 border-r border-border bg-background p-4 backdrop-blur lg:block">
+    <aside className="sticky top-0 hidden h-screen w-64 flex-col border-r border-border bg-background p-4 backdrop-blur lg:flex">
       <div className="mb-6 flex items-center gap-2">
         <div className="relative h-10 w-10 overflow-hidden rounded-xl border border-border bg-card">
           <Image src={logoSrc} alt="Maboria" fill className="object-contain p-0 scale-110" priority />
@@ -205,7 +205,7 @@ export function Sidebar({ role }: Props) {
           </p>
         </div>
       </div>
-      <nav className="flex flex-col gap-4">
+      <nav className="flex flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden pr-1">
         {renderSection(labelMap.Core, coreItems)}
         <div className="h-px bg-border/70" />
         {renderBillingSection()}

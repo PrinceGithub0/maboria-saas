@@ -11,6 +11,8 @@ import { meterUsage, autoInvoiceFromUsage, recoverFailedPayment } from "../billi
 import { enqueueJob } from "../jobs";
 import { env } from "../env";
 import { normalizeCurrency } from "../payments/currency-allowlist";
+import { recordAnalyticsEvent } from "../analytics";
+import { getWorkspaceScope } from "../entitlements";
 
 type Context = Record<string, any>;
 
@@ -21,6 +23,8 @@ export async function executeAutomationRun(
   const logs: any[] = [];
   let status: AutomationRunStatus = "RUNNING";
   const openai = new OpenAI({ apiKey: env.openaiKey });
+  const usageScope = await getWorkspaceScope(flow.userId);
+  const analyticsWorkspaceId = usageScope.businessId ?? flow.userId;
   let businessProfile: {
     businessName: string;
     country: string;
@@ -161,6 +165,27 @@ export async function executeAutomationRun(
             input: `Task: ${prompt}\n\nContext: ${text}`,
           });
           const aiResult = completion.output_text;
+          const usageTokens =
+            typeof completion.usage?.total_tokens === "number"
+              ? completion.usage.total_tokens
+              : (completion.usage?.input_tokens ?? 0) + (completion.usage?.output_tokens ?? 0);
+          const fallbackTokens = Math.max(1, Math.ceil((prompt.length + text.length + aiResult.length) / 4));
+          const resolvedTokens = usageTokens > 0 ? usageTokens : fallbackTokens;
+          await recordAnalyticsEvent({
+            userId: flow.userId,
+            workspaceId: analyticsWorkspaceId,
+            orgId: usageScope.businessId ?? flow.userId,
+            type: "AI_REQUEST",
+            count: 1,
+          });
+          await recordAnalyticsEvent({
+            userId: flow.userId,
+            workspaceId: analyticsWorkspaceId,
+            orgId: usageScope.businessId ?? flow.userId,
+            type: "AI_TOKENS",
+            count: resolvedTokens,
+            tokenCount: resolvedTokens,
+          });
           context.ai = aiResult;
           logs.push({ step: stepType, result: aiResult });
           break;
@@ -223,7 +248,7 @@ export async function executeAutomationRun(
     logs.push({ error: error.message });
     throw error;
   } finally {
-    await prisma.$transaction([
+    const operations: Prisma.PrismaPromise<any>[] = [
       prisma.automationRun.create({
         data: {
           flowId: flow.id,
@@ -246,6 +271,20 @@ export async function executeAutomationRun(
           message: `Automation ${flow.title} finished with ${status}`,
         },
       }),
-    ]);
+    ];
+    await prisma.$transaction(operations);
+    if (status === "SUCCESS") {
+      try {
+        await recordAnalyticsEvent({
+          userId: flow.userId,
+          workspaceId: analyticsWorkspaceId,
+          orgId: usageScope.businessId ?? flow.userId,
+          type: "AUTOMATION_RUN",
+          count: 1,
+        });
+      } catch (error) {
+        log("error", "analytics_automation_failed", { flowId: flow.id, error });
+      }
+    }
   }
 }

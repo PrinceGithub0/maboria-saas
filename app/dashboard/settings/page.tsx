@@ -10,6 +10,7 @@ import { Alert } from "@/components/ui/alert";
 import { CountrySelect } from "@/components/ui/country-select";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { allowedCurrencies, formatCurrencyOption } from "@/lib/payments/currency-allowlist";
+import { isSepaCountry } from "@/lib/payments/sepa";
 import { useLanguage } from "@/components/providers/language-provider";
 import { formatBusinessAddress, hasRequiredAddress, parseBusinessAddress } from "@/lib/address";
 
@@ -38,10 +39,15 @@ export default function SettingsPage() {
   const [businessError, setBusinessError] = useState<string | null>(null);
   const [payoutStatus, setPayoutStatus] = useState<string | null>(null);
   const [payoutError, setPayoutError] = useState<string | null>(null);
+  const [payoutSubmitting, setPayoutSubmitting] = useState(false);
   const [payoutProvider, setPayoutProvider] = useState<"PAYSTACK" | "FLUTTERWAVE">("PAYSTACK");
   const [payoutBankCode, setPayoutBankCode] = useState("");
   const [payoutAccountNumber, setPayoutAccountNumber] = useState("");
   const [payoutAccountName, setPayoutAccountName] = useState("");
+  const [payoutIban, setPayoutIban] = useState("");
+  const [payoutBicSwift, setPayoutBicSwift] = useState("");
+  const [payoutProviderTouched, setPayoutProviderTouched] = useState(false);
+  const [payoutAttempted, setPayoutAttempted] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoError, setLogoError] = useState<string | null>(null);
   const [logoInfoOpen, setLogoInfoOpen] = useState(false);
@@ -73,8 +79,14 @@ export default function SettingsPage() {
   const enabled = Boolean(totpStatus?.enabled);
   const businessProfile = businessProfileResponse?.data;
   const businessExists = Boolean(businessProfile?.id);
-  const payoutBankUrl = `/api/merchant-account/banks?provider=${payoutProvider}&country=${businessForm.country}&currency=${businessForm.defaultCurrency}`;
+  const isSepa = isSepaCountry(businessForm.country);
+  const payoutBankUrl = isSepa
+    ? null
+    : `/api/merchant-account/banks?provider=${payoutProvider}&country=${businessForm.country}&currency=${businessForm.defaultCurrency}`;
   const { data: payoutBanks } = useSWR(payoutBankUrl, fetcher);
+  const { data: merchantAccountRes } = useSWR("/api/merchant-account", profileFetcher);
+  const payoutBankList = payoutBanks?.banks || [];
+  const payoutBankError = payoutBanks?.error ? String(payoutBanks.error) : null;
 
   const businessCurrencyOptions = allowedCurrencies.map((code) => ({ code, label: formatCurrencyOption(code) }));
   const requiredMessage = t("This field is required", "This field is required");
@@ -163,10 +175,46 @@ export default function SettingsPage() {
 
 
   useEffect(() => {
-    const banks = payoutBanks?.banks || [];
-    if (!banks.length) return;
-    setPayoutBankCode((prev) => prev || banks[0].code);
-  }, [payoutBanks?.banks]);
+    if (!merchantAccountRes?.data || merchantAccountRes.status !== 200) return;
+    const record = merchantAccountRes.data;
+    if (!payoutAccountName && record.accountName) {
+      setPayoutAccountName(record.accountName);
+    }
+    if (!payoutAccountNumber && record.accountNumber) {
+      setPayoutAccountNumber(record.accountNumber);
+    }
+    if (!payoutIban && record.iban) {
+      setPayoutIban(record.iban);
+    }
+    if (!payoutBicSwift && record.bicSwift) {
+      setPayoutBicSwift(record.bicSwift);
+    }
+    if (record.provider && !isSepa) {
+      setPayoutProvider(record.provider);
+    }
+  }, [
+    merchantAccountRes?.data,
+    merchantAccountRes?.status,
+    payoutAccountName,
+    payoutAccountNumber,
+    payoutBicSwift,
+    payoutIban,
+    isSepa,
+  ]);
+
+  useEffect(() => {
+    if (isSepa) {
+      setPayoutProvider("FLUTTERWAVE");
+      setPayoutBankCode("");
+      setPayoutAccountNumber("");
+      return;
+    }
+    if (!payoutBankList.length) {
+      setPayoutBankCode("");
+      return;
+    }
+    setPayoutBankCode((prev) => prev || payoutBankList[0].code);
+  }, [payoutBankList, isSepa]);
 
   const saveProfile = async () => {
     setProfileStatus(null);
@@ -361,6 +409,11 @@ export default function SettingsPage() {
   const createPayoutAccount = async () => {
     setPayoutStatus(null);
     setPayoutError(null);
+    if (payoutSubmitting) return;
+    setPayoutAttempted(true);
+    if (payoutProvider === "PAYSTACK" && payoutBankError) {
+      return;
+    }
     const businessEmail = businessForm.businessEmail || profile.email;
     if (!businessForm.businessName) {
       setPayoutError(t("Business name is required.", "Le nom de l entreprise est requis."));
@@ -374,33 +427,55 @@ export default function SettingsPage() {
       setPayoutError(t("Business phone is required.", "Le telephone de l entreprise est requis."));
       return;
     }
-    if (!payoutAccountName || !payoutAccountNumber || !payoutBankCode) {
-      setPayoutError(
-        t("Bank name and account details are required.", "La banque et les details du compte sont requis.")
-      );
-      return;
+    if (isSepa) {
+      if (!payoutAccountName || !payoutIban) {
+        setPayoutError(t("Account name and IBAN are required.", "Le nom du compte et l IBAN sont requis."));
+        return;
+      }
+    } else {
+      if (!payoutAccountName || !payoutAccountNumber || !payoutBankCode) {
+        setPayoutError(
+          t("Bank name and account details are required.", "La banque et les details du compte sont requis.")
+        );
+        return;
+      }
+      if (!payoutBankList.length) {
+        setPayoutError(
+          t(
+            "No banks available for this provider and currency.",
+            "Aucune banque disponible pour ce fournisseur et cette devise."
+          )
+        );
+        return;
+      }
     }
+    setPayoutSubmitting(true);
     const res = await fetch("/api/merchant-account/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        provider: payoutProvider,
+        provider: isSepa ? "FLUTTERWAVE" : payoutProvider,
         businessName: businessForm.businessName,
         businessEmail,
         accountName: payoutAccountName,
-        accountNumber: payoutAccountNumber,
-        bankCode: payoutBankCode,
+        accountNumber: isSepa ? undefined : payoutAccountNumber,
+        bankCode: isSepa ? undefined : payoutBankCode,
+        iban: isSepa ? payoutIban : undefined,
+        bicSwift: isSepa ? payoutBicSwift : undefined,
+        payoutType: isSepa ? "sepa" : "local",
         country: businessForm.country,
-        currency: businessForm.defaultCurrency,
+        currency: isSepa ? "EUR" : businessForm.defaultCurrency,
         phone: businessForm.businessPhone,
       }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       setPayoutError(data.error || t("Could not create payout account.", "Impossible de creer le compte de paiement."));
+      setPayoutSubmitting(false);
       return;
     }
     setPayoutStatus(t("Payout account created.", "Compte de paiement cree."));
+    setPayoutSubmitting(false);
   };
 
   return (
@@ -455,10 +530,6 @@ export default function SettingsPage() {
             label={t("Business name", "Nom de l entreprise")}
             value={businessForm.businessName}
             onChange={(e) => setBusinessForm({ ...businessForm, businessName: e.target.value })}
-            onFocus={(e) => {
-              const length = e.currentTarget.value.length;
-              e.currentTarget.setSelectionRange(length, length);
-            }}
             required
           />
           <CountrySelect
@@ -611,10 +682,6 @@ export default function SettingsPage() {
             label={t("Tax ID (optional)", "ID fiscal (optionnel)")}
             value={businessForm.taxId}
             onChange={(e) => setBusinessForm({ ...businessForm, taxId: e.target.value })}
-            onFocus={(e) => {
-              const length = e.currentTarget.value.length;
-              e.currentTarget.setSelectionRange(length, length);
-            }}
             className="max-md:order-8"
           />
           <div className="col-span-2 max-md:col-span-1 max-md:order-10">
@@ -653,39 +720,90 @@ export default function SettingsPage() {
                 onChange={(e) => {
                   setPayoutProvider(e.target.value as "PAYSTACK" | "FLUTTERWAVE");
                   setPayoutBankCode("");
+                  setPayoutProviderTouched(true);
                 }}
+                disabled={isSepa}
                 className="rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:border-indigo-400 focus:outline-none"
               >
-                <option value="PAYSTACK">Paystack</option>
+                {!isSepa && <option value="PAYSTACK">Paystack</option>}
                 <option value="FLUTTERWAVE">Flutterwave</option>
               </select>
+              {isSepa && (
+                <span className="text-xs text-muted-foreground">
+                  {t(
+                    "Paystack does not support SEPA payouts. Flutterwave is required.",
+                    "Paystack ne prend pas en charge les paiements SEPA. Flutterwave est requis."
+                  )}
+                </span>
+              )}
+              {payoutProvider === "PAYSTACK" &&
+                (payoutProviderTouched || payoutAttempted) &&
+                payoutBankError && (
+                  <span className="text-xs text-amber-600">{payoutBankError}</span>
+                )}
             </label>
-            <label className="flex flex-col gap-1 text-sm text-foreground">
-              {t("Bank", "Banque")}
-              <select
-                value={payoutBankCode}
-                onChange={(e) => setPayoutBankCode(e.target.value)}
-                className="rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:border-indigo-400 focus:outline-none"
-              >
-                {(payoutBanks?.banks || []).map((bank: any, index: number) => (
-                  <option key={`${bank.code}-${bank.name}-${index}`} value={bank.code}>
-                    {bank.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <Input
-              label={t("Account name", "Nom du compte")}
-              value={payoutAccountName}
-              onChange={(e) => setPayoutAccountName(e.target.value)}
-            />
-            <Input
-              label={t("Account number", "Numero de compte")}
-              value={payoutAccountNumber}
-              onChange={(e) => setPayoutAccountNumber(e.target.value)}
-            />
+            {isSepa ? (
+              <>
+                <Input
+                  label={t("Account holder name", "Nom du titulaire")}
+                  value={payoutAccountName}
+                  onChange={(e) => setPayoutAccountName(e.target.value)}
+                />
+                <Input
+                  label={t("IBAN", "IBAN")}
+                  value={payoutIban}
+                  onChange={(e) => setPayoutIban(e.target.value)}
+                />
+                <Input
+                  label={t("BIC / SWIFT (optional)", "BIC / SWIFT (optionnel)")}
+                  value={payoutBicSwift}
+                  onChange={(e) => setPayoutBicSwift(e.target.value)}
+                />
+              </>
+            ) : (
+              <>
+                <label className="flex flex-col gap-1 text-sm text-foreground">
+                  {t("Bank", "Banque")}
+                  <select
+                    value={payoutBankCode}
+                    onChange={(e) => setPayoutBankCode(e.target.value)}
+                    disabled={!payoutBankList.length}
+                    className="rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:border-indigo-400 focus:outline-none"
+                  >
+                    {payoutBankList.length === 0 && (
+                      <option value="">
+                        {t("No banks available", "Aucune banque disponible")}
+                      </option>
+                    )}
+                    {payoutBankList.map((bank: any, index: number) => (
+                      <option key={`${bank.code}-${bank.name}-${index}`} value={bank.code}>
+                        {bank.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <Input
+                  label={t("Account name", "Nom du compte")}
+                  value={payoutAccountName}
+                  onChange={(e) => setPayoutAccountName(e.target.value)}
+                />
+                <Input
+                  label={t("Account number", "Numero de compte")}
+                  value={payoutAccountNumber}
+                  onChange={(e) => setPayoutAccountNumber(e.target.value)}
+                />
+              </>
+            )}
             <div className="col-span-2 max-md:col-span-1">
-              <Button className="max-md:w-full" onClick={createPayoutAccount}>
+              <Button
+                className="max-md:w-full"
+                onClick={createPayoutAccount}
+                disabled={
+                  payoutSubmitting ||
+                  (!isSepa && (!payoutBankList.length || Boolean(payoutBankError))) ||
+                  (isSepa && payoutProvider !== "FLUTTERWAVE")
+                }
+              >
                 {t("Create payout account", "Creer un compte de paiement")}
               </Button>
             </div>

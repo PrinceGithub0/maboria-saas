@@ -36,7 +36,7 @@ export function MiniAreaChart({ data, className, style }: Props) {
             tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
             interval="preserveStartEnd"
           />
-          <YAxis hide />
+          <YAxis hide domain={[0, "auto"]} />
           <Tooltip cursor={{ stroke: "var(--border)", strokeWidth: 1, strokeOpacity: 0.5 }} />
           <Area
             type="monotone"

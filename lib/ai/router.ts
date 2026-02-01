@@ -12,6 +12,8 @@ import {
 } from "./templates";
 import { env } from "../env";
 import { log } from "../logger";
+import { recordAnalyticsEvent } from "../analytics";
+import { getWorkspaceScope } from "../entitlements";
 
 const client = new OpenAI({ apiKey: env.openaiKey });
 
@@ -186,6 +188,25 @@ export async function aiRouter({
     const resolvedTokens = usageTokens > 0 ? usageTokens : fallbackTokens;
     await prisma.aiUsageLog.create({
       data: { userId, model: "gpt-4.1-mini", tokens: resolvedTokens, prompt: input },
+    });
+    const workspace = await getWorkspaceScope(userId);
+    const workspaceId = workspace.businessId ?? userId;
+    await recordAnalyticsEvent({
+      userId,
+      workspaceId,
+      orgId: userId,
+      type: "AI_REQUEST",
+      count: 1,
+      createdAt: new Date(),
+    });
+    await recordAnalyticsEvent({
+      userId,
+      workspaceId,
+      orgId: userId,
+      type: "AI_TOKENS",
+      count: resolvedTokens,
+      tokenCount: resolvedTokens,
+      createdAt: new Date(),
     });
     await prisma.activityLog.create({
       data: {

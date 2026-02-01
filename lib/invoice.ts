@@ -21,6 +21,7 @@ import {
   INVOICE_TOTALS_LABEL_WIDTH,
   INVOICE_TOTALS_VALUE_WIDTH,
 } from "./invoice-totals-layout";
+import { recordAnalyticsEvent } from "./analytics";
 
 export type InvoiceItem = {
   name: string;
@@ -348,6 +349,15 @@ export async function createInvoiceRecord({
           status: normalizedStatus,
         }).catch((error) => {
           log("error", "invoice_status_trigger_failed", { invoiceId: created.id, error });
+        });
+      }
+      if (normalizedStatus === "SENT") {
+        await recordAnalyticsEvent({
+          userId,
+          workspaceId: userId,
+          orgId: userId,
+          type: "INVOICE_SENT",
+          count: 1,
         });
       }
       return created;

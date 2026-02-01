@@ -118,6 +118,42 @@ export const POST = withErrorHandling(async (req: Request) => {
   if (dueDate === null) {
     return NextResponse.json({ error: "Invalid due date" }, { status: 400 });
   }
+  if (parsed.status === "SENT") {
+    const merchant = await prisma.merchantAccount.findUnique({
+      where: { userId: session.user.id },
+    });
+    if (!merchant) {
+      return NextResponse.json(
+        {
+          error:
+            "Payment setup required. Add your Paystack or Flutterwave subaccount in Settings > Invoice payout setup.",
+        },
+        { status: 400 }
+      );
+    }
+    if (merchant.currency && normalizeCurrency(merchant.currency) !== normalizedCurrency) {
+      return NextResponse.json(
+        { error: "Your payout account currency is not compatible with this invoice currency." },
+        { status: 400 }
+      );
+    }
+    if (merchant.payoutType === "SEPA" && normalizedCurrency !== "EUR") {
+      return NextResponse.json(
+        { error: "Your payout account cannot settle this invoice currency." },
+        { status: 400 }
+      );
+    }
+    const providerOk =
+      (merchant.paystackSubaccountCode && isProviderCurrency("PAYSTACK", normalizedCurrency)) ||
+      (merchant.flutterwaveSubaccountId &&
+        isProviderCurrency("FLUTTERWAVE", normalizedCurrency));
+    if (!providerOk) {
+      return NextResponse.json(
+        { error: "No payout account can settle this invoice currency." },
+        { status: 400 }
+      );
+    }
+  }
   assertRateLimit(`invoice:${session.user.id}`, 50, 60_000);
   const invoice = await createInvoiceRecord({
     userId: session.user.id,

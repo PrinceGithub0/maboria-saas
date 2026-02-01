@@ -70,8 +70,24 @@ export async function ensureInvoicePaymentLink({
     throw error;
   }
 
+  if (merchant.currency && normalizeCurrency(merchant.currency) !== currency) {
+    const error = new Error("No payout account can settle this invoice currency.");
+    (error as any).status = 400;
+    throw error;
+  }
+
+  if (merchant.payoutType === "SEPA" && currency !== "EUR") {
+    const error = new Error("No payout account can settle this invoice currency.");
+    (error as any).status = 400;
+    throw error;
+  }
+
   let provider: "PAYSTACK" | "FLUTTERWAVE" | null = null;
-  if (merchant.paystackSubaccountCode && isProviderCurrency("PAYSTACK", currency)) {
+  if (
+    merchant.paystackSubaccountCode &&
+    merchant.payoutType !== "SEPA" &&
+    isProviderCurrency("PAYSTACK", currency)
+  ) {
     provider = "PAYSTACK";
   } else if (merchant.flutterwaveSubaccountId && isProviderCurrency("FLUTTERWAVE", currency)) {
     provider = "FLUTTERWAVE";

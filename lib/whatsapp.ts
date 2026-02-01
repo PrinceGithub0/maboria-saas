@@ -3,6 +3,7 @@ import "server-only";
 import { prisma } from "./prisma";
 import { log } from "./logger";
 import { enforceEntitlement, enforceUsageLimit } from "./entitlements";
+import { recordAnalyticsEvent } from "./analytics";
 
 const WHATSAPP_ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN || "";
 const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID || "";
@@ -544,6 +545,22 @@ export async function recordOutboundMessage({
   status: "SENT" | "DELIVERED" | "FAILED";
   metaMessageId?: string;
 }) {
+  if (status === "SENT" || status === "DELIVERED") {
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { businessId: true, business: { select: { ownerId: true } } },
+    });
+    if (conversation?.businessId && conversation.business?.ownerId) {
+      await recordAnalyticsEvent({
+        userId: conversation.business.ownerId,
+        workspaceId: conversation.businessId,
+        orgId: conversation.businessId,
+        type: "WHATSAPP_MESSAGE_SENT",
+        count: 1,
+      });
+    }
+  }
+
   await prisma.$transaction([
     prisma.message.create({
       data: {
