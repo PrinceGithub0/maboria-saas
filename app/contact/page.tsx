@@ -48,7 +48,7 @@ export default function ContactPage() {
           </p>
           <h1 className="text-4xl font-semibold text-foreground">{t("Contact Maboria", "Contacter Maboria")}</h1>
           <p className="text-muted-foreground">
-            {t("We respond within one business day. You can also email us at ", "Reponse sous un jour ouvre. Email : ")}
+            {t("Fast responses from our team. You can also email us at ", "Reponse rapide de notre equipe. Email : ")}
             <a className="text-indigo-500 hover:text-indigo-400" href="mailto:info@maboria.com">
               info@maboria.com
             </a>

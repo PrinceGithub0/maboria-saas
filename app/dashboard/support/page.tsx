@@ -96,10 +96,10 @@ export default function DashboardSupportPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-200">
-              {t("Response within 1 business day", "Reponse sous 1 jour ouvrable")}
+              {t("Fast response from our team", "Reponse rapide de notre equipe")}
             </span>
             <span className="rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground">
-              {t("Priority routing for paid plans", "Priorite pour les plans payants")}
+              {t("Priority support", "Support prioritaire")}
             </span>
           </div>
         </div>
