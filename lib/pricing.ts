@@ -116,7 +116,7 @@ export function getPlanPriceForInterval(
   const monthly = getPlanPriceForCurrency(plan, currency);
   if (monthly == null) return null;
   if (interval === "yearly") {
-    const yearly = monthly * 12 * 0.85;
+    const yearly = monthly * 12 * 0.9;
     return Math.round(yearly * 100) / 100;
   }
   return monthly;

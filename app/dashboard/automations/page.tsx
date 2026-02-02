@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLanguage } from "@/components/providers/language-provider";
+import { formatDateTimeDMY } from "@/lib/date";
 
 const fetcher = async (url: string) => {
   const res = await fetch(url, { cache: "no-store" });
@@ -215,7 +216,7 @@ export default function AutomationsPage() {
     if (!value) return "-";
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "-";
-    return date.toISOString().slice(0, 10);
+    return formatDateTimeDMY(date);
   };
 
   const resolveHealthTone = (value: number) => {

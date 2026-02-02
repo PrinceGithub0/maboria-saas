@@ -31,5 +31,15 @@ export async function GET() {
     include: { flow: true },
   });
 
-  return NextResponse.json(runs);
+  const enriched = runs.map((run) => {
+    const output = run.output as any;
+    return {
+      ...run,
+      trigger: output?.trigger ?? null,
+      source: output?.source ?? null,
+      input: output?.input ?? null,
+    };
+  });
+
+  return NextResponse.json(enriched);
 }

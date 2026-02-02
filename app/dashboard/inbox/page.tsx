@@ -10,6 +10,7 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Send, Phone, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/components/providers/language-provider";
+import { formatDateTimeDMY } from "@/lib/date";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -81,7 +82,9 @@ export default function InboxPage() {
 
   const formatTime = (value?: string | null) => {
     if (!value) return "";
-    return new Date(value).toLocaleString();
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return formatDateTimeDMY(date);
   };
 
   const markRead = async () => {

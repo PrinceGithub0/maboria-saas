@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { useLanguage } from "@/components/providers/language-provider";
+import { formatDateTimeDMY } from "@/lib/date";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -24,7 +25,9 @@ export default function AutomationErrorsPage() {
   const errorCount = runs.length;
   const uniqueFlows = new Set(runs.map((row: any) => row.flow?.title || row.flow?.id)).size;
   const uniqueUsers = new Set(runs.map((row: any) => row.user?.email || row.user?.id)).size;
-  const latestFailure = runs[0]?.createdAt ? new Date(runs[0].createdAt).toLocaleString() : "N/A";
+  const latestFailure = runs[0]?.createdAt
+    ? formatDateTimeDMY(new Date(runs[0].createdAt))
+    : "N/A";
   const flowCounts = runs.reduce((acc: Record<string, number>, row: any) => {
     const key = row.flow?.title || "Unknown flow";
     acc[key] = (acc[key] || 0) + 1;
@@ -124,7 +127,7 @@ export default function AutomationErrorsPage() {
               {
                 key: "createdAt",
                 label: t("Created", "Cree"),
-                render: (row: any) => new Date(row.createdAt).toLocaleString(),
+                render: (row: any) => formatDateTimeDMY(new Date(row.createdAt)),
               },
               {
                 key: "actions",

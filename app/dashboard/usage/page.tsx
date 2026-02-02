@@ -9,6 +9,7 @@ import { Table } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLanguage } from "@/components/providers/language-provider";
+import { formatDateDMY } from "@/lib/date";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -31,7 +32,9 @@ export default function UsagePage() {
   const formatDayLabel = (key: string) => {
     const parts = key.split("-");
     if (parts.length !== 3) return key;
-    return `${parts[2]}-${parts[1]}`;
+    const [year, month, day] = parts;
+    const date = new Date(`${year}-${month}-${day}T00:00:00Z`);
+    return formatDateDMY(date);
   };
   const aiError = data && typeof data === "object" && "error" in data;
   const formatNumber = (value: number) => new Intl.NumberFormat().format(value);
@@ -40,10 +43,7 @@ export default function UsagePage() {
     if (!value) return "--";
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "--";
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const year = date.getFullYear();
-    return `${day}-${month}-${year}`;
+    return formatDateDMY(date);
   };
   const formatDateKey = (value?: string | Date) => {
     if (!value) return null;

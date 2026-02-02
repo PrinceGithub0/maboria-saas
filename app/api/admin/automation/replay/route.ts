@@ -30,7 +30,7 @@ export const POST = withErrorHandling(async (req: Request) => {
   const { runId } = await req.json();
   const run = await prisma.automationRun.findUnique({ where: { id: runId }, include: { flow: true } });
   if (!run?.flow) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  const result = await executeAutomationRun(run.flow, {});
+  const result = await executeAutomationRun(run.flow, {}, { trigger: "Replay", source: "Admin" });
   await prisma.activityLog.create({
     data: { userId: session.user.id, action: "ADMIN_AUTOMATION_REPLAY", metadata: { runId } },
   });

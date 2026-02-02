@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Table } from "@/components/ui/table";
 import { Alert } from "@/components/ui/alert";
 import { useLanguage } from "@/components/providers/language-provider";
+import { formatDateDMY } from "@/lib/date";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -104,7 +105,7 @@ export default function SubscriptionPage() {
                   render: (row: any) =>
                     row?.id === "admin-override"
                       ? t("Unlimited", "Illimite")
-                      : new Date(row.renewalDate).toLocaleDateString(),
+                      : formatDateDMY(new Date(row.renewalDate)),
                 },
                 { key: "usageLimit", label: t("Usage limit", "Limite d usage") },
               ]}

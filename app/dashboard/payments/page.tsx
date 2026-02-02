@@ -168,7 +168,7 @@ export default function PaymentsPage() {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {t("Yearly (Save 15%)", "Annuel (15% off)")}
+              {t("Yearly (Save 10%)", "Annuel (10% off)")}
             </button>
           </div>
         </div>

@@ -10,8 +10,8 @@ export const runtime = "nodejs";
 const isPayableStatus = (status: string) => ["SENT", "OVERDUE", "FAILED"].includes(status);
 const isFinalStatus = (status: string) => ["PAID", "CANCELED", "EXPIRED"].includes(status);
 
-export const GET = async (_req: Request, { params }: { params: { token: string } }) => {
-  const token = params?.token;
+export const GET = async (_req: Request, context: { params: Promise<{ token: string }> }) => {
+  const { token } = await context.params;
   if (!token) return NextResponse.json({ error: "Invalid token" }, { status: 400 });
 
   const link = await resolveInvoicePublicLink(token);

@@ -9,9 +9,9 @@ import { log } from "@/lib/logger";
 
 export const runtime = "nodejs";
 
-export const GET = async (req: Request, { params }: { params: { token: string } }) => {
+export const GET = async (req: Request, context: { params: Promise<{ token: string }> }) => {
+  const { token } = await context.params;
   const url = new URL(req.url);
-  const token = params?.token;
   if (!token) return NextResponse.json({ error: "Invalid token" }, { status: 400 });
 
   const link = await resolveInvoicePublicLink(token);

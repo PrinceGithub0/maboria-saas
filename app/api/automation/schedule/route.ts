@@ -37,6 +37,11 @@ export async function POST(req: Request) {
       runStatus: "PENDING",
       logs: [],
       createdAt: runAt ? new Date(runAt) : new Date(),
+      output: {
+        trigger: "Schedule",
+        source: "Scheduler",
+        input: { scheduledFor: runAt ?? null },
+      },
     },
   });
 

@@ -62,7 +62,10 @@ export async function POST(req: Request) {
       continue;
     }
 
-    await executeAutomationRun(trigger.flow, payload);
+    await executeAutomationRun(trigger.flow, payload, {
+      trigger: "Webhook",
+      source: `Webhook:${path}`,
+    });
   }
 
   return NextResponse.json({ received: true, triggered: triggers.length });

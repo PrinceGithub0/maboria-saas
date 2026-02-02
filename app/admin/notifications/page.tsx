@@ -6,6 +6,7 @@ import { Table } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLanguage } from "@/components/providers/language-provider";
 import { translateNotificationMessage } from "@/lib/notifications/translate";
+import { formatDateTimeDMY } from "@/lib/date";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -89,7 +90,7 @@ export default function AdminNotificationsPage() {
               {
                 key: "createdAt",
                 label: t("Time", "Heure"),
-                render: (row: any) => new Date(row.createdAt).toLocaleString(),
+                render: (row: any) => formatDateTimeDMY(new Date(row.createdAt)),
               },
             ]}
           />

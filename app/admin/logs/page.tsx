@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { useLanguage } from "@/components/providers/language-provider";
+import { formatDateTimeDMY } from "@/lib/date";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -141,7 +142,7 @@ export default function AdminLogsPage() {
                       {
                         key: "timestamp",
                         label: t("Time", "Heure"),
-                        render: (row: any) => new Date(row.timestamp).toLocaleString(),
+                        render: (row: any) => formatDateTimeDMY(new Date(row.timestamp)),
                       },
                     ]}
                   />
@@ -234,7 +235,7 @@ export default function AdminLogsPage() {
                       {
                         key: "receivedAt",
                         label: t("Time", "Heure"),
-                        render: (row: any) => new Date(row.receivedAt).toLocaleString(),
+                        render: (row: any) => formatDateTimeDMY(new Date(row.receivedAt)),
                       },
                       {
                         key: "error",

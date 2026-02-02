@@ -10,6 +10,7 @@ import { MiniAreaChart } from "@/components/charts/area-chart";
 import { formatCurrency } from "@/lib/currency";
 import { Badge } from "@/components/ui/badge";
 import { cookies } from "next/headers";
+import { formatDateDMY, formatDateTimeDMY } from "@/lib/date";
 
 export default async function AdminPage() {
   const session = await getServerSession(authOptions);
@@ -319,7 +320,7 @@ export default async function AdminPage() {
                     {t(actionLabels[log.action]?.en ?? log.action, actionLabels[log.action]?.fr ?? log.action)}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {new Date(log.timestamp).toLocaleString()}
+                    {formatDateTimeDMY(new Date(log.timestamp))}
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">{log.user?.email || t("System", "Systeme")}</p>
@@ -345,7 +346,7 @@ export default async function AdminPage() {
                     statusLabels[String(row.runStatus)]?.fr ?? String(row.runStatus)
                   ),
               },
-              { key: "createdAt", label: t("Created", "Cree"), render: (row) => new Date(row.createdAt).toLocaleString() },
+              { key: "createdAt", label: t("Created", "Cree"), render: (row) => formatDateTimeDMY(new Date(row.createdAt)) },
             ]}
           />
         </Card>
@@ -364,7 +365,7 @@ export default async function AdminPage() {
                     statusLabels[String(row.status)]?.fr ?? String(row.status)
                   ),
               },
-              { key: "createdAt", label: t("Created", "Cree"), render: (row) => new Date(row.createdAt).toLocaleDateString() },
+              { key: "createdAt", label: t("Created", "Cree"), render: (row) => formatDateDMY(new Date(row.createdAt)) },
             ]}
           />
         </Card>
@@ -390,7 +391,7 @@ export default async function AdminPage() {
               {
                 key: "receivedAt",
                 label: t("Received", "Recu"),
-                render: (row: any) => new Date(row.receivedAt).toLocaleString(),
+                render: (row: any) => formatDateTimeDMY(new Date(row.receivedAt)),
               },
             ]}
           />

@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLanguage } from "@/components/providers/language-provider";
+import { formatDateTimeDMY } from "@/lib/date";
 
 const fetcher = async (url: string) => {
   const res = await fetch(url, { cache: "no-store" });
@@ -134,7 +135,7 @@ export default function AutomationDetailsPage() {
     if (!value) return "-";
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "-";
-    return date.toLocaleString();
+    return formatDateTimeDMY(date);
   };
 
   const normalizeSteps = (value: any) => {

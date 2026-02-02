@@ -11,7 +11,7 @@ export function Card({
   children: React.ReactNode;
   className?: string;
   actions?: React.ReactNode;
-} & React.HTMLAttributes<HTMLDivElement>) {
+} & Omit<React.HTMLAttributes<HTMLDivElement>, "title">) {
   return (
     <div
       {...props}

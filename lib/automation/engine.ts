@@ -18,10 +18,17 @@ type Context = Record<string, any>;
 
 export async function executeAutomationRun(
   flow: AutomationFlow & { userId: string },
-  input: Context
+  input: Context,
+  meta?: { trigger?: string; source?: string }
 ) {
   const logs: any[] = [];
   let status: AutomationRunStatus = "RUNNING";
+  const runStartedAt = new Date();
+  const runMeta = {
+    trigger: meta?.trigger ?? "Manual",
+    source: meta?.source ?? "Dashboard",
+    input,
+  };
   const openai = new OpenAI({ apiKey: env.openaiKey });
   const usageScope = await getWorkspaceScope(flow.userId);
   const analyticsWorkspaceId = usageScope.businessId ?? flow.userId;
@@ -39,12 +46,20 @@ export async function executeAutomationRun(
     const steps = (flow.steps as Prisma.JsonValue as any[]) ?? [];
     const context: Context = { input };
 
+    const pushLog = (entry: Record<string, any>) => {
+      logs.push({
+        timestamp: new Date().toISOString(),
+        input: context.input ?? input,
+        ...entry,
+      });
+    };
+
     for (const step of steps) {
       const stepType = typeof step === "string" ? step : step?.type;
       const config =
         step && typeof step === "object" && !Array.isArray(step) ? (step as any).config || {} : {};
       if (!stepType) {
-        logs.push({ step: "unknown", error: "Invalid step configuration" });
+        pushLog({ step: "unknown", error: "Invalid step configuration" });
         continue;
       }
       log("info", "Running step", { type: stepType, flowId: flow.id });
@@ -52,18 +67,18 @@ export async function executeAutomationRun(
         case "parseText": {
           const text: string = input.text || "";
           context.parsed = { length: text.length, preview: text.slice(0, 120) };
-          logs.push({ step: stepType, result: context.parsed });
+          pushLog({ step: stepType, result: context.parsed });
           break;
         }
         case "condition": {
           const field = config.field;
           const equals = config.equals;
           if (!field) {
-            logs.push({ step: stepType, skipped: true, reason: "Missing condition field" });
+            pushLog({ step: stepType, skipped: true, reason: "Missing condition field" });
             break;
           }
           if (context[field] !== equals) {
-            logs.push({ step: stepType, skipped: true });
+            pushLog({ step: stepType, skipped: true });
             continue;
           }
           break;
@@ -72,12 +87,12 @@ export async function executeAutomationRun(
           const text: string = input.text || "";
           const email = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
           context.extracted = { email };
-          logs.push({ step: stepType, result: context.extracted });
+          pushLog({ step: stepType, result: context.extracted });
           break;
         }
         case "callApi": {
           if (!config.url) {
-            logs.push({ step: stepType, skipped: true, reason: "Missing API url" });
+            pushLog({ step: stepType, skipped: true, reason: "Missing API url" });
             break;
           }
           const response = await fetch(config.url, {
@@ -87,19 +102,19 @@ export async function executeAutomationRun(
           });
           const data = await response.json();
           context.api = data;
-          logs.push({ step: stepType, result: data });
+          pushLog({ step: stepType, result: data });
           break;
         }
         case "databaseWrite": {
           await prisma.activityLog.create({
             data: { action: config.action || "DB_WRITE", metadata: config.payload },
           });
-          logs.push({ step: stepType, result: "written" });
+          pushLog({ step: stepType, result: "written" });
           break;
         }
         case "webhook": {
           if (!config.url) {
-            logs.push({ step: stepType, skipped: true, reason: "Missing webhook url" });
+            pushLog({ step: stepType, skipped: true, reason: "Missing webhook url" });
             break;
           }
           await fetch(config.url, {
@@ -107,7 +122,7 @@ export async function executeAutomationRun(
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(context),
           });
-          logs.push({ step: stepType, result: "webhook-sent" });
+          pushLog({ step: stepType, result: "webhook-sent" });
           break;
         }
         case "generateInvoice": {
@@ -124,13 +139,13 @@ export async function executeAutomationRun(
             discount: config.discount ?? 0,
           });
           context.invoice = invoice;
-          logs.push({ step: stepType, result: { invoiceNumber } });
+          pushLog({ step: stepType, result: { invoiceNumber } });
           break;
         }
         case "sendEmail": {
           const to = context.extracted?.email || config.to;
           if (!to) {
-            logs.push({ step: stepType, skipped: true, reason: "Missing recipient email" });
+            pushLog({ step: stepType, skipped: true, reason: "Missing recipient email" });
             break;
           }
           await sendEmail({
@@ -138,7 +153,7 @@ export async function executeAutomationRun(
             subject: config.subject || "Automation Update",
             html: config.html || `<p>Automation ${flow.title} completed.</p>`,
           });
-          logs.push({ step: stepType, result: { to } });
+          pushLog({ step: stepType, result: { to } });
           break;
         }
         case "generateReport": {
@@ -154,7 +169,7 @@ export async function executeAutomationRun(
             metrics: { totalInvoices: 1, totalValue: totals.total },
           };
           context.report = report;
-          logs.push({ step: stepType, result: report });
+          pushLog({ step: stepType, result: report });
           break;
         }
         case "aiTransform": {
@@ -187,12 +202,12 @@ export async function executeAutomationRun(
             tokenCount: resolvedTokens,
           });
           context.ai = aiResult;
-          logs.push({ step: stepType, result: aiResult });
+          pushLog({ step: stepType, result: aiResult });
           break;
         }
         case "sendWhatsApp": {
           if (!config.to || !config.text) {
-            logs.push({ step: stepType, skipped: true, reason: "Missing WhatsApp message details" });
+            pushLog({ step: stepType, skipped: true, reason: "Missing WhatsApp message details" });
             break;
           }
           if (!businessProfile) {
@@ -212,7 +227,7 @@ export async function executeAutomationRun(
           if (!businessProfile) {
             throw new Error("Business profile required before sending WhatsApp messages");
           }
-          logs.push({ step: stepType, result: "queued-whatsapp" });
+          pushLog({ step: stepType, result: "queued-whatsapp" });
           enqueueJob("send-notification", {
             channel: "whatsapp",
             to: config.to,
@@ -223,21 +238,21 @@ export async function executeAutomationRun(
         }
         case "meterUsage": {
           await meterUsage(flow.userId, config.category || "automation", config.amount || 1, "monthly");
-          logs.push({ step: stepType, result: "usage-metered" });
+          pushLog({ step: stepType, result: "usage-metered" });
           break;
         }
         case "recoverPayment": {
           await recoverFailedPayment(flow.userId);
-          logs.push({ step: stepType, result: "recovery-triggered" });
+          pushLog({ step: stepType, result: "recovery-triggered" });
           break;
         }
         case "autoInvoice": {
           const invoice = await autoInvoiceFromUsage(flow.userId, normalizeCurrency(config.currency || "USD"));
-          logs.push({ step: stepType, result: invoice?.invoiceNumber });
+          pushLog({ step: stepType, result: invoice?.invoiceNumber });
           break;
         }
         default:
-          logs.push({ step: stepType, error: "Unknown step" });
+          pushLog({ step: stepType, error: "Unknown step" });
       }
     }
 
@@ -245,9 +260,10 @@ export async function executeAutomationRun(
     return { status, logs, context };
   } catch (error: any) {
     status = "FAILED";
-    logs.push({ error: error.message });
+    logs.push({ timestamp: new Date().toISOString(), input, error: error.message });
     throw error;
   } finally {
+    const runCompletedAt = new Date();
     const operations: Prisma.PrismaPromise<any>[] = [
       prisma.automationRun.create({
         data: {
@@ -255,6 +271,9 @@ export async function executeAutomationRun(
           userId: flow.userId,
           runStatus: status,
           logs,
+          output: runMeta,
+          startedAt: runStartedAt,
+          completedAt: runCompletedAt,
         },
       }),
       prisma.activityLog.create({

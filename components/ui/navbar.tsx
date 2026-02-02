@@ -33,6 +33,7 @@ import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { CommandPalette, CommandItem } from "@/components/ui/command-palette";
 import { translateNotificationMessage } from "@/lib/notifications/translate";
+import { formatDateTimeDMY } from "@/lib/date";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -317,7 +318,7 @@ export function Navbar() {
                           {translateNotificationMessage({ message: item.message, language })}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {new Date(item.createdAt).toLocaleString()}
+                          {formatDateTimeDMY(new Date(item.createdAt))}
                         </span>
                       </button>
                     ))

@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
-import { aiRouter } from "@/lib/ai/router";
+import { aiRouter, aiRouterStream } from "@/lib/ai/router";
 import { enforceEntitlement, enforceUsageLimit, nextPlanAfter } from "@/lib/entitlements";
 import {
   addAiMessage,
@@ -108,6 +108,9 @@ export const POST = withErrorHandling(async (req: Request) => {
     );
   }
 
+  const url = new URL(req.url);
+  const wantsStream =
+    url.searchParams.get("stream") === "1" || req.headers.get("accept")?.includes("text/event-stream");
   const { mode, prompt, context, style, tone, conversationId } = await req.json();
   assertRateLimit(`ai:${session.user.id}`);
   const conversation = conversationId
@@ -244,7 +247,7 @@ export const POST = withErrorHandling(async (req: Request) => {
         ? "Tone: warm, encouraging, and supportive."
         : "Tone: balanced and professional.";
 
-  const output = await aiRouter({
+  const routerInput = {
     mode: mode === "automation" ? "flow-generate" : mode,
     prompt:
       mode === "assistant"
@@ -252,8 +255,48 @@ export const POST = withErrorHandling(async (req: Request) => {
         : `${resolvedPrompt}\nRecent memory:\n${memoryText}`,
     context,
     userId: session.user.id,
-  });
+  };
 
+  if (wantsStream) {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          const { stream: aiStream, done } = await aiRouterStream(routerInput);
+          for await (const token of aiStream) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ token })}\n\n`));
+          }
+          const finalOutput = await done;
+          await addAiMessage({
+            userId: session.user.id,
+            conversationId: conversation.id,
+            role: "assistant",
+            content: finalOutput,
+          });
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ done: true, conversationId: conversation.id })}\n\n`
+            )
+          );
+          controller.close();
+        } catch (error: any) {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ error: error?.message || "Stream error" })}\n\n`)
+          );
+          controller.close();
+        }
+      },
+    });
+    return new NextResponse(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache, no-transform",
+        Connection: "keep-alive",
+      },
+    });
+  }
+
+  const output = await aiRouter(routerInput);
   await addAiMessage({
     userId: session.user.id,
     conversationId: conversation.id,

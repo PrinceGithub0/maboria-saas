@@ -78,5 +78,6 @@ export async function GET(req: Request) {
   const filename = "Maboria_Invoice_Receipt_Preview.pdf";
   headers.set("Content-Disposition", `${download ? "attachment" : "inline"}; filename=\"${filename}\"`);
 
-  return new NextResponse(pdfBuffer, { status: 200, headers });
+  const body = new Uint8Array(pdfBuffer);
+  return new NextResponse(body, { status: 200, headers });
 }

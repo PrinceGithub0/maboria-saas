@@ -14,6 +14,8 @@ import { PaymentSuccessToast } from "@/components/ui/payment-success-toast";
 import { format } from "date-fns";
 import { normalizeCurrency } from "@/lib/payments/currency-allowlist";
 import { LangText } from "@/components/ui/lang-text";
+import Image from "next/image";
+import { formatDateDMY, formatDateTimeDMY } from "@/lib/date";
 import {
   Activity,
   AlertTriangle,
@@ -241,7 +243,7 @@ export default async function DashboardPage({
                 statusLabelMap[String(meta.status).toLowerCase()]?.fr ?? String(meta.status).toLowerCase()
               }`
             : "";
-    const timestamp = log.timestamp ? format(new Date(log.timestamp), "dd MMM, HH:mm") : "";
+    const timestamp = log.timestamp ? formatDateTimeDMY(new Date(log.timestamp)) : "";
     return {
       id: log.id,
       title: { en: entry.en, fr: entry.fr },
@@ -280,7 +282,7 @@ export default async function DashboardPage({
     dailyTotals.set(key, (dailyTotals.get(key) || 0) + Number(payment.amount || 0));
   });
   const revenueSeries = dayKeys.map((date) => ({
-    name: format(date, "dd MMM"),
+    name: formatDateDMY(date),
     value: dailyTotals.get(format(date, "yyyy-MM-dd")) || 0,
   }));
   const selectedRevenueTotal =
@@ -288,7 +290,7 @@ export default async function DashboardPage({
   const reminderItems = (unpaidInvoices || []).map((invoice: any) => {
     const meta = (invoice?.metadata || {}) as Record<string, any>;
     const dueDate = meta?.dueDate ? new Date(meta.dueDate) : null;
-    const dueLabel = dueDate && !Number.isNaN(dueDate.getTime()) ? format(dueDate, "dd MMM") : "No due date";
+    const dueLabel = dueDate && !Number.isNaN(dueDate.getTime()) ? formatDateDMY(dueDate) : "No due date";
     return {
       id: invoice.id,
       invoiceNumber: invoice.invoiceNumber,
@@ -319,6 +321,42 @@ export default async function DashboardPage({
     configured: { en: "Configured", fr: "Configure" },
     missing: { en: "Attention", fr: "Attention" },
   };
+  const teamRoles = [
+    {
+      title: { en: "Account lead", fr: "Responsable compte" },
+      body: {
+        en: "Owns success metrics, quarterly business reviews, and roadmap alignment.",
+        fr: "Pilote les KPIs, les QBR, et l alignement roadmap.",
+      },
+    },
+    {
+      title: { en: "Solutions architect", fr: "Architecte solutions" },
+      body: {
+        en: "Blueprints, data contracts, and guardrails for every release.",
+        fr: "Blueprints, data contracts, et guardrails pour chaque release.",
+      },
+    },
+    {
+      title: { en: "Delivery pod", fr: "Delivery pod" },
+      body: {
+        en: "Embedded engineers shipping workflows with weekly KPIs.",
+        fr: "Ingenieurs embarques avec KPIs hebdomadaires.",
+      },
+    },
+    {
+      title: { en: "Reliability guild", fr: "Guilde fiabilite" },
+      body: {
+        en: "SLOs, runbooks, and incident readiness for critical flows.",
+        fr: "SLOs, runbooks, et readiness incident.",
+      },
+    },
+  ];
+  const teamSignals = [
+    { value: "24/7", label: { en: "Critical response", fr: "Reponse critique" } },
+    { value: "Weekly", label: { en: "Delivery KPIs", fr: "KPIs delivery" } },
+    { value: "SOC2-ready", label: { en: "Security posture", fr: "Posture securite" } },
+    { value: "QBR", label: { en: "Executive reviews", fr: "Revues executives" } },
+  ];
 
   return (
     <div className="space-y-6">
@@ -645,6 +683,80 @@ export default async function DashboardPage({
               { name: "Sun", value: 90 },
             ]}
           />
+        </div>
+      </Card>
+
+      <Card
+        title={t("Your delivery team", "Votre equipe de delivery")}
+        actions={
+          <Link href="/dashboard/support" className="text-xs font-semibold text-indigo-600">
+            {t("Contact your team", "Contacter votre equipe")}
+          </Link>
+        }
+      >
+        <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-border/60 bg-muted/40 p-4">
+              <p className="text-xs uppercase tracking-[0.25em] text-indigo-600 dark:text-indigo-300">
+                {t("Senior-led squads", "Squads senior")}
+              </p>
+              <p className="mt-2 text-sm text-foreground">
+                {t(
+                  "Dedicated pods aligned to your outcomes across automation, billing, and data workflows.",
+                  "Pods dedies alignes sur vos resultats pour automatisation, facturation, et data."
+                )}
+              </p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {teamSignals.map((item) => (
+                  <div key={item.value} className="rounded-xl border border-border bg-background px-3 py-2">
+                    <p className="text-sm font-semibold text-foreground">{item.value}</p>
+                    <p className="text-xs text-muted-foreground">{t(item.label.en, item.label.fr)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {teamRoles.map((role) => (
+                <div key={role.title.en} className="rounded-2xl border border-border/60 bg-muted/40 p-4">
+                  <p className="text-sm font-semibold text-foreground">{t(role.title.en, role.title.fr)}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">{t(role.body.en, role.body.fr)}</p>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/dashboard/onboarding">
+                <Button size="sm" variant="secondary">
+                  {t("Plan next milestone", "Planifier prochain jalon")}
+                </Button>
+              </Link>
+              <Link href="/dashboard/assistant">
+                <Button size="sm" variant="ghost">
+                  {t("Ask for guidance", "Demander conseil")}
+                </Button>
+              </Link>
+            </div>
+          </div>
+          <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-muted/40">
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-indigo-500/20 via-transparent to-emerald-400/20" />
+            <Image
+              src="/og.png"
+              alt={t("Team collaboration", "Collaboration equipe") as unknown as string}
+              width={1200}
+              height={800}
+              className="h-full w-full object-cover opacity-90"
+            />
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
+              <p className="text-xs uppercase tracking-[0.25em] text-indigo-200">
+                {t("Aligned delivery", "Delivery alignee")}
+              </p>
+              <p className="text-sm text-white">
+                {t(
+                  "We ship with transparency, accountability, and measurable outcomes.",
+                  "Nous livrons avec transparence et accountability."
+                )}
+              </p>
+            </div>
+          </div>
         </div>
       </Card>
 

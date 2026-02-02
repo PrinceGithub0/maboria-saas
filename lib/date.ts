@@ -3,13 +3,37 @@ export function formatDateDMY(date?: Date | null) {
   try {
     return new Intl.DateTimeFormat("en-GB", {
       day: "2-digit",
-      month: "2-digit",
+      month: "short",
       year: "numeric",
     }).format(date);
   } catch {
     const iso = date.toISOString().slice(0, 10);
     const [year, month, day] = iso.split("-");
-    return [day, month, year].join("/");
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const monthName = months[Math.max(0, Number(month) - 1)] || month;
+    return `${day} ${monthName} ${year}`;
+  }
+}
+
+export function formatDateTimeDMY(date?: Date | null) {
+  if (!date) return "";
+  try {
+    return new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(date);
+  } catch {
+    const iso = date.toISOString();
+    const [ymd, time] = iso.split("T");
+    const [year, month, day] = ymd.split("-");
+    const [hour, minute] = time.split(":");
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const monthName = months[Math.max(0, Number(month) - 1)] || month;
+    return `${day} ${monthName} ${year} ${hour}:${minute}`;
   }
 }
 

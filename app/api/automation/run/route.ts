@@ -118,7 +118,7 @@ export const POST = withErrorHandling(async (req: Request) => {
     }
   }
 
-  const result = await executeAutomationRun(flow, input || {});
+  const result = await executeAutomationRun(flow, input || {}, { trigger: "Manual", source: "Dashboard" });
   if ((result as any).status === "FAILED") {
     if (isPlanAtLeast(plan, "starter")) {
       const aiUsage = await enforceUsageLimit(session.user.id, "aiRequests");

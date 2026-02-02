@@ -129,7 +129,7 @@ export function PricingSection({ plans }: { plans: PlanRecord[] }) {
 
   const computeYearly = (monthly?: number | null) => {
     if (!monthly) return null;
-    const yearly = monthly * 12 * 0.85;
+    const yearly = monthly * 12 * 0.9;
     return Math.floor(yearly);
   };
 
@@ -156,7 +156,7 @@ export function PricingSection({ plans }: { plans: PlanRecord[] }) {
               billing === "yearly" ? "bg-blue-600 text-white shadow-sm" : "text-slate-700"
             }`}
           >
-            {t("Yearly (Save 15%)", "Annuel (Economisez 15%)")}
+            {t("Yearly (Save 10%)", "Annuel (Economisez 10%)")}
           </button>
         </div>
         <p className="text-sm text-slate-500">
@@ -200,7 +200,7 @@ export function PricingSection({ plans }: { plans: PlanRecord[] }) {
                       {billing === "monthly" && yearly != null && (
                         <div className="text-base text-slate-600">
                           {formatUsd(yearly)} {t("/ year", "/ an")}{" "}
-                          <span className="text-slate-400">{t("(save 15%)", "(economisez 15%)")}</span>
+                          <span className="text-slate-400">{t("(save 10%)", "(economisez 10%)")}</span>
                         </div>
                       )}
                       {billing === "yearly" && monthly != null && (

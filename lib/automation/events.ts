@@ -95,6 +95,9 @@ export async function triggerInvoiceStatusAutomations({
         await executeAutomationRun(trigger.flow as any, {
           event: "invoice_status",
           invoice: { id: invoiceId, invoiceNumber, status: normalized },
+        }, {
+          trigger: "Invoice status",
+          source: "System",
         });
         triggered += 1;
       } catch (error) {
