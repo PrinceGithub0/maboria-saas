@@ -7,7 +7,6 @@ import { authOptions } from "@/lib/auth";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ensureUserPublicId } from "@/lib/public-id";
-import { PaystackNotice } from "@/components/ui/paystack-notice";
 import { RestartTourButton } from "@/components/ui/tour";
 import { formatCurrency } from "@/lib/currency";
 import { PaymentSuccessToast } from "@/components/ui/payment-success-toast";
@@ -49,7 +48,6 @@ export default async function DashboardPage({
     automations,
     runs,
     user,
-    paystackDismissed,
     activityLogs,
     recentPayments,
     unpaidInvoices,
@@ -70,12 +68,6 @@ export default async function DashboardPage({
       ? prisma.user.findUnique({
           where: { id: userId },
           select: { publicId: true, preferredCurrency: true, businessProfile: { select: { defaultCurrency: true } } },
-        })
-      : Promise.resolve(null),
-    userId
-      ? prisma.activityLog.findFirst({
-          where: { userId, action: "ANNOUNCEMENT_PAYSTACK_DISMISSED" },
-          select: { id: true },
         })
       : Promise.resolve(null),
     userId
@@ -282,7 +274,7 @@ export default async function DashboardPage({
     dailyTotals.set(key, (dailyTotals.get(key) || 0) + Number(payment.amount || 0));
   });
   const revenueSeries = dayKeys.map((date) => ({
-    name: formatDateDMY(date),
+    name: format(date, "dd MMM"),
     value: dailyTotals.get(format(date, "yyyy-MM-dd")) || 0,
   }));
   const selectedRevenueTotal =
@@ -394,9 +386,6 @@ export default async function DashboardPage({
           </div>
         </div>
 
-        <div className="mt-4">
-          <PaystackNotice dismissed={Boolean(paystackDismissed)} />
-        </div>
       </div>
 
       {automations === 0 && invoices === 0 && (
@@ -576,7 +565,14 @@ export default async function DashboardPage({
             </div>
           }
         >
-          <MiniAreaChart data={revenueSeries} />
+          <MiniAreaChart
+            data={revenueSeries}
+            xAxisAngle={0}
+            xAxisHeight={28}
+            xAxisTickFontSize={10}
+            xAxisInterval={rangeDays > 10 ? "preserveStartEnd" : 0}
+            xAxisMinTickGap={rangeDays > 10 ? 12 : 0}
+          />
         </Card>
 
         <Card
@@ -740,21 +736,23 @@ export default async function DashboardPage({
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-indigo-500/20 via-transparent to-emerald-400/20" />
             <Image
               src="/og.png"
-              alt={t("Team collaboration", "Collaboration equipe") as unknown as string}
+              alt="Team collaboration"
               width={1200}
               height={800}
               className="h-full w-full object-cover opacity-90"
             />
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-              <p className="text-xs uppercase tracking-[0.25em] text-indigo-200">
-                {t("Aligned delivery", "Delivery alignee")}
-              </p>
-              <p className="text-sm text-white">
-                {t(
-                  "We ship with transparency, accountability, and measurable outcomes.",
-                  "Nous livrons avec transparence et accountability."
-                )}
-              </p>
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent p-4">
+              <div className="inline-block rounded-lg bg-black/40 px-3 py-2 backdrop-blur-sm">
+                <p className="text-xs uppercase tracking-[0.25em] text-indigo-100">
+                  {t("Aligned delivery", "Delivery alignee")}
+                </p>
+                <p className="text-sm text-white">
+                  {t(
+                    "We ship with transparency, accountability, and measurable outcomes.",
+                    "Nous livrons avec transparence et accountability."
+                  )}
+                </p>
+              </div>
             </div>
           </div>
         </div>

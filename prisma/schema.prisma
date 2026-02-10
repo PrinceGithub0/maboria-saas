@@ -24,11 +24,13 @@ enum SubscriptionPlan {
 }
 
 enum SubscriptionStatus {
+  INCOMPLETE
   ACTIVE
   TRIALING
   PAST_DUE
   CANCELED
   INACTIVE
+  REVOKED
 }
 
 enum VatPricingMode {
@@ -46,6 +48,14 @@ enum PaymentStatus {
   SUCCEEDED
   FAILED
   REFUNDED
+}
+
+enum CheckoutStatus {
+  CREATED
+  REDIRECTED
+  SUCCESS
+  FAILED
+  ABANDONED
 }
 
 enum PayoutType {
@@ -101,7 +111,8 @@ enum AnalyticsEventType {
 
 enum ConversationStatus {
   OPEN
-  CLOSED
+  PENDING
+  DONE
 }
 
 enum MessageDirection {
@@ -116,6 +127,7 @@ enum MessageSource {
 enum MessageStatus {
   SENT
   DELIVERED
+  READ
   FAILED
 }
 
@@ -131,10 +143,13 @@ model User {
   onboardingComplete Boolean        @default(false)
   tourComplete   Boolean            @default(false)
   preferredCurrency String          @default("USD")
+  locale         String?
+  timeZone       String?
   twoFactorEnabled Boolean          @default(false)
   twoFactorSecret  String?
   twoFactorBackupCodes Json?
-  subscriptions  Subscription[]
+    subscriptions  Subscription[]
+    checkoutSessions CheckoutSession[]
   payments       Payment[]
   invoicePayments InvoicePayment[]
   receipts      Receipt[]
@@ -161,7 +176,11 @@ model User {
   usageRecords   UsageRecord[]
   transactions   Transaction[]
   analyticsEvents AnalyticsEvent[]
-}
+    assignedConversations Conversation[] @relation("AssignedConversations")
+    cannedReplies  CannedReply[]
+    conversationNotes ConversationNote[]
+    messageAudits  MessageAudit[]
+  }
 
 model Subscription {
   id          String             @id @default(cuid())
@@ -174,18 +193,44 @@ model Subscription {
   usageLimit  Int?
   usagePeriod String?            @default("monthly")
   currency    String             @default("USD")
-    graceEndsAt DateTime?
-    cancellationReason String?
-    overageUsed Int               @default(0)
-    interval    String            @default("monthly")
-    receiptUrl  String?
-    receiptNumber String?
-    receiptIssuedAt DateTime?
-    lastPaymentReference String?
-    lastPaymentProvider PaymentProvider?
-    createdAt   DateTime           @default(now())
-    updatedAt   DateTime           @updatedAt
-  invoices    Invoice[]
+  autoRenew   Boolean            @default(true)
+  cancelAtPeriodEnd Boolean      @default(false)
+  provider    PaymentProvider?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  graceEndsAt DateTime?
+  cancellationReason String?
+  overageUsed Int               @default(0)
+  interval    String            @default("monthly")
+  pendingPlan SubscriptionPlan?
+  pendingEffectiveAt DateTime?
+  receiptUrl  String?
+  receiptNumber String?
+  receiptIssuedAt DateTime?
+  lastPaymentReference String?
+  lastPaymentProvider PaymentProvider?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+    invoices    Invoice[]
+    checkoutSessions CheckoutSession[]
+}
+
+model CheckoutSession {
+  id          String         @id @default(cuid())
+  user        User           @relation(fields: [userId], references: [id])
+  userId      String
+  subscription Subscription  @relation(fields: [subscriptionId], references: [id])
+  subscriptionId String
+  plan        SubscriptionPlan
+  billingCycle String
+  provider    PaymentProvider
+  currency    String
+  amount      Decimal        @db.Decimal(14, 2)
+  reference   String         @unique
+  status      CheckoutStatus @default(CREATED)
+  providerPayload Json?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 }
 
 model Payment {
@@ -431,15 +476,19 @@ model Business {
   name        String
   domain      String?
   whatsappPhoneNumberId String?  @unique
+  plan        SubscriptionPlan   @default(STARTER)
   owner       User               @relation("OwnedBusinesses", fields: [ownerId], references: [id])
   ownerId     String
   billingCycleStartAt DateTime?
   usageResetAt DateTime?
+  autoCloseEnabled Boolean @default(true)
+  autoCloseAfterHours Int @default(48)
   createdAt   DateTime           @default(now())
   members     BusinessMember[]
   invites     BusinessInvite[]
   workflows   AutomationFlow[]
   conversations Conversation[]
+  cannedReplies CannedReply[]
 }
 
 model BusinessMember {
@@ -448,7 +497,7 @@ model BusinessMember {
   userId     String
   business   Business @relation(fields: [businessId], references: [id])
   businessId String
-  role       String   @default("member")
+  role       String   @default("agent")
   createdAt  DateTime @default(now())
 }
 
@@ -457,7 +506,7 @@ model BusinessInvite {
   business    Business @relation(fields: [businessId], references: [id])
   businessId  String
   email       String
-  role        String   @default("member")
+  role        String   @default("agent")
   token       String   @unique
   status      String   @default("PENDING")
   expiresAt   DateTime?
@@ -511,10 +560,19 @@ model Conversation {
   business      Business          @relation(fields: [businessId], references: [id])
   businessId    String
   customerPhone String
+  customerName  String?
   channel       String
   status        ConversationStatus @default(OPEN)
+  assignedToId  String?
+  assignedTo    User?             @relation("AssignedConversations", fields: [assignedToId], references: [id])
+  tags          String[]          @default([])
+  internalNotes String?
+  isTyping      Boolean           @default(false)
+  typingAt      DateTime?
   lastMessageAt DateTime?
   lastReadAt    DateTime?
+  lastCustomerActivityAt DateTime?
+  autoClosedAt DateTime?
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
   customerId    String?
@@ -523,9 +581,12 @@ model Conversation {
   payment       Payment?          @relation("PaymentConversations", fields: [paymentId], references: [id])
   paymentId     String?
   messages      Message[]
+  notes         ConversationNote[]
+  audits        MessageAudit[]
 
   @@unique([businessId, customerPhone, channel])
   @@index([businessId, lastMessageAt])
+  @@index([assignedToId])
 }
 
 model Message {
@@ -537,9 +598,53 @@ model Message {
   content        String
   status         MessageStatus
   metaMessageId  String?
+  attachments    Json?
   createdAt      DateTime         @default(now())
+  audits         MessageAudit[]
 
   @@index([conversationId, createdAt])
+}
+
+model MessageAudit {
+  id             String        @id @default(cuid())
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  message        Message?      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  messageId      String?
+  actor          User?         @relation(fields: [actorId], references: [id])
+  actorId        String?
+  action         String
+  status         String?
+  meta           Json?
+  createdAt      DateTime      @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+model ConversationNote {
+  id             String        @id @default(cuid())
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  author         User          @relation(fields: [authorId], references: [id])
+  authorId       String
+  content        String
+  createdAt      DateTime      @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+model CannedReply {
+  id        String   @id @default(cuid())
+  business  Business? @relation(fields: [businessId], references: [id])
+  businessId String?
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([businessId])
 }
 
 model Trigger {

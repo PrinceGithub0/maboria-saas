@@ -66,6 +66,16 @@ export const POST = withRequestLogging(
     const email = parsed.email.toLowerCase().trim();
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
+      const existingSub = await prisma.subscription.findFirst({
+        where: { userId: existing.id },
+        orderBy: { createdAt: "desc" },
+      });
+      if (existingSub && existingSub.status !== "ACTIVE") {
+        return NextResponse.json(
+          { error: "Account exists. Continue to checkout.", resumeCheckout: true },
+          { status: 409 }
+        );
+      }
       return NextResponse.json({ error: "Email already in use" }, { status: 409 });
     }
 
@@ -81,6 +91,8 @@ export const POST = withRequestLogging(
             passwordHash,
             role: "USER",
             publicId,
+            locale: parsed.locale || null,
+            timeZone: parsed.timeZone || null,
           },
           select: { id: true, publicId: true },
         });
@@ -118,6 +130,23 @@ export const POST = withRequestLogging(
           : intent === "growth"
             ? "GROWTH"
             : "BUSINESS";
+    const now = new Date();
+    await prisma.subscription.create({
+      data: {
+        userId: created.id,
+        plan,
+        status: "INCOMPLETE",
+        renewalDate: now,
+        autoRenew: true,
+        provider: null,
+        currentPeriodStart: null,
+        currentPeriodEnd: null,
+        cancelAtPeriodEnd: false,
+        interval: "monthly",
+        usagePeriod: "monthly",
+      },
+    });
+
     await prisma.activityLog.create({
       data: {
         userId: created.id,

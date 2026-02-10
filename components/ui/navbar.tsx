@@ -51,6 +51,7 @@ export function Navbar() {
     : 0;
   const [menuOpen, setMenuOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [commandQuery, setCommandQuery] = useState("");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const { language, setLanguage } = useLanguage();
   const notificationsRef = useRef<HTMLDivElement | null>(null);
@@ -214,6 +215,11 @@ export function Navbar() {
     mutateNotifications();
   };
 
+  const handleCommandOpenChange = (open: boolean) => {
+    setCommandOpen(open);
+    if (!open) setCommandQuery("");
+  };
+
   const markAllRead = async () => {
     const items = Array.isArray(notifications) ? notifications : [];
     const unreadItems = items.filter((item: any) => !item.read);
@@ -227,12 +233,18 @@ export function Navbar() {
       const key = event.key.toLowerCase();
       if ((event.metaKey || event.ctrlKey) && key === "k") {
         event.preventDefault();
-        setCommandOpen(true);
+        handleCommandOpenChange(true);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
+
+  useEffect(() => {
+    if (commandQuery && !commandOpen) {
+      setCommandOpen(true);
+    }
+  }, [commandQuery, commandOpen]);
 
   return (
     <>
@@ -246,28 +258,34 @@ export function Navbar() {
             <Menu className="h-5 w-5" />
           </button>
           <div className="relative hidden w-80 lg:block">
-            <button
-              type="button"
-              onClick={() => setCommandOpen(true)}
+            <div
               className="flex w-full items-center gap-2 rounded-lg border border-input bg-muted px-3 py-2 text-sm text-muted-foreground hover:bg-muted/80"
-              aria-label="Open command palette"
+              onClick={() => handleCommandOpenChange(true)}
             >
               <Search className="h-4 w-4" />
-              <span className="flex-1 text-left text-sm">
-                {language === "fr"
-                  ? "Rechercher automatisations, factures, paiements"
-                  : "Search automations, invoices, payments"}
-              </span>
-              <span className="hidden items-center gap-1 rounded-md border border-border bg-background px-2 py-0.5 text-[11px] text-muted-foreground md:flex">
-                Ctrl K
-              </span>
-            </button>
+              <input
+                type="text"
+                value={commandQuery}
+                onFocus={() => setCommandOpen(true)}
+                onChange={(e) => {
+                  setCommandQuery(e.target.value);
+                  setCommandOpen(true);
+                }}
+                placeholder={
+                  language === "fr"
+                    ? "Rechercher automatisations, factures, paiements"
+                    : "Search automations, invoices, payments"
+                }
+                className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                aria-label="Search"
+              />
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => setCommandOpen(true)}
+            onClick={() => handleCommandOpenChange(true)}
             className="rounded-full border border-border bg-card p-2 text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden"
             aria-label="Open command palette"
           >
@@ -341,7 +359,13 @@ export function Navbar() {
           </Button>
         </div>
       </header>
-      <CommandPalette open={commandOpen} onOpenChange={setCommandOpen} items={commandItems} />
+      <CommandPalette
+        open={commandOpen}
+        onOpenChange={handleCommandOpenChange}
+        items={commandItems}
+        initialQuery={commandQuery}
+        onQueryChange={setCommandQuery}
+      />
       <AnimatePresence>
         {menuOpen && (
           <motion.div

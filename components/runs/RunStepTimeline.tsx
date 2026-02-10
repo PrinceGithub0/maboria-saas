@@ -113,7 +113,7 @@ export function RunStepTimeline({
       const status = resolveStatus(log);
       if (showFailuresOnly && status !== "FAILED") return false;
       if (!term) return true;
-      const step = formatStepLabel(log?.step).toLowerCase();
+      const step = formatStepLabel(log?.step ?? undefined).toLowerCase();
       const output = normalizeText(log?.result).toLowerCase();
       const error = String(log?.error || "").toLowerCase();
       const reason = String(log?.reason || "").toLowerCase();
@@ -167,7 +167,7 @@ export function RunStepTimeline({
             <span className="absolute -left-3 top-2 h-2.5 w-2.5 rounded-full border border-border bg-background" />
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-semibold text-foreground">
-                {formatStepLabel(log?.step)}
+                {formatStepLabel(log?.step ?? undefined)}
               </span>
               <Badge
                 variant={badgeVariant}

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { Check, ChevronDown, Globe } from "lucide-react";
 
@@ -20,7 +19,6 @@ type Props = {
 export function LanguageSwitcher({ value, onChange }: Props) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const router = useRouter();
 
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
@@ -76,7 +74,6 @@ export function LanguageSwitcher({ value, onChange }: Props) {
                   onClick={() => {
                     onChange(opt.value);
                     setOpen(false);
-                    router.refresh();
                   }}
                   className={clsx(
                     "flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-indigo-500/40",

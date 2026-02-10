@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { subscriptionPlanToUserPlan, syncBusinessPlanForUser } from "@/lib/entitlements";
 import { assertRateLimit } from "@/lib/rate-limit";
 import { subscriptionSchema } from "@/lib/validators";
 import { withErrorHandling } from "@/lib/api-handler";
@@ -33,11 +34,18 @@ export const GET = withErrorHandling(async () => {
         receiptIssuedAt: null,
         lastPaymentReference: null,
         lastPaymentProvider: null,
+        pendingPlan: null,
+        pendingEffectiveAt: null,
       },
     ]);
   }
 
   const subs = await prisma.subscription.findMany({ where: { userId: session.user.id } });
+  const active = subs.find((s) => s.status === "ACTIVE");
+  if (active) {
+    const plan = subscriptionPlanToUserPlan(active.plan);
+    await syncBusinessPlanForUser(session.user.id, plan);
+  }
   return NextResponse.json(subs);
 });
 
@@ -60,6 +68,7 @@ export const POST = withErrorHandling(async (req: Request) => {
       usagePeriod,
     },
   });
+  await syncBusinessPlanForUser(session.user.id, subscriptionPlanToUserPlan(sub.plan));
   await prisma.activityLog.create({
     data: {
       userId: session.user.id,
@@ -83,6 +92,7 @@ export const PUT = withErrorHandling(async (req: Request) => {
     where: { id, userId: session.user.id },
     data: { status, plan, usageLimit, usagePeriod },
   });
+  await syncBusinessPlanForUser(session.user.id, subscriptionPlanToUserPlan(sub.plan));
   await prisma.activityLog.create({
     data: {
       userId: session.user.id,

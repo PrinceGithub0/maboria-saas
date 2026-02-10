@@ -90,6 +90,10 @@ html:not(.dark) .text-muted-foreground {
   color: var(--card-foreground) !important;
 }
 
+.invoice-section {
+  margin-top: 30px;
+}
+
 html:not(.dark) .text-slate-100,
 html:not(.dark) .text-slate-200,
 html:not(.dark) .text-slate-300 {

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import { log } from "./logger";
 import { enforceEntitlement, enforceUsageLimit } from "./entitlements";
@@ -511,11 +512,14 @@ export async function recordInboundMessage({
   conversationId,
   content,
   metaMessageId,
+  attachments,
 }: {
   conversationId: string;
   content: string;
   metaMessageId?: string;
+  attachments?: unknown;
 }) {
+  const attachmentsJson = attachments as Prisma.InputJsonValue | undefined;
   await prisma.$transaction([
     prisma.message.create({
       data: {
@@ -525,11 +529,17 @@ export async function recordInboundMessage({
         content,
         status: "DELIVERED",
         metaMessageId,
+        attachments: attachmentsJson,
       },
     }),
     prisma.conversation.update({
       where: { id: conversationId },
-      data: { lastMessageAt: new Date() },
+      data: {
+        lastMessageAt: new Date(),
+        lastCustomerActivityAt: new Date(),
+        status: "OPEN",
+        autoClosedAt: null,
+      },
     }),
   ]);
 }
@@ -539,12 +549,17 @@ export async function recordOutboundMessage({
   content,
   status,
   metaMessageId,
+  attachments,
+  actorId,
 }: {
   conversationId: string;
   content: string;
   status: "SENT" | "DELIVERED" | "FAILED";
   metaMessageId?: string;
+  attachments?: unknown;
+  actorId?: string | null;
 }) {
+  const attachmentsJson = attachments as Prisma.InputJsonValue | undefined;
   if (status === "SENT" || status === "DELIVERED") {
     const conversation = await prisma.conversation.findUnique({
       where: { id: conversationId },
@@ -561,8 +576,8 @@ export async function recordOutboundMessage({
     }
   }
 
-  await prisma.$transaction([
-    prisma.message.create({
+  await prisma.$transaction(async (tx) => {
+    const message = await tx.message.create({
       data: {
         conversationId,
         direction: "OUTBOUND",
@@ -570,11 +585,23 @@ export async function recordOutboundMessage({
         content,
         status,
         metaMessageId,
+        attachments: attachmentsJson,
       },
-    }),
-    prisma.conversation.update({
+    });
+
+    await tx.conversation.update({
       where: { id: conversationId },
       data: { lastMessageAt: new Date() },
-    }),
-  ]);
+    });
+
+    await tx.messageAudit.create({
+      data: {
+        conversationId,
+        messageId: message.id,
+        actorId: actorId ?? null,
+        action: "SEND",
+        status,
+      },
+    });
+  });
 }

@@ -134,7 +134,7 @@ export function PricingSection({ plans }: { plans: PlanRecord[] }) {
   };
 
   return (
-    <section className="space-y-6 rounded-[32px] bg-[#F8FAFC] px-6 py-12 max-md:px-4 max-md:py-10">
+    <section className="relative z-10 pointer-events-auto space-y-6 rounded-[32px] bg-[#F8FAFC] px-6 py-12 max-md:px-4 max-md:py-10">
       <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 text-center">
         <h2 className="text-3xl font-semibold text-slate-900 max-md:text-2xl">
           {t("Pricing", "Tarifs")}

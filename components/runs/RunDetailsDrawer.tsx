@@ -100,7 +100,7 @@ export function RunDetailsDrawer({
               : log?.reason
                 ? String(log.reason)
                 : "";
-      return `${idx + 1}. ${formatStepLabel(log?.step)} — ${status}${
+      return `${idx + 1}. ${formatStepLabel(log?.step ?? undefined)} — ${status}${
         output ? ` — ${output}` : ""
       }`;
     });
@@ -210,7 +210,7 @@ export function RunDetailsDrawer({
             formatRunMessage={formatRunMessage}
             searchTerm={searchTerm}
             showFailuresOnly={showFailuresOnly}
-            formatTimestamp={formatDateTime}
+            formatTimestamp={(value) => formatDateTime(value ?? undefined)}
             t={t}
           />
         </div>

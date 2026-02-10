@@ -217,6 +217,7 @@ export const PUT = withRequestLogging(withErrorHandling(async (req: Request) => 
     businessAddress: updateData.businessAddress ?? existing.businessAddress,
     businessEmail: updateData.businessEmail ?? existing.businessEmail,
     businessPhone: updateData.businessPhone ?? existing.businessPhone,
+    taxId: updateData.taxId ?? existing.taxId,
     vatEnabled: updateData.vatEnabled ?? existing.vatEnabled ?? false,
     vatRate: updateData.vatRate ?? existing.vatRate ?? 0,
     vatPricingMode: updateData.vatPricingMode ?? existing.vatPricingMode ?? "EXCLUSIVE",
@@ -228,6 +229,7 @@ export const PUT = withRequestLogging(withErrorHandling(async (req: Request) => 
     !nextProfile.defaultCurrency?.trim() ||
     !nextProfile.businessEmail?.trim() ||
     !nextProfile.businessPhone?.trim() ||
+    !nextProfile.taxId?.trim() ||
     !nextProfile.businessAddress?.trim() ||
     !hasRequiredAddress(nextAddress)
   ) {

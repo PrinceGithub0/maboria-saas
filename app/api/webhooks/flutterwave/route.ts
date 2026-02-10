@@ -53,6 +53,82 @@ export const POST = withErrorHandling(async (req: Request) => {
   }
 
   try {
+    if (event && /refund|chargeback|dispute/i.test(event)) {
+      const targetCheckout = txRef
+        ? await prisma.checkoutSession.findUnique({ where: { reference: txRef } })
+        : null;
+      const targetPayment = txRef
+        ? await prisma.payment.findFirst({ where: { reference: txRef } })
+        : null;
+      const userId = targetCheckout?.userId || targetPayment?.userId || data?.meta?.userId;
+      if (userId) {
+        const sub = await prisma.subscription.findFirst({
+          where: { userId },
+          orderBy: { createdAt: "desc" },
+        });
+        if (sub) {
+          await prisma.subscription.update({
+            where: { id: sub.id },
+            data: {
+              status: "REVOKED",
+              autoRenew: false,
+              cancelAtPeriodEnd: true,
+              cancellationReason: "chargeback_or_refund",
+            },
+          });
+          await prisma.activityLog.create({
+            data: {
+              userId,
+              action: "SUBSCRIPTION_REVOKED",
+              resourceType: "subscription",
+              resourceId: sub.id,
+              metadata: { provider: "FLUTTERWAVE", event, reference: txRef },
+            },
+          });
+        }
+      }
+      await markWebhookProcessed(webhookEvent.id);
+      return NextResponse.json({ received: true, revoked: true });
+    }
+
+    if (event === "charge.failed") {
+      const targetCheckout = txRef
+        ? await prisma.checkoutSession.findUnique({ where: { reference: txRef } })
+        : null;
+      if (targetCheckout) {
+        await prisma.checkoutSession.update({
+          where: { id: targetCheckout.id },
+          data: { status: "FAILED" },
+        });
+        await markWebhookProcessed(webhookEvent.id);
+        return NextResponse.json({ received: true, failed: true });
+      }
+      const userId = data?.meta?.userId as string | undefined;
+      if (userId) {
+        const sub = await prisma.subscription.findFirst({
+          where: { userId },
+          orderBy: { createdAt: "desc" },
+        });
+        if (sub) {
+          await prisma.subscription.update({
+            where: { id: sub.id },
+            data: { status: "PAST_DUE", cancellationReason: "payment_failed" },
+          });
+          await prisma.activityLog.create({
+            data: {
+              userId,
+              action: "SUBSCRIPTION_PAST_DUE",
+              resourceType: "subscription",
+              resourceId: sub.id,
+              metadata: { provider: "FLUTTERWAVE", event, reference: txRef },
+            },
+          });
+        }
+      }
+      await markWebhookProcessed(webhookEvent.id);
+      return NextResponse.json({ received: true, pastDue: true });
+    }
+
     if (event !== "charge.completed" || status !== "successful") {
       await markWebhookProcessed(webhookEvent.id);
       return NextResponse.json({ received: true, ignored: true });
@@ -94,6 +170,86 @@ export const POST = withErrorHandling(async (req: Request) => {
       });
       await markWebhookProcessed(webhookEvent.id);
       return NextResponse.json({ received: true, invoice: true });
+    }
+
+    const checkout = txRef
+      ? await prisma.checkoutSession.findUnique({ where: { reference: txRef } })
+      : null;
+    if (checkout) {
+      const interval: BillingInterval =
+        checkout.billingCycle === "yearly" ? "yearly" : "monthly";
+      const now = new Date();
+      const periodEnd =
+        interval === "yearly"
+          ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      await prisma.$transaction(async (tx) => {
+        await tx.checkoutSession.update({
+          where: { id: checkout.id },
+          data: { status: "SUCCESS" },
+        });
+        await tx.subscription.update({
+          where: { id: checkout.subscriptionId },
+          data: {
+            status: "ACTIVE",
+            plan: checkout.plan,
+            provider: "FLUTTERWAVE",
+            currentPeriodStart: now,
+            currentPeriodEnd: periodEnd,
+            autoRenew: true,
+            cancelAtPeriodEnd: false,
+            interval: checkout.billingCycle,
+            currency: checkout.currency,
+            renewalDate: periodEnd,
+          },
+        });
+        await tx.payment.create({
+          data: {
+            userId: checkout.userId,
+            amount: checkout.amount,
+            currency: checkout.currency,
+            provider: "FLUTTERWAVE",
+            status: "SUCCEEDED",
+            reference: txRef,
+            metadata: {
+              type: "checkout_session",
+              checkoutSessionId: checkout.id,
+              subscriptionId: checkout.subscriptionId,
+            },
+          },
+        });
+        const invoiceNumber = `INV-${Date.now()}`;
+        await tx.invoice.create({
+          data: {
+            userId: checkout.userId,
+            subscriptionId: checkout.subscriptionId,
+            invoiceNumber,
+            items: [
+              {
+                name: `${checkout.plan} subscription (${checkout.billingCycle})`,
+                quantity: 1,
+                price: Number(checkout.amount),
+              },
+            ],
+            total: checkout.amount,
+            currency: checkout.currency,
+            status: "PAID",
+            plan: checkout.plan,
+            metadata: { checkoutSessionId: checkout.id },
+          },
+        });
+        await tx.activityLog.create({
+          data: {
+            userId: checkout.userId,
+            action: "PAYMENT_SUCCESS",
+            resourceType: "checkout_session",
+            resourceId: checkout.id,
+            metadata: { provider: "FLUTTERWAVE", plan: checkout.plan },
+          },
+        });
+      });
+      await markWebhookProcessed(webhookEvent.id);
+      return NextResponse.json({ received: true, checkout: true });
     }
 
     const amount = typeof data?.amount === "number" ? data.amount : Number(data?.amount || 0);

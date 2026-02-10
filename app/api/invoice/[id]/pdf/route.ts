@@ -61,46 +61,44 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
   const metadata = (invoice.metadata as any) || {};
   let business = metadata.businessProfile;
   const customer = resolveInvoiceCustomer(metadata);
-  if (!business?.businessName) {
-    const profile = await prisma.businessProfile.findUnique({
-      where: { userId: session.user.id },
-      select: {
-        businessName: true,
-        country: true,
-        defaultCurrency: true,
-        businessAddress: true,
-        businessEmail: true,
-        businessPhone: true,
-        taxId: true,
-        vatEnabled: true,
-        vatRate: true,
-        vatPricingMode: true,
-      },
+  const profile = await prisma.businessProfile.findUnique({
+    where: { userId: session.user.id },
+    select: {
+      businessName: true,
+      country: true,
+      defaultCurrency: true,
+      businessAddress: true,
+      businessEmail: true,
+      businessPhone: true,
+      taxId: true,
+      vatEnabled: true,
+      vatRate: true,
+      vatPricingMode: true,
+    },
+  });
+  if (profile) {
+    business = profile;
+  } else if (!business?.businessName) {
+    const account = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { name: true, email: true },
     });
-    if (profile) {
-      business = profile;
-    } else {
-      const account = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { name: true, email: true },
-      });
-      const fallbackName =
-        (account?.name || "").trim() ||
-        (account?.email ? account.email.split("@")[0] : "") ||
-        "Business";
-      business = {
-        businessName: fallbackName,
-        country: "NG",
-        defaultCurrency: invoice.currency || "USD",
-        businessAddress: null,
-        businessEmail: account?.email || null,
-        businessPhone: null,
-        taxId: null,
-        vatEnabled: false,
-        vatRate: 0,
-        vatPricingMode: "EXCLUSIVE",
-      };
-    }
+    const fallbackName =
+      (account?.name || "").trim() || (account?.email ? account.email.split("@")[0] : "") || "Business";
+    business = {
+      businessName: fallbackName,
+      country: "NG",
+      defaultCurrency: invoice.currency || "USD",
+      businessAddress: null,
+      businessEmail: account?.email || null,
+      businessPhone: null,
+      taxId: null,
+      vatEnabled: false,
+      vatRate: 0,
+      vatPricingMode: "EXCLUSIVE",
+    };
+  }
+  if (business?.businessName && JSON.stringify(metadata.businessProfile || {}) !== JSON.stringify(business)) {
     await prisma.invoice.update({
       where: { id: invoice.id },
       data: {
@@ -112,29 +110,13 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
     });
   }
 
-  let pdf: Buffer;
-  if (invoice.pdfUrl && !forceFresh) {
-    const filePath = path.join(process.cwd(), "public", invoice.pdfUrl.replace(/^\//, ""));
-    try {
-      pdf = await fs.readFile(filePath);
-    } catch {
-      const ensured = await ensureInvoicePdf({
-        invoice: invoice as any,
-        business,
-        billTo: customer,
-        forceRegenerate: forceFresh,
-      });
-      pdf = ensured.pdfBuffer;
-    }
-  } else {
-    const ensured = await ensureInvoicePdf({
-      invoice: invoice as any,
-      business,
-      billTo: customer,
-      forceRegenerate: forceFresh,
-    });
-    pdf = ensured.pdfBuffer;
-  }
+  const ensured = await ensureInvoicePdf({
+    invoice: invoice as any,
+    business,
+    billTo: customer,
+    forceRegenerate: forceFresh,
+  });
+  const pdf = ensured.pdfBuffer;
 
   const safeNumber = String(invoice.invoiceNumber || "invoice").replace(/[^a-zA-Z0-9-_]/g, "_");
 

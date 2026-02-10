@@ -38,6 +38,7 @@ export const POST = async (req: Request) => {
   const entry = (body as any)?.entry?.[0];
   const changes = entry?.changes?.[0]?.value;
   const messages = changes?.messages;
+  const statuses = changes?.statuses;
   const metadata = changes?.metadata;
 
   const phoneNumberId = metadata?.phone_number_id as string | undefined;
@@ -53,6 +54,41 @@ export const POST = async (req: Request) => {
   if (!business) {
     log("warn", "whatsapp_webhook_no_business", { phoneNumberId, displayPhone });
     return NextResponse.json({ received: true });
+  }
+
+  if (Array.isArray(statuses) && statuses.length > 0) {
+    for (const status of statuses) {
+      const metaMessageId = status?.id as string | undefined;
+      const nextStatus = String(status?.status || "").toLowerCase();
+      if (!metaMessageId || !nextStatus) continue;
+      const mapped =
+        nextStatus === "read"
+          ? "READ"
+          : nextStatus === "delivered"
+            ? "DELIVERED"
+            : nextStatus === "sent"
+              ? "SENT"
+              : null;
+      if (!mapped) continue;
+      await prisma.message.updateMany({
+        where: { metaMessageId },
+        data: { status: mapped },
+      });
+      const updated = await prisma.message.findMany({
+        where: { metaMessageId },
+        select: { id: true, conversationId: true },
+      });
+      if (updated.length > 0) {
+        await prisma.messageAudit.createMany({
+          data: updated.map((msg) => ({
+            conversationId: msg.conversationId,
+            messageId: msg.id,
+            action: "STATUS_UPDATE",
+            status: mapped,
+          })),
+        });
+      }
+    }
   }
 
   if (!Array.isArray(messages) || messages.length === 0) {
@@ -94,6 +130,10 @@ export const POST = async (req: Request) => {
         conversationId: conversation.id,
         content: text,
         metaMessageId,
+      });
+      await prisma.conversation.update({
+        where: { id: conversation.id },
+        data: { isTyping: false, typingAt: null },
       });
     } catch (error: any) {
       log("error", "whatsapp_inbound_store_failed", { error: error.message });

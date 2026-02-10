@@ -39,8 +39,14 @@ export default function AdminLogsPage() {
     webhookUrl,
     fetcher
   );
+  const { data: webhookReport, isLoading: loadingWebhookReport } = useSWR(
+    "/api/admin/logs/webhooks/report",
+    fetcher
+  );
   const activityRows = Array.isArray(activity) ? activity : [];
   const webhookRows = Array.isArray(webhooks) ? webhooks : [];
+  const reportTotals = Array.isArray(webhookReport?.totals) ? webhookReport.totals : [];
+  const reportProviders = Array.isArray(webhookReport?.providers) ? webhookReport.providers : [];
   const activityCount = activityRows.length;
   const webhookCount = webhookRows.length;
   const webhookFailures = webhookRows.filter((row: any) => row.status === "FAILED").length;
@@ -119,6 +125,46 @@ export default function AdminLogsPage() {
               <Badge variant={webhookFailures ? "danger" : "success"}>
                 {webhookFailures ? t("Needs review", "A revoir") : t("Healthy", "Sain")}
               </Badge>
+            </div>
+          </div>
+        )}
+        {loadingWebhookReport ? (
+          <div className="mt-4">
+            <Skeleton className="h-16" />
+          </div>
+        ) : (
+          <div className="mt-4 rounded-xl border border-border/60 bg-background px-4 py-3 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+                {t("Webhook idempotency report", "Rapport d'idempotence webhook")}
+              </p>
+              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                {reportTotals.map((row: any) => (
+                  <span key={row.status} className="rounded-full border border-border/70 px-2 py-0.5">
+                    {row.status}: {row.count}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {["PAYSTACK", "FLUTTERWAVE"].map((provider) => {
+                const rows = reportProviders.filter((row: any) => row.provider === provider);
+                if (!rows.length) return null;
+                return (
+                  <div key={provider} className="rounded-lg border border-border/60 px-3 py-2">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                      {provider}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                      {rows.map((row: any) => (
+                        <span key={`${provider}-${row.status}`} className="rounded-full border border-border/60 px-2 py-0.5">
+                          {row.status}: {row.count}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

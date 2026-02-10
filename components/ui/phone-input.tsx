@@ -31,6 +31,9 @@ export function PhoneInput({
 }: PhoneInputProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const lastEmittedRef = useRef("");
+  const countryRef = useRef(normalizeCode(defaultCountry));
+  const nationalRef = useRef("");
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [country, setCountry] = useState(normalizeCode(defaultCountry));
@@ -62,19 +65,28 @@ export function PhoneInput({
   });
 
   useEffect(() => {
+    countryRef.current = country;
+  }, [country]);
+
+  useEffect(() => {
+    nationalRef.current = nationalNumber;
+  }, [nationalNumber]);
+
+  useEffect(() => {
+    if (value === lastEmittedRef.current) return;
     const parsed = parseE164(value);
     if (parsed) {
-      if (parsed.code !== country) setCountry(parsed.code);
-      if (parsed.nationalNumber !== nationalNumber) {
+      if (parsed.code !== countryRef.current) setCountry(parsed.code);
+      if (parsed.nationalNumber !== nationalRef.current) {
         setNationalNumber(parsed.nationalNumber);
       }
       return;
     }
     const digits = String(value || "").replace(/\D/g, "");
-    if (digits && digits !== nationalNumber) {
+    if (digits !== nationalRef.current) {
       setNationalNumber(digits);
     }
-  }, [value, country, nationalNumber]);
+  }, [value]);
 
   useEffect(() => {
     if (!open) return;
@@ -99,10 +111,12 @@ export function PhoneInput({
 
   useEffect(() => {
     if (formatted && formatted !== value) {
+      lastEmittedRef.current = formatted;
       onChange(formatted);
       return;
     }
     if (!nationalNumber && value) {
+      lastEmittedRef.current = "";
       onChange("");
     }
   }, [formatted, nationalNumber, value, onChange]);

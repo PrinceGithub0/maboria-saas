@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { useLanguage } from "@/components/providers/language-provider";
+import { Phone } from "lucide-react";
 
 export default function DashboardSupportPage() {
   const { language } = useLanguage();
@@ -84,8 +85,11 @@ export default function DashboardSupportPage() {
             <p className="text-xs uppercase tracking-[0.24em] text-indigo-600 dark:text-indigo-300">
               {t("Support", "Support")}
             </p>
-            <h1 className="mt-2 text-[32px] font-semibold leading-tight text-foreground">
-              {t("Contact support", "Contacter le support")}
+            <h1 className="mt-2 flex items-center gap-3 text-[32px] font-semibold leading-tight text-foreground">
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-indigo-200 bg-indigo-50/60 text-indigo-700 shadow-none dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200">
+                <Phone className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <span>{t("Contact support", "Contacter le support")}</span>
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
               {t(
@@ -115,20 +119,20 @@ export default function DashboardSupportPage() {
           title={t("Support overview", "Apercu support")}
           className="bg-[var(--support-card-bg)] text-slate-900 dark:text-slate-100 [--support-card-bg:#ffffff] dark:[--support-card-bg:#020617]"
         >
-          <div className="space-y-5 text-sm text-muted-foreground">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
+            <div className="space-y-6 text-[15px] text-slate-700 dark:text-slate-200">
+              <div>
+              <p className="text-sm uppercase tracking-[0.22em] text-indigo-700 dark:text-indigo-200">
                 {t("Channels", "Canaux")}
               </p>
-              <p className="mt-2 text-sm leading-relaxed text-foreground">
+              <p className="mt-2 text-base font-medium leading-relaxed text-foreground">
                 {t("Email-first support", "Support prioritaire par email")}
               </p>
-              <p className="text-xs leading-relaxed text-muted-foreground">
+              <p className="text-sm leading-relaxed text-muted-foreground">
                 {t("We reply from info@maboria.com", "Reponse depuis info@maboria.com")}
               </p>
             </div>
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
+              <p className="text-sm uppercase tracking-[0.22em] text-indigo-700 dark:text-indigo-200">
                 {t("What to include", "A inclure")}
               </p>
               <ul className="mt-3 space-y-3">
@@ -139,7 +143,7 @@ export default function DashboardSupportPage() {
                 ].map((item) => (
                   <li
                     key={item}
-                    className="text-sm leading-relaxed text-slate-700 dark:rounded-xl dark:border dark:border-slate-800 dark:bg-slate-900/70 dark:px-3 dark:py-2 dark:text-xs dark:text-slate-100 dark:shadow-[0_8px_16px_rgba(15,23,42,0.06)]"
+                    className="text-base leading-relaxed text-slate-700 dark:rounded-xl dark:border dark:border-slate-800 dark:bg-slate-900/70 dark:px-3 dark:py-2 dark:text-sm dark:text-slate-100 dark:shadow-[0_8px_16px_rgba(15,23,42,0.06)]"
                     style={{ backgroundColor: "transparent", border: "none", boxShadow: "none", padding: 0 }}
                   >
                     {item}
@@ -148,7 +152,7 @@ export default function DashboardSupportPage() {
               </ul>
             </div>
             <div
-              className="text-sm leading-relaxed text-slate-700 dark:rounded-xl dark:border dark:border-slate-800 dark:bg-slate-900/70 dark:px-3 dark:py-2 dark:text-xs dark:text-slate-100 dark:shadow-[0_8px_16px_rgba(15,23,42,0.06)]"
+              className="text-base leading-relaxed text-slate-700 dark:rounded-xl dark:border dark:border-slate-800 dark:bg-slate-900/70 dark:px-3 dark:py-2 dark:text-sm dark:text-slate-100 dark:shadow-[0_8px_16px_rgba(15,23,42,0.06)]"
               style={{ backgroundColor: "transparent", border: "none", boxShadow: "none", padding: 0 }}
             >
               {t("Urgent billing issues are routed to senior support.", "Les urgences de facturation sont priorisees.")}
@@ -180,6 +184,7 @@ export default function DashboardSupportPage() {
               minLength={10}
               required
               error={errors.message}
+              rows={8}
             />
             <div className="flex flex-wrap items-center gap-3">
               <Button onClick={submit} loading={sending} className="w-full sm:w-auto">

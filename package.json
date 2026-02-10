@@ -22,7 +22,8 @@
     "backfill:runs": "ts-node scripts/backfill-run-meta.ts",
     "dev:plan-cycle": "DEV_PLAN_SIMULATION=true ts-node scripts/dev-plan-cycle.ts",
     "test:security": "node scripts/security-check.js",
-    "test:entitlements": "node scripts/entitlement-check.js"
+    "test:entitlements": "node scripts/entitlement-check.js",
+    "test:paywall": "node scripts/test-paywall.js"
   },
   "dependencies": {
     "@next-auth/prisma-adapter": "^1.0.7",

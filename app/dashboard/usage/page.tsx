@@ -34,7 +34,8 @@ export default function UsagePage() {
     if (parts.length !== 3) return key;
     const [year, month, day] = parts;
     const date = new Date(`${year}-${month}-${day}T00:00:00Z`);
-    return formatDateDMY(date);
+    const shortMonth = date.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
+    return `${day} ${shortMonth}`;
   };
   const aiError = data && typeof data === "object" && "error" in data;
   const formatNumber = (value: number) => new Intl.NumberFormat().format(value);
@@ -66,7 +67,6 @@ export default function UsagePage() {
     ai: rows.reduce((sum: number, row: any) => sum + (Number(row.aiRequests) || 0), 0),
     whatsapp: rows.reduce((sum: number, row: any) => sum + (Number(row.whatsappMessages) || 0), 0),
   };
-  const latestRow = rows[rows.length - 1] || {};
   const getLimitSummary = (key: keyof typeof data.limits | string) => {
     const entry = (data?.limits as any)?.[key];
     if (!entry) return null;
@@ -161,13 +161,16 @@ export default function UsagePage() {
     new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth() + months, value.getUTCDate(), 0, 0, 0));
   const viewCycleStart = baseCycleStart ? addMonths(baseCycleStart, cycleOffset) : null;
   const viewCycleEnd = baseCycleEnd ? addMonths(baseCycleEnd, cycleOffset) : null;
-  const viewStartKey = formatDateKey(viewCycleStart);
-  const viewEndKey = formatDateKey(viewCycleEnd);
+  const viewStartKey = viewCycleStart ? formatDateKey(viewCycleStart) : undefined;
+  const viewEndKey = viewCycleEnd ? formatDateKey(viewCycleEnd) : undefined;
   const viewRows =
     viewStartKey && viewEndKey
       ? rows.filter((row: any) => row.date >= viewStartKey && row.date <= viewEndKey)
       : cycleRows;
-  const chartData = viewRows.map((row: any) => ({
+  const chartRows = viewRows.length >= 7 ? viewRows : rows;
+  const chartRangeStart = chartRows[0]?.date;
+  const chartRangeEnd = chartRows[chartRows.length - 1]?.date;
+  const chartData: Array<{ name: string; value: number }> = chartRows.map((row: any) => ({
     name: formatDayLabel(row.date),
     value: Number(row.aiTokens) || 0,
   }));
@@ -238,7 +241,11 @@ export default function UsagePage() {
               {t("Previous", "Precedent")}
             </button>
             <span className="rounded-full border border-border/70 bg-background/60 px-2.5 py-1 text-foreground">
-              {formatDate(viewCycleStart ?? cycleStart)} – {formatDate(viewCycleEnd ?? cycleEnd)}
+              {chartRows === viewRows
+                ? `${formatDate(viewCycleStart ?? cycleStart)} - ${formatDate(
+                    viewCycleEnd ?? cycleEnd
+                  )}`
+                : `${formatDate(chartRangeStart)} - ${formatDate(chartRangeEnd)}`}
             </span>
             <button
               type="button"
@@ -277,7 +284,7 @@ export default function UsagePage() {
             </p>
           </div>
         </div>
-        <MiniAreaChart data={chartData} className="min-h-[180px]" />
+        <MiniAreaChart data={chartData} className="min-h-[180px]" forceAllTicks />
         {aiError && (
           <p className="mt-3 text-xs text-muted-foreground">
             {t(

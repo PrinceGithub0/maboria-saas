@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
 import { merchantAccountSchema } from "@/lib/validators";
+import { requireBillingAccess } from "@/lib/permissions";
 
 export const GET = withRequestLogging(
   withErrorHandling(async () => {
@@ -12,6 +13,8 @@ export const GET = withRequestLogging(
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const access = await requireBillingAccess(session.user.id);
+    if (!access.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const record = await prisma.merchantAccount.findUnique({
       where: { userId: session.user.id },
@@ -31,6 +34,8 @@ export const PUT = withRequestLogging(
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const access = await requireBillingAccess(session.user.id);
+    if (!access.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const parsed = merchantAccountSchema.parse(await req.json());
     const paystackCode = parsed.paystackSubaccountCode?.trim() || null;

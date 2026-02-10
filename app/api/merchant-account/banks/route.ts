@@ -7,6 +7,7 @@ import { listPaystackBanks } from "@/lib/payments/paystack";
 import { listFlutterwaveBanks } from "@/lib/payments/flutterwave";
 import { isProviderCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
 import { normalizeCountryCode } from "@/lib/business-profile";
+import { requireBillingAccess } from "@/lib/permissions";
 
 export const GET = withRequestLogging(
   withErrorHandling(async (req: Request) => {
@@ -14,6 +15,8 @@ export const GET = withRequestLogging(
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const access = await requireBillingAccess(session.user.id);
+    if (!access.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { searchParams } = new URL(req.url);
     const provider = (searchParams.get("provider") || "").toUpperCase();

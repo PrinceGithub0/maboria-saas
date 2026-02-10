@@ -25,21 +25,50 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const res = await signIn("credentials", {
-      redirect: false,
-      email,
-      password,
-      otp: otp || undefined,
-    });
-    setLoading(false);
-    if (res?.error) {
-      setError(
-        res.error === "CredentialsSignin"
-          ? t("Invalid email, password, or 2FA code.", "Email, mot de passe ou code 2FA invalide.")
-          : res.error
-      );
-    } else {
+    try {
+      const res = await signIn("credentials", {
+        redirect: false,
+        email,
+        password,
+        otp: otp || undefined,
+      });
+      if (!res) {
+        setError(t("Sign in failed. Please try again.", "Connexion echouee. Reessayez."));
+        return;
+      }
+      if (res.error) {
+        setError(
+          res.error === "CredentialsSignin"
+            ? t("Invalid email, password, or 2FA code.", "Email, mot de passe ou code 2FA invalide.")
+            : res.error
+        );
+        return;
+      }
+      const sessionCheck = await fetch("/api/auth/session", { credentials: "include" });
+      if (!sessionCheck.ok) {
+        setError(
+          t(
+            "Sign in succeeded, but session cookie was not set. Check NEXTAUTH_URL and your browser URL.",
+            "Connexion reussie, mais le cookie de session n'a pas ete defini. Verifiez NEXTAUTH_URL et l'URL du navigateur."
+          )
+        );
+        return;
+      }
+      const session = await sessionCheck.json().catch(() => null);
+      if (!session?.user) {
+        setError(
+          t(
+            "Sign in succeeded, but session is empty. Check NEXTAUTH_URL and clear cookies.",
+            "Connexion reussie, mais la session est vide. Verifiez NEXTAUTH_URL et supprimez les cookies."
+          )
+        );
+        return;
+      }
       router.push("/dashboard");
+    } catch {
+      setError(t("Sign in failed. Please try again.", "Connexion echouee. Reessayez."));
+    } finally {
+      setLoading(false);
     }
   };
 

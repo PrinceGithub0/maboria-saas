@@ -90,6 +90,7 @@ export const POST = withErrorHandling(async (req: Request) => {
           content: parsed.message || "",
           status: result?.skipped ? "FAILED" : "SENT",
           metaMessageId: result?.messageId,
+          actorId: session.user.id,
         });
       }
       return NextResponse.json({ ok: true, skipped: result?.skipped, messageId: result?.messageId });
@@ -107,6 +108,7 @@ export const POST = withErrorHandling(async (req: Request) => {
         content: `TEMPLATE:${parsed.templateName}`,
         status: result?.skipped ? "FAILED" : "SENT",
         metaMessageId: result?.messageId,
+        actorId: session.user.id,
       });
     }
     return NextResponse.json({ ok: true, skipped: result?.skipped, messageId: result?.messageId });
@@ -116,6 +118,7 @@ export const POST = withErrorHandling(async (req: Request) => {
         conversationId: conversation.id,
         content: parsed.message || `TEMPLATE:${parsed.templateName}`,
         status: "FAILED",
+        actorId: session.user.id,
       });
     }
     const status = error?.status || 500;

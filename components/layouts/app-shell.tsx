@@ -4,14 +4,9 @@ import { Navbar } from "@/components/ui/navbar";
 import { Announcement } from "@/components/ui/announcement";
 import { TourOverlay } from "@/components/ui/tour";
 import { usePathname } from "next/navigation";
-import useSWR from "swr";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { useSession } from "next-auth/react";
 import { Bot, CreditCard, LayoutDashboard, Settings } from "lucide-react";
 import { useLanguage } from "@/components/providers/language-provider";
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 export function AppShell({
   children,
@@ -23,34 +18,9 @@ export function AppShell({
   announcement?: string;
 }) {
   const pathname = usePathname();
-  const { data: session } = useSession();
   const { language } = useLanguage();
   const t = (en: string, fr: string) => (language === "fr" ? fr : en);
-  const { data: me } = useSWR(session ? "/api/user/me" : null, fetcher, {
-    shouldRetryOnError: false,
-  });
-  const effectiveRole = role || session?.user?.role;
-  const plan = typeof me?.plan === "string" ? me.plan : undefined;
-  const subs = Array.isArray(me?.subscriptions) ? me.subscriptions : [];
-  const hasActive = subs.some((sub: any) => sub?.status === "ACTIVE");
-  const hasCanceled = subs.some((sub: any) => ["CANCELED", "INACTIVE"].includes(sub?.status));
-  const hasPastDue = subs.some((sub: any) => sub?.status === "PAST_DUE");
-  const isCanceledOnly = subs.length > 0 && !hasActive && (hasCanceled || hasPastDue);
-  const billingLocked = Boolean(session && plan === "free" && effectiveRole !== "ADMIN");
-  const billingAllowed =
-    pathname.startsWith("/dashboard/payments") || pathname.startsWith("/dashboard/subscription");
-  const isMarketingHome = pathname === "/";
-  const isAuthRoute =
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/signup") ||
-    pathname.startsWith("/forgot") ||
-    pathname.startsWith("/reset");
-  const isAppRoute = pathname === "/" || pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
   const showMobileNav = pathname.startsWith("/dashboard");
-
-  if (isAuthRoute || !isAppRoute) {
-    return <>{children}</>;
-  }
 
   return (
     <>
@@ -60,98 +30,15 @@ export function AppShell({
         <div className="flex min-h-screen flex-1 flex-col bg-background">
           <Navbar />
           <main className="flex-1 overflow-y-auto px-6 py-6 max-md:px-4 max-md:pt-4 max-md:pb-28 max-md:space-y-6 max-md:overflow-x-hidden">
-            {isMarketingHome && billingLocked && isCanceledOnly ? (
-              <div className="mb-6 rounded-2xl border border-amber-400 bg-amber-100 px-5 py-4 text-sm text-slate-900 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-100">
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-slate-900 dark:text-amber-200">
-                      {t("Subscription needed", "Abonnement requis")}
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-amber-100">
-                      {t(
-                        "Your subscription is cancelled or inactive. Choose a plan to regain access.",
-                        "Votre abonnement est annule ou inactif. Choisissez un plan pour retrouver l acces."
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    <Link href="/dashboard/payments">
-                      <Button size="sm">{t("Resubscribe", "Se reabonner")}</Button>
-                    </Link>
-                    <Link href="/dashboard/subscription">
-                      <Button size="sm" variant="secondary">
-                        {t("View plans", "Voir les offres")}
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            ) : null}
             <div className="relative max-md:space-y-8">
-              <div
-                className={`${
-                  billingLocked && isCanceledOnly && !billingAllowed && !isMarketingHome
-                    ? "pointer-events-none opacity-50 blur-[1px]"
-                    : ""
-                } max-md:rounded-[32px] max-md:border max-md:border-border max-md:p-4 max-md:shadow-[0_22px_50px_rgba(15,23,42,0.12)] dark:max-md:shadow-[0_26px_60px_rgba(0,0,0,0.45)]`}
-              >
+              <div className="max-md:rounded-[32px] max-md:border max-md:border-border max-md:p-4 max-md:shadow-[0_22px_50px_rgba(15,23,42,0.12)] dark:max-md:shadow-[0_26px_60px_rgba(0,0,0,0.45)]">
                 {children}
               </div>
-              {billingLocked && isCanceledOnly && !billingAllowed && !isMarketingHome ? (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-full max-w-xl rounded-2xl border border-border bg-card/80 p-6 text-center shadow-xl max-md:w-full max-md:max-w-none">
-                    <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
-                      {t("Subscription inactive", "Abonnement inactif")}
-                    </p>
-                    <h1 className="mt-2 text-2xl font-semibold text-foreground">
-                      {t("Dashboard is locked until you resubscribe", "Tableau verrouille jusqu a la reabonnement")}
-                    </h1>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {t(
-                        "Your subscription is cancelled or inactive. You can view the dashboard, but actions are disabled until you choose a new plan.",
-                        "Votre abonnement est annule ou inactif. Vous pouvez voir le tableau, mais les actions sont desactivees jusqu a un nouveau plan."
-                      )}
-                    </p>
-                    <div className="mt-4 flex flex-wrap justify-center gap-3">
-                      <Link href="/dashboard/payments">
-                        <Button>{t("Resubscribe", "Se reabonner")}</Button>
-                      </Link>
-                      <Link href="/dashboard/subscription">
-                        <Button variant="secondary">{t("View subscription", "Voir abonnement")}</Button>
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-              {billingLocked && !isCanceledOnly && !billingAllowed && !isMarketingHome ? (
-                <div className="mx-auto max-w-2xl rounded-2xl border border-border bg-card/70 p-6 text-center max-md:mx-0 max-md:w-full max-md:max-w-none">
-                  <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
-                    {t("Billing required", "Facturation requise")}
-                  </p>
-                  <h1 className="mt-2 text-2xl font-semibold text-foreground">
-                    {t("Add a payment method to continue", "Ajoutez un moyen de paiement pour continuer")}
-                  </h1>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {t(
-                      "Your account is not active yet. Please add a valid payment method to unlock the app.",
-                      "Votre compte n est pas actif. Ajoutez un moyen de paiement valide pour debloquer l application."
-                    )}
-                  </p>
-                  <div className="mt-4 flex flex-wrap justify-center gap-3">
-                    <Link href="/dashboard/payments">
-                      <Button>{t("Go to billing", "Aller a la facturation")}</Button>
-                    </Link>
-                    <Link href="/dashboard/subscription">
-                      <Button variant="secondary">{t("View subscription", "Voir abonnement")}</Button>
-                    </Link>
-                  </div>
-                </div>
-              ) : null}
             </div>
           </main>
         </div>
       </div>
-              {showMobileNav ? (
+      {showMobileNav ? (
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-4 py-3 backdrop-blur md:hidden">
           <div className="mx-auto flex max-w-[420px] items-center justify-between rounded-3xl bg-card/80 px-3 py-2 shadow-[0_12px_24px_rgba(15,23,42,0.15)] max-md:mx-0 max-md:w-full max-md:max-w-none max-md:border max-md:border-border">
             {[

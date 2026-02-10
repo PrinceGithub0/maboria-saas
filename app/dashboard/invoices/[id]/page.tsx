@@ -27,7 +27,8 @@ export const dynamic = "force-dynamic";
 
 export default async function InvoiceDetailPage({ params, searchParams }: PageProps) {
   const t = (en: string, fr: string) => <LangText en={en} fr={fr} />;
-  const language = cookies().get("maboria_language")?.value === "fr" ? "fr" : "en";
+  const cookieStore = await cookies();
+  const language = cookieStore.get("maboria_language")?.value === "fr" ? "fr" : "en";
   const pdfHint =
     language === "fr"
       ? "Corrigez la devise et le profil entreprise pour activer le PDF."
@@ -134,25 +135,34 @@ export default async function InvoiceDetailPage({ params, searchParams }: PagePr
   const note = typeof metadata?.note === "string" ? metadata.note : null;
   const dueDateValue = metadata?.dueDate ? new Date(metadata.dueDate) : undefined;
   const dueDate = dueDateValue && !Number.isNaN(dueDateValue.getTime()) ? dueDateValue : undefined;
-  if (!business?.businessName) {
-    const profile = await prisma.businessProfile.findUnique({
-      where: { userId },
-      select: {
-        businessName: true,
-        country: true,
-        defaultCurrency: true,
-        businessAddress: true,
-        businessEmail: true,
-        businessPhone: true,
-        taxId: true,
-        vatEnabled: true,
-        vatRate: true,
-        vatPricingMode: true,
+  const profile = await prisma.businessProfile.findUnique({
+    where: { userId },
+    select: {
+      businessName: true,
+      country: true,
+      defaultCurrency: true,
+      businessAddress: true,
+      businessEmail: true,
+      businessPhone: true,
+      taxId: true,
+      vatEnabled: true,
+      vatRate: true,
+      vatPricingMode: true,
+    },
+  });
+  if (profile) {
+    business = profile;
+  }
+  if (business?.businessName && JSON.stringify(metadata.businessProfile || {}) !== JSON.stringify(business)) {
+    await prisma.invoice.update({
+      where: { id: invoice.id },
+      data: {
+        metadata: {
+          ...metadata,
+          businessProfile: business,
+        },
       },
     });
-    if (profile) {
-      business = profile;
-    }
   }
   const businessMissing = !business?.businessName;
   const items = normalizeInvoiceItems(invoice.items);

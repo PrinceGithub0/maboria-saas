@@ -21,10 +21,14 @@ export function CommandPalette({
   open,
   onOpenChange,
   items,
+  initialQuery,
+  onQueryChange,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   items: CommandItem[];
+  initialQuery?: string;
+  onQueryChange?: (value: string) => void;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -34,10 +38,10 @@ export function CommandPalette({
 
   useEffect(() => {
     if (!open) return;
-    setQuery("");
+    setQuery(initialQuery ?? "");
     const id = window.setTimeout(() => inputRef.current?.focus(), 0);
     return () => window.clearTimeout(id);
-  }, [open]);
+  }, [open, initialQuery]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -81,7 +85,11 @@ export function CommandPalette({
           <input
             ref={inputRef}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              const next = e.target.value;
+              setQuery(next);
+              onQueryChange?.(next);
+            }}
             placeholder={t("Search pages, actions, and tools", "Rechercher pages, actions et outils")}
             className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
             onKeyDown={(e) => {

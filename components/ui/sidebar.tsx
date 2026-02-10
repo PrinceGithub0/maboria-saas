@@ -22,6 +22,7 @@ import {
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import { useLanguage } from "@/components/providers/language-provider";
+import { useEffect, useRef } from "react";
 
 type Props = { role?: string };
 
@@ -29,6 +30,7 @@ type NavItem = { href: string; label: string; icon: any; badge?: string };
 
 export function Sidebar({ role }: Props) {
   const pathname = usePathname();
+  const navRef = useRef<HTMLDivElement | null>(null);
   const { data } = useSession();
   const { language } = useLanguage();
   const userRole = role || data?.user?.role;
@@ -105,6 +107,12 @@ export function Sidebar({ role }: Props) {
           { href: "/admin/receipt-preview", label: labelMap["Receipt Preview"], icon: FileText },
         ]
       : [];
+
+  useEffect(() => {
+    if (navRef.current) {
+      navRef.current.scrollTop = 0;
+    }
+  }, [pathname]);
 
   const renderSection = (title: string, items: NavItem[]) => (
     <div>
@@ -205,7 +213,7 @@ export function Sidebar({ role }: Props) {
           </p>
         </div>
       </div>
-      <nav className="flex flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden pr-1">
+      <nav ref={navRef} className="flex flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden pr-1">
         {renderSection(labelMap.Core, coreItems)}
         <div className="h-px bg-border/70" />
         {renderBillingSection()}

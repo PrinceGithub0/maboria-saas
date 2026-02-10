@@ -8,7 +8,8 @@ import { parseDateInput } from "@/lib/date";
 import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { enforceEntitlement, enforceUsageLimit, nextPlanAfter } from "@/lib/entitlements";
-import { isAllowedCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
+import { isAllowedCurrency, isProviderCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
+import { requireBillingAccess } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 
@@ -32,6 +33,8 @@ export const GET = withErrorHandling(async () => {
       { status: 403 }
     );
   }
+  const access = await requireBillingAccess(session.user.id);
+  if (!access.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const invoices = await prisma.invoice.findMany({
     where: { userId: session.user.id },
@@ -61,6 +64,8 @@ export const POST = withErrorHandling(async (req: Request) => {
       { status: 403 }
     );
   }
+  const access = await requireBillingAccess(session.user.id);
+  if (!access.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const usage = await enforceUsageLimit(session.user.id, "invoices");
   if (!usage.ok) {
@@ -95,16 +100,33 @@ export const POST = withErrorHandling(async (req: Request) => {
   if (!isAllowedCurrency(normalizedCurrency)) {
     return NextResponse.json({ error: "Unsupported currency" }, { status: 400 });
   }
+  const addressParts = [
+    parsed.customerStreet,
+    parsed.customerCity,
+    parsed.customerPostalCode,
+    parsed.customerCountry,
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+  const composedAddress = addressParts.length ? addressParts.join("\n") : undefined;
   const customer =
     parsed.customerEmail ||
     parsed.customerName ||
     parsed.customerAddress ||
+    parsed.customerStreet ||
+    parsed.customerCity ||
+    parsed.customerPostalCode ||
+    parsed.customerCountry ||
     parsed.customerCompany ||
     parsed.customerTaxId
       ? {
           name: parsed.customerName,
           email: parsed.customerEmail,
-          address: parsed.customerAddress,
+          address: composedAddress || parsed.customerAddress,
+          streetAddress: parsed.customerStreet,
+          city: parsed.customerCity,
+          postalCode: parsed.customerPostalCode,
+          country: parsed.customerCountry,
           type: parsed.customerType,
           companyName: parsed.customerCompany,
           taxId: parsed.customerTaxId,

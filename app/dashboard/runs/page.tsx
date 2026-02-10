@@ -1,7 +1,7 @@
 "use client";
 
 import useSWR from "swr";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert } from "@/components/ui/alert";
 import { useLanguage } from "@/components/providers/language-provider";
 import { RunsTable } from "@/components/runs/RunsTable";
@@ -52,7 +52,7 @@ export default function RunsPage() {
     if (runs) setLastRefreshed(new Date().toISOString());
   }, [runs]);
 
-  const formatDuration = (start?: string | null, end?: string | null, status?: string | null) => {
+  const formatDuration = useCallback((start?: string | null, end?: string | null, status?: string | null) => {
     if (!start) return null;
     const startDate = new Date(start);
     if (Number.isNaN(startDate.getTime())) return null;
@@ -73,7 +73,7 @@ export default function RunsPage() {
     const minutes = Math.floor(diffMs / 60000);
     const seconds = Math.floor((diffMs % 60000) / 1000);
     return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
-  };
+  }, []);
 
   const formatRunDateTime = (value?: string) => {
     if (!value) return "—";
@@ -494,7 +494,6 @@ export default function RunsPage() {
           sortDir={sortDir}
           onSortChange={handleSortChange}
           formatDateTime={formatRunDateTime}
-          formatDuration={formatDuration}
           t={t}
         />
 

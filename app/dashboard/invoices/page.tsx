@@ -20,7 +20,7 @@ import { calculateTotalsFromAmounts } from "@/lib/invoice-calculations";
 import { normalizeVatSettings } from "@/lib/vat";
 import { useSession } from "next-auth/react";
 import { useLanguage } from "@/components/providers/language-provider";
-import { formatBusinessAddress, hasRequiredAddress } from "@/lib/address";
+import { formatBusinessAddress, hasRequiredAddress, parseBusinessAddress } from "@/lib/address";
 
 const fetcher = async (url: string) => {
   const res = await fetch(url, { cache: "no-store" });
@@ -63,7 +63,10 @@ export default function InvoicesPage() {
     status: "SENT",
     customerName: "",
     customerEmail: "",
-    customerAddress: "",
+    customerStreet: "",
+    customerCity: "",
+    customerPostalCode: "",
+    customerCountry: "",
     customerType: "INDIVIDUAL",
     customerCompany: "",
     customerTaxId: "",
@@ -82,7 +85,11 @@ export default function InvoicesPage() {
   const [editForm, setEditForm] = useState({
     customerName: "",
     customerEmail: "",
-    customerAddress: "",
+    customerTaxId: "",
+    customerStreet: "",
+    customerCity: "",
+    customerPostalCode: "",
+    customerCountry: "",
   });
   const [profileForm, setProfileForm] = useState({
     businessName: "",
@@ -192,6 +199,7 @@ export default function InvoicesPage() {
     const addressFields = {
       streetAddress: profileForm.streetAddress,
       city: profileForm.city,
+      region: "",
       postalCode: profileForm.postalCode,
     };
     if (!hasRequiredAddress(addressFields)) {
@@ -260,6 +268,20 @@ export default function InvoicesPage() {
     }
   };
 
+  const buildCustomerAddress = (input: {
+    street?: string;
+    city?: string;
+    postalCode?: string;
+    country?: string;
+    fallback?: string;
+  }) => {
+    const parts = [input.street, input.city, input.postalCode, input.country]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean);
+    if (parts.length) return parts.join("\n");
+    return String(input.fallback || "").trim();
+  };
+
   const createInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
     if (form.status === "SENT" && !form.customerEmail.trim()) {
@@ -269,31 +291,45 @@ export default function InvoicesPage() {
       });
       return;
     }
+    const customerAddress = buildCustomerAddress({
+      street: form.customerStreet,
+      city: form.customerCity,
+      postalCode: form.customerPostalCode,
+      country: form.customerCountry,
+    });
     const payload: {
       invoiceNumber: string;
       currency: string;
       status: string;
       customerName?: string;
-    customerEmail?: string;
-    customerAddress?: string;
-    customerType?: string;
-    customerCompany?: string;
-    customerTaxId?: string;
-    issueDate?: string;
-    dueDate?: string;
-    note?: string;
-    items: { name: string; quantity: number; price: number }[];
-  } = {
-    ...form,
-    invoiceNumber: form.invoiceNumber.trim(),
-    customerName: form.customerName.trim() || undefined,
-    customerEmail: form.customerEmail.trim() || undefined,
-    customerAddress: form.customerAddress.trim() || undefined,
-    customerType: form.customerType,
-    customerCompany: form.customerCompany.trim() || undefined,
-    customerTaxId: form.customerTaxId.trim() || undefined,
-    note: form.note.trim() || undefined,
-  };
+      customerEmail?: string;
+      customerAddress?: string;
+      customerStreet?: string;
+      customerCity?: string;
+      customerPostalCode?: string;
+      customerCountry?: string;
+      customerType?: string;
+      customerCompany?: string;
+      customerTaxId?: string;
+      issueDate?: string;
+      dueDate?: string;
+      note?: string;
+      items: { name: string; quantity: number; price: number }[];
+    } = {
+      ...form,
+      invoiceNumber: form.invoiceNumber.trim(),
+      customerName: form.customerName.trim() || undefined,
+      customerEmail: form.customerEmail.trim() || undefined,
+      customerAddress: customerAddress || undefined,
+      customerStreet: form.customerStreet.trim() || undefined,
+      customerCity: form.customerCity.trim() || undefined,
+      customerPostalCode: form.customerPostalCode.trim() || undefined,
+      customerCountry: form.customerCountry.trim() || undefined,
+      customerType: form.customerType,
+      customerCompany: form.customerCompany.trim() || undefined,
+      customerTaxId: form.customerTaxId.trim() || undefined,
+      note: form.note.trim() || undefined,
+    };
     const issueDateParsed = form.issueDate ? parseDateInput(form.issueDate) : null;
     if (form.issueDate && !issueDateParsed) {
       setStatus({
@@ -361,7 +397,10 @@ export default function InvoicesPage() {
           status: "SENT",
           customerName: "",
           customerEmail: "",
-          customerAddress: "",
+          customerStreet: "",
+          customerCity: "",
+          customerPostalCode: "",
+          customerCountry: "",
           customerType: "INDIVIDUAL",
           customerCompany: "",
           customerTaxId: "",
@@ -435,15 +474,28 @@ export default function InvoicesPage() {
 
   const readCustomerFromMeta = (meta: any) => {
     const customer = meta?.customer || {};
+    const rawAddress =
+      customer.address ??
+      customer.addressLine1 ??
+      meta?.customerAddress ??
+      meta?.customer_address ??
+      "";
+    const parsedAddress = parseBusinessAddress(rawAddress);
     return {
       name: customer.name ?? meta?.customerName ?? "",
       email: customer.email ?? meta?.customerEmail ?? "",
-      address:
-        customer.address ??
-        customer.addressLine1 ??
-        meta?.customerAddress ??
-        meta?.customer_address ??
-        "",
+      taxId: customer.taxId ?? meta?.customerTaxId ?? meta?.customer_tax_id ?? "",
+      street:
+        customer.streetAddress ??
+        customer.street ??
+        meta?.customerStreet ??
+        parsedAddress.streetAddress,
+      city: customer.city ?? meta?.customerCity ?? parsedAddress.city,
+      postalCode:
+        customer.postalCode ??
+        meta?.customerPostalCode ??
+        parsedAddress.postalCode,
+      country: customer.country ?? meta?.customerCountry ?? "",
     };
   };
 
@@ -454,7 +506,11 @@ export default function InvoicesPage() {
     setEditForm({
       customerName: customer.name || "",
       customerEmail: customer.email || "",
-      customerAddress: customer.address || "",
+      customerTaxId: customer.taxId || "",
+      customerStreet: customer.street || "",
+      customerCity: customer.city || "",
+      customerPostalCode: customer.postalCode || "",
+      customerCountry: customer.country || "",
     });
     setEditOpen(true);
   };
@@ -469,11 +525,22 @@ export default function InvoicesPage() {
     setSavingEdit(true);
     setEditStatus(null);
     setStatus(null);
+    const customerAddress = buildCustomerAddress({
+      street: editForm.customerStreet,
+      city: editForm.customerCity,
+      postalCode: editForm.customerPostalCode,
+      country: editForm.customerCountry,
+    });
     const payload = {
       invoiceNumber: editingInvoice?.invoiceNumber,
       customerName: editForm.customerName.trim() || undefined,
       customerEmail: editForm.customerEmail.trim() || undefined,
-      customerAddress: editForm.customerAddress.trim() || undefined,
+      customerTaxId: editForm.customerTaxId.trim() || undefined,
+      customerAddress: customerAddress || undefined,
+      customerStreet: editForm.customerStreet.trim() || undefined,
+      customerCity: editForm.customerCity.trim() || undefined,
+      customerPostalCode: editForm.customerPostalCode.trim() || undefined,
+      customerCountry: editForm.customerCountry.trim() || undefined,
     };
     try {
       const res = await fetch(`/api/invoice/${encodeURIComponent(String(invoiceId))}`, {
@@ -498,10 +565,22 @@ export default function InvoicesPage() {
                 ...inv,
                 metadata: {
                   ...(inv?.metadata || {}),
+                  customerTaxId: payload.customerTaxId ?? inv?.metadata?.customerTaxId ?? null,
                   customer: {
                     name: payload.customerName ?? inv?.metadata?.customer?.name ?? null,
                     email: payload.customerEmail ?? inv?.metadata?.customer?.email ?? null,
+                    taxId:
+                      payload.customerTaxId ??
+                      inv?.metadata?.customer?.taxId ??
+                      inv?.metadata?.customerTaxId ??
+                      null,
                     address: payload.customerAddress ?? inv?.metadata?.customer?.address ?? null,
+                    streetAddress:
+                      payload.customerStreet ?? inv?.metadata?.customer?.streetAddress ?? null,
+                    city: payload.customerCity ?? inv?.metadata?.customer?.city ?? null,
+                    postalCode:
+                      payload.customerPostalCode ?? inv?.metadata?.customer?.postalCode ?? null,
+                    country: payload.customerCountry ?? inv?.metadata?.customer?.country ?? null,
                   },
                 },
               }
@@ -802,26 +881,44 @@ export default function InvoicesPage() {
               </select>
             </label>
             <Input
-              label={t("Customer address", "Adresse client")}
-              value={form.customerAddress}
-              onChange={(e) => setForm({ ...form, customerAddress: e.target.value })}
+              label={t("Street address", "Adresse")}
+              value={form.customerStreet}
+              onChange={(e) => setForm({ ...form, customerStreet: e.target.value })}
             />
-            {form.customerType === "BUSINESS" ? (
-              <>
-                <Input
-                  label={t("Company name (optional)", "Entreprise (optionnel)")}
-                  value={form.customerCompany}
-                  onChange={(e) => setForm({ ...form, customerCompany: e.target.value })}
-                />
-                <Input
-                  label={t("Tax ID (optional)", "ID fiscal (optionnel)")}
-                  value={form.customerTaxId}
-                  onChange={(e) => setForm({ ...form, customerTaxId: e.target.value })}
-                />
-              </>
-            ) : (
-              <div className="col-span-2 max-md:col-span-1" />
+            <Input
+              label={t("City", "Ville")}
+              value={form.customerCity}
+              onChange={(e) => setForm({ ...form, customerCity: e.target.value })}
+            />
+            <Input
+              label={t("Postal code / ZIP (optional)", "Code postal (optionnel)")}
+              value={form.customerPostalCode}
+              onChange={(e) => setForm({ ...form, customerPostalCode: e.target.value })}
+            />
+            <CountrySelect
+              label={t("Country", "Pays")}
+              value={form.customerCountry}
+              locale={language === "fr" ? "fr" : "en"}
+              onChange={(value) => setForm({ ...form, customerCountry: value })}
+            />
+            {form.customerType === "BUSINESS" && (
+              <Input
+                label={t("Company name", "Entreprise")}
+                value={form.customerCompany}
+                onChange={(e) => setForm({ ...form, customerCompany: e.target.value })}
+              />
             )}
+            <div
+              className={
+                form.customerType === "BUSINESS" ? "" : "col-span-2 max-md:col-span-1"
+              }
+            >
+              <Input
+                label={t("Tax ID (optional)", "ID fiscal (optionnel)")}
+                value={form.customerTaxId}
+                onChange={(e) => setForm({ ...form, customerTaxId: e.target.value })}
+              />
+            </div>
             <div className="col-span-2 max-md:col-span-1">
               <div className="rounded-2xl border border-border bg-muted/10 p-4">
                 <div className="flex items-center justify-between gap-3">
@@ -1076,9 +1173,30 @@ export default function InvoicesPage() {
             onChange={(e) => setEditForm({ ...editForm, customerEmail: e.target.value })}
           />
           <Input
-            label={t("Customer address", "Adresse client")}
-            value={editForm.customerAddress}
-            onChange={(e) => setEditForm({ ...editForm, customerAddress: e.target.value })}
+            label={t("Tax ID (optional)", "Numero fiscal (optionnel)")}
+            value={editForm.customerTaxId}
+            onChange={(e) => setEditForm({ ...editForm, customerTaxId: e.target.value })}
+          />
+          <Input
+            label={t("Street address", "Adresse")}
+            value={editForm.customerStreet}
+            onChange={(e) => setEditForm({ ...editForm, customerStreet: e.target.value })}
+          />
+          <Input
+            label={t("City", "Ville")}
+            value={editForm.customerCity}
+            onChange={(e) => setEditForm({ ...editForm, customerCity: e.target.value })}
+          />
+          <Input
+            label={t("Postal code / ZIP (optional)", "Code postal (optionnel)")}
+            value={editForm.customerPostalCode}
+            onChange={(e) => setEditForm({ ...editForm, customerPostalCode: e.target.value })}
+          />
+          <CountrySelect
+            label={t("Country", "Pays")}
+            value={editForm.customerCountry}
+            locale={language === "fr" ? "fr" : "en"}
+            onChange={(value) => setEditForm({ ...editForm, customerCountry: value })}
           />
           <div className="flex flex-wrap items-center justify-end gap-3">
             <Button type="button" variant="secondary" onClick={() => setEditOpen(false)}>

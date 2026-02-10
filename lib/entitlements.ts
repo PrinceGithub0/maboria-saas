@@ -68,6 +68,29 @@ export function subscriptionPlanToUserPlan(plan?: string | null): UserPlan {
   }
 }
 
+export async function syncBusinessPlanForUser(userId: string, plan: UserPlan) {
+  if (plan === "free") return;
+  try {
+    const member = await prisma.businessMember.findFirst({
+      where: { userId },
+      select: { businessId: true, business: { select: { plan: true } } },
+    });
+    if (member?.business && member.business.plan?.toLowerCase() !== plan) {
+      await prisma.business.update({ where: { id: member.businessId }, data: { plan: plan.toUpperCase() as any } });
+      return;
+    }
+    const owned = await prisma.business.findFirst({
+      where: { ownerId: userId },
+      select: { id: true, plan: true },
+    });
+    if (owned && owned.plan?.toLowerCase() !== plan) {
+      await prisma.business.update({ where: { id: owned.id }, data: { plan: plan.toUpperCase() as any } });
+    }
+  } catch (error) {
+    log("warn", "business_plan_sync_failed", { userId, plan, error: String(error) });
+  }
+}
+
 export async function getUserPlan(userId: string): Promise<UserPlan> {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
   if (user?.role === "ADMIN") {
@@ -85,6 +108,7 @@ export async function getUserPlan(userId: string): Promise<UserPlan> {
     return "free";
   }
   const plan = subscriptionPlanToUserPlan(sub.plan);
+  await syncBusinessPlanForUser(userId, plan);
   if (sub.status === "ACTIVE" && plan === "free") {
     log("warn", "plan_invariant_violation", {
       userId,
@@ -135,6 +159,7 @@ export async function getEntitlementForUser(userId: string): Promise<UserEntitle
 
   const active = sub.status === "ACTIVE";
   const resolvedPlan = subscriptionPlanToUserPlan(sub.plan);
+  await syncBusinessPlanForUser(userId, resolvedPlan);
   const plan = active ? resolvedPlan : "free";
 
   if (!active && resolvedPlan !== "free") {
@@ -370,7 +395,7 @@ export async function getUsageCountThisMonth(userId: string, category: UsageCate
         where: {
           conversation: { businessId },
           direction: "OUTBOUND",
-          status: { in: ["SENT", "DELIVERED"] },
+          status: { in: ["SENT", "DELIVERED", "READ"] },
           createdAt: { gte: start },
         },
       });

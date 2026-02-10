@@ -17,7 +17,6 @@ export default function SignupPage() {
     email: "",
     password: "",
     planIntent: "starter",
-    autoRenew: false,
   });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -38,18 +37,20 @@ export default function SignupPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.autoRenew) {
-      setError(t("You must accept auto-renew to continue.", "Vous devez accepter le renouvellement automatique."));
-      return;
-    }
     setLoading(true);
     setError(null);
     try {
       const email = form.email.toLowerCase().trim();
+      const locale =
+        typeof navigator !== "undefined" && navigator.language ? navigator.language : undefined;
+      const timeZone =
+        typeof Intl !== "undefined"
+          ? Intl.DateTimeFormat().resolvedOptions().timeZone
+          : undefined;
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, email, inviteToken }),
+        body: JSON.stringify({ ...form, email, inviteToken, locale, timeZone }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -57,14 +58,13 @@ export default function SignupPage() {
         return;
       }
       setUserId(data.userId || null);
-      if (data?.planIntent) setIntent(data.planIntent);
       setSuccess(true);
 
       const result = await signIn("credentials", {
         redirect: false,
         email,
         password: form.password,
-        callbackUrl: "/dashboard",
+        callbackUrl: "/checkout",
       });
       if (result?.error) {
         setError(
@@ -76,7 +76,7 @@ export default function SignupPage() {
         return;
       }
       if (typeof window !== "undefined") {
-        window.location.href = result?.url || "/dashboard";
+        window.location.href = result?.url || "/checkout";
       }
     } catch {
       setError(
@@ -142,8 +142,8 @@ export default function SignupPage() {
             {success && (
               <Alert variant="success">
                 {t(
-                  "Account created. Please sign in to complete subscription.",
-                  "Compte cree. Connectez-vous pour finaliser l abonnement."
+                  "Account created. Redirecting you to checkout.",
+                  "Compte cree. Redirection vers le paiement."
                 )}
                 {userId ? ` Your user ID: ${userId}.` : ""}
               </Alert>
@@ -156,17 +156,17 @@ export default function SignupPage() {
             {success && (
               <div className="rounded-2xl border border-border bg-card/60 p-4">
                 <p className="text-sm font-semibold text-foreground">
-                  {t("Continue to billing", "Continuer vers la facturation")}
+                  {t("Continue to checkout", "Continuer vers le paiement")}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {t(
-                    "If you are not redirected automatically, continue to payment setup to add your card.",
-                    "Si vous n etes pas redirige, poursuivez la configuration du paiement."
+                    "If you are not redirected automatically, continue to payment to activate your subscription.",
+                    "Si vous n etes pas redirige, poursuivez le paiement pour activer votre abonnement."
                   )}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Link href="/dashboard/payments">
-                    <Button size="sm">{t("Go to payment setup", "Aller au paiement")}</Button>
+                  <Link href="/checkout">
+                    <Button size="sm">{t("Go to checkout", "Aller au paiement")}</Button>
                   </Link>
                   <Link href="/login">
                     <Button size="sm" variant="secondary">
@@ -282,20 +282,6 @@ export default function SignupPage() {
             onChange={(e) => setForm({ ...form, password: e.target.value })}
             required
           />
-              <label className="flex items-start gap-2 text-xs text-muted-foreground">
-                <input
-                  type="checkbox"
-              checked={form.autoRenew}
-              onChange={(e) => setForm({ ...form, autoRenew: e.target.checked })}
-              required
-            />
-            <span>
-              {t(
-                "I understand my subscription will auto-renew unless I cancel before the renewal date.",
-                "Je comprends que l'abonnement se renouvelle sauf annulation avant la date."
-              )}
-            </span>
-          </label>
           <p className="text-xs text-muted-foreground">
             {t(
               "Two-factor authentication (2FA) can be enabled after sign-in from Settings.",

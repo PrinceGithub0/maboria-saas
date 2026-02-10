@@ -3,87 +3,19 @@ import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getOrCreateBusinessForUser } from "@/lib/business";
 import { enforceEntitlement, getTeamSeatUsageThisMonth } from "@/lib/entitlements";
 import { sendTemplateEmail } from "@/lib/email";
 import crypto from "crypto";
 
-function addUtcMonths(date: Date, months: number) {
-  return new Date(
-    Date.UTC(
-      date.getUTCFullYear(),
-      date.getUTCMonth() + months,
-      date.getUTCDate(),
-      date.getUTCHours(),
-      date.getUTCMinutes(),
-      date.getUTCSeconds()
-    )
-  );
-}
-
 const inviteSchema = z.object({
   email: z.string().email(),
-  role: z.enum(["member", "admin"]).default("member"),
+  role: z.enum(["agent", "admin"]).default("agent"),
 });
 
 const removeSchema = z.object({
   memberId: z.string().min(1),
 });
-
-async function getOrCreateBusiness(userId: string) {
-  const existingMember = await prisma.businessMember.findFirst({
-    where: { userId },
-    include: { business: true },
-  });
-  if (existingMember) {
-    return { business: existingMember.business, role: existingMember.role };
-  }
-
-  const ownedBusiness = await prisma.business.findFirst({
-    where: { ownerId: userId },
-  });
-  if (ownedBusiness) {
-    const member = await prisma.businessMember.create({
-      data: { userId, businessId: ownedBusiness.id, role: "owner" },
-    });
-    return { business: ownedBusiness, role: member.role };
-  }
-
-  const profile = await prisma.businessProfile.findUnique({ where: { userId } });
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { name: true, email: true },
-  });
-  const sub = await prisma.subscription.findFirst({
-    where: { userId, status: "ACTIVE" },
-    orderBy: { createdAt: "desc" },
-    select: { createdAt: true },
-  });
-  const anchor = sub?.createdAt ?? new Date();
-  const billingCycleStartAt = new Date(
-    Date.UTC(
-      anchor.getUTCFullYear(),
-      anchor.getUTCMonth(),
-      anchor.getUTCDate(),
-      anchor.getUTCHours(),
-      anchor.getUTCMinutes(),
-      anchor.getUTCSeconds()
-    )
-  );
-  const usageResetAt = addUtcMonths(billingCycleStartAt, 1);
-  const name = profile?.businessName || user?.name || "Maboria Workspace";
-  const domain = user?.email?.split("@")[1] ?? null;
-  const business = await prisma.business.create({
-    data: {
-      name,
-      domain,
-      ownerId: userId,
-      billingCycleStartAt,
-      usageResetAt,
-      members: { create: [{ userId, role: "owner" }] },
-    },
-  });
-  return { business, role: "owner" };
-}
 
 async function requireTeamAccess(userId: string) {
   const entitlement = await enforceEntitlement(userId, {
@@ -112,9 +44,6 @@ function isAdminRole(role?: string | null) {
 }
 
 async function resolveSeatLimit(userId: string) {
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
-  if (user?.role === "ADMIN") return { seatLimit: null as number | null, planLabel: "enterprise" };
-
   const sub = await prisma.subscription.findFirst({
     where: { userId, status: { in: ["ACTIVE"] } },
     orderBy: { createdAt: "desc" },
@@ -131,8 +60,9 @@ async function resolveSeatLimit(userId: string) {
     case "ENTERPRISE":
       return { seatLimit: null, planLabel: "enterprise" };
     case "GROWTH":
-    default:
       return { seatLimit: 5, planLabel: "growth" };
+    default:
+      return { seatLimit: 1, planLabel: "starter" };
   }
 }
 
@@ -153,7 +83,7 @@ export async function GET() {
   if (!access.ok) return access.response;
 
   const { seatLimit, planLabel } = await resolveSeatLimit(session.user.id);
-  const { business } = await getOrCreateBusiness(session.user.id);
+  const { business } = await getOrCreateBusinessForUser(session.user.id);
   const members = await prisma.businessMember.findMany({
     where: { businessId: business.id },
     include: {
@@ -171,7 +101,7 @@ export async function POST(req: Request) {
   const access = await requireTeamAccess(session.user.id);
   if (!access.ok) return access.response;
 
-  const { business, role } = await getOrCreateBusiness(session.user.id);
+  const { business, role } = await getOrCreateBusinessForUser(session.user.id);
   if (!isAdminRole(role)) {
     return NextResponse.json({ error: "Only owners can add team members." }, { status: 403 });
   }
@@ -289,7 +219,7 @@ export async function DELETE(req: Request) {
   const access = await requireTeamAccess(session.user.id);
   if (!access.ok) return access.response;
 
-  const { business, role } = await getOrCreateBusiness(session.user.id);
+  const { business, role } = await getOrCreateBusinessForUser(session.user.id);
   if (!isAdminRole(role)) {
     return NextResponse.json({ error: "Only owners can remove team members." }, { status: 403 });
   }

@@ -9,13 +9,15 @@ import { enforceEntitlement, getWorkspaceScope } from "@/lib/entitlements";
 import {
   calculateTotalsFromAmounts,
   generateAndStoreInvoicePdf,
+  normalizeInvoiceItems,
   resolveInvoiceCustomer,
   sendInvoiceEmailToCustomer,
 } from "@/lib/invoice";
-import { isAllowedCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
+import { isAllowedCurrency, isProviderCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
 import { triggerInvoiceStatusAutomations } from "@/lib/automation/events";
 import { normalizeVatSettings } from "@/lib/vat";
 import { recordAnalyticsEvent } from "@/lib/analytics";
+import { requireBillingAccess } from "@/lib/permissions";
 
 type Params = { params: { id: string } };
 
@@ -41,6 +43,8 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
       { status: 403 }
     );
   }
+  const access = await requireBillingAccess(session.user.id);
+  if (!access.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const invoice = await prisma.invoice.findFirst({
     where: { id: params.id, userId: session.user.id },
@@ -69,6 +73,8 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
       { status: 403 }
     );
   }
+  const access = await requireBillingAccess(session.user.id);
+  if (!access.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
   const parsed = invoiceSchema.partial().parse(body);
@@ -179,12 +185,16 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
     parsed.customerEmail !== undefined ||
     parsed.customerName !== undefined ||
     parsed.customerAddress !== undefined ||
+    parsed.customerStreet !== undefined ||
+    parsed.customerCity !== undefined ||
+    parsed.customerPostalCode !== undefined ||
+    parsed.customerCountry !== undefined ||
     parsed.customerType !== undefined ||
     parsed.customerCompany !== undefined ||
     parsed.customerTaxId !== undefined;
   const shouldUpdateDates = parsed.issueDate !== undefined || parsed.dueDate !== undefined;
   const shouldUpdateNote = parsed.note !== undefined;
-  const nextItems = (parsed.items ?? (existing as any).items) as any[];
+  const nextItems = normalizeInvoiceItems(parsed.items ?? (existing as any).items);
   const discountAmount =
     typeof parsed.discount === "number" ? parsed.discount : Number((existing as any).discount || 0);
   const businessProfile = await prisma.businessProfile.findUnique({
@@ -200,6 +210,16 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
         : "exclusive",
   });
   const totals = calculateTotalsFromAmounts(nextItems, vatSettings, discountAmount);
+
+  const addressParts = [
+    parsed.customerStreet ?? (existingCustomer as any).streetAddress,
+    parsed.customerCity ?? (existingCustomer as any).city,
+    parsed.customerPostalCode ?? (existingCustomer as any).postalCode,
+    parsed.customerCountry ?? (existingCustomer as any).country,
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+  const composedAddress = addressParts.length ? addressParts.join("\n") : undefined;
 
   const updated = await prisma.invoice.update({
     where: { id: existing.id },
@@ -219,7 +239,20 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
               ? {
                   name: parsed.customerName ?? existingCustomer.name ?? undefined,
                   email: parsed.customerEmail ?? existingCustomer.email ?? undefined,
-                  address: parsed.customerAddress ?? existingCustomer.address ?? undefined,
+                  address:
+                    composedAddress ??
+                    parsed.customerAddress ??
+                    existingCustomer.address ??
+                    undefined,
+                  streetAddress:
+                    parsed.customerStreet ?? (existingCustomer as any).streetAddress ?? undefined,
+                  city: parsed.customerCity ?? (existingCustomer as any).city ?? undefined,
+                  postalCode:
+                    parsed.customerPostalCode ??
+                    (existingCustomer as any).postalCode ??
+                    undefined,
+                  country:
+                    parsed.customerCountry ?? (existingCustomer as any).country ?? undefined,
                   type: (parsed.customerType as any) ?? (existingCustomer as any).type ?? undefined,
                   companyName:
                     parsed.customerCompany ?? (existingCustomer as any).companyName ?? undefined,

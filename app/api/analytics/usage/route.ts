@@ -31,22 +31,46 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const tz = searchParams.get("tz") || "UTC";
+  const requestedRange = Number(searchParams.get("range") || "30");
+  const rangeDaysRequested = Number.isFinite(requestedRange) && requestedRange > 0 ? requestedRange : 30;
   const usageScope = await getWorkspaceScope(session.user.id);
   const workspaceId = usageScope.businessId ?? session.user.id;
   const scopeUserIds = usageScope.userIds.length ? usageScope.userIds : [session.user.id];
 
   const now = new Date();
-  const earliest = await prisma.analyticsEvent.findFirst({
-    where: {
-      OR: [{ workspaceId }, { userId: { in: scopeUserIds } }],
-    },
-    orderBy: { createdAt: "asc" },
-    select: { createdAt: true },
-  });
-  const startUtc = earliest?.createdAt ? new Date(earliest.createdAt) : new Date(now);
+  let startUtc = new Date(now);
   startUtc.setUTCHours(0, 0, 0, 0);
-  const endUtc = new Date(now);
+  startUtc.setUTCDate(startUtc.getUTCDate() - (rangeDaysRequested - 1));
+  let endUtc = new Date(now);
   endUtc.setUTCHours(23, 59, 59, 999);
+
+  const activeSub = await prisma.subscription.findFirst({
+    where: { userId: session.user.id, status: "ACTIVE" },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, createdAt: true, currentPeriodStart: true },
+  });
+  let subscriptionStart = activeSub?.currentPeriodStart ?? activeSub?.createdAt ?? null;
+  if (activeSub?.id) {
+    const firstInvoice = await prisma.invoice.findFirst({
+      where: { subscriptionId: activeSub.id },
+      orderBy: { generatedAt: "asc" },
+      select: { generatedAt: true },
+    });
+    if (firstInvoice?.generatedAt) {
+      subscriptionStart = firstInvoice.generatedAt;
+    }
+  }
+  if (subscriptionStart) {
+    const anchor = new Date(subscriptionStart);
+    anchor.setUTCHours(0, 0, 0, 0);
+    if (anchor > startUtc) {
+      startUtc = anchor;
+    }
+    if (anchor > endUtc) {
+      endUtc = new Date(anchor);
+      endUtc.setUTCHours(23, 59, 59, 999);
+    }
+  }
 
   let dateKeys = buildDateKeys(startUtc, endUtc, tz);
   const todayKey = formatDateKey(now, tz);

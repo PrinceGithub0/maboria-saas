@@ -15,13 +15,36 @@ type Props = {
   data: { name: string; value: number }[];
   className?: string;
   style?: React.CSSProperties;
+  forceAllTicks?: boolean;
+  xAxisAngle?: number;
+  xAxisHeight?: number;
+  xAxisTickFontSize?: number;
+  xAxisInterval?: number | "preserveStartEnd";
+  xAxisMinTickGap?: number;
+  xAxisTickFormatter?: (value: string) => string;
 };
 
-export function MiniAreaChart({ data, className, style }: Props) {
+export function MiniAreaChart({
+  data,
+  className,
+  style,
+  forceAllTicks,
+  xAxisAngle,
+  xAxisHeight,
+  xAxisTickFontSize,
+  xAxisInterval,
+  xAxisMinTickGap,
+  xAxisTickFormatter,
+}: Props) {
+  const angle = xAxisAngle ?? (forceAllTicks ? -35 : 0);
+  const height = xAxisHeight ?? 40;
+  const fontSize = xAxisTickFontSize ?? 10;
+  const interval = xAxisInterval ?? (forceAllTicks ? 0 : "preserveStartEnd");
+  const minTickGap = xAxisMinTickGap ?? (forceAllTicks ? 0 : 6);
   return (
     <div className={clsx("h-40 w-full min-h-[200px]", className)} style={style}>
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+        <AreaChart data={data} margin={{ top: 8, right: 8, left: 12, bottom: 0 }}>
           <defs>
             <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="var(--chart-primary, #6366f1)" stopOpacity={0.8} />
@@ -33,8 +56,15 @@ export function MiniAreaChart({ data, className, style }: Props) {
             dataKey="name"
             axisLine={false}
             tickLine={false}
-            tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
-            interval="preserveStartEnd"
+            tick={{ fill: "var(--muted-foreground)", fontSize }}
+            interval={interval}
+            minTickGap={minTickGap}
+            tickMargin={6}
+            padding={{ left: 12, right: 12 }}
+            angle={angle}
+            textAnchor="end"
+            height={height}
+            tickFormatter={xAxisTickFormatter}
           />
           <YAxis hide domain={[0, "auto"]} />
           <Tooltip cursor={{ stroke: "var(--border)", strokeWidth: 1, strokeOpacity: 0.5 }} />

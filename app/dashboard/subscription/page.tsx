@@ -16,9 +16,11 @@ export default function SubscriptionPage() {
   const subs = data || [];
   const { language } = useLanguage();
   const t = (en: string, fr: string) => (language === "fr" ? fr : en);
-  const [actionStatus] = useState<{ message: string; variant: "info" | "success" | "error" } | null>(
-    null
-  );
+  const [actionStatus, setActionStatus] = useState<{
+    message: string;
+    variant: "info" | "success" | "error";
+  } | null>(null);
+  const [downgradePlan, setDowngradePlan] = useState("STARTER");
 
   const formatPlan = (plan: string) => {
     switch ((plan || "").toUpperCase()) {
@@ -43,6 +45,8 @@ export default function SubscriptionPage() {
   const planKey = String(activeSub?.plan || "").toUpperCase();
   const currentPlan = activeSub?.plan ? formatPlan(activeSub.plan) : t("No active plan", "Aucun plan actif");
   const hasReceipt = subs.some((sub: any) => Boolean(sub?.receiptUrl));
+  const pendingPlan = activeSub?.pendingPlan ? String(activeSub.pendingPlan).toUpperCase() : null;
+  const pendingEffectiveAt = activeSub?.pendingEffectiveAt ? new Date(activeSub.pendingEffectiveAt) : null;
   const downloadReceipt = () => {
     window.open("/api/subscription/receipt", "_blank", "noopener,noreferrer");
   };
@@ -96,6 +100,32 @@ export default function SubscriptionPage() {
     if (sub?.renewalDate) return formatDateDMY(new Date(sub.renewalDate));
     return t("Contact support", "Contactez le support");
   };
+
+  const handleDowngrade = async () => {
+    setActionStatus(null);
+    const res = await fetch("/api/subscription/downgrade", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ plan: downgradePlan }),
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setActionStatus({
+        message: payload.error || t("Downgrade request failed.", "La demande de downgrade a echoue."),
+        variant: "error",
+      });
+      return;
+    }
+    setActionStatus({
+      message: t("Downgrade scheduled for your next billing cycle.", "Downgrade planifie au prochain cycle."),
+      variant: "success",
+    });
+    await mutate();
+  };
+
+  const PLAN_ORDER = ["STARTER", "PRO", "GROWTH", "BUSINESS", "ENTERPRISE"];
+  const currentPlanIndex = Math.max(0, PLAN_ORDER.indexOf(planKey || ""));
+  const availableDowngradePlans = PLAN_ORDER.slice(0, currentPlanIndex);
 
   return (
     <div className="space-y-10">
@@ -161,33 +191,71 @@ export default function SubscriptionPage() {
             <Button type="button" onClick={() => router.push("/dashboard/payments")}>
               {t("Upgrade plan", "Mettre a niveau")}
             </Button>
-            <Button type="button" variant="secondary" onClick={() => router.push("/dashboard/payments")}>
-              {t("Downgrade plan", "Retrograder")}
-            </Button>
+          </div>
+          <div className="rounded-2xl border border-border/60 bg-muted/20 p-4 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{t("Downgrade", "Downgrade")}</p>
+                <p className="mt-2 font-medium text-foreground">
+                  {pendingPlan
+                    ? t(`Pending downgrade to ${formatPlan(pendingPlan)}.`, `Downgrade vers ${formatPlan(pendingPlan)} en attente.`)
+                    : t("Schedule a downgrade for the next billing cycle.", "Planifier un downgrade au prochain cycle.")}
+                </p>
+                {pendingEffectiveAt && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t("Effective", "Effectif")} {formatDateDMY(pendingEffectiveAt)}
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {availableDowngradePlans.length > 0 ? (
+                  <>
+                    <select
+                      value={downgradePlan}
+                      onChange={(event) => setDowngradePlan(event.target.value)}
+                      className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                    >
+                      {availableDowngradePlans.map((plan) => (
+                        <option key={plan} value={plan}>
+                          {formatPlan(plan)}
+                        </option>
+                      ))}
+                    </select>
+                    <Button type="button" variant="secondary" onClick={handleDowngrade}>
+                      {t("Schedule downgrade", "Planifier")}
+                    </Button>
+                  </>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    {t("No lower tiers available for this plan.", "Aucun plan inferieur disponible.")}
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
           <p className="text-xs text-muted-foreground">
             {t("Plan changes are handled securely during checkout.", "Les changements se font en toute securite au paiement.")}
           </p>
         </div>
         <div className="space-y-2 text-sm">
-          <div className="flex items-center justify-between border-b border-border/40 pb-2">
-            <span className="text-muted-foreground">{t("Billing status", "Statut de facturation")}</span>
-            <span className="inline-flex items-center gap-2 font-medium text-foreground">
+          <div className="flex flex-col items-start justify-between gap-1 border-b border-border/40 pb-2 sm:flex-row sm:gap-4">
+            <span className="min-w-[120px] text-muted-foreground">{t("Billing status", "Statut de facturation")}</span>
+            <span className="inline-flex items-center justify-end gap-2 font-medium text-foreground">
               <span className={`h-2 w-2 rounded-full ${resolveBillingStatus(activeSub) === t("Active", "Actif") ? "bg-emerald-500" : "bg-muted-foreground"}`} />
               {resolveBillingStatus(activeSub)}
             </span>
           </div>
-          <div className="flex items-center justify-between border-b border-border/40 pb-2">
-            <span className="text-muted-foreground">{t("Renews", "Renouvellement")}</span>
-            <span className="font-medium text-foreground">{resolveInterval(activeSub)}</span>
+          <div className="flex flex-col items-start justify-between gap-1 border-b border-border/40 pb-2 sm:flex-row sm:gap-4">
+            <span className="min-w-[120px] text-muted-foreground">{t("Renews", "Renouvellement")}</span>
+            <span className="text-right font-medium text-foreground">{resolveInterval(activeSub)}</span>
           </div>
-          <div className="flex items-center justify-between border-b border-border/40 pb-2">
-            <span className="text-muted-foreground">{t("Next invoice", "Prochaine facture")}</span>
-            <span className="font-medium text-foreground">{resolveNextInvoice(activeSub)}</span>
+          <div className="flex flex-col items-start justify-between gap-1 border-b border-border/40 pb-2 sm:flex-row sm:gap-4">
+            <span className="min-w-[120px] text-muted-foreground">{t("Next invoice", "Prochaine facture")}</span>
+            <span className="text-right font-medium text-foreground">{resolveNextInvoice(activeSub)}</span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">{t("Usage", "Usage")}</span>
-            <span className="font-medium text-foreground">{resolveUsage(activeSub)}</span>
+          <div className="flex flex-col items-start justify-between gap-1 sm:flex-row sm:gap-4">
+            <span className="min-w-[120px] text-muted-foreground">{t("Usage", "Usage")}</span>
+            <span className="max-w-[220px] text-right font-medium text-foreground">{resolveUsage(activeSub)}</span>
           </div>
         </div>
       </div>

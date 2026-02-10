@@ -7,9 +7,8 @@ export const signupSchema = z.object({
   password: z.string().min(8),
   planIntent: z.enum(["starter", "pro", "growth", "business"]),
   inviteToken: z.string().min(10).optional(),
-  autoRenew: z.boolean().refine((val) => val === true, {
-    message: "Auto-renew consent is required",
-  }),
+  locale: z.string().min(2).optional(),
+  timeZone: z.string().min(2).optional(),
 });
 
 export const loginSchema = z.object({
@@ -108,6 +107,10 @@ export const invoiceSchema = z.object({
   customerName: optionalString,
   customerEmail: optionalEmail,
   customerAddress: optionalString,
+  customerStreet: optionalString,
+  customerCity: optionalString,
+  customerPostalCode: optionalString,
+  customerCountry: countryCodeSchema.optional(),
   customerType: z.enum(["INDIVIDUAL", "BUSINESS"]).optional(),
   customerCompany: optionalString,
   customerTaxId: optionalString,
@@ -169,7 +172,7 @@ export const businessProfileCreateSchema = z.object({
       const trimmed = value.trim();
       return trimmed.length ? trimmed : undefined;
     },
-    z.string().max(64).optional()
+    z.string().min(2).max(64)
   ),
 });
 
@@ -189,7 +192,7 @@ export const businessProfileUpdateSchema = z.object({
       const trimmed = value.trim();
       return trimmed.length ? trimmed : undefined;
     },
-    z.string().max(64).optional()
+    z.string().min(2).max(64).optional()
   ),
 });
 
@@ -235,7 +238,9 @@ export const workflowSchema = z.object({
 
 export const subscriptionSchema = z.object({
   plan: z.enum(["STARTER", "PRO", "GROWTH", "BUSINESS", "ENTERPRISE", "PREMIUM"]),
-  status: z.enum(["ACTIVE", "PAST_DUE", "CANCELED", "INACTIVE"]).default("ACTIVE"),
+  status: z
+    .enum(["INCOMPLETE", "ACTIVE", "PAST_DUE", "CANCELED", "INACTIVE", "REVOKED"])
+    .default("ACTIVE"),
   renewalDate: z.string(),
   usageLimit: z.number().optional(),
   usagePeriod: z.string().optional(),

@@ -1,3 +1,6 @@
+
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -17,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { pricingTableDualCurrency } from "@/lib/pricing";
 import { PricingSection } from "@/components/pricing/pricing-section";
 import { MarketingCta } from "@/components/ui/marketing-cta";
+import { MarketingHeaderActions } from "@/components/ui/marketing-header-actions";
 import { getPaystackEnabledCurrencies, providerSupport } from "@/lib/payments/currency-allowlist";
 import { PaystackLogo } from "@/components/ui/paystack-logo";
 import { LangText } from "@/components/ui/lang-text";
@@ -210,7 +214,7 @@ export default function LandingPage() {
         </div>
       </div>
 
-      <header className="mx-auto hidden max-w-6xl items-center justify-between px-6 py-6 md:flex">
+      <header className="relative z-50 mx-auto hidden max-w-6xl items-center justify-between overflow-visible px-6 py-6 md:flex pointer-events-auto">
         <Link href="/" className="flex items-center gap-3">
           <div className="relative h-10 w-10 overflow-hidden rounded-2xl border border-border bg-card">
             <Image src={logoSrc} alt="Maboria" fill className="object-contain p-0 scale-110" priority />
@@ -222,12 +226,13 @@ export default function LandingPage() {
             </p>
           </div>
         </Link>
-        <div className="hidden items-center gap-3 sm:flex">
+        <div className="relative z-50 hidden items-center gap-3 sm:flex">
+          <MarketingHeaderActions />
           <MarketingCta variant="header" />
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 pb-12 pt-20 md:pb-16 md:pt-0 max-md:mx-0 max-md:w-full max-md:max-w-none max-md:px-4 max-md:pt-16 max-md:pb-24">
+      <main className="relative z-10 pointer-events-auto mx-auto max-w-6xl px-6 pb-12 pt-20 md:pb-16 md:pt-0 max-md:mx-0 max-md:w-full max-md:max-w-none max-md:px-4 max-md:pt-16 max-md:pb-24">
         <section className="grid gap-8 md:gap-10 lg:grid-cols-[1.12fr_0.88fr] lg:items-center max-md:gap-5">
           <div className="space-y-6 text-left max-md:space-y-5 max-md:text-center">
             <Badge

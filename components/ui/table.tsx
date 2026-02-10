@@ -8,13 +8,13 @@ export function Table<T>({
   keyExtractor: (row: T) => string;
 }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card max-md:border-transparent max-md:bg-transparent dark:max-md:bg-transparent">
+    <div className="overflow-hidden rounded-[18px] border border-border/30 bg-transparent max-md:border-transparent max-md:bg-transparent dark:max-md:bg-transparent">
       <div className="hidden md:block">
         <table className="w-full border-collapse bg-card text-sm text-foreground">
           <thead>
-            <tr className="bg-muted text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <tr className="bg-transparent text-left text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
               {columns.map((col) => (
-                <th key={String(col.key)} className="px-4 py-3">
+                <th key={String(col.key)} className="px-6 py-3 font-bold">
                   {col.label}
                 </th>
               ))}
@@ -22,9 +22,12 @@ export function Table<T>({
           </thead>
           <tbody>
             {data.map((row) => (
-              <tr key={keyExtractor(row)} className="border-t border-border hover:bg-muted">
+              <tr
+                key={keyExtractor(row)}
+                className="border-t border-border/30 transition-colors hover:bg-muted/20"
+              >
                 {columns.map((col) => (
-                  <td key={String(col.key)} className="px-4 py-3">
+                  <td key={String(col.key)} className="px-6 py-4">
                     {col.render ? col.render(row) : (row[col.key] as any)}
                   </td>
                 ))}

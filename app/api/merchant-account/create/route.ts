@@ -10,6 +10,7 @@ import { isProviderCurrency, normalizeCurrency } from "@/lib/payments/currency-a
 import { createPaystackSubaccount } from "@/lib/payments/paystack";
 import { createFlutterwaveSubaccount } from "@/lib/payments/flutterwave";
 import { isSepaCountry, isValidIban, normalizeIban } from "@/lib/payments/sepa";
+import { requireBillingAccess } from "@/lib/permissions";
 
 export const POST = withRequestLogging(
   withErrorHandling(async (req: Request) => {
@@ -17,6 +18,8 @@ export const POST = withRequestLogging(
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const access = await requireBillingAccess(session.user.id);
+    if (!access.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const parsed = merchantAccountCreateSchema.parse(await req.json());
     const provider = parsed.provider;

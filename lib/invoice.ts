@@ -19,9 +19,10 @@ import { calculateVatFromAmount, normalizeVatSettings, VatSettings } from "./vat
 import {
   INVOICE_TOTALS_GAP,
   INVOICE_TOTALS_LABEL_WIDTH,
-  INVOICE_TOTALS_VALUE_WIDTH,
 } from "./invoice-totals-layout";
 import { recordAnalyticsEvent } from "./analytics";
+import { parseBusinessAddress } from "./address";
+import { getCountryName } from "./countries";
 
 export type InvoiceItem = {
   name: string;
@@ -30,18 +31,24 @@ export type InvoiceItem = {
   description?: string;
 };
 
+const formatCountryName = (value?: string | null) => {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (raw.length === 2) return getCountryName(raw.toUpperCase(), "en");
+  return raw;
+};
+
 const interFontPath = path.join(process.cwd(), "assets", "fonts", "Inter.ttf");
 const businessLogoDir = path.join(process.cwd(), "uploads", "business-logos");
-const paystackLogoPath = path.join(process.cwd(), "public", "announcements", "paystack.png");
-const flutterwaveLogoPath = path.join(process.cwd(), "public", "payment-logos", "flutterwave.png");
-const INVOICE_PDF_VERSION = "inv24-v7";
+const visaLogoPath = path.join(process.cwd(), "public", "payment-logos", "VBM_bluRGB_2025.png");
+const mastercardLogoPath = path.join(process.cwd(), "public", "payment-logos", "mc_symbol_opt_73_3x.png");
+const INVOICE_PDF_VERSION = "inv24-v43";
 const ensureInvoiceFont = () => {
   if (!existsSync(interFontPath)) {
     throw new Error("Invoice font missing at assets/fonts/Inter.ttf");
   }
   return interFontPath;
 };
-const getPdfFontPath = () => "Inter";
 type BusinessLogoInfo = {
   buffer: Buffer;
   mime: string;
@@ -101,6 +108,10 @@ type CustomerSnapshot = {
   name?: string | null;
   email?: string | null;
   address?: string | null;
+  streetAddress?: string | null;
+  city?: string | null;
+  postalCode?: string | null;
+  country?: string | null;
   type?: "INDIVIDUAL" | "BUSINESS" | null;
   companyName?: string | null;
   taxId?: string | null;
@@ -110,12 +121,23 @@ export function resolveInvoiceCustomer(metadata: any): CustomerSnapshot | null {
   const raw = (metadata?.customer ?? {}) as Record<string, any>;
   const name = raw.name ?? raw.customerName ?? metadata?.customerName;
   const email = raw.email ?? raw.customerEmail ?? metadata?.customerEmail;
-  const address =
+  const rawAddress =
     raw.address ??
     raw.customerAddress ??
     raw.addressLine1 ??
     metadata?.customerAddress ??
     metadata?.customer_address;
+  const parsedAddress = parseBusinessAddress(rawAddress);
+  const streetAddress =
+    raw.streetAddress ?? raw.street ?? raw.addressLine1 ?? parsedAddress.streetAddress;
+  const city = raw.city ?? parsedAddress.city;
+  const postalCode = raw.postalCode ?? raw.zip ?? parsedAddress.postalCode;
+  const country = formatCountryName(raw.country ?? raw.region ?? parsedAddress.region);
+  const composedAddress = [streetAddress, city, postalCode, country]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join("\n");
+  const address = composedAddress || rawAddress;
   const type = (raw.type ?? metadata?.customerType ?? "").toString().toUpperCase();
   const companyName = raw.companyName ?? raw.company ?? metadata?.customerCompany;
   const taxId = raw.taxId ?? metadata?.customerTaxId;
@@ -124,6 +146,10 @@ export function resolveInvoiceCustomer(metadata: any): CustomerSnapshot | null {
     name,
     email,
     address,
+    streetAddress,
+    city,
+    postalCode,
+    country,
     type: type === "BUSINESS" ? "BUSINESS" : type === "INDIVIDUAL" ? "INDIVIDUAL" : undefined,
     companyName,
     taxId,
@@ -387,6 +413,10 @@ export type InvoicePdfInput = {
     name?: string | null;
     email?: string | null;
     address?: string | null;
+    streetAddress?: string | null;
+    city?: string | null;
+    postalCode?: string | null;
+    country?: string | null;
     type?: "INDIVIDUAL" | "BUSINESS" | null;
     companyName?: string | null;
     taxId?: string | null;
@@ -441,6 +471,10 @@ export function buildInvoicePdfBuffer(input: InvoicePdfInput) {
     const left = doc.page.margins.left;
     const right = doc.page.width - doc.page.margins.right;
     const pageWidth = right - left;
+    const gridGap = 28;
+    const leftColWidth = Math.round(pageWidth * 0.62);
+    const rightColWidth = pageWidth - leftColWidth - gridGap;
+    const rightColX = left + leftColWidth + gridGap;
     let y = doc.page.margins.top;
 
     const colors = {
@@ -462,8 +496,9 @@ export function buildInvoicePdfBuffer(input: InvoicePdfInput) {
         return null;
       }
     };
-    const paystackLogo = loadPaymentLogo(paystackLogoPath);
-    const flutterwaveLogo = loadPaymentLogo(flutterwaveLogoPath);
+    const visaLogo = null;
+    const mastercardLogo = null;
+    const verveLogo = null;
 
     const drawLabel = (
       textValue: string,
@@ -496,134 +531,207 @@ export function buildInvoicePdfBuffer(input: InvoicePdfInput) {
       doc.font("Inter").fontSize(size).fillColor(colors.text).text(textValue, x + 0.4, yPos, options);
     };
 
-    const logoSize = 68;
+    const logoSize = 86;
+    const logoX = Math.max(0, left - 6);
     if (input.logoBuffer) {
       try {
-        doc.image(input.logoBuffer, left, y, { width: logoSize, height: logoSize });
+        doc.image(input.logoBuffer, logoX, y, { width: logoSize, height: logoSize });
       } catch (error) {
         log("warn", "invoice_logo_failed", { error });
       }
     }
 
-    const headerX = input.logoBuffer ? left + logoSize + 12 : left;
-    drawBold(input.business.businessName, headerX, y + 2, 24);
-    if (input.business.businessEmail) {
-      drawLabel(input.business.businessEmail, headerX, y + 26, 10);
-    }
-    if (input.business.businessAddress) {
-      drawLabel(input.business.businessAddress, headerX, y + 42, 10);
-    }
+    const headerX = input.logoBuffer ? logoX + logoSize + 14 : left;
+    const metaGap = 6;
+    const metaLabels = ["Invoice No:", "Date:", "Due Date:"];
+    const metaLabelWidths = metaLabels.map((label) =>
+      doc.font("Inter").fontSize(10).widthOfString(label)
+    );
+    const metaLabelWidth = Math.max(...metaLabelWidths);
+    const metaValues = [
+      input.invoiceNumber,
+      formatDateDMY(input.issuedAt),
+      ...(input.dueDate ? [formatDateDMY(input.dueDate)] : []),
+    ];
+    const metaValueWidths = metaValues.map((value) =>
+      doc.font("Inter").fontSize(10.5).widthOfString(value)
+    );
+    const maxValueWidth = Math.max(...metaValueWidths);
+    const metaValueWidth = Math.max(100, maxValueWidth);
+    const metaBlockWidth = metaLabelWidth + metaGap + metaValueWidth;
+    const metaX = right - metaBlockWidth;
+    const companyBlockWidth = Math.max(180, metaX - headerX - 16);
 
-    const metaLabelWidth = 92;
-    const metaValueWidth = 140;
-    const metaX = right - (metaLabelWidth + metaValueWidth);
-    const metaRow = (label: string, value: string, yPos: number) => {
-      drawLabel(label, metaX, yPos, 9, colors.muted, { width: metaLabelWidth, align: "left" });
-      drawText(value, metaX + metaLabelWidth, yPos, 9.5, colors.text, {
+    drawBold(input.business.businessName, headerX, y + 2, 28, {
+      width: companyBlockWidth,
+      align: "left",
+    });
+    const nameHeight = doc.heightOfString(input.business.businessName, {
+      width: companyBlockWidth,
+    });
+    let headerInfoY = y + 2 + nameHeight + 6;
+    if (input.business.businessEmail) {
+      drawLabel(input.business.businessEmail, headerX, headerInfoY, 10, colors.muted, {
+        width: companyBlockWidth,
+      });
+      const emailHeight = doc.heightOfString(input.business.businessEmail, {
+        width: companyBlockWidth,
+      });
+      headerInfoY += emailHeight + 4;
+    }
+    const splitAddressLines = (value?: string | null) => {
+      if (!value) return [];
+      return String(value)
+        .split(/\n|,/)
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0);
+    };
+    const compactAddress = (value?: string | null, country?: string | null) => {
+      const parts = splitAddressLines(value);
+      const normalizedCountry = country ? formatCountryName(country) : "";
+      if (
+        normalizedCountry &&
+        !parts.some((part) => part.toLowerCase() === normalizedCountry.toLowerCase())
+      ) {
+        parts.push(normalizedCountry);
+      }
+      return parts.join(", ");
+    };
+    const rawBusinessAddress = String(input.business.businessAddress || "").trim();
+    const businessCountry = formatCountryName(input.business.country);
+    const addressHasCountry =
+      rawBusinessAddress && businessCountry
+        ? rawBusinessAddress.toLowerCase().includes(businessCountry.toLowerCase())
+        : false;
+    const businessAddressLines = [
+      ...splitAddressLines(rawBusinessAddress),
+      addressHasCountry ? "" : businessCountry,
+    ].filter((line) => line && String(line).trim().length > 0);
+    const businessAddressText = businessAddressLines.join(", ");
+    if (businessAddressLines.length > 0) {
+      drawLabel(businessAddressText, headerX, headerInfoY, 10, colors.muted, {
+        width: companyBlockWidth,
+      });
+      const addressHeight = doc.heightOfString(businessAddressText, {
+        width: companyBlockWidth,
+      });
+      headerInfoY += addressHeight + 4;
+    }
+    const metaInline = (label: string, value: string, yPos: number) => {
+      drawBold(`${label}:`, metaX, yPos, 10, {
+        width: metaLabelWidth,
+        align: "right",
+        lineBreak: false,
+      });
+      drawText(value, metaX + metaLabelWidth + metaGap, yPos, 10.5, colors.text, {
         width: metaValueWidth,
         align: "right",
+        lineBreak: false,
       });
+      return yPos + 16;
     };
-    const headerMetaY = y + 2;
-    metaRow("Invoice No:", input.invoiceNumber, headerMetaY);
-    metaRow("Date:", formatDateDMY(input.issuedAt), headerMetaY + 18);
+    let headerMetaY = y + 2;
+    headerMetaY = metaInline("Invoice No", input.invoiceNumber, headerMetaY);
+    headerMetaY = metaInline("Date", formatDateDMY(input.issuedAt), headerMetaY);
     if (input.dueDate) {
-      metaRow("Due Date:", formatDateDMY(input.dueDate), headerMetaY + 36);
+      headerMetaY = metaInline("Due Date", formatDateDMY(input.dueDate), headerMetaY);
     }
 
     const badgeWidth = 56;
     const badgeHeight = 18;
-    const badgeX = right - badgeWidth;
-    const badgeY = headerMetaY + 56;
+    const badgeX = metaX + (metaBlockWidth - badgeWidth) / 2;
+    const badgeY = headerMetaY + 6;
     doc
-      .roundedRect(badgeX, badgeY, badgeWidth, badgeHeight, 5)
-      .fill(statusLabel === "PAID" ? colors.paid : colors.due);
-    doc.font("Inter").fontSize(9).fillColor("#FFFFFF").text(statusLabel, badgeX, badgeY + 4, {
+      .roundedRect(badgeX, badgeY, badgeWidth, badgeHeight, 9)
+      .fill(statusLabel === "PAID" ? "#DCFCE7" : "#FDE7CC");
+    doc.font("Inter").fontSize(9).fillColor(statusLabel === "PAID" ? "#15803D" : "#B45309").text(
+      statusLabel,
+      badgeX,
+      badgeY + 4,
+      {
       width: badgeWidth,
       align: "center",
-    });
+      }
+    );
 
-    const headerBottom = y + Math.max(logoSize, 68) + 12;
-    y = headerBottom + 28;
+    const headerContentHeight = Math.max(logoSize, headerInfoY - y, headerMetaY - y + badgeHeight + 10);
+    const headerBottom = y + Math.max(96, headerContentHeight) + 12;
+    y = headerBottom + 20;
     drawBold("Invoice", left, y, 22, { width: pageWidth, align: "center" });
-    y += 26;
+    y += 32;
     doc.moveTo(left, y).lineTo(right, y).strokeColor(colors.line).lineWidth(1).stroke();
-    y += 28;
+    y += 20;
 
-    const columnGap = 48;
-    const columnWidth = (pageWidth - columnGap) / 2;
+    const columnWidth = leftColWidth;
     drawBold("Billed To", left, y, 11);
-    drawBold("Invoiced By", left + columnWidth + columnGap, y, 11);
+    drawBold("Invoiced By", rightColX, y, 11);
     doc.moveTo(left, y + 16).lineTo(left + columnWidth, y + 16).strokeColor(colors.line).lineWidth(1).stroke();
     doc
-      .moveTo(left + columnWidth + columnGap, y + 16)
-      .lineTo(left + columnWidth + columnGap + columnWidth, y + 16)
+      .moveTo(rightColX, y + 16)
+      .lineTo(rightColX + rightColWidth, y + 16)
       .strokeColor(colors.line)
       .lineWidth(1)
       .stroke();
 
+    const billAddress =
+      [
+        input.billTo?.streetAddress,
+        input.billTo?.city,
+        input.billTo?.postalCode,
+        formatCountryName(input.billTo?.country),
+      ]
+        .filter((line) => line && String(line).trim().length > 0)
+        .join(", ") || compactAddress(input.billTo?.address, input.billTo?.country);
     const billLines = [
       input.billTo?.name || "Customer",
       input.billTo?.email || "",
       input.billTo?.companyName || "",
-      input.billTo?.address || "",
+      billAddress,
       input.billTo?.taxId ? `Tax ID: ${input.billTo.taxId}` : "",
     ].filter((line) => line && String(line).trim().length > 0);
     const businessLines = [
       input.business.businessName,
       input.business.businessEmail || "",
-      input.business.businessAddress || "",
+      businessAddressText,
+      input.business.taxId ? `Tax ID: ${input.business.taxId}` : "",
     ].filter((line) => line && String(line).trim().length > 0);
 
-    const lineGap = 14;
-    billLines.forEach((line, idx) => {
-      drawText(String(line), left, y + 26 + idx * lineGap, 10);
-    });
-    businessLines.forEach((line, idx) => {
-      drawText(String(line), left + columnWidth + columnGap, y + 26 + idx * lineGap, 10);
-    });
+    const drawLineBlock = (lines: string[], startX: number, startY: number, width: number) => {
+      let cursorY = startY;
+      lines.forEach((line) => {
+        const text = String(line);
+        const height = doc.heightOfString(text, { width });
+        drawText(text, startX, cursorY, 10, colors.text, { width });
+        cursorY += height + 4;
+      });
+      return cursorY - startY;
+    };
 
-    y += 26 + Math.max(billLines.length, businessLines.length) * lineGap + 22;
+    const blockTop = y + 26;
+    const billTextWidth = rightColWidth;
+    const billHeight = drawLineBlock(billLines, left, blockTop, billTextWidth);
+    const businessHeight = drawLineBlock(businessLines, rightColX, blockTop, rightColWidth);
 
-    const cardGap = 24;
-    const cardWidth = (pageWidth - cardGap) / 2;
-    const cardHeight = 132;
+    y += 24 + Math.max(billHeight, businessHeight) + 22;
+
+    const cardWidth = leftColWidth;
+    const cardHeight = 128;
     const cardY = y;
     doc.roundedRect(left, cardY, cardWidth, cardHeight, 10).fill(colors.card).strokeColor(colors.line).stroke();
     doc
-      .roundedRect(left + cardWidth + cardGap, cardY, cardWidth, cardHeight, 10)
+      .roundedRect(rightColX, cardY, rightColWidth, cardHeight, 10)
       .fill(colors.card)
       .strokeColor(colors.line)
       .stroke();
 
-    drawBold("Invoice Details", left + 16, cardY + 14, 11);
+    drawBold("Invoice Details", left + 16, cardY + 16, 11);
     const descriptionSummary =
       input.items.length === 1 ? input.items[0].name : `${input.items.length} items`;
-    drawLabel("Description", left + 16, cardY + 36, 9);
-    drawText(descriptionSummary, left + 16, cardY + 50, 10);
-    const paymentLabelY = cardY + 70;
-    const paymentLabelWidth = 64;
-    const paymentLogoHeight = 14;
-    const paymentLogoWidth = 90;
-    const flutterwaveLogoHeight = 24;
-    const flutterwaveLogoWidth = 168;
-    drawLabel("Payment:", left + 16, paymentLabelY, 9);
-    let paymentLogoX = left + 16 + paymentLabelWidth;
-    if (paystackLogo) {
-      doc.opacity(0.9);
-      doc.image(paystackLogo, paymentLogoX, paymentLabelY - 3, {
-        fit: [paymentLogoWidth, paymentLogoHeight],
-      });
-      doc.opacity(1);
-      paymentLogoX += paymentLogoWidth + 10;
-    }
-    if (flutterwaveLogo) {
-      doc.opacity(0.9);
-      doc.image(flutterwaveLogo, paymentLogoX, paymentLabelY - 8, {
-        fit: [flutterwaveLogoWidth, flutterwaveLogoHeight],
-      });
-      doc.opacity(1);
-    }
+    drawLabel("Description", left + 16, cardY + 38, 9);
+    drawText(descriptionSummary, left + 16, cardY + 52, 10, colors.text, {
+      width: cardWidth - 16 - 144,
+    });
+    // Payment providers are shown in the footer section.
 
     const showTax =
       Boolean((input.totals as any).vatEnabled) && Number((input.totals as any).vatRate || 0) > 0;
@@ -632,7 +740,7 @@ export function buildInvoicePdfBuffer(input: InvoicePdfInput) {
       const taxBoxWidth = 120;
       const taxBoxHeight = 46;
       const taxBoxX = left + cardWidth - taxBoxWidth - 14;
-      const taxBoxY = cardY + 38;
+      const taxBoxY = cardY + 78;
       doc
         .roundedRect(taxBoxX, taxBoxY, taxBoxWidth, taxBoxHeight, 8)
         .strokeColor(colors.line)
@@ -647,14 +755,14 @@ export function buildInvoicePdfBuffer(input: InvoicePdfInput) {
       drawBold(formatMoney(input.totals.taxAmount), taxBoxX + 8, taxBoxY + 22, 10);
     }
 
-    drawBold("Amount Due", left + cardWidth + cardGap + 16, cardY + 14, 11);
-    drawBold(formatMoney(input.totals.total), left + cardWidth + cardGap + 16, cardY + 44, 20);
-    const buttonWidth = 140;
-    const buttonHeight = 28;
-    const buttonX = left + cardWidth + cardGap + 16;
-    const buttonY = cardY + 74;
+    drawBold("Amount Due", rightColX + 16, cardY + 18, 11);
+    drawBold(formatMoney(input.totals.total), rightColX + 16, cardY + 54, 20);
+    const buttonWidth = 176;
+    const buttonHeight = 34;
+    const buttonX = rightColX + (rightColWidth - buttonWidth) / 2;
+    const buttonY = cardY + 100;
     doc.roundedRect(buttonX, buttonY, buttonWidth, buttonHeight, 6).fill(colors.primary);
-    doc.font("Inter").fontSize(10).fillColor("#FFFFFF").text("Pay Now", buttonX, buttonY + 7, {
+    doc.font("Inter").fontSize(10).fillColor("#FFFFFF").text("Pay Now", buttonX, buttonY + 9, {
       width: buttonWidth,
       align: "center",
     });
@@ -662,87 +770,260 @@ export function buildInvoicePdfBuffer(input: InvoicePdfInput) {
       doc.link(buttonX, buttonY, buttonWidth, buttonHeight, input.paymentLink);
     }
 
-    y = cardY + cardHeight + 28;
+    y = cardY + cardHeight + 12;
 
     const tableTop = y;
-    const headerHeight = 26;
-    const columnWidths = [
-      pageWidth * 0.5,
-      pageWidth * 0.125,
-      pageWidth * 0.1875,
-      pageWidth * 0.1875,
-    ];
+    const tableHeaderHeight = 26;
+    const qtyWidth = 56;
+    const unitWidth = 120;
+    const totalWidth = 120;
+    const tableWidth = pageWidth;
+    const descWidth = Math.max(240, tableWidth - (qtyWidth + unitWidth + totalWidth));
+    const columnWidths = [descWidth, qtyWidth, unitWidth, totalWidth];
     const headerLabels = ["Description", "Qty", "Unit Price", "Total"];
     const drawTableHeader = (yPos: number) => {
-      doc.rect(left, yPos, pageWidth, headerHeight).fill("#f1f5f9");
+      doc.rect(left, yPos, tableWidth, tableHeaderHeight).fill("#f1f5f9");
       headerLabels.reduce((x, label, idx) => {
         const width = columnWidths[idx];
-        const align = idx === 0 ? "left" : "center";
+        const align = idx === 0 ? "left" : idx === 1 ? "center" : "right";
         drawBold(label, x + 8, yPos + 8, 9, { width: width - 16, align, lineBreak: false });
         return x + width;
       }, left);
     };
     drawTableHeader(tableTop);
-    y = tableTop + headerHeight;
+    let yTable = tableTop + tableHeaderHeight;
 
-    const maxTableY = doc.page.height - doc.page.margins.bottom - 180;
-    const renderRow = (item: InvoiceItem) => {
-      const rowHeight = Math.max(24, doc.heightOfString(item.name, { width: columnWidths[0] - 16 }) + 10);
-      if (y + rowHeight > maxTableY) {
-        doc.addPage();
-        y = doc.page.margins.top;
-        drawTableHeader(y);
-        y += headerHeight;
+    const footerNoteText = "Please make the payment by the due date. Thank you for your business.";
+    const noteText = input.note ? String(input.note).trim() : "";
+    const noteHeight = noteText
+      ? doc.font("Inter").fontSize(9.5).heightOfString(noteText, { width: pageWidth - 28 })
+      : 0;
+    const footerNoteHeight = doc
+      .font("Inter")
+      .fontSize(10)
+      .heightOfString(footerNoteText, { width: pageWidth - 28 });
+    const cardBoxPaddingX = 6;
+    const cardBoxPaddingY = 4;
+    const visaBox = { w: 66, h: 24 };
+    const masterBox = { w: 44, h: 16 };
+    const verveBox = { w: 0, h: 0 };
+    const hasCardLogos = Boolean(visaLogo || mastercardLogo || verveLogo);
+    const cardBoxHeight = Math.max(visaBox.h, masterBox.h, verveBox.h) + cardBoxPaddingY * 2;
+    const noteBlockHeight = noteText ? 12 + 4 + noteHeight + 8 : 0;
+    const footerIntroHeight = noteText ? 14 + noteHeight + 8 : 0;
+    const footerNoteBlockHeight = 10 + footerNoteHeight;
+    const footerSeparation = noteText ? 10 : 0;
+    const footerLogoBlockHeight = hasCardLogos
+      ? Math.max(footerNoteBlockHeight, 32 + cardBoxHeight - cardBoxPaddingY)
+      : footerNoteBlockHeight;
+    const footerBottomPadding = 8;
+    const footerBlockHeight =
+      footerIntroHeight + footerLogoBlockHeight + footerBottomPadding + footerSeparation;
+    const totalsBlockHeight = (showTax ? 3 : 2) * 16 + 8;
+    const tableToTotalsGap = 12;
+    const minTableToTotalsGap = 4;
+    const totalsToFooterGap = 18;
+    const minTotalsToFooterGap = 8;
+    const paginationEpsilon = 10;
+    const requiredAfterTable = totalsBlockHeight + footerBlockHeight + minTotalsToFooterGap;
+    const requiredAfterTotals = requiredAfterTable + minTableToTotalsGap;
+    const compactRequired =
+      totalsBlockHeight + footerBlockHeight + minTotalsToFooterGap + minTableToTotalsGap;
+    const pageBottom = doc.page.height - doc.page.margins.bottom;
+    const rowMeta = input.items.map((item) => {
+      const descText = item.description ? `${item.name}\n${item.description}` : item.name;
+      const rowHeight = Math.max(
+        30,
+        doc.heightOfString(descText, { width: columnWidths[0] - 16 }) + 14
+      );
+      return { item, descText, rowHeight };
+    });
+    const rowPrefix = rowMeta.reduce((acc, row) => {
+      acc.push((acc[acc.length - 1] || 0) + row.rowHeight);
+      return acc;
+    }, [] as number[]);
+    const remainingRowsHeight = (index: number) =>
+      rowPrefix.length === 0
+        ? 0
+        : rowPrefix[rowPrefix.length - 1] - (index > 0 ? rowPrefix[index - 1] : 0);
+    const tableRowsHeight = rowPrefix.length > 0 ? rowPrefix[rowPrefix.length - 1] : 0;
+    const fitsSinglePage =
+      yTable +
+        tableRowsHeight +
+        minTableToTotalsGap +
+        totalsBlockHeight +
+        minTotalsToFooterGap +
+        footerBlockHeight <=
+      pageBottom + paginationEpsilon;
+    const forceSinglePage = true;
+    const forceSinglePageForShortList =
+      forceSinglePage || fitsSinglePage || (rowMeta.length <= 5 && noteHeight <= 140);
+    const allowPagination = !forceSinglePage;
+
+    let rowIndex = 0;
+    while (rowIndex < rowMeta.length) {
+      const remainingHeight = pageBottom - yTable;
+      const remainingHeightNeeded = remainingRowsHeight(rowIndex);
+      const enforcedAfterTotals = forceSinglePageForShortList
+        ? totalsBlockHeight + footerBlockHeight + minTotalsToFooterGap + minTableToTotalsGap
+        : requiredAfterTotals;
+      const isFinalPage =
+        forceSinglePageForShortList ||
+        remainingHeightNeeded + enforcedAfterTotals <= remainingHeight + paginationEpsilon;
+      const maxTableY = isFinalPage ? pageBottom - enforcedAfterTotals : pageBottom - 12;
+      const startIndex = rowIndex;
+
+      while (rowIndex < rowMeta.length && yTable + rowMeta[rowIndex].rowHeight <= maxTableY) {
+        const { item, descText, rowHeight } = rowMeta[rowIndex];
+        drawText(descText, left + 8, yTable + 6, 10, colors.text, {
+          width: columnWidths[0] - 16,
+        });
+        drawText(String(item.quantity), left + columnWidths[0] + 8, yTable + 6, 10, colors.text, {
+          width: columnWidths[1] - 16,
+          align: "center",
+          lineBreak: false,
+        });
+        drawText(
+          formatMoney(item.price),
+          left + columnWidths[0] + columnWidths[1] + 8,
+          yTable + 6,
+          10,
+          colors.text,
+          { width: columnWidths[2] - 16, align: "right", lineBreak: false }
+        );
+        drawText(
+          formatMoney(item.price * item.quantity),
+          left + columnWidths[0] + columnWidths[1] + columnWidths[2] + 8,
+          yTable + 6,
+          10,
+          colors.text,
+          { width: columnWidths[3] - 16, align: "right", lineBreak: false }
+        );
+        yTable += rowHeight;
+        doc
+          .moveTo(left, yTable)
+          .lineTo(left + tableWidth, yTable)
+          .strokeColor(colors.line)
+          .lineWidth(0.8)
+          .stroke();
+        rowIndex += 1;
       }
-      drawText(item.name, left + 8, y + 6, 10, colors.text, { width: columnWidths[0] - 16 });
-      drawText(String(item.quantity), left + columnWidths[0] + 8, y + 6, 10, colors.text, {
-        width: columnWidths[1] - 16,
-        align: "center",
-        lineBreak: false,
-      });
-      drawText(
-        formatMoney(item.price),
-        left + columnWidths[0] + columnWidths[1] + 8,
-        y + 6,
-        10,
-        colors.text,
-        { width: columnWidths[2] - 16, align: "center", lineBreak: false }
-      );
-      drawText(
-        formatMoney(item.price * item.quantity),
-        left + columnWidths[0] + columnWidths[1] + columnWidths[2] + 8,
-        y + 6,
-        10,
-        colors.text,
-        { width: columnWidths[3] - 16, align: "center", lineBreak: false }
-      );
-      y += rowHeight;
-      doc.moveTo(left, y).lineTo(right, y).strokeColor(colors.line).lineWidth(0.8).stroke();
-    };
-    input.items.forEach((item) => renderRow(item));
 
-    y += 20;
-    const totalsLabelWidth = INVOICE_TOTALS_LABEL_WIDTH;
-    const totalsValueWidth = INVOICE_TOTALS_VALUE_WIDTH;
-    const totalsX = right - (totalsLabelWidth + INVOICE_TOTALS_GAP + totalsValueWidth);
+      if (rowIndex < rowMeta.length) {
+        if (rowIndex === startIndex) {
+          const { item, descText, rowHeight } = rowMeta[rowIndex];
+          drawText(descText, left + 8, yTable + 6, 10, colors.text, {
+            width: columnWidths[0] - 16,
+          });
+          drawText(String(item.quantity), left + columnWidths[0] + 8, yTable + 6, 10, colors.text, {
+            width: columnWidths[1] - 16,
+            align: "center",
+            lineBreak: false,
+          });
+          drawText(
+            formatMoney(item.price),
+            left + columnWidths[0] + columnWidths[1] + 8,
+            yTable + 6,
+            10,
+            colors.text,
+            { width: columnWidths[2] - 16, align: "right", lineBreak: false }
+          );
+          drawText(
+            formatMoney(item.price * item.quantity),
+            left + columnWidths[0] + columnWidths[1] + columnWidths[2] + 8,
+            yTable + 6,
+            10,
+            colors.text,
+            { width: columnWidths[3] - 16, align: "right", lineBreak: false }
+          );
+          yTable += rowHeight;
+          doc
+            .moveTo(left, yTable)
+            .lineTo(left + tableWidth, yTable)
+            .strokeColor(colors.line)
+            .lineWidth(0.8)
+            .stroke();
+          rowIndex += 1;
+          continue;
+        }
+        if (allowPagination) {
+          doc.addPage();
+          yTable = doc.page.margins.top;
+          drawTableHeader(yTable);
+          yTable += tableHeaderHeight;
+        }
+      }
+    }
+
+    // Totals aligned to the right, below the table.
+    const remainingHeightAfterTable = pageBottom - yTable;
+    const relaxedRequired =
+      totalsBlockHeight + footerBlockHeight + totalsToFooterGap + tableToTotalsGap;
+    const useCompactSpacing = remainingHeightAfterTable + paginationEpsilon < relaxedRequired;
+    const activeTableToTotalsGap = useCompactSpacing ? minTableToTotalsGap : tableToTotalsGap;
+    const activeTotalsToFooterGap = useCompactSpacing ? minTotalsToFooterGap : totalsToFooterGap;
+    const reservedForTotals =
+      forceSinglePageForShortList ||
+      remainingHeightAfterTable + paginationEpsilon >= compactRequired;
+    let yTotalsStart = yTable + activeTableToTotalsGap;
+    if (forceSinglePageForShortList) {
+      const packedStart =
+        pageBottom - (footerBlockHeight + totalsBlockHeight + minTotalsToFooterGap);
+      yTotalsStart = Math.min(yTotalsStart, packedStart);
+    }
+    let yTotals = yTotalsStart;
+    if (
+      allowPagination &&
+      !forceSinglePageForShortList &&
+      !reservedForTotals &&
+      yTotalsStart + totalsBlockHeight + footerBlockHeight + activeTotalsToFooterGap >
+        pageBottom + paginationEpsilon
+    ) {
+      doc.addPage();
+      yTotals = doc.page.margins.top;
+    }
+    const totalsGap = 1;
+    const totalsValueWidth = columnWidths[3] - 16;
+    const totalsValueX =
+      left + columnWidths[0] + columnWidths[1] + columnWidths[2] + 8;
+    const totalsLabelWidth = Math.min(
+      76,
+      Math.max(70, totalsValueX - left - 12 - totalsGap)
+    );
+    const totalsLabelX = totalsValueX - totalsGap - totalsLabelWidth;
+    // Totals always render on the same (final) page; table pagination reserves space above.
     const totalRow = (label: string, value: string, bold = false) => {
-      const size = bold ? 12 : 10;
-      drawLabel(label, totalsX, y, 10, colors.muted, {
-        width: totalsLabelWidth,
-        align: "left",
-        lineBreak: false,
-      });
-      doc.font("Inter").fontSize(size).fillColor(colors.text).text(
-        value,
-        totalsX + totalsLabelWidth + INVOICE_TOTALS_GAP,
-        y,
-        {
+      if (bold) {
+        drawBold(label, totalsLabelX, yTotals, 11, {
+          width: totalsLabelWidth,
+          align: "left",
+          lineBreak: false,
+        });
+        drawBold(value, totalsValueX, yTotals, 12, {
           width: totalsValueWidth,
           align: "right",
           lineBreak: false,
-        }
-      );
-      y += 14;
+          ellipsis: true,
+        });
+      } else {
+        drawLabel(label, totalsLabelX, yTotals, 10, colors.muted, {
+          width: totalsLabelWidth,
+          align: "left",
+          lineBreak: false,
+        });
+        doc.font("Inter").fontSize(10).fillColor(colors.text).text(
+          value,
+          totalsValueX,
+          yTotals,
+          {
+            width: totalsValueWidth,
+            align: "right",
+            lineBreak: false,
+            ellipsis: true,
+          }
+        );
+      }
+      yTotals += 16;
     };
     totalRow("Subtotal", formatMoney(input.totals.subtotal));
     if (showTax) {
@@ -753,34 +1034,62 @@ export function buildInvoicePdfBuffer(input: InvoicePdfInput) {
     }
     totalRow("Total Due", formatMoney(input.totals.total), true);
 
-    y += 18;
-    const paymentLogoBox = { width: 100, height: 14 };
-    drawBold("Pay Now", left, y, 11);
-    y += 12;
-    doc.rect(left, y, pageWidth, 54).strokeColor(colors.line).lineWidth(1).stroke();
-    const logoRowY = y + 9;
-    let cursorX = left + 14;
-    if (paystackLogo) {
-      doc.opacity(0.85);
-      doc.image(paystackLogo, cursorX, logoRowY, { fit: [paymentLogoBox.width, paymentLogoBox.height] });
-      doc.opacity(1);
-      cursorX += paymentLogoBox.width + 12;
+    let footerStart = yTotals + activeTotalsToFooterGap;
+    if (forceSinglePageForShortList) {
+      footerStart = Math.min(footerStart, pageBottom - footerBlockHeight);
     }
-    if (flutterwaveLogo) {
-      doc.image(flutterwaveLogo, cursorX, logoRowY - 6, {
-        fit: [flutterwaveLogoWidth, flutterwaveLogoHeight],
-      });
+    const footerOverflows = footerStart + footerBlockHeight > pageBottom + paginationEpsilon;
+    if (allowPagination && footerOverflows && !reservedForTotals && !forceSinglePageForShortList) {
+      doc.addPage();
+      footerStart = doc.page.margins.top;
     }
-    drawLabel("Please make the payment by the due date. Thank you for your business.", left + 14, y + 28, 9);
+    y = footerStart;
+    let footerCursorY = footerStart;
+    if (noteText) {
+      drawBold("Note", left + 14, footerCursorY, 10);
+      footerCursorY += 14;
+      drawText(noteText, left + 14, footerCursorY, 9.5, colors.muted, { width: pageWidth - 28 });
+      footerCursorY += noteHeight + 8;
+    }
+    const logoRowY = footerCursorY + footerSeparation;
+    drawLabel(footerNoteText, left + 14, logoRowY + 10, 10, colors.muted, {
+      width: pageWidth - 28,
+      align: "center",
+    });
+    if (hasCardLogos) {
+      const cardRowY = logoRowY + 32;
+      const gap = 10;
+      const logosWidth =
+        (visaLogo ? visaBox.w : 0) +
+        (mastercardLogo ? masterBox.w : 0) +
+        (verveLogo ? verveBox.w : 0) +
+        gap * ([visaLogo, mastercardLogo, verveLogo].filter(Boolean).length - 1);
+      const cardBoxWidth = logosWidth + cardBoxPaddingX * 2;
+      const cardBoxHeight = Math.max(visaBox.h, masterBox.h, verveBox.h) + cardBoxPaddingY * 2;
+      const cardBoxX = left + (pageWidth - cardBoxWidth) / 2;
+      doc
+        .roundedRect(cardBoxX, cardRowY - cardBoxPaddingY, cardBoxWidth, cardBoxHeight, 6)
+        .strokeColor(colors.line)
+        .lineWidth(1)
+        .stroke();
+      let logoX = cardBoxX + cardBoxPaddingX;
+      if (visaLogo) {
+        doc.image(visaLogo, logoX, cardRowY - 2, { fit: [visaBox.w, visaBox.h] });
+        logoX += visaBox.w + gap;
+      }
+      if (mastercardLogo) {
+        doc.image(mastercardLogo, logoX, cardRowY + 1, { fit: [masterBox.w, masterBox.h] });
+        logoX += masterBox.w + gap;
+      }
+      if (verveLogo) {
+        doc.image(verveLogo, logoX, cardRowY + 1, { fit: [verveBox.w, verveBox.h] });
+      }
+    }
     // Payment links are delivered via email, not printed on the PDF.
 
-    if (input.note) {
-      y += 72;
-      drawBold("Note", left, y, 10);
-      drawText(input.note, left, y + 14, 9.5, colors.muted, { width: pageWidth });
-    }
+    // Note is rendered in the footer block.
 
-    const footerY = doc.page.height - doc.page.margins.bottom - 12;
+    const footerY = doc.page.height - doc.page.margins.bottom - 10;
     doc.font("Inter").fontSize(8).fillColor(colors.muted).text("Generated with Maboria", 0, footerY, { align: "center" });
 
     doc.end();

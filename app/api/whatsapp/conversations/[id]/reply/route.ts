@@ -9,6 +9,7 @@ import { recordOutboundMessage, sendWhatsAppText, resolveBusinessIdForUser } fro
 
 const replySchema = z.object({
   message: z.string().min(1),
+  attachments: z.array(z.any()).optional(),
 });
 
 export const POST = withErrorHandling(async (req: Request, ctx: { params: { id: string } }) => {
@@ -59,6 +60,8 @@ export const POST = withErrorHandling(async (req: Request, ctx: { params: { id: 
       content: parsed.message,
       status: result?.skipped ? "FAILED" : "SENT",
       metaMessageId: result?.messageId,
+      attachments: parsed.attachments,
+      actorId: session.user.id,
     });
 
     return NextResponse.json({
@@ -71,6 +74,8 @@ export const POST = withErrorHandling(async (req: Request, ctx: { params: { id: 
       conversationId: conversation.id,
       content: parsed.message,
       status: "FAILED",
+      attachments: parsed.attachments,
+      actorId: session.user.id,
     });
     return NextResponse.json(
       {

@@ -1,15 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { Card } from "@/components/ui/card";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { Table } from "@/components/ui/table";
 import { useLanguage } from "@/components/providers/language-provider";
-import { Badge } from "@/components/ui/badge";
-import { Crown, ShieldCheck, Sparkles, Users, UserPlus, Zap } from "lucide-react";
+import { Lock, Users, UserPlus } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -29,48 +28,41 @@ export default function TeamPage() {
   const { language } = useLanguage();
   const t = (en: string, fr: string) => (language === "fr" ? fr : en);
   const { data, error, isLoading, mutate } = useSWR("/api/team", fetcher);
+  const router = useRouter();
   const members: TeamMember[] = Array.isArray(data?.members) ? data.members : [];
   const seatLimit =
     typeof data?.seatLimit === "number" ? data.seatLimit : data?.seatLimit === null ? null : undefined;
+  const planLabel = (data?.planLabel || "starter") as "starter" | "pro" | "growth" | "business" | "enterprise";
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("member");
+  const [query, setQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [showInvite, setShowInvite] = useState(false);
   const [status, setStatus] = useState<{
     message: string;
     variant: "info" | "success" | "warning" | "error";
   } | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const businessName = data?.business?.name || t("Your workspace", "Votre espace");
   const canLoad = !error && !data?.error;
+  const seatsUsed = members.length;
   const seatLabel =
     seatLimit === null
-      ? t("Unlimited seats on your plan", "Places illimitees sur votre plan")
+      ? t("Unlimited / Contract-based", "Illimite / Contrat")
       : typeof seatLimit === "number"
-        ? t(`Up to ${seatLimit} seats on your plan`, `Jusqu a ${seatLimit} places sur votre plan`)
+        ? t(`${seatsUsed} of ${seatLimit} seats used`, `${seatsUsed} sur ${seatLimit} places utilisees`)
         : t("Plan includes team seats", "Votre plan inclut des places");
-  const teamSignals = [
-    {
-      title: t("Clear ownership", "Ownership clair"),
-      body: t("Defined roles for smooth delivery and QA.", "Roles definis pour delivery et QA."),
-    },
-    {
-      title: t("Secure collaboration", "Collaboration securisee"),
-      body: t("Role-based access and audit trails.", "Acces par role et audit trails."),
-    },
-    {
-      title: t("Flexible coverage", "Couverture flexible"),
-      body: t("Scale support as your team grows.", "Support evolutif avec votre equipe."),
-    },
-    {
-      title: t("Shared visibility", "Visibilite partagee"),
-      body: t("Weekly updates and transparent KPIs.", "Updates hebdo et KPIs transparents."),
-    },
-  ];
-  const roles = [
-    { title: t("Owner", "Owner"), body: t("Full access, billing, and governance.", "Acces total, facturation, gouvernance.") },
-    { title: t("Admin", "Admin"), body: t("Manage members and workflows.", "Gere membres et workflows.") },
-    { title: t("Member", "Membre"), body: t("Execute tasks with scoped permissions.", "Execute avec permissions limitees.") },
-  ];
+  const planCopy = {
+    starter: t("Upgrade to add team members", "Passez au plan superieur pour ajouter des membres"),
+    pro: t("Upgrade for more seats", "Passez au plan superieur pour plus de places"),
+    growth: t("Built for growing teams", "Concu pour les equipes en croissance"),
+    business: t("Governance ready", "Gouvernance prete"),
+    enterprise: t("Contact account manager", "Contactez votre responsable de compte"),
+  } as const;
+  const inviteDisabled =
+    planLabel === "starter" ||
+    (typeof seatLimit === "number" && seatsUsed >= seatLimit) ||
+    saving;
 
   const handleInvite = async () => {
     if (!email.trim()) {
@@ -160,6 +152,26 @@ export default function TeamPage() {
     }
   };
 
+  const ownerOnly = members.filter((member) => member.role === "owner");
+  const visibleMembers = planLabel === "starter" ? ownerOnly : members;
+  const filteredMembers = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return visibleMembers.filter((member) => {
+      const name = (member.user?.name || "").toLowerCase();
+      const emailValue = (member.user?.email || "").toLowerCase();
+      const publicId = (member.user?.publicId || "").toLowerCase();
+      const roleValue = (member.role || "member").toLowerCase();
+      const matchesQuery =
+        !needle ||
+        name.includes(needle) ||
+        emailValue.includes(needle) ||
+        publicId.includes(needle) ||
+        roleValue.includes(needle);
+      const matchesRole = roleFilter === "all" || roleValue === roleFilter;
+      return matchesQuery && matchesRole;
+    });
+  }, [visibleMembers, query, roleFilter]);
+
   const columns = [
     {
       key: "name",
@@ -181,14 +193,30 @@ export default function TeamPage() {
       label: t("Role", "Role"),
       render: (member: TeamMember) => {
         const value = member.role || "member";
-        return value.charAt(0).toUpperCase() + value.slice(1);
+        const label = value.charAt(0).toUpperCase() + value.slice(1);
+        return value === "owner" ? (
+          <span className="inline-flex items-center gap-2">
+            <span>{label}</span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/80 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+              <Lock className="h-3 w-3" />
+            </span>
+          </span>
+        ) : (
+          label
+        );
       },
     },
     {
       key: "actions",
       label: t("Actions", "Actions"),
       render: (member: TeamMember) => (
-        <Button variant="outline" size="sm" disabled={saving} onClick={() => handleRemove(member.id)}>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={saving || member.role === "owner"}
+          onClick={() => handleRemove(member.id)}
+          className="text-rose-600/70 hover:text-rose-700 disabled:text-slate-300"
+        >
           {t("Remove", "Retirer")}
         </Button>
       ),
@@ -196,37 +224,47 @@ export default function TeamPage() {
   ];
 
   return (
-    <div className="space-y-6 max-md:space-y-7">
-      <div className="rounded-3xl border border-border/60 bg-muted/40 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.12)]">
-        <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
-          <Users className="h-4 w-4" />
-          {t("Team", "Equipe")}
-        </div>
-        <div className="mt-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-3xl font-semibold text-foreground">{t("Team members", "Membres de l equipe")}</h1>
-            <p className="text-sm text-muted-foreground">
-              {t(
-                "Invite teammates, set roles, and keep collaboration smooth as you scale.",
-                "Invitez des coequipiers, definissez les roles et collaborez en douceur."
-              )}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="success">{t("Team-ready", "Equipe prete")}</Badge>
-            <Badge variant="country">{t("Secure by default", "Securise par defaut")}</Badge>
-            <Badge variant="warning">{seatLabel}</Badge>
-          </div>
-        </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {teamSignals.map((signal) => (
-            <div key={signal.title} className="rounded-2xl border border-border/60 bg-background px-4 py-3">
-              <p className="text-sm font-semibold text-foreground">{signal.title}</p>
-              <p className="mt-2 text-xs text-muted-foreground">{signal.body}</p>
+    <div className="space-y-6 max-md:space-y-6">
+      <section className="rounded-[28px] border border-border/40 bg-white px-6 py-6 shadow-[0_20px_48px_rgba(15,23,42,0.08)] dark:bg-card">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border/60 bg-indigo-50 text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200">
+              <Users className="h-5 w-5" />
             </div>
-          ))}
+            <div>
+              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
+                {t("Current plan", "Plan actuel")}
+              </p>
+              <p className="text-2xl font-semibold text-foreground">
+                {planLabel === "starter"
+                  ? t("Starter", "Starter")
+                  : planLabel === "pro"
+                    ? t("Pro", "Pro")
+                    : planLabel === "business"
+                      ? t("Business", "Business")
+                      : planLabel === "enterprise"
+                        ? t("Enterprise", "Enterprise")
+                        : t("Growth", "Growth")}
+              </p>
+              <p className="text-sm text-muted-foreground">{seatLabel}</p>
+            </div>
+          </div>
+          {planLabel === "business" || planLabel === "enterprise" ? (
+            <Button
+              className="px-6"
+              title={t("You are on the best plan", "Vous avez le meilleur plan")}
+              aria-label={t("You are on the best plan", "Vous avez le meilleur plan")}
+              onClick={(event) => event.preventDefault()}
+            >
+              {t("Upgrade", "Mettre a niveau")}
+            </Button>
+          ) : (
+            <Button className="px-6" onClick={() => router.push("/dashboard/subscription")}>
+              {t("Upgrade", "Mettre a niveau")}
+            </Button>
+          )}
         </div>
-      </div>
+      </section>
 
       {status && <Alert variant={status.variant}>{status.message}</Alert>}
       {data?.error && !status ? (
@@ -239,140 +277,99 @@ export default function TeamPage() {
         </Alert>
       ) : null}
 
-      <Card
-        title={t("Invite a team member", "Inviter un membre")}
-        actions={
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Crown className="h-4 w-4 text-amber-500" />
-            <span>{seatLabel}</span>
-          </div>
-        }
-      >
-        <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-[1fr_180px_auto] sm:items-end">
-              <Input
-                label={t("Email", "Email")}
-                placeholder="name@company.com"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                type="email"
-                required
-              />
-              <div className="flex flex-col gap-1 text-sm">
-                <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                  {t("Role", "Role")}
-                </span>
-                <select
-                  value={role}
-                  onChange={(event) => setRole(event.target.value)}
-                  className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground"
-                >
-                  <option value="member">{t("Member", "Membre")}</option>
-                  <option value="admin">{t("Admin", "Admin")}</option>
-                </select>
-              </div>
-              <Button onClick={handleInvite} loading={saving} className="w-full sm:w-auto">
-                <UserPlus className="mr-2 h-4 w-4" />
-                {t("Add member", "Ajouter")}
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {t(
-                "Members must already have a Maboria account.",
-                "Les membres doivent deja avoir un compte Maboria."
-              )}
+      <section className="rounded-[28px] border border-border/40 bg-background px-6 py-6 shadow-[0_20px_48px_rgba(15,23,42,0.08)]">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.24em] text-indigo-600 dark:text-indigo-300">
+              {t("Team", "Equipe")}
             </p>
+            <h2 className="mt-2 text-2xl font-semibold text-foreground">
+              {t("Team members", "Membres")}
+            </h2>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {roles.map((roleItem) => (
-              <div key={roleItem.title} className="rounded-2xl border border-border/60 bg-muted/40 p-4">
-                <p className="text-sm font-semibold text-foreground">{roleItem.title}</p>
-                <p className="mt-2 text-xs text-muted-foreground">{roleItem.body}</p>
-              </div>
-            ))}
-          </div>
+          <div className="text-xs text-muted-foreground">{seatLabel}</div>
         </div>
-      </Card>
 
-      <div className="grid gap-4 md:grid-cols-[1.2fr_0.8fr]">
-        <Card title={t("Workspace", "Espace")}>
-          <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-            <span className="text-xs uppercase tracking-[0.2em] text-slate-500">{t("Name", "Nom")}</span>
-            <span className="font-semibold text-foreground">{businessName}</span>
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl border border-border/60 bg-muted/40 p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <ShieldCheck className="h-4 w-4 text-emerald-500" />
-                {t("Governance ready", "Gouvernance prete")}
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {t(
-                  "Role-based access, audit trails, and secure onboarding.",
-                  "Acces par role, audit trails, onboarding securise."
-                )}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-border/60 bg-muted/40 p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <Zap className="h-4 w-4 text-indigo-500" />
-                {t("Delivery rhythm", "Rythme delivery")}
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {t(
-                  "Weekly milestones, QBRs, and performance reporting.",
-                  "Jalons hebdo, QBRs, reporting performance."
-                )}
-              </p>
-            </div>
-          </div>
-        </Card>
-        <Card title={t("Team operating model", "Modele d operation equipe")}>
-          <div className="space-y-3 text-sm text-muted-foreground">
-            <div className="flex items-start gap-3 rounded-2xl border border-border/60 bg-muted/40 p-4">
-              <Sparkles className="mt-1 h-4 w-4 text-indigo-500" />
-              <div>
-                <p className="text-sm font-semibold text-foreground">{t("Onboarding", "Onboarding")}</p>
-                <p className="text-xs text-muted-foreground">
-                  {t(
-                    "Access setup, workspace standards, and first-week delivery plan.",
-                    "Acces, standards, et plan delivery semaine 1."
-                  )}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3 rounded-2xl border border-border/60 bg-muted/40 p-4">
-              <Users className="mt-1 h-4 w-4 text-emerald-500" />
-              <div>
-                <p className="text-sm font-semibold text-foreground">{t("Weekly cadence", "Cadence hebdo")}</p>
-                <p className="text-xs text-muted-foreground">
-                  {t("KPIs, deliverables, and executive-ready updates.", "KPIs, livrables, et updates executives.")}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3 rounded-2xl border border-border/60 bg-muted/40 p-4">
-              <ShieldCheck className="mt-1 h-4 w-4 text-amber-500" />
-              <div>
-                <p className="text-sm font-semibold text-foreground">{t("Governance", "Gouvernance")}</p>
-                <p className="text-xs text-muted-foreground">
-                  {t("Decision logs, auditability, and access reviews.", "Decision logs, auditabilite, et revues acces.")}
-                </p>
-              </div>
-            </div>
-          </div>
-        </Card>
-      </div>
+        <div className="mt-5 flex flex-wrap items-center gap-2">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setShowInvite((value) => !value)}
+            disabled={planLabel === "starter" || inviteDisabled}
+            className="px-4 bg-indigo-600 text-white shadow-[0_10px_24px_rgba(79,70,229,0.28)] hover:bg-indigo-500"
+          >
+            <UserPlus className="mr-2 h-4 w-4" />
+            {t("Invite new member", "Inviter")}
+          </Button>
+          <Input
+            placeholder={t("Search", "Rechercher")}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            className="h-9 w-44"
+          />
+          <select
+            value={roleFilter}
+            onChange={(event) => setRoleFilter(event.target.value)}
+            className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+          >
+            <option value="all">{t("All roles", "Tous les roles")}</option>
+            <option value="owner">{t("Owner", "Owner")}</option>
+            <option value="admin">{t("Admin", "Admin")}</option>
+            <option value="member">{t("Member", "Membre")}</option>
+          </select>
+          {planLabel === "starter" ? (
+            <span className="text-xs text-muted-foreground">{planCopy.starter}</span>
+          ) : typeof seatLimit === "number" && seatsUsed >= seatLimit ? (
+            <span className="text-xs text-muted-foreground">{planCopy.pro}</span>
+          ) : null}
+        </div>
 
-      <Card title={t("Members", "Membres")}>
-        {isLoading && <p className="text-sm text-muted-foreground">{t("Loading...", "Chargement...")}</p>}
-        {!isLoading && canLoad && members.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("No members yet.", "Aucun membre pour le moment.")}</p>
+        {showInvite && planLabel !== "starter" ? (
+          <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_180px_auto] sm:items-end">
+            <Input
+              label={t("Email", "Email")}
+              placeholder="name@company.com"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              type="email"
+              required
+              disabled={inviteDisabled}
+            />
+            <div className="flex flex-col gap-1 text-sm">
+              <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                {t("Role", "Role")}
+              </span>
+              <select
+                value={role}
+                onChange={(event) => setRole(event.target.value)}
+                className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+                disabled={inviteDisabled}
+              >
+                <option value="member">{t("Member", "Membre")}</option>
+                <option value="admin">{t("Admin", "Admin")}</option>
+              </select>
+            </div>
+            <Button onClick={handleInvite} loading={saving} className="w-full sm:w-auto" disabled={inviteDisabled}>
+              <UserPlus className="mr-2 h-4 w-4" />
+              {t("Add member", "Ajouter")}
+            </Button>
+          </div>
         ) : null}
-        {!isLoading && members.length > 0 ? (
-          <Table columns={columns as any} data={members} keyExtractor={(row) => row.id} />
-        ) : null}
-      </Card>
+
+        <div className="mt-4 rounded-2xl border border-border/60 bg-background">
+          {isLoading && <p className="px-4 py-3 text-sm text-muted-foreground">{t("Loading...", "Chargement...")}</p>}
+          {!isLoading && canLoad && filteredMembers.length === 0 ? (
+            <p className="px-4 py-3 text-sm text-muted-foreground">
+              {query || roleFilter !== "all"
+                ? t("No team members found.", "Aucun membre trouve.")
+                : t("No members yet.", "Aucun membre pour le moment.")}
+            </p>
+          ) : null}
+          {!isLoading && filteredMembers.length > 0 ? (
+            <Table columns={columns as any} data={filteredMembers} keyExtractor={(row) => row.id} />
+          ) : null}
+        </div>
+      </section>
     </div>
   );
 }

@@ -37,7 +37,6 @@ export function AssistantChat() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [loadingConversations, setLoadingConversations] = useState(true);
-  const [loadingMessages, setLoadingMessages] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -45,10 +44,13 @@ export function AssistantChat() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [statusVariant, setStatusVariant] = useState<"info" | "success" | "error">("info");
-  const [style, setStyle] = useState<AiStyle>("brief");
+  const [style, setStyle] = useState<AiStyle>("detailed");
   const [tone, setTone] = useState<AiTone>("balanced");
   const [prefsReady, setPrefsReady] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("maboria_ai_history_open") === "true";
+  });
   const [model, setModel] = useState("maboria-1");
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [modelTooltip, setModelTooltip] = useState<"maboria-1" | "maboria-2" | null>(null);
@@ -61,7 +63,6 @@ export function AssistantChat() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const loadMessages = useCallback(async (conversationId: string) => {
-    setLoadingMessages(true);
     try {
       const res = await fetch(`/api/ai/conversations/${conversationId}?limit=200`);
       if (!res.ok) return;
@@ -75,7 +76,6 @@ export function AssistantChat() {
       }));
       setMessages(mapped);
     } finally {
-      setLoadingMessages(false);
     }
   }, []);
 
@@ -134,8 +134,6 @@ export function AssistantChat() {
 
   useEffect(() => {
     let active = true;
-    const saved = typeof window !== "undefined" ? window.localStorage.getItem("maboria_ai_history_open") : null;
-    if (saved === "true") setHistoryOpen(true);
     const loadPrefs = async () => {
       try {
         const res = await fetch("/api/ai/preferences");
@@ -751,6 +749,18 @@ export function AssistantChat() {
       )}
 
       <section className="flex min-h-[70vh] flex-col" ref={scrollAnchorRef}>
+        <div className="mb-3 flex items-center justify-between">
+          <div />
+          <Button
+            size="sm"
+            variant="secondary"
+            className="h-8 rounded-full px-3 text-[11px]"
+            onClick={handleNewChat}
+          >
+            <Plus className="mr-1 h-3 w-3" />
+            {t("New chat", "Nouveau chat")}
+          </Button>
+        </div>
         {status && <Alert variant={statusVariant}>{status}</Alert>}
         <div
           ref={listRef}
@@ -762,7 +772,6 @@ export function AssistantChat() {
             setAutoScrollEnabled(nearBottom);
           }}
         >
-          {loadingMessages && <div className="text-xs text-muted-foreground">{t("Loading messages...", "Chargement des messages...")}</div>}
           {messages.length === 0 && !loading && (
             <div className="flex h-full items-center justify-center">
               <div className="max-w-xl text-center">
@@ -819,7 +828,7 @@ export function AssistantChat() {
                           type="button"
                           onClick={() => sendFeedback(m.id, "up")}
                           disabled={m.feedback === "up"}
-                          className={`inline-flex items-center gap-1 ${m.feedback === "up" ? "text-indigo-600" : "hover:text-foreground"}`}
+                          className={`inline-flex items-center gap-1 ${m.feedback === "up" ? "text-emerald-600 font-bold" : "hover:text-foreground"}`}
                           aria-label={t("Helpful", "Utile")}
                         >
                           <ThumbsUp className="h-4 w-4" />
@@ -828,7 +837,7 @@ export function AssistantChat() {
                           type="button"
                           onClick={() => sendFeedback(m.id, "down")}
                           disabled={m.feedback === "down"}
-                          className={`inline-flex items-center gap-1 ${m.feedback === "down" ? "text-rose-600" : "hover:text-foreground"}`}
+                          className={`inline-flex items-center gap-1 ${m.feedback === "down" ? "text-red-600 font-bold" : "hover:text-foreground"}`}
                           aria-label={t("Not helpful", "Pas utile")}
                         >
                           <ThumbsDown className="h-4 w-4" />
@@ -945,45 +954,45 @@ export function AssistantChat() {
                   )}
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 rounded-full border border-border/40 bg-background/80 px-3 py-1 shadow-[0_6px_16px_rgba(15,23,42,0.06)]">
                 <span className="uppercase tracking-[0.2em]">{t("Style", "Style")}</span>
                 <span
-                  className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-border/60 text-muted-foreground"
+                  className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-border/40 text-muted-foreground"
                   title={t("Brief is concise. Detailed adds steps and examples.", "Bref est concis. Detaille ajoute etapes et exemples.")}
                 >
                   <Info className="h-3 w-3" />
                 </span>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => savePreferences({ style: "brief" })}
-                  className={`h-7 rounded-full px-3 text-[11px] font-semibold ${
-                    style === "brief" ? "border border-border/60 text-indigo-600" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {t("Brief", "Bref")}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => savePreferences({ style: "detailed" })}
-                  className={`h-7 rounded-full px-3 text-[11px] font-semibold ${
-                    style === "detailed" ? "border border-border/60 text-indigo-600" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {t("Detailed", "Detaille")}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => savePreferences({ style: "brief" })}
+                    className={`h-7 rounded-full px-3 text-[11px] font-semibold ${
+                      style === "brief" ? "bg-indigo-600 text-white" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t("Brief", "Concis")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => savePreferences({ style: "detailed" })}
+                    className={`h-7 rounded-full px-3 text-[11px] font-semibold ${
+                      style === "detailed" ? "bg-indigo-600 text-white" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t("Detailed", "Detaille")}
+                  </button>
+                </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 rounded-full border border-border/40 bg-background/80 px-3 py-1 shadow-[0_6px_16px_rgba(15,23,42,0.06)]">
                 <span className="uppercase tracking-[0.2em]">{t("Tone", "Ton")}</span>
                 <span
-                  className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-border/60 text-muted-foreground"
+                  className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-border/40 text-muted-foreground"
                   title={t("Balanced is neutral. Direct is crisp. Warm is friendly.", "Equilibre est neutre. Direct est precis. Chaleureux est amical.")}
                 >
                   <Info className="h-3 w-3" />
                 </span>
                 <select
-                  className="rounded-full border border-border/60 bg-background px-3 py-1 text-[11px] font-semibold text-foreground"
+                  className="rounded-full border border-border/40 bg-background px-3 py-1 text-[11px] font-semibold text-foreground"
                   value={tone}
                   onChange={(e) => savePreferences({ tone: e.target.value as AiTone })}
                 >

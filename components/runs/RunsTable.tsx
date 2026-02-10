@@ -24,7 +24,6 @@ export function RunsTable({
   sortDir,
   onSortChange,
   formatDateTime,
-  formatDuration,
   t,
 }: {
   runs: RunItem[];
@@ -34,7 +33,6 @@ export function RunsTable({
   sortDir: "asc" | "desc";
   onSortChange: (key: string) => void;
   formatDateTime: (value?: string) => string;
-  formatDuration: (start?: string | null, end?: string | null, status?: string | null) => string | null;
   t: (en: string, fr: string) => string;
 }) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);

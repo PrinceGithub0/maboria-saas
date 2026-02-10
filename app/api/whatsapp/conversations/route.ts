@@ -40,6 +40,9 @@ export const GET = withErrorHandling(async () => {
         orderBy: { createdAt: "desc" },
         take: 1,
       },
+      assignedTo: {
+        select: { id: true, name: true, email: true },
+      },
     },
   });
 
@@ -48,8 +51,15 @@ export const GET = withErrorHandling(async () => {
       id: conv.id,
       customerPhone: conv.customerPhone,
       status: conv.status,
+      customerName: conv.customerName,
+      tags: conv.tags,
+      internalNotes: conv.internalNotes,
+      assignedTo: conv.assignedTo,
+      isTyping: conv.isTyping,
+      typingAt: conv.typingAt,
       lastMessageAt: conv.lastMessageAt,
       lastReadAt: conv.lastReadAt,
+      lastCustomerActivityAt: conv.lastCustomerActivityAt,
       channel: conv.channel,
       invoiceId: conv.invoiceId,
       paymentId: conv.paymentId,

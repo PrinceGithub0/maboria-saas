@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import Image from "next/image";
 import { Card } from "@/components/ui/card";
@@ -85,7 +85,7 @@ export default function SettingsPage() {
     : `/api/merchant-account/banks?provider=${payoutProvider}&country=${businessForm.country}&currency=${businessForm.defaultCurrency}`;
   const { data: payoutBanks } = useSWR(payoutBankUrl, fetcher);
   const { data: merchantAccountRes } = useSWR("/api/merchant-account", profileFetcher);
-  const payoutBankList = payoutBanks?.banks || [];
+  const payoutBankList = useMemo(() => payoutBanks?.banks || [], [payoutBanks?.banks]);
   const payoutBankError = payoutBanks?.error ? String(payoutBanks.error) : null;
 
   const businessCurrencyOptions = allowedCurrencies.map((code) => ({ code, label: formatCurrencyOption(code) }));
@@ -331,6 +331,7 @@ export default function SettingsPage() {
     const addressFields = {
       streetAddress: businessForm.streetAddress,
       city: businessForm.city,
+      region: "",
       postalCode: businessForm.postalCode,
     };
     if (!hasRequiredAddress(addressFields)) {
@@ -679,7 +680,7 @@ export default function SettingsPage() {
             )}
           </label>
           <Input
-            label={t("Tax ID (optional)", "ID fiscal (optionnel)")}
+            label={t("Tax ID", "ID fiscal")}
             value={businessForm.taxId}
             onChange={(e) => setBusinessForm({ ...businessForm, taxId: e.target.value })}
             className="max-md:order-8"
