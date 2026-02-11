@@ -387,11 +387,11 @@ export function Navbar() {
               className="relative z-10 h-full w-full max-w-full overflow-y-auto border-r border-border bg-background p-4 shadow-2xl sm:w-72 sm:max-w-[85%]"
             >
               <div className="mb-6 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="relative h-10 w-10 overflow-hidden rounded-xl border border-border bg-card">
-                    <Image src={logoSrc} alt="Maboria" fill className="object-contain p-0 scale-110" priority />
-                  </div>
-                  <div>
+                  <div className="flex items-center gap-2">
+                    <div className="relative h-10 w-10 overflow-hidden rounded-xl border border-border bg-card">
+                      <Image src={logoSrc} alt="Maboria" fill sizes="40px" className="object-contain p-0 scale-110" priority />
+                    </div>
+                    <div>
                     <p className="text-sm text-muted-foreground">Maboria</p>
                     <p className="text-lg font-semibold text-foreground">{t("Control", "Controle")}</p>
                   </div>

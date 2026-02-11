@@ -96,11 +96,11 @@ export default function SignupPage() {
       <div className="pointer-events-none absolute -bottom-32 -right-10 h-80 w-80 rounded-full bg-emerald-500/10 blur-3xl" />
       <div className="relative mx-auto w-full max-w-xl rounded-3xl border border-border/70 bg-card/80 p-6 shadow-2xl backdrop-blur sm:p-8 max-md:mx-0 max-md:max-w-none">
         <div className="space-y-5">
-            <div className="flex items-center gap-3">
-              <div className="relative h-10 w-10 overflow-hidden rounded-2xl border border-border bg-card">
-                <Image src={logoSrc} alt="Maboria" fill className="object-contain p-0 scale-110" priority />
-              </div>
-              <div>
+              <div className="flex items-center gap-3">
+                <div className="relative h-10 w-10 overflow-hidden rounded-2xl border border-border bg-card">
+                  <Image src={logoSrc} alt="Maboria" fill sizes="40px" className="object-contain p-0 scale-110" priority />
+                </div>
+                <div>
                 <p className="text-xs uppercase tracking-[0.3em] text-indigo-600 dark:text-indigo-300">Maboria</p>
                 <p className="text-lg font-semibold text-foreground">
                   {t("Create your account", "Creez votre compte")}

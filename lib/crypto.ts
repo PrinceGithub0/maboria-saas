@@ -1,13 +1,16 @@
 import crypto from "crypto";
-import { env } from "@/lib/env";
 import { log } from "@/lib/logger";
 
 const PREFIX = "enc:v1:";
 const ALGO = "aes-256-gcm";
 
 function key() {
-  // Derive a stable 32-byte key from NEXTAUTH_SECRET (already required in env.ts).
-  return crypto.scryptSync(env.nextAuthSecret, "maboria:crypto:v1", 32);
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!secret) {
+    throw new Error("NEXTAUTH_SECRET is not set. Cannot decrypt secrets.");
+  }
+  // Derive a stable 32-byte key from NEXTAUTH_SECRET.
+  return crypto.scryptSync(secret, "maboria:crypto:v1", 32);
 }
 
 export function encryptSecret(plaintext: string) {
@@ -48,4 +51,3 @@ export function safeDecryptSecret(value: string | null | undefined) {
     return null;
   }
 }
-

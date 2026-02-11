@@ -1,155 +1,238 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
-import clsx from "clsx";
-import {
-  Bot,
-  CreditCard,
-  FileText,
-  LifeBuoy,
-  Lock,
-  MessageSquare,
-  Search,
-  ShieldCheck,
-  UserPlus,
-} from "lucide-react";
+import { Search } from "lucide-react";
 import { useLanguage } from "@/components/providers/language-provider";
 
-type FaqCategoryId =
-  | "what"
-  | "who"
-  | "account"
-  | "payments"
-  | "invoices"
-  | "ai"
-  | "whatsapp"
-  | "twofactor"
-  | "security"
-  | "support";
-
 type FaqItem = {
-  id: string;
-  categoryId: FaqCategoryId;
   question: { en: string; fr: string };
   answer: { en: string; fr: string };
 };
 
-const iconByCategory: Record<FaqCategoryId, React.ComponentType<{ className?: string }>> = {
-  what: Bot,
-  who: UserPlus,
-  account: ShieldCheck,
-  payments: CreditCard,
-  invoices: FileText,
-  ai: Bot,
-  whatsapp: MessageSquare,
-  twofactor: Lock,
-  security: ShieldCheck,
-  support: LifeBuoy,
+type FaqSection = {
+  id: string;
+  title: { en: string; fr: string };
+  meta: { en: string; fr: string };
+  items: FaqItem[];
 };
 
-const categories: Array<{ id: FaqCategoryId; label: { en: string; fr: string } }> = [
-  { id: "what", label: { en: "What Maboria Is", fr: "Qu est-ce que Maboria" } },
-  { id: "who", label: { en: "Who It's For", fr: "Pour qui" } },
-  { id: "account", label: { en: "Account & Workspace", fr: "Compte et espace" } },
-  { id: "payments", label: { en: "Payments & Subscriptions", fr: "Paiements et abonnements" } },
-  { id: "invoices", label: { en: "Invoices", fr: "Factures" } },
-  { id: "ai", label: { en: "AI Assistant", fr: "Assistant IA" } },
-  { id: "whatsapp", label: { en: "WhatsApp Automation", fr: "Automatisation WhatsApp" } },
-  { id: "twofactor", label: { en: "Two-Factor Authentication", fr: "Authentification a deux facteurs" } },
-  { id: "security", label: { en: "Security & Privacy", fr: "Securite et confidentialite" } },
-  { id: "support", label: { en: "Support & Contact", fr: "Support et contact" } },
-];
-
-const faqs: FaqItem[] = [
+const faqSections: FaqSection[] = [
   {
-    id: "what-is",
-    categoryId: "what",
-    question: { en: "What is Maboria?", fr: "Qu est-ce que Maboria ?" },
-    answer: {
-      en: "Maboria is a web app for managing workflows, customers, invoices, payments, subscriptions, and notifications in one place. It's built for modern businesses. You use it from a dashboard after signing in.",
-      fr: "Maboria est une application pour gerer workflows, clients, factures, paiements, abonnements et notifications au meme endroit. Elle est adaptee aux entreprises modernes. Vous l utilisez depuis un tableau de bord apres connexion.",
-    },
+    id: "what",
+    title: { en: "What Maboria Is", fr: "What Maboria Is" },
+    meta: { en: "What Maboria does and who it's for", fr: "What Maboria does and who it's for" },
+    items: [
+      {
+        question: { en: "What is Maboria?", fr: "What is Maboria?" },
+        answer: {
+          en: "Maboria is a revenue automation platform that helps businesses invoice customers, collect payments, send WhatsApp messages, automate follow-ups, generate receipts, and track operations from one dashboard.",
+          fr: "Maboria is a revenue automation platform that helps businesses invoice customers, collect payments, send WhatsApp messages, automate follow-ups, generate receipts, and track operations from one dashboard.",
+        },
+      },
+      {
+        question: { en: "Who is Maboria for?", fr: "Who is Maboria for?" },
+        answer: {
+          en: "Maboria is for businesses that want predictable cash flow without manually chasing customers - founders, operators, and teams managing invoicing and collections.",
+          fr: "Maboria is for businesses that want predictable cash flow without manually chasing customers - founders, operators, and teams managing invoicing and collections.",
+        },
+      },
+    ],
   },
   {
-    id: "who-for",
-    categoryId: "who",
-    question: { en: "Who is Maboria for?", fr: "Pour qui est Maboria ?" },
-    answer: {
-      en: "Maboria is for non-technical business owners and teams who want to automate repetitive tasks and keep billing and customer operations organized. It fits SMEs, startups, and growing companies that need clear visibility and control.",
-      fr: "Maboria est pour les equipes non techniques qui veulent automatiser les taches repetitives et garder la facturation et les operations clients organisees. Cela convient aux PME, startups et entreprises en croissance.",
-    },
+    id: "payments",
+    title: { en: "Payments & Trust", fr: "Payments & Trust" },
+    meta: { en: "How money flows and who handles it", fr: "How money flows and who handles it" },
+    items: [
+      {
+        question: { en: "Does Maboria hold customer money?", fr: "Does Maboria hold customer money?" },
+        answer: {
+          en: "No. Maboria does not hold funds. Payments are processed by Paystack or Flutterwave and are paid directly into your connected business account or sub-account.",
+          fr: "No. Maboria does not hold funds. Payments are processed by Paystack or Flutterwave and are paid directly into your connected business account or sub-account.",
+        },
+      },
+      {
+        question: { en: "Is Maboria a wallet or payment processor?", fr: "Is Maboria a wallet or payment processor?" },
+        answer: {
+          en: "No. Maboria is not a wallet. It automates invoicing and operations. Payment processing and settlements are handled entirely by Paystack or Flutterwave.",
+          fr: "No. Maboria is not a wallet. It automates invoicing and operations. Payment processing and settlements are handled entirely by Paystack or Flutterwave.",
+        },
+      },
+      {
+        question: { en: "What happens when a customer pays an invoice?", fr: "What happens when a customer pays an invoice?" },
+        answer: {
+          en: "Maboria detects the payment instantly, updates the invoice status, issues a receipt automatically (if enabled), and triggers any follow-ups or reports you've configured.",
+          fr: "Maboria detects the payment instantly, updates the invoice status, issues a receipt automatically (if enabled), and triggers any follow-ups or reports you've configured.",
+        },
+      },
+    ],
   },
   {
-    id: "setup",
-    categoryId: "account",
-    question: { en: "How do I set up my account and workspace?", fr: "Comment configurer mon compte et mon espace ?" },
-    answer: {
-      en: "Create an account with your email and password, then complete onboarding to add your business details and preferences. Your workspace keeps your invoices, payments, automations, and activity in one place. You can add team access when needed.",
-      fr: "Creez un compte avec votre email et mot de passe, puis terminez l onboarding pour ajouter vos details. L espace regroupe factures, paiements, automatisations et activite. Vous pouvez inviter l equipe si besoin.",
-    },
-  },
-  {
-    id: "billing",
-    categoryId: "payments",
-    question: { en: "How do payments and subscriptions work?", fr: "Comment fonctionnent les paiements et abonnements ?" },
-    answer: {
-      en: "Maboria supports billing through configured payment providers and stores payment and subscription records in your account. You can see your subscription status and billing history in the dashboard. If a payment fails, the status is recorded so you can follow up.",
-      fr: "Maboria gere la facturation via les prestataires configures et conserve les paiements et abonnements dans votre compte. Vous voyez le statut et l historique dans le tableau de bord. En cas d echec, le statut est conserve.",
-    },
-  },
-  {
-    id: "invoice-create",
-    categoryId: "invoices",
-    question: { en: "Can I create and track invoices?", fr: "Puis-je creer et suivre des factures ?" },
-    answer: {
-      en: "Yes. You can create invoices with line items, currency, totals, and status. All invoices are stored in your invoice history so you can review paid/unpaid states and timelines.",
-      fr: "Oui. Vous pouvez creer des factures avec lignes, devise, totaux et statut. Toutes les factures restent dans l historique pour suivre les etats paye ou impaye.",
-    },
-  },
-  {
-    id: "ai",
-    categoryId: "ai",
-    question: { en: "What can the AI assistant do for me?", fr: "Que peut faire l assistant IA ?" },
-    answer: {
-      en: "The AI assistant helps you draft and improve automation workflows and can help explain issues when runs fail. It can also help with internal workflow ideas and operational questions. AI usage is tracked so you can monitor activity.",
-      fr: "L assistant IA aide a creer et ameliorer les automatisations et a comprendre les echecs d execution. Il aide aussi pour des idees de workflows internes. L usage IA est suivi pour supervision.",
-    },
+    id: "subaccounts",
+    title: { en: "Sub-Accounts & Payouts", fr: "Sub-Accounts & Payouts" },
+    meta: { en: "Where funds settle and why it matters", fr: "Where funds settle and why it matters" },
+    items: [
+      {
+        question: { en: "What is a sub-account in Maboria?", fr: "What is a sub-account in Maboria?" },
+        answer: {
+          en: "A sub-account is a payout destination connected through Paystack or Flutterwave. When customers pay, money goes directly into that account. Maboria does not store or delay funds.",
+          fr: "A sub-account is a payout destination connected through Paystack or Flutterwave. When customers pay, money goes directly into that account. Maboria does not store or delay funds.",
+        },
+      },
+      {
+        question: { en: "Can payments go straight to my bank account?", fr: "Can payments go straight to my bank account?" },
+        answer: {
+          en: "Yes. Payments are settled directly to your connected business account or sub-account via the payment provider.",
+          fr: "Yes. Payments are settled directly to your connected business account or sub-account via the payment provider.",
+        },
+      },
+    ],
   },
   {
     id: "whatsapp",
-    categoryId: "whatsapp",
-    question: { en: "How does WhatsApp automation work?", fr: "Comment fonctionne l automatisation WhatsApp ?" },
-    answer: {
-      en: "You can include WhatsApp notifications as part of automations to message customers or your team. Messages are triggered by your workflows and can be used for reminders and operational updates. Delivery depends on the WhatsApp messaging setup connected to your workspace.",
-      fr: "Vous pouvez ajouter des notifications WhatsApp dans vos automatisations pour contacter clients ou equipe. Les messages sont declenches par vos workflows et servent aux rappels et mises a jour. La livraison depend de la configuration WhatsApp.",
-    },
+    title: { en: "WhatsApp Messaging", fr: "WhatsApp Messaging" },
+    meta: { en: "Messaging inside Maboria and automation rules", fr: "Messaging inside Maboria and automation rules" },
+    items: [
+      {
+        question: { en: "Can I send WhatsApp messages from Maboria?", fr: "Can I send WhatsApp messages from Maboria?" },
+        answer: {
+          en: "Yes. You can send WhatsApp messages directly to customers from Maboria.",
+          fr: "Yes. You can send WhatsApp messages directly to customers from Maboria.",
+        },
+      },
+      {
+        question: { en: "Can WhatsApp messages be automated?", fr: "Can WhatsApp messages be automated?" },
+        answer: {
+          en: "Yes. You can automate WhatsApp reminders, payment confirmations, and follow-ups based on invoice status or payment events.",
+          fr: "Yes. You can automate WhatsApp reminders, payment confirmations, and follow-ups based on invoice status or payment events.",
+        },
+      },
+      {
+        question: { en: "Does Maboria have built-in email messaging?", fr: "Does Maboria have built-in email messaging?" },
+        answer: {
+          en: "Maboria's built-in communication channel is WhatsApp. Email notifications can be automated through integrations or workflows, but WhatsApp is the native channel inside the app.",
+          fr: "Maboria's built-in communication channel is WhatsApp. Email notifications can be automated through integrations or workflows, but WhatsApp is the native channel inside the app.",
+        },
+      },
+    ],
   },
   {
-    id: "2fa",
-    categoryId: "twofactor",
-    question: { en: "Does Maboria support two-factor authentication (2FA)?", fr: "Maboria supporte-t-il la 2FA ?" },
-    answer: {
-      en: "Yes. You can enable an extra verification step for your account using one-time codes. If you lose access, you can use account recovery options such as password reset and backup codes (if enabled).",
-      fr: "Oui. Vous pouvez activer une verification supplementaire avec des codes temporaires. En cas de perte d acces, vous pouvez utiliser la recuperation de compte comme la reinitialisation et les codes de secours (si actives).",
-    },
+    id: "automation",
+    title: { en: "Automation", fr: "Automation" },
+    meta: { en: "What runs automatically once configured", fr: "What runs automatically once configured" },
+    items: [
+      {
+        question: { en: "What can I automate with Maboria?", fr: "What can I automate with Maboria?" },
+        answer: {
+          en: "You can automate invoice creation, payment receipts, WhatsApp reminders, overdue follow-ups, reports, and operational workflows.",
+          fr: "You can automate invoice creation, payment receipts, WhatsApp reminders, overdue follow-ups, reports, and operational workflows.",
+        },
+      },
+      {
+        question: { en: "Do automations run automatically once set up?", fr: "Do automations run automatically once set up?" },
+        answer: {
+          en: "Yes. Once configured, automations run quietly in the background without manual action.",
+          fr: "Yes. Once configured, automations run quietly in the background without manual action.",
+        },
+      },
+    ],
+  },
+  {
+    id: "ai",
+    title: { en: "AI Assistance", fr: "AI Assistance" },
+    meta: { en: "Where AI helps and where it doesn't", fr: "Where AI helps and where it doesn't" },
+    items: [
+      {
+        question: { en: "What does AI do in Maboria?", fr: "What does AI do in Maboria?" },
+        answer: {
+          en: "AI helps improve message wording, summarize activity, assist with automation setup, and reduce repetitive manual work.",
+          fr: "AI helps improve message wording, summarize activity, assist with automation setup, and reduce repetitive manual work.",
+        },
+      },
+      {
+        question: { en: "Does AI act on its own?", fr: "Does AI act on its own?" },
+        answer: {
+          en: "No. AI assists and suggests. Actions only run based on rules you configure.",
+          fr: "No. AI assists and suggests. Actions only run based on rules you configure.",
+        },
+      },
+    ],
+  },
+  {
+    id: "teams",
+    title: { en: "Teams, Logs & Reports", fr: "Teams, Logs & Reports" },
+    meta: { en: "Visibility, logs, and reporting", fr: "Visibility, logs, and reporting" },
+    items: [
+      {
+        question: { en: "Can my team use Maboria together?", fr: "Can my team use Maboria together?" },
+        answer: {
+          en: "Yes. You can add team members and control access based on roles.",
+          fr: "Yes. You can add team members and control access based on roles.",
+        },
+      },
+      {
+        question: { en: "Does Maboria keep activity logs?", fr: "Does Maboria keep activity logs?" },
+        answer: {
+          en: "Yes. Invoice activity, payment events, and automation execution are logged for visibility and tracking.",
+          fr: "Yes. Invoice activity, payment events, and automation execution are logged for visibility and tracking.",
+        },
+      },
+      {
+        question: { en: "Can I export reports?", fr: "Can I export reports?" },
+        answer: {
+          en: "Yes. You can download usage analytics and activity history as CSV files.",
+          fr: "Yes. You can download usage analytics and activity history as CSV files.",
+        },
+      },
+    ],
   },
   {
     id: "security",
-    categoryId: "security",
-    question: { en: "How is my data protected?", fr: "Comment mes donnees sont-elles protegees ?" },
-    answer: {
-      en: "Your account is protected with authentication and role-based access controls, and sensitive areas are restricted to authorized users. Maboria stores your business data securely and logs key events for auditing. Only users you add to your workspace can access your business data.",
-      fr: "Votre compte est protege par l authentification et des roles. Les zones sensibles sont limitees aux utilisateurs autorises. Maboria stocke vos donnees de facon securisee et journalise les evenements cle. Seuls les membres ajoutes a votre espace peuvent y acceder.",
-    },
+    title: { en: "Security & Reliability", fr: "Security & Reliability" },
+    meta: { en: "Reliability and governance for teams", fr: "Reliability and governance for teams" },
+    items: [
+      {
+        question: { en: "Is Maboria suitable for serious businesses?", fr: "Is Maboria suitable for serious businesses?" },
+        answer: {
+          en: "Yes. Maboria includes role-based access, audit logs, and operational visibility designed for teams that need reliability and control.",
+          fr: "Yes. Maboria includes role-based access, audit logs, and operational visibility designed for teams that need reliability and control.",
+        },
+      },
+    ],
+  },
+  {
+    id: "pricing",
+    title: { en: "Pricing", fr: "Pricing" },
+    meta: { en: "Plan limits and upgrade behavior", fr: "Plan limits and upgrade behavior" },
+    items: [
+      {
+        question: { en: "What determines plan limits?", fr: "What determines plan limits?" },
+        answer: {
+          en: "Plans are based on invoice volume, WhatsApp message usage, AI usage, automations, and number of team members.",
+          fr: "Plans are based on invoice volume, WhatsApp message usage, AI usage, automations, and number of team members.",
+        },
+      },
+      {
+        question: { en: "Can I upgrade later?", fr: "Can I upgrade later?" },
+        answer: {
+          en: "Yes. You can change plans as your business grows.",
+          fr: "Yes. You can change plans as your business grows.",
+        },
+      },
+    ],
   },
   {
     id: "support",
-    categoryId: "support",
-    question: { en: "How do I get help if something isn't working?", fr: "Comment obtenir de l aide ?" },
-    answer: {
-      en: "Use the Support Center to review common questions and submit a support request. Share what you were trying to do and what you saw on screen so issues can be resolved quickly. You can also check the Status page to confirm system health.",
-      fr: "Utilisez le centre de support pour consulter les questions courantes et envoyer une demande. Decrivez ce que vous faisiez et ce que vous voyiez a l ecran. Vous pouvez aussi verifier la page Statut.",
-    },
+    title: { en: "Support", fr: "Support" },
+    meta: { en: "How to reach the team", fr: "How to reach the team" },
+    items: [
+      {
+        question: { en: "How do I get help?", fr: "How do I get help?" },
+        answer: {
+          en: "You can contact support through the Support link in the footer or via the official contact details on the site.",
+          fr: "You can contact support through the Support link in the footer or via the official contact details on the site.",
+        },
+      },
+    ],
   },
 ];
 
@@ -157,169 +240,118 @@ export function FAQSection() {
   const { language } = useLanguage();
   const t = (en: string, fr: string) => (language === "fr" ? fr : en);
   const [query, setQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState<FaqCategoryId>("what");
-  const [activeId, setActiveId] = useState<string>("what-is");
-
-  const filtered = useMemo(() => {
+  const highlightMatch = (text: string, needle: string) => {
+    const q = needle.trim();
+    if (!q) return text;
+    const lower = text.toLowerCase();
+    const lowerNeedle = q.toLowerCase();
+    const parts: Array<string | { match: string }> = [];
+    let start = 0;
+    let index = lower.indexOf(lowerNeedle);
+    while (index !== -1) {
+      if (index > start) parts.push(text.slice(start, index));
+      parts.push({ match: text.slice(index, index + q.length) });
+      start = index + q.length;
+      index = lower.indexOf(lowerNeedle, start);
+    }
+    if (start < text.length) parts.push(text.slice(start));
+    return parts.map((part, i) =>
+      typeof part === "string" ? (
+        <span key={`text-${i}`}>{part}</span>
+      ) : (
+        <span key={`match-${i}`} className="faq-highlight">
+          {part.match}
+        </span>
+      )
+    );
+  };
+  const filteredSections = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return faqs.filter((item) => {
-      if (item.categoryId !== activeCategory) return false;
-      if (!q) return true;
-      const question = item.question[language].toLowerCase();
-      const answer = item.answer[language].toLowerCase();
-      return question.includes(q) || answer.includes(q);
-    });
-  }, [activeCategory, language, query]);
-
-  const active = useMemo(() => {
-    const inCategory = filtered.find((f) => f.id === activeId);
-    return inCategory ?? filtered[0] ?? faqs.find((f) => f.categoryId === activeCategory) ?? faqs[0];
-  }, [activeCategory, activeId, filtered]);
-
-  const ActiveIcon = iconByCategory[active.categoryId];
-  const activeCategoryLabel =
-    categories.find((cat) => cat.id === active.categoryId)?.label[language] ?? "";
+    if (!q) return faqSections;
+    return faqSections
+      .map((section) => {
+        const items = section.items.filter((item) => {
+          const question = item.question[language].toLowerCase();
+          const answer = item.answer[language].toLowerCase();
+          return question.includes(q) || answer.includes(q);
+        });
+        return { ...section, items };
+      })
+      .filter((section) => section.items.length > 0);
+  }, [language, query]);
 
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-border bg-card/70 p-6">
-      <div className="pointer-events-none absolute -top-24 left-1/2 h-64 w-[520px] -translate-x-1/2 rounded-full bg-indigo-500/10 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-28 right-0 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl" />
-
-      <div className="relative">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
-              {t("FAQ", "FAQ")}
-            </p>
-            <h2 className="mt-2 text-xl font-semibold text-foreground">
-              {t("Quick answers", "Reponses rapides")}
-            </h2>
-            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-              {t(
-                "Clear explanations for common questions. Choose a topic, then pick a question.",
-                "Des reponses claires pour les questions courantes. Choisissez un sujet, puis une question."
-              )}
-            </p>
-          </div>
-
-          <div className="relative w-full lg:max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t("Search questions...", "Rechercher des questions...")}
-              className="w-full rounded-xl border border-input bg-background px-9 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-indigo-400 focus:outline-none"
-              aria-label={t("Search FAQ", "Rechercher dans la FAQ")}
-            />
-          </div>
+    <section className="faq-container">
+      <div className="flex flex-col items-center gap-5">
+        <div className="space-y-2 text-center">
+          <p className="faq-section-title">{t("FAQ", "FAQ")}</p>
+          <h1 className="faq-title">{t("Frequently Asked Questions", "Frequently Asked Questions")}</h1>
+          <p className="faq-updated">
+            {t(
+              "Clear answers about payments, automation, WhatsApp messaging, AI assistance, and how Maboria works.",
+              "Clear answers about payments, automation, WhatsApp messaging, AI assistance, and how Maboria works."
+            )}
+          </p>
         </div>
 
-        <div className="mt-6 grid gap-4 lg:grid-cols-[240px_360px_1fr]">
-          <div className="rounded-2xl border border-border bg-background/60 p-3">
-            <p className="px-2 pb-2 text-xs font-semibold text-muted-foreground">
-              {t("Topics", "Sujets")}
-            </p>
-            <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible">
-              {categories.map((cat) => {
-                const CatIcon = iconByCategory[cat.id];
-                const selected = cat.id === activeCategory;
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => {
-                      setActiveCategory(cat.id);
-                      setActiveId(faqs.find((f) => f.categoryId === cat.id)?.id ?? "");
-                    }}
-                    className={clsx(
-                      "group flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-indigo-500/40",
-                      selected
-                        ? "bg-indigo-500/10 text-foreground ring-1 ring-indigo-500/30"
-                        : "text-muted-foreground hover:bg-muted/60"
-                    )}
-                    aria-current={selected ? "page" : undefined}
-                  >
-                    <CatIcon
-                      className={clsx(
-                        "h-4 w-4",
-                        selected ? "text-indigo-600 dark:text-indigo-300" : "text-muted-foreground"
-                      )}
-                    />
-                    <span className="whitespace-nowrap">{cat.label[language]}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+        <div className="relative w-full md:max-w-sm mx-auto">
+          <Search className="absolute left-6 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t("Search questions...", "Search questions...")}
+            className="faq-search"
+            aria-label={t("Search questions...", "Search questions...")}
+            style={{ paddingLeft: "3.75rem", paddingRight: "1rem" }}
+          />
+        </div>
+      </div>
 
-          <div className="rounded-2xl border border-border bg-background/60">
-            <div className="border-b border-border px-4 py-3">
-              <p className="text-xs font-semibold text-muted-foreground">
-                {t("Questions", "Questions")}
-              </p>
-            </div>
-            <div className="max-h-[340px] overflow-auto p-2 lg:max-h-[520px]">
-              {filtered.length === 0 ? (
-                <div className="rounded-xl border border-border bg-background/70 p-4 text-sm text-muted-foreground">
-                  {t(
-                    "No matches in this topic. Try a different search.",
-                    "Aucun resultat dans ce sujet. Essayez une autre recherche."
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {filtered.map((item) => {
-                    const selected = item.id === active.id;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => setActiveId(item.id)}
-                        className={clsx(
-                          "w-full rounded-xl border px-3 py-3 text-left transition focus:outline-none focus:ring-2 focus:ring-indigo-500/40",
-                          selected ? "border-indigo-500/40 bg-indigo-500/10" : "border-border bg-background/60 hover:bg-muted/50"
-                        )}
-                        aria-expanded={selected}
-                        aria-controls={`faq-answer-${item.id}`}
-                      >
-                        <p className="text-sm font-semibold text-foreground">
-                          {item.question[language]}
-                        </p>
-                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                          {item.answer[language]}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+      <div className="mt-10 space-y-10 text-left">
+        {filteredSections.length === 0 ? (
+          <div className="text-sm text-muted-foreground">
+            {t("No matching questions yet.", "No matching questions yet.")}
           </div>
-
-          <div className="rounded-2xl border border-border bg-background/60 p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-500/10 text-indigo-600 ring-1 ring-indigo-500/20 dark:text-indigo-300">
-                  <ActiveIcon className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground">{activeCategoryLabel}</p>
-                  <h3 className="text-lg font-semibold text-foreground">
-                    {active.question[language]}
-                  </h3>
-                </div>
+        ) : (
+          filteredSections.map((section) => (
+            <div key={section.id}>
+              <p className="faq-section-title">{section.title[language]}</p>
+              <p className="text-sm text-muted-foreground">{section.meta[language]}</p>
+              <div className="mt-4 space-y-5">
+                {section.items.map((item) => (
+                  <div key={item.question.en} className="space-y-2">
+                    <p className="faq-question">
+                      {highlightMatch(item.question[language], query)}
+                    </p>
+                    <p className="faq-answer">
+                      {highlightMatch(item.answer[language], query)}
+                    </p>
+                    <div className="faq-divider" />
+                  </div>
+                ))}
               </div>
             </div>
+          ))
+        )}
+      </div>
 
-            <div
-              id={`faq-answer-${active.id}`}
-              className="mt-4 rounded-xl border border-border bg-background/70 p-4 text-sm leading-relaxed text-muted-foreground transition"
-            >
-              {active.answer[language]}
-            </div>
-          </div>
+      <div className="mt-12 text-center">
+        <p className="text-lg font-semibold text-foreground">
+          {t("Still have questions?", "Still have questions?")}
+        </p>
+        <div className="mt-4 flex justify-center">
+          <a
+            href="/signup"
+            className="rounded-full bg-indigo-600 px-6 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500"
+          >
+            {t("Get started", "Get started")}
+          </a>
         </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          {t("Last updated: Feb 2026", "Last updated: Feb 2026")}
+        </p>
       </div>
     </section>
   );
 }
+

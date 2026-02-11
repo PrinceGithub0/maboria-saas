@@ -134,17 +134,20 @@ export function PricingSection({ plans }: { plans: PlanRecord[] }) {
   };
 
   return (
-    <section className="relative z-10 pointer-events-auto space-y-6 rounded-[32px] bg-[#F8FAFC] px-6 py-12 max-md:px-4 max-md:py-10">
-      <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 text-center">
-        <h2 className="text-3xl font-semibold text-slate-900 max-md:text-2xl">
+    <section className="relative z-10 pointer-events-auto space-y-10 px-6 py-16 max-md:px-4 max-md:py-12">
+      <div className="mx-auto flex max-w-5xl flex-col items-center gap-3 text-center">
+        <h2 className="text-4xl font-semibold text-slate-900 max-md:text-3xl">
           {t("Pricing", "Tarifs")}
         </h2>
-        <div className="inline-flex items-center rounded-full border border-slate-200 bg-white p-1 shadow-sm">
+        <p className="text-sm text-slate-500">
+          {t("Choose how much of your operations you want to automate.", "Choisissez le niveau d automatisation souhaite.")}
+        </p>
+        <div className="inline-flex items-center rounded-full border border-slate-200/80 bg-white/90 p-1 shadow-[0_6px_16px_rgba(15,23,42,0.06)]">
           <button
             type="button"
             onClick={() => setBilling("monthly")}
             className={`rounded-full px-6 py-2 text-sm font-semibold transition ${
-              billing === "monthly" ? "bg-blue-600 text-white shadow-sm" : "text-slate-700"
+              billing === "monthly" ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
             }`}
           >
             {t("Monthly", "Mensuel")}
@@ -153,7 +156,7 @@ export function PricingSection({ plans }: { plans: PlanRecord[] }) {
             type="button"
             onClick={() => setBilling("yearly")}
             className={`rounded-full px-6 py-2 text-sm font-semibold transition ${
-              billing === "yearly" ? "bg-blue-600 text-white shadow-sm" : "text-slate-700"
+              billing === "yearly" ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
             }`}
           >
             {t("Yearly (Save 10%)", "Annuel (Economisez 10%)")}
@@ -161,7 +164,7 @@ export function PricingSection({ plans }: { plans: PlanRecord[] }) {
         </div>
         <p className="text-sm text-slate-500">
           {t(
-            "Prices shown in USD. You’ll be charged in your local currency where supported. VAT included where applicable.",
+            "Prices shown in USD. You'll be charged in your local currency where supported. VAT included where applicable.",
             "Prix en USD. Facturation en devise locale si disponible. TVA incluse si applicable."
           )}
         </p>
@@ -179,17 +182,18 @@ export function PricingSection({ plans }: { plans: PlanRecord[] }) {
           return (
             <div
               key={plan.plan}
-              className="relative flex h-full min-h-[520px] flex-col rounded-[28px] border border-slate-200 bg-white px-6 pb-6 pt-7 shadow-[0_10px_20px_rgba(15,23,42,0.08)] transition hover:-translate-y-1 hover:shadow-[0_14px_28px_rgba(15,23,42,0.12)]"
+              className={`relative flex h-full min-h-[520px] flex-col rounded-2xl border border-slate-200/80 bg-white/90 px-6 pb-6 pt-7 shadow-[0_6px_16px_rgba(15,23,42,0.06)] transition hover:shadow-[0_10px_24px_rgba(15,23,42,0.12)] ${
+                isPopular ? "ring-1 ring-indigo-500/20" : ""
+              }`}
             >
-              <div className="pointer-events-none absolute inset-x-0 top-0 h-2 rounded-t-[28px] bg-gradient-to-r from-slate-200 to-slate-100" />
               {isPopular && (
-                <span className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-amber-500 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-white shadow-sm">
+                <span className="absolute right-4 top-4 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
                   {t("Most Popular", "Plus populaire")}
                 </span>
               )}
               <div className="space-y-3">
-                <h3 className={`text-3xl font-semibold ${accent.title ?? "text-slate-900"}`}>{plan.label}</h3>
-                <div className="text-5xl font-semibold leading-tight text-slate-900">
+                <h3 className={`text-2xl font-semibold ${accent.title ?? "text-slate-900"}`}>{plan.label}</h3>
+                <div className="text-4xl font-semibold leading-tight text-slate-900">
                   {plan.usd == null ? (
                     t("Custom pricing", "Tarif sur mesure")
                   ) : (
@@ -212,16 +216,16 @@ export function PricingSection({ plans }: { plans: PlanRecord[] }) {
                   )}
                 </div>
                 {detail && (
-                  <p className="text-sm font-semibold text-slate-700">{t(detail.tagline.en, detail.tagline.fr)}</p>
+                  <p className="text-sm font-medium text-slate-600">{t(detail.tagline.en, detail.tagline.fr)}</p>
                 )}
               </div>
               {detail && (
                 <div className="mt-4 space-y-3">
-                  <div className="h-px w-full bg-slate-200" />
+                  <div className="h-px w-full bg-slate-200/80" />
                   <ul className="space-y-2 text-sm text-slate-700">
                     {detail.includes.map((item) => (
                       <li key={item.en} className="flex items-start gap-2">
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-500" />
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" />
                         <span>{t(item.en, item.fr)}</span>
                       </li>
                     ))}
@@ -243,8 +247,7 @@ export function PricingSection({ plans }: { plans: PlanRecord[] }) {
       {enterprise && (
         <div className="mx-auto max-w-6xl">
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-            <div className="relative flex h-full min-h-[520px] flex-col rounded-[28px] border border-slate-200 bg-white px-6 pb-6 pt-7 shadow-[0_10px_20px_rgba(15,23,42,0.08)]">
-              <div className="pointer-events-none absolute inset-x-0 top-0 h-2 rounded-t-[28px] bg-gradient-to-r from-slate-200 to-slate-100" />
+            <div className="relative flex h-full min-h-[520px] flex-col rounded-2xl border border-slate-200/80 bg-white/90 px-6 pb-6 pt-7 shadow-[0_6px_16px_rgba(15,23,42,0.06)]">
               <div className="space-y-2">
                 <h3 className="text-3xl font-semibold text-slate-950">{enterprise.label}</h3>
                 <p className="text-sm font-semibold text-slate-700">
@@ -253,7 +256,7 @@ export function PricingSection({ plans }: { plans: PlanRecord[] }) {
                 <div className="h-1" />
               </div>
               <div className="mt-1 space-y-2">
-                <div className="h-px w-full bg-slate-200" />
+                <div className="h-px w-full bg-slate-200/80" />
                 <ul className="space-y-2 text-sm text-slate-700">
                   {planDetails.ENTERPRISE.includes.map((item) => (
                     <li key={item.en} className="flex items-start gap-2">

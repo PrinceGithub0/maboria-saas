@@ -202,11 +202,11 @@ export function Sidebar({ role }: Props) {
 
   return (
     <aside className="sticky top-0 hidden h-screen w-64 flex-col border-r border-border bg-background p-4 backdrop-blur lg:flex">
-      <div className="mb-6 flex items-center gap-2">
-        <div className="relative h-10 w-10 overflow-hidden rounded-xl border border-border bg-card">
-          <Image src={logoSrc} alt="Maboria" fill className="object-contain p-0 scale-110" priority />
-        </div>
-        <div>
+        <div className="mb-6 flex items-center gap-2">
+          <div className="relative h-10 w-10 overflow-hidden rounded-xl border border-border bg-card">
+            <Image src={logoSrc} alt="Maboria" fill sizes="40px" className="object-contain p-0 scale-110" priority />
+          </div>
+          <div>
           <p className="text-sm text-slate-700 dark:text-muted-foreground">Maboria</p>
           <p className="text-lg font-semibold text-foreground">
             {language === "fr" ? "Controle" : "Control"}

@@ -471,6 +471,7 @@ export function buildInvoicePdfBuffer(input: InvoicePdfInput) {
     const left = doc.page.margins.left;
     const right = doc.page.width - doc.page.margins.right;
     const pageWidth = right - left;
+    const singlePageMode = true;
     const gridGap = 28;
     const leftColWidth = Math.round(pageWidth * 0.62);
     const rightColWidth = pageWidth - leftColWidth - gridGap;
@@ -655,12 +656,12 @@ export function buildInvoicePdfBuffer(input: InvoicePdfInput) {
     );
 
     const headerContentHeight = Math.max(logoSize, headerInfoY - y, headerMetaY - y + badgeHeight + 10);
-    const headerBottom = y + Math.max(96, headerContentHeight) + 12;
-    y = headerBottom + 20;
+    const headerBottom = y + Math.max(96, headerContentHeight) + (singlePageMode ? 10 : 12);
+    y = headerBottom + (singlePageMode ? 16 : 20);
     drawBold("Invoice", left, y, 22, { width: pageWidth, align: "center" });
     y += 32;
     doc.moveTo(left, y).lineTo(right, y).strokeColor(colors.line).lineWidth(1).stroke();
-    y += 20;
+    y += singlePageMode ? 16 : 20;
 
     const columnWidth = leftColWidth;
     drawBold("Billed To", left, y, 11);
@@ -715,7 +716,7 @@ export function buildInvoicePdfBuffer(input: InvoicePdfInput) {
     y += 24 + Math.max(billHeight, businessHeight) + 22;
 
     const cardWidth = leftColWidth;
-    const cardHeight = 128;
+    const cardHeight = singlePageMode ? 120 : 128;
     const cardY = y;
     doc.roundedRect(left, cardY, cardWidth, cardHeight, 10).fill(colors.card).strokeColor(colors.line).stroke();
     doc
@@ -760,7 +761,7 @@ export function buildInvoicePdfBuffer(input: InvoicePdfInput) {
     const buttonWidth = 176;
     const buttonHeight = 34;
     const buttonX = rightColX + (rightColWidth - buttonWidth) / 2;
-    const buttonY = cardY + 100;
+    const buttonY = cardY + (singlePageMode ? 82 : 100);
     doc.roundedRect(buttonX, buttonY, buttonWidth, buttonHeight, 6).fill(colors.primary);
     doc.font("Inter").fontSize(10).fillColor("#FFFFFF").text("Pay Now", buttonX, buttonY + 9, {
       width: buttonWidth,
@@ -773,7 +774,7 @@ export function buildInvoicePdfBuffer(input: InvoicePdfInput) {
     y = cardY + cardHeight + 12;
 
     const tableTop = y;
-    const tableHeaderHeight = 26;
+    const tableHeaderHeight = singlePageMode ? 22 : 26;
     const qtyWidth = 56;
     const unitWidth = 120;
     const totalWidth = 120;
@@ -816,14 +817,14 @@ export function buildInvoicePdfBuffer(input: InvoicePdfInput) {
     const footerLogoBlockHeight = hasCardLogos
       ? Math.max(footerNoteBlockHeight, 32 + cardBoxHeight - cardBoxPaddingY)
       : footerNoteBlockHeight;
-    const footerBottomPadding = 8;
+    const footerBottomPadding = singlePageMode ? 6 : 8;
     const footerBlockHeight =
       footerIntroHeight + footerLogoBlockHeight + footerBottomPadding + footerSeparation;
     const totalsBlockHeight = (showTax ? 3 : 2) * 16 + 8;
-    const tableToTotalsGap = 12;
+    const tableToTotalsGap = singlePageMode ? 8 : 12;
     const minTableToTotalsGap = 4;
-    const totalsToFooterGap = 18;
-    const minTotalsToFooterGap = 8;
+    const totalsToFooterGap = singlePageMode ? 12 : 18;
+    const minTotalsToFooterGap = singlePageMode ? 6 : 8;
     const paginationEpsilon = 10;
     const requiredAfterTable = totalsBlockHeight + footerBlockHeight + minTotalsToFooterGap;
     const requiredAfterTotals = requiredAfterTable + minTableToTotalsGap;
@@ -833,8 +834,8 @@ export function buildInvoicePdfBuffer(input: InvoicePdfInput) {
     const rowMeta = input.items.map((item) => {
       const descText = item.description ? `${item.name}\n${item.description}` : item.name;
       const rowHeight = Math.max(
-        30,
-        doc.heightOfString(descText, { width: columnWidths[0] - 16 }) + 14
+        singlePageMode ? 26 : 30,
+        doc.heightOfString(descText, { width: columnWidths[0] - 16 }) + (singlePageMode ? 10 : 14)
       );
       return { item, descText, rowHeight };
     });
@@ -855,7 +856,7 @@ export function buildInvoicePdfBuffer(input: InvoicePdfInput) {
         minTotalsToFooterGap +
         footerBlockHeight <=
       pageBottom + paginationEpsilon;
-    const forceSinglePage = true;
+    const forceSinglePage = singlePageMode;
     const forceSinglePageForShortList =
       forceSinglePage || fitsSinglePage || (rowMeta.length <= 5 && noteHeight <= 140);
     const allowPagination = !forceSinglePage;
@@ -982,13 +983,29 @@ export function buildInvoicePdfBuffer(input: InvoicePdfInput) {
       doc.addPage();
       yTotals = doc.page.margins.top;
     }
-    const totalsGap = 1;
+    const totalsGap = 2;
     const totalsValueWidth = columnWidths[3] - 16;
     const totalsValueX =
       left + columnWidths[0] + columnWidths[1] + columnWidths[2] + 8;
+    const totalsLabels = [
+      "Subtotal",
+      ...(showTax
+        ? [`VAT (${taxRate ? taxRate.toFixed(1).replace(/\\.0$/, "") : "0"}%)`]
+        : []),
+      "Total Due",
+    ];
+    const maxTotalsLabelWidth =
+      Math.max(
+        ...totalsLabels.map((label) =>
+          doc
+            .font("Inter")
+            .fontSize(label === "Total Due" ? 11 : 10)
+            .widthOfString(label)
+        )
+      ) + 4;
     const totalsLabelWidth = Math.min(
-      76,
-      Math.max(70, totalsValueX - left - 12 - totalsGap)
+      maxTotalsLabelWidth,
+      Math.max(56, totalsValueX - left - 8 - totalsGap)
     );
     const totalsLabelX = totalsValueX - totalsGap - totalsLabelWidth;
     // Totals always render on the same (final) page; table pagination reserves space above.

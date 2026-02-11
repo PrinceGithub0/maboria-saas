@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
 :root {
   color-scheme: light;
   --font-geist-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
@@ -311,4 +325,105 @@ html.dark .automation-throughput-card {
 html[data-lang="en"] [data-lang="fr"],
 html[data-lang="fr"] [data-lang="en"] {
   display: none !important;
+}
+
+:root {
+  --text-primary: #111111;
+  --text-secondary: #555555;
+  --text-muted: #777777;
+  --brand-accent: #2563eb;
+  --brand-accent-soft: rgba(37, 99, 235, 0.08);
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --bg-highlight: rgba(37, 99, 235, 0.06);
+}
+
+.dark,
+[data-theme="dark"] {
+  --text-primary: #f5f5f5;
+  --text-secondary: #cfcfcf;
+  --text-muted: #a3a3a3;
+  --brand-accent: #60a5fa;
+  --brand-accent-soft: rgba(96, 165, 250, 0.12);
+  --border-subtle: rgba(255, 255, 255, 0.12);
+  --bg-highlight: rgba(96, 165, 250, 0.14);
+}
+
+.faq-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 64px 20px;
+  text-align: left;
+}
+
+.faq-title {
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.faq-updated {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 48px;
+}
+
+.faq-section-title {
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brand-accent);
+  margin-top: 56px;
+  margin-bottom: 20px;
+}
+
+.faq-question {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.faq-question:hover {
+  color: var(--brand-accent);
+  transition: color 0.15s ease;
+}
+
+.faq-answer {
+  font-size: 0.95rem;
+  font-weight: 400;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  margin-bottom: 28px;
+}
+
+.faq-divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 28px 0;
+}
+
+.faq-search {
+  width: 100%;
+  max-width: 360px;
+  padding: 10px 14px;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  display: block;
+  margin: 0 auto;
+}
+
+.faq-search:focus {
+  outline: none;
+  border-color: var(--brand-accent);
+}
+
+.faq-highlight {
+  background: var(--bg-highlight);
+  border-radius: 4px;
+  padding: 0 2px;
 }

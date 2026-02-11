@@ -1,5 +1,4 @@
 import { compare, genSalt, hash } from "bcryptjs";
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import Credentials from "next-auth/providers/credentials";
 import type { NextAuthOptions } from "next-auth";
 import { prisma } from "./prisma";
@@ -33,7 +32,8 @@ export async function verifyPassword(password: string, passwordHash: string) {
 }
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  secret: process.env.NEXTAUTH_SECRET,
+  debug: process.env.NODE_ENV !== "production",
   session: {
     strategy: "jwt",
   },
