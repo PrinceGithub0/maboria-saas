@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getEntitlementForUser, getWorkspaceScope, planLimits } from "@/lib/entitlements";
+import { getWorkspaceScope } from "@/lib/entitlements";
+import { PLAN_LIMITS, normalizePlanLimitKey, UNLIMITED } from "@/lib/planLimits";
 
 const formatDateKey = (date: Date, timeZone: string) =>
   new Intl.DateTimeFormat("en-CA", {
@@ -47,19 +48,14 @@ export async function GET(req: Request) {
   const activeSub = await prisma.subscription.findFirst({
     where: { userId: session.user.id, status: "ACTIVE" },
     orderBy: { createdAt: "desc" },
-    select: { id: true, createdAt: true, currentPeriodStart: true },
+    select: {
+      id: true,
+      plan: true,
+      currentPeriodStart: true,
+      currentPeriodEnd: true,
+    },
   });
-  let subscriptionStart = activeSub?.currentPeriodStart ?? activeSub?.createdAt ?? null;
-  if (activeSub?.id) {
-    const firstInvoice = await prisma.invoice.findFirst({
-      where: { subscriptionId: activeSub.id },
-      orderBy: { generatedAt: "asc" },
-      select: { generatedAt: true },
-    });
-    if (firstInvoice?.generatedAt) {
-      subscriptionStart = firstInvoice.generatedAt;
-    }
-  }
+  const subscriptionStart = activeSub?.currentPeriodStart ?? null;
   if (subscriptionStart) {
     const anchor = new Date(subscriptionStart);
     anchor.setUTCHours(0, 0, 0, 0);
@@ -162,11 +158,16 @@ export async function GET(req: Request) {
     whatsappMessages: rows.reduce((best, row) => (row.whatsappMessages > best.value ? { date: row.date, value: row.whatsappMessages } : best), { date: "--", value: 0 }),
   };
 
-  const cycleStart = usageScope.start;
-  const cycleEnd = usageScope.resetAt ?? endUtc;
+  const cycleStart = activeSub?.currentPeriodStart
+    ? new Date(activeSub.currentPeriodStart)
+    : usageScope.start;
+  const cycleEnd = activeSub?.currentPeriodEnd
+    ? new Date(activeSub.currentPeriodEnd)
+    : usageScope.resetAt ?? endUtc;
+  const cycleWindowEnd = cycleEnd < endUtc ? cycleEnd : endUtc;
   const monthEvents = await prisma.analyticsEvent.findMany({
     where: {
-      createdAt: { gte: cycleStart, lte: endUtc },
+      createdAt: { gte: cycleStart, lte: cycleWindowEnd },
       OR: [{ workspaceId }, { userId: { in: scopeUserIds } }],
     },
   });
@@ -212,15 +213,21 @@ export async function GET(req: Request) {
     }
   }
 
-  const entitlement = await getEntitlementForUser(session.user.id);
-  const plan = entitlement.plan;
-  const limits = planLimits[plan];
+  const planKey = normalizePlanLimitKey(activeSub?.plan || null);
+  const limits = planKey
+    ? PLAN_LIMITS[planKey]
+    : {
+        invoices: 0,
+        whatsapp: 0,
+        aiRequests: 0,
+        automations: 0,
+      };
   const limitResponse = {
     invoices: buildLimit(usedThisMonth.invoices, limits.invoices),
-    automationRuns: buildLimit(usedThisMonth.automationRuns, limits.automationRuns),
+    automationRuns: buildLimit(usedThisMonth.automationRuns, limits.automations),
     aiRequests: buildLimit(usedThisMonth.aiRequests, limits.aiRequests),
-    aiTokens: buildLimit(usedThisMonth.aiTokens, null),
-    whatsappMessages: buildLimit(usedThisMonth.whatsappMessages, limits.whatsappMessages),
+    aiTokens: buildLimit(usedThisMonth.aiTokens, limits.aiRequests),
+    whatsappMessages: buildLimit(usedThisMonth.whatsappMessages, limits.whatsapp),
   };
 
   const cycleStartKey = formatDateKey(cycleStart, tz);
@@ -277,8 +284,8 @@ export async function GET(req: Request) {
 }
 
 function buildLimit(used: number, limit?: number | null) {
-  if (limit == null) {
-    return { used, limit: null, remaining: null, isExceeded: false };
+  if (limit == null || limit === UNLIMITED) {
+    return { used, limit: UNLIMITED, remaining: null, isExceeded: false };
   }
   const remaining = Math.max(0, limit - used);
   return { used, limit, remaining, isExceeded: used >= limit };

@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
+import { CheckCircle2, Clock3, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Table } from "@/components/ui/table";
 import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency } from "@/lib/currency";
@@ -129,32 +129,65 @@ export default function PaymentsPage() {
       billingInterval
     );
 
+  const formatProviderLabel = (value: unknown) => {
+    const providerValue = String(value || "").toUpperCase();
+    if (providerValue === "PAYSTACK") return "Paystack";
+    if (providerValue === "FLUTTERWAVE") return "Flutterwave";
+    return providerValue || "--";
+  };
+
+  const renderStatusPill = (value: unknown) => {
+    const status = String(value || "").toUpperCase();
+    const badgeClass =
+      status === "SUCCEEDED"
+        ? "bg-green-100 text-green-700"
+        : status === "PENDING"
+          ? "bg-amber-100 text-amber-700"
+          : status === "FAILED"
+            ? "bg-red-100 text-red-700"
+            : "bg-slate-100 text-slate-600";
+    return (
+      <span
+        className={`inline-flex min-w-[108px] items-center justify-center rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}`}
+      >
+        {status === "SUCCEEDED" ? (
+          <CheckCircle2 className="mr-1.5 h-4 w-4 text-green-600" />
+        ) : status === "PENDING" ? (
+          <Clock3 className="mr-1.5 h-4 w-4 text-amber-600" />
+        ) : status === "FAILED" ? (
+          <XCircle className="mr-1.5 h-4 w-4 text-red-600" />
+        ) : null}
+        {status || "--"}
+      </span>
+    );
+  };
+
   return (
-    <div className="space-y-6 max-md:space-y-7">
-      <div className="md:contents max-md:rounded-[28px] max-md:border max-md:border-border/60 max-md:bg-card max-md:p-4 max-md:shadow-[0_16px_36px_rgba(15,23,42,0.18)]">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
+    <div className="mx-auto w-full max-w-[1150px] space-y-8 pb-4">
+      <section className="rounded-3xl border border-slate-200 bg-slate-50/70 p-6 shadow-[0_16px_38px_-30px_rgba(15,23,42,0.28)] sm:p-8">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-indigo-600 dark:text-indigo-300">
               {t("Payments", "Paiements")}
             </p>
-            <h1 className="text-3xl font-semibold text-foreground">
+            <h1 className="text-4xl font-bold tracking-tight text-foreground">
               {t("Billing + subscriptions", "Facturation + abonnements")}
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="max-w-3xl text-sm text-muted-foreground">
               {t(
                 "Select a plan and continue to secure checkout to add a payment method. Prices shown in USD; you'll be charged in local currency where supported. VAT included where applicable.",
                 "Choisissez un plan puis continuez vers le paiement securise. Prix en USD, facturation en devise locale si disponible. TVA incluse si applicable."
               )}
             </p>
           </div>
-          <div className="flex items-center gap-2 rounded-full border border-border bg-card/60 p-1 text-xs">
+          <div className="inline-flex items-center rounded-full border border-slate-200 bg-white p-1 text-xs shadow-sm">
             <button
               type="button"
               onClick={() => setBillingInterval("monthly")}
-              className={`rounded-full px-3 py-1 font-semibold transition ${
+              className={`rounded-full px-4 py-1.5 font-semibold transition duration-150 ${
                 billingInterval === "monthly"
-                  ? "bg-indigo-600 text-white"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900"
               }`}
             >
               {t("Monthly", "Mensuel")}
@@ -162,21 +195,29 @@ export default function PaymentsPage() {
             <button
               type="button"
               onClick={() => setBillingInterval("yearly")}
-              className={`rounded-full px-3 py-1 font-semibold transition ${
+              className={`rounded-full px-4 py-1.5 font-semibold transition duration-150 ${
                 billingInterval === "yearly"
-                  ? "bg-indigo-600 text-white"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900"
               }`}
             >
               {t("Yearly (Save 10%)", "Annuel (10% off)")}
             </button>
           </div>
         </div>
-        {message && <div className="mt-4"><Alert variant="error">{message}</Alert></div>}
-      </div>
-      <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-        <Card title={t("Select a plan", "Choisir un plan")}>
-          <div className="grid gap-3 md:grid-cols-2 max-md:grid-cols-1">
+        {message && (
+          <div className="mt-5">
+            <Alert variant="error">{message}</Alert>
+          </div>
+        )}
+      </section>
+
+      <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+        <Card
+          title={t("Select a plan", "Choisir un plan")}
+          className="rounded-3xl border-slate-200 bg-white p-7 shadow-[0_18px_42px_-28px_rgba(15,23,42,0.2)]"
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
             {plans
               .filter((p) => p.plan !== "ENTERPRISE")
               .map((p) => {
@@ -199,61 +240,83 @@ export default function PaymentsPage() {
                               : "business"
                       )
                     }
-                    className={`rounded-2xl border p-4 text-left transition ${
-                      isSelected ? "border-indigo-500 bg-indigo-500/10" : "border-border bg-card/50 hover:bg-muted/50"
+                    className={`flex h-full min-h-[196px] flex-col justify-between rounded-3xl border p-6 text-left shadow-[0_12px_28px_-24px_rgba(15,23,42,0.35)] transition duration-150 ${
+                      isSelected
+                        ? "scale-[1.01] border-blue-500 bg-blue-50/60 ring-1 ring-blue-300/50"
+                        : "border-slate-200 bg-white hover:-translate-y-0.5 hover:shadow-[0_16px_30px_-20px_rgba(15,23,42,0.28)]"
                     }`}
                   >
-                    <p className="text-sm font-semibold text-foreground">{label}</p>
-                    <div className="mt-2 text-2xl font-semibold text-foreground">
-                      {p.plan === "ENTERPRISE" || usdPrice == null
-                        ? t("Contact sales", "Contacter ventes")
-                        : formatUsd(usdPrice)}
+                    <div className="space-y-3">
+                      <p className="text-base font-semibold text-foreground">{label}</p>
+                      <div className="text-4xl font-bold tracking-tight text-foreground">
+                        {p.plan === "ENTERPRISE" || usdPrice == null
+                          ? t("Contact sales", "Contacter ventes")
+                          : formatUsd(usdPrice)}
+                      </div>
+                      {p.plan !== "ENTERPRISE" && (
+                        <p className="text-sm text-slate-500">
+                          {billingInterval === "yearly"
+                            ? t("per year (USD)", "par an (USD)")
+                            : t("per month (USD)", "par mois (USD)")}
+                        </p>
+                      )}
                     </div>
-                    {p.plan !== "ENTERPRISE" && (
-                      <p className="text-xs text-muted-foreground">
-                        {billingInterval === "yearly"
-                          ? t("per year (USD)", "par an (USD)")
-                          : t("per month (USD)", "par mois (USD)")}
-                      </p>
-                    )}
+                    <p className="text-xs text-slate-500">
+                      {p.plan === "STARTER"
+                        ? t("Best for getting started.", "Ideal pour bien demarrer.")
+                        : p.plan === "PRO"
+                          ? t("Built for professionals automating at scale.", "Concu pour les pros qui automatisent a l echelle.")
+                          : p.plan === "GROWTH"
+                            ? t("For growing teams with higher volume.", "Pour equipes en croissance avec plus de volume.")
+                            : t("For teams running high-volume operations.", "Pour equipes qui gerent un fort volume operationnel.")}
+                    </p>
                   </button>
                 );
               })}
           </div>
         </Card>
-        <Card title={t("Choose payment method", "Choisir le mode de paiement")}>
-          <div className="space-y-3">
-            <div className="grid gap-2 sm:grid-cols-2 max-md:grid-cols-1">
-              <button
-                type="button"
-                onClick={() => setProvider("paystack")}
-                className={`rounded-xl border px-3 py-2 text-sm font-semibold transition ${
-                  provider === "paystack"
-                    ? "border-indigo-500 bg-indigo-500/10 text-foreground"
-                    : "border-border bg-card/60 text-muted-foreground hover:bg-muted/60"
-                }`}
-              >
-                Paystack
-              </button>
-              <button
-                type="button"
-                onClick={() => setProvider("flutterwave")}
-                className={`rounded-xl border px-3 py-2 text-sm font-semibold transition ${
-                  provider === "flutterwave"
-                    ? "border-indigo-500 bg-indigo-500/10 text-foreground"
-                    : "border-border bg-card/60 text-muted-foreground hover:bg-muted/60"
-                }`}
-              >
-                Flutterwave
-              </button>
+
+        <Card
+          title={t("Payment", "Paiement")}
+          className="rounded-3xl border-slate-200 bg-white p-7 shadow-[0_18px_42px_-28px_rgba(15,23,42,0.2)]"
+        >
+          <div className="space-y-5">
+            <div className="rounded-full border border-slate-200 bg-slate-100 p-1">
+              <div className="grid grid-cols-2 gap-1">
+                <button
+                  type="button"
+                  onClick={() => setProvider("paystack")}
+                  className={`rounded-full px-3 py-2 text-sm font-semibold transition duration-150 ${
+                    provider === "paystack"
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : "bg-transparent text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  Paystack
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProvider("flutterwave")}
+                  className={`rounded-full px-3 py-2 text-sm font-semibold transition duration-150 ${
+                    provider === "flutterwave"
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : "bg-transparent text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  Flutterwave
+                </button>
+              </div>
             </div>
+
             {provider === "paystack" ? (
-              <label className="flex items-center justify-between rounded-xl border border-border bg-card/60 px-3 py-2 text-sm max-md:flex-col max-md:items-start max-md:gap-2">
-                <span className="text-muted-foreground">{t("Paystack currency", "Devise Paystack")}</span>
+              <label className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm">
+                <span className="text-sm font-medium text-slate-600">
+                  {t("Paystack currency", "Devise Paystack")}
+                </span>
                 <select
                   value={paystackCurrency}
                   onChange={(e) => setPaystackCurrency(e.target.value)}
-                  className="rounded-lg border border-input bg-background px-2 py-1 text-sm text-foreground"
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-foreground outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-200/60"
                 >
                   {paystackCurrencyOptions.map((option) => (
                     <option key={option.code} value={option.code}>
@@ -263,12 +326,14 @@ export default function PaymentsPage() {
                 </select>
               </label>
             ) : (
-              <label className="flex items-center justify-between rounded-xl border border-border bg-card/60 px-3 py-2 text-sm max-md:flex-col max-md:items-start max-md:gap-2">
-                <span className="text-muted-foreground">{t("Billing currency", "Devise de facturation")}</span>
+              <label className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm">
+                <span className="text-sm font-medium text-slate-600">
+                  {t("Billing currency", "Devise de facturation")}
+                </span>
                 <select
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
-                  className="rounded-lg border border-input bg-background px-2 py-1 text-sm text-foreground"
+                  className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-foreground outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-200/60"
                 >
                   {availableCurrencies.map((item) => (
                     <option key={item.code} value={item.code}>
@@ -278,29 +343,58 @@ export default function PaymentsPage() {
                 </select>
               </label>
             )}
-            <div className="grid gap-2 max-md:gap-3">
-              <Button onClick={payWithPaystack} className="max-md:w-full">
-                {t("Continue with Paystack", "Continuer avec Paystack")}
-              </Button>
-              <Button onClick={payWithFlutterwave} className="max-md:w-full">
-                {t("Continue with Flutterwave", "Continuer avec Flutterwave")}
-              </Button>
-            </div>
-            <div className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-              {t(
-                "You will be redirected to a secure checkout page to enter card or bank details. Your plan activates immediately after payment.",
-                "Vous serez redirige vers une page securisee pour saisir carte ou virement. Le plan s active apres paiement."
+
+            <div className="space-y-3">
+              {provider === "paystack" ? (
+                <>
+                  <Button
+                    onClick={payWithPaystack}
+                    className="h-14 w-full rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-base font-semibold shadow-[0_14px_26px_-18px_rgba(37,99,235,0.7)] transition duration-200 hover:-translate-y-0.5 hover:brightness-105 focus-visible:ring-2 focus-visible:ring-blue-300"
+                  >
+                    {t("Continue to secure payment", "Continuer vers le paiement securise")}
+                  </Button>
+                  <Button
+                    onClick={payWithFlutterwave}
+                    variant="secondary"
+                    className="h-12 w-full rounded-xl border-slate-200 bg-slate-100 text-sm font-semibold text-slate-700 transition duration-150 hover:bg-slate-200"
+                  >
+                    {t("Continue with Flutterwave", "Continuer avec Flutterwave")}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    onClick={payWithFlutterwave}
+                    className="h-14 w-full rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-base font-semibold shadow-[0_14px_26px_-18px_rgba(37,99,235,0.7)] transition duration-200 hover:-translate-y-0.5 hover:brightness-105 focus-visible:ring-2 focus-visible:ring-blue-300"
+                  >
+                    {t("Continue to secure payment", "Continuer vers le paiement securise")}
+                  </Button>
+                  <Button
+                    onClick={payWithPaystack}
+                    variant="secondary"
+                    className="h-12 w-full rounded-xl border-slate-200 bg-slate-100 text-sm font-semibold text-slate-700 transition duration-150 hover:bg-slate-200"
+                  >
+                    {t("Continue with Paystack", "Continuer avec Paystack")}
+                  </Button>
+                </>
               )}
             </div>
+
+            <p className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600">
+              {t(
+                "You will be redirected to a secure payment page. Your local currency will be applied automatically where supported.",
+                "Vous serez redirige vers une page de paiement securisee. Votre devise locale sera appliquee automatiquement lorsque c est pris en charge."
+              )}
+            </p>
+
             {selectedPlan ? (
-              <div className="rounded-xl border border-border bg-card/60 p-3 text-xs text-muted-foreground">
-                {t("Selected plan:", "Plan choisi:")}{" "}
-                <span className="font-semibold text-foreground">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+                {t("Selected plan:", "Plan choisi:")} <span className="font-semibold text-foreground">
                   {planLabelMap[selectedPlan.label]
                     ? t(planLabelMap[selectedPlan.label].en, planLabelMap[selectedPlan.label].fr)
                     : selectedPlan.label}
                 </span>
-                <span className="ml-2 text-muted-foreground">
+                <span className="ml-2 text-slate-500">
                   {billingInterval === "yearly" ? t("(Yearly)", "(Annuel)") : t("(Monthly)", "(Mensuel)")}
                 </span>
               </div>
@@ -308,7 +402,11 @@ export default function PaymentsPage() {
           </div>
         </Card>
       </div>
-      <Card title={t("Recent payments", "Paiements recents")}>
+
+      <Card
+        title={t("Recent payments", "Paiements recents")}
+        className="rounded-3xl border-slate-200 bg-white p-7 shadow-[0_18px_42px_-28px_rgba(15,23,42,0.2)]"
+      >
         {paymentRows.length === 0 ? (
           <EmptyState
             title={t("No payments yet", "Aucun paiement")}
@@ -318,24 +416,47 @@ export default function PaymentsPage() {
             )}
           />
         ) : (
-          <Table
-            data={paymentRows}
-            keyExtractor={(row: any) => row.id}
-            columns={[
-              { key: "provider", label: t("Provider", "Fournisseur") },
-              {
-                key: "currency",
-                label: t("Currency", "Devise"),
-                render: (row: any) => String(row.currency || "").toUpperCase(),
-              },
-              {
-                key: "amount",
-                label: t("Amount", "Montant"),
-                render: (row: any) => formatCurrency(Number(row.amount || 0), row.currency),
-              },
-              { key: "status", label: t("Status", "Statut") },
-            ]}
-          />
+          <div className="overflow-hidden rounded-2xl border border-slate-200">
+            <div className="overflow-x-auto">
+              <table className="min-w-full border-collapse bg-white">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/80">
+                    <th className="px-6 py-4 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                      {t("Provider", "Fournisseur")}
+                    </th>
+                    <th className="px-6 py-4 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                      {t("Currency", "Devise")}
+                    </th>
+                    <th className="px-6 py-4 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                      {t("Amount", "Montant")}
+                    </th>
+                    <th className="px-6 py-4 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                      {t("Status", "Statut")}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paymentRows.map((row: any) => (
+                    <tr
+                      key={row.id}
+                      className="border-t border-slate-100 transition-colors duration-150 hover:bg-slate-50/60"
+                    >
+                      <td className="px-6 py-5 text-center text-sm font-medium text-slate-700">
+                        {formatProviderLabel(row.provider)}
+                      </td>
+                      <td className="px-6 py-5 text-center text-sm text-slate-600">
+                        {String(row.currency || "").toUpperCase()}
+                      </td>
+                      <td className="px-6 py-5 text-center text-sm font-semibold text-slate-900">
+                        {formatCurrency(Number(row.amount || 0), row.currency)}
+                      </td>
+                      <td className="px-6 py-5 text-center">{renderStatusPill(row.status)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         )}
       </Card>
     </div>

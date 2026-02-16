@@ -25,6 +25,12 @@ const buildRenewalDate = (interval: BillingInterval) =>
     ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
     : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
+const buildPeriodWindow = (interval: BillingInterval) => {
+  const currentPeriodStart = new Date();
+  const currentPeriodEnd = buildRenewalDate(interval);
+  return { currentPeriodStart, currentPeriodEnd };
+};
+
 export async function finalizeSubscriptionPayment({
   provider,
   reference,
@@ -85,7 +91,8 @@ export async function finalizeSubscriptionPayment({
     return null;
   }
 
-  const renewalDate = buildRenewalDate(resolvedInterval);
+  const { currentPeriodStart, currentPeriodEnd } = buildPeriodWindow(resolvedInterval);
+  const renewalDate = currentPeriodEnd;
   const paidAt = verifiedAt ? new Date(verifiedAt) : new Date();
 
   const result = await prisma.$transaction(async (tx) => {
@@ -113,6 +120,8 @@ export async function finalizeSubscriptionPayment({
           currency: normalizedCurrency,
           interval: resolvedInterval,
           plan: normalizedPlan,
+          currentPeriodStart,
+          currentPeriodEnd,
         },
       });
     } else {
@@ -124,6 +133,8 @@ export async function finalizeSubscriptionPayment({
           renewalDate,
           currency: normalizedCurrency,
           interval: resolvedInterval,
+          currentPeriodStart,
+          currentPeriodEnd,
         },
       });
       subscriptionId = created.id;

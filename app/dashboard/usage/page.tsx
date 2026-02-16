@@ -70,13 +70,13 @@ export default function UsagePage() {
   const getLimitSummary = (key: keyof typeof data.limits | string) => {
     const entry = (data?.limits as any)?.[key];
     if (!entry) return null;
-    if (entry.limit == null) return t("Unlimited", "Illimite");
+    if (entry.limit === -1) return t("Unlimited", "Illimite");
     return `${formatNumber(entry.used || 0)} / ${formatNumber(entry.limit || 0)}`;
   };
   const getRemainingSummary = (key: keyof typeof data.limits | string) => {
     const entry = (data?.limits as any)?.[key];
     if (!entry) return null;
-    if (entry.limit == null) return t("Unlimited", "Illimite");
+    if (entry.limit === -1) return t("Unlimited", "Illimite");
     return formatNumber(entry.remaining || 0);
   };
 

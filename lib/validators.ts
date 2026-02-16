@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { countryCodes } from "./countries";
+import { MIN_PASSWORD_LENGTH, PASSWORD_MIN_LENGTH_ERROR } from "./password-policy";
 
 export const signupSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
-  password: z.string().min(8),
+  password: z.string().min(MIN_PASSWORD_LENGTH, PASSWORD_MIN_LENGTH_ERROR),
   planIntent: z.enum(["starter", "pro", "growth", "business"]),
   inviteToken: z.string().min(10).optional(),
   locale: z.string().min(2).optional(),
@@ -13,7 +14,7 @@ export const signupSchema = z.object({
 
 export const loginSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8),
+  password: z.string().min(MIN_PASSWORD_LENGTH, PASSWORD_MIN_LENGTH_ERROR),
 });
 
 export const automationStepSchema = z.object({
@@ -145,8 +146,8 @@ export const profileUpdateSchema = z.object({
 });
 
 export const passwordUpdateSchema = z.object({
-  password: z.string().min(8),
-  confirm: z.string().min(8),
+  password: z.string().min(MIN_PASSWORD_LENGTH, PASSWORD_MIN_LENGTH_ERROR),
+  confirm: z.string().min(MIN_PASSWORD_LENGTH, PASSWORD_MIN_LENGTH_ERROR),
 });
 
 export type AutomationStepInput = z.infer<typeof automationStepSchema>;

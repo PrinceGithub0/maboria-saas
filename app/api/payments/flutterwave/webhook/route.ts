@@ -19,6 +19,15 @@ import {
   markWebhookProcessed,
 } from "@/lib/webhook-events";
 
+function buildPeriodWindow(interval: BillingInterval) {
+  const currentPeriodStart = new Date();
+  const currentPeriodEnd =
+    interval === "yearly"
+      ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  return { currentPeriodStart, currentPeriodEnd };
+}
+
 export const POST = withErrorHandling(async (req: Request) => {
   const signature =
     req.headers.get("verif-hash") || req.headers.get("x-flutterwave-signature") || undefined;
@@ -118,10 +127,8 @@ export const POST = withErrorHandling(async (req: Request) => {
         const oldPlan = existing ? subscriptionPlanToUserPlan(existing.plan) : "free";
 
         if (plan === "STARTER" || plan === "PRO" || plan === "GROWTH" || plan === "BUSINESS") {
-          const renewalDate =
-            interval === "yearly"
-              ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
-              : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+          const { currentPeriodStart, currentPeriodEnd } = buildPeriodWindow(interval);
+          const renewalDate = currentPeriodEnd;
           let subscriptionId: string | null = null;
           await prisma.$transaction(async (tx) => {
             await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`;
@@ -132,7 +139,15 @@ export const POST = withErrorHandling(async (req: Request) => {
             if (existingForPlan) {
               await tx.subscription.update({
                 where: { id: existingForPlan.id },
-                data: { status: "ACTIVE", renewalDate, currency, interval, plan },
+                data: {
+                  status: "ACTIVE",
+                  renewalDate,
+                  currency,
+                  interval,
+                  plan,
+                  currentPeriodStart,
+                  currentPeriodEnd,
+                },
               });
               subscriptionId = existingForPlan.id;
             } else {
@@ -144,6 +159,8 @@ export const POST = withErrorHandling(async (req: Request) => {
                   renewalDate,
                   currency,
                   interval,
+                  currentPeriodStart,
+                  currentPeriodEnd,
                 },
               });
               subscriptionId = created.id;

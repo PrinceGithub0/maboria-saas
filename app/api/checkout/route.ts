@@ -16,7 +16,6 @@ const requestSchema = z.object({
   userId: z.string().optional(),
   detectedCountry: z.string().optional(),
   currency: z.string().optional(),
-  provider: z.enum(["PAYSTACK", "FLUTTERWAVE"]).optional(),
 });
 
 export const POST = withRequestLogging(

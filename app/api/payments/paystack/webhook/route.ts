@@ -20,6 +20,15 @@ import {
 import { fromMinorUnits, normalizeCurrency } from "@/lib/payments/currency-allowlist";
 import type { BillingInterval } from "@/lib/pricing";
 
+function buildPeriodWindow(interval: BillingInterval) {
+  const currentPeriodStart = new Date();
+  const currentPeriodEnd =
+    interval === "yearly"
+      ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  return { currentPeriodStart, currentPeriodEnd };
+}
+
 export const POST = withErrorHandling(async (req: Request) => {
   const signature = req.headers.get("x-paystack-signature") || undefined;
   const body = await req.text();
@@ -150,10 +159,8 @@ export const POST = withErrorHandling(async (req: Request) => {
         orderBy: { createdAt: "desc" },
       });
       const oldPlan = existing ? subscriptionPlanToUserPlan(existing.plan) : "free";
-      const renewalDate =
-        interval === "yearly"
-          ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
-          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      const { currentPeriodStart, currentPeriodEnd } = buildPeriodWindow(interval);
+      const renewalDate = currentPeriodEnd;
       const currency = normalizeCurrency(subscriptionPayload?.currency || "NGN");
       let subscriptionId: string | null = null;
       await prisma.$transaction(async (tx) => {
@@ -165,7 +172,15 @@ export const POST = withErrorHandling(async (req: Request) => {
         if (existingForPlan) {
           await tx.subscription.update({
             where: { id: existingForPlan.id },
-            data: { status: "ACTIVE", renewalDate, currency, interval, plan: normalizedPlan },
+            data: {
+              status: "ACTIVE",
+              renewalDate,
+              currency,
+              interval,
+              plan: normalizedPlan,
+              currentPeriodStart,
+              currentPeriodEnd,
+            },
           });
           subscriptionId = existingForPlan.id;
         } else {
@@ -177,6 +192,8 @@ export const POST = withErrorHandling(async (req: Request) => {
               renewalDate,
               currency,
               interval,
+              currentPeriodStart,
+              currentPeriodEnd,
             },
           });
           subscriptionId = created.id;
@@ -258,14 +275,20 @@ export const POST = withErrorHandling(async (req: Request) => {
           orderBy: { createdAt: "desc" },
         });
         const oldPlan = existing ? subscriptionPlanToUserPlan(existing.plan) : "free";
-        const renewalDate =
-          interval === "yearly"
-            ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
-            : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        const { currentPeriodStart, currentPeriodEnd } = buildPeriodWindow(interval);
+        const renewalDate = currentPeriodEnd;
         const currency = normalizeCurrency(data?.currency || "NGN");
       await prisma.subscription.upsert({
         where: { id: data?.subscription_code || data?.id || `${userId}-${plan}` },
-        update: { status: "ACTIVE", plan, renewalDate, currency, interval },
+        update: {
+          status: "ACTIVE",
+          plan,
+          renewalDate,
+          currency,
+          interval,
+          currentPeriodStart,
+          currentPeriodEnd,
+        },
         create: {
           id: data?.subscription_code || data?.id || `${userId}-${plan}`,
           userId,
@@ -274,6 +297,8 @@ export const POST = withErrorHandling(async (req: Request) => {
           renewalDate,
           currency,
           interval,
+          currentPeriodStart,
+          currentPeriodEnd,
         },
       });
       await prisma.activityLog.create({

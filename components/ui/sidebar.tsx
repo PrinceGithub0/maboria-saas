@@ -22,7 +22,7 @@ import {
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import { useLanguage } from "@/components/providers/language-provider";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Props = { role?: string };
 
@@ -31,6 +31,7 @@ type NavItem = { href: string; label: string; icon: any; badge?: string };
 export function Sidebar({ role }: Props) {
   const pathname = usePathname();
   const navRef = useRef<HTMLDivElement | null>(null);
+  const [mounted, setMounted] = useState(false);
   const { data } = useSession();
   const { language } = useLanguage();
   const userRole = role || data?.user?.role;
@@ -109,6 +110,10 @@ export function Sidebar({ role }: Props) {
       : [];
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
     if (navRef.current) {
       navRef.current.scrollTop = 0;
     }
@@ -122,11 +127,12 @@ export function Sidebar({ role }: Props) {
       <div className="mt-2 flex flex-col gap-2">
         {items.map((item) => {
           const Icon = item.icon;
-          const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          const active = mounted && (item.href === "/" ? pathname === "/" : pathname.startsWith(item.href));
           return (
             <Link
               key={item.href}
               href={item.href}
+              suppressHydrationWarning
               className={clsx(
                 "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition",
                 active
@@ -156,11 +162,12 @@ export function Sidebar({ role }: Props) {
       <div className="mt-2 flex flex-col gap-2">
         {billingItems.map((item) => {
           const Icon = item.icon;
-          const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          const active = mounted && (item.href === "/" ? pathname === "/" : pathname.startsWith(item.href));
           return (
             <Link
               key={item.href}
               href={item.href}
+              suppressHydrationWarning
               className={clsx(
                 "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition",
                 active
@@ -179,11 +186,12 @@ export function Sidebar({ role }: Props) {
         </p>
         {supportItems.map((item) => {
           const Icon = item.icon;
-          const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          const active = mounted && (item.href === "/" ? pathname === "/" : pathname.startsWith(item.href));
           return (
             <Link
               key={item.href}
               href={item.href}
+              suppressHydrationWarning
               className={clsx(
                 "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition",
                 active

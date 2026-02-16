@@ -33,6 +33,15 @@ const payloadSchema = z.object({
   txRef: z.string().optional(),
 });
 
+function buildPeriodWindow(interval: BillingInterval) {
+  const currentPeriodStart = new Date();
+  const currentPeriodEnd =
+    interval === "yearly"
+      ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  return { currentPeriodStart, currentPeriodEnd };
+}
+
 export const POST = withRequestLogging(withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -90,10 +99,8 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
 
     await recordPaystackPayment(data);
     if (normalizedPlan === "STARTER" || normalizedPlan === "PRO" || normalizedPlan === "GROWTH" || normalizedPlan === "BUSINESS") {
-      const renewalDate =
-        interval === "yearly"
-          ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
-          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      const { currentPeriodStart, currentPeriodEnd } = buildPeriodWindow(interval);
+      const renewalDate = currentPeriodEnd;
       const existingForPlan = await prisma.subscription.findFirst({
         where: { userId, plan: normalizedPlan },
         orderBy: { createdAt: "desc" },
@@ -101,7 +108,15 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
       if (existingForPlan) {
         await prisma.subscription.update({
           where: { id: existingForPlan.id },
-          data: { status: "ACTIVE", renewalDate, currency, interval, plan: normalizedPlan },
+          data: {
+            status: "ACTIVE",
+            renewalDate,
+            currency,
+            interval,
+            plan: normalizedPlan,
+            currentPeriodStart,
+            currentPeriodEnd,
+          },
         });
       } else {
         await prisma.subscription.create({
@@ -112,6 +127,8 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
             renewalDate,
             currency,
             interval,
+            currentPeriodStart,
+            currentPeriodEnd,
           },
         });
       }
@@ -183,10 +200,8 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     },
   });
   if (normalizedPlan === "STARTER" || normalizedPlan === "PRO" || normalizedPlan === "GROWTH" || normalizedPlan === "BUSINESS") {
-    const renewalDate =
-      interval === "yearly"
-        ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
-        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const { currentPeriodStart, currentPeriodEnd } = buildPeriodWindow(interval);
+    const renewalDate = currentPeriodEnd;
     const existingForPlan = await prisma.subscription.findFirst({
       where: { userId, plan: normalizedPlan },
       orderBy: { createdAt: "desc" },
@@ -194,7 +209,15 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     if (existingForPlan) {
       await prisma.subscription.update({
         where: { id: existingForPlan.id },
-        data: { status: "ACTIVE", renewalDate, currency, interval, plan: normalizedPlan },
+        data: {
+          status: "ACTIVE",
+          renewalDate,
+          currency,
+          interval,
+          plan: normalizedPlan,
+          currentPeriodStart,
+          currentPeriodEnd,
+        },
       });
     } else {
       await prisma.subscription.create({
@@ -205,6 +228,8 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
           renewalDate,
           currency,
           interval,
+          currentPeriodStart,
+          currentPeriodEnd,
         },
       });
     }

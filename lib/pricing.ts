@@ -1,6 +1,6 @@
 import { STANDARD_VAT_RATE, applyVatToSubtotal } from "./vat";
 
-type Plan = "STARTER" | "PRO" | "GROWTH" | "BUSINESS" | "PREMIUM" | "ENTERPRISE";
+export type Plan = "STARTER" | "PRO" | "GROWTH" | "BUSINESS" | "PREMIUM" | "ENTERPRISE";
 export type BillingInterval = "monthly" | "yearly";
 type Currency = "USD" | "NGN";
 
@@ -179,4 +179,15 @@ export function pricingTableDualCurrency() {
       features: meta.features,
     };
   });
+}
+
+export function getPlanMeta(plan: string) {
+  const normalized = String(plan || "").toUpperCase() as Plan;
+  const meta = pricingTable[normalized];
+  if (!meta) return null;
+  return {
+    plan: normalized,
+    label: meta.displayName,
+    features: meta.features,
+  };
 }

@@ -6,6 +6,7 @@ import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
 import { generatePublicId } from "@/lib/public-id";
+import { PASSWORD_MIN_LENGTH_ERROR } from "@/lib/password-policy";
 
 async function acceptBusinessInvite({
   userId,
@@ -59,7 +60,18 @@ async function acceptBusinessInvite({
 export const POST = withRequestLogging(
   withErrorHandling(async (req: Request) => {
     const body = await req.json();
-    const parsed = signupSchema.parse(body);
+    const parsedResult = signupSchema.safeParse(body);
+    if (!parsedResult.success) {
+      const passwordTooShort = parsedResult.error.issues.some((issue) => {
+        const field = issue.path[0];
+        return field === "password" && issue.message === PASSWORD_MIN_LENGTH_ERROR;
+      });
+      if (passwordTooShort) {
+        return NextResponse.json({ error: PASSWORD_MIN_LENGTH_ERROR }, { status: 400 });
+      }
+      throw parsedResult.error;
+    }
+    const parsed = parsedResult.data;
 
     assertRateLimit(`signup:${parsed.email}`);
 

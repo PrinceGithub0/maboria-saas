@@ -18,6 +18,15 @@ import {
   normalizeFlutterwavePaymentMethod,
 } from "@/lib/payments/flutterwave";
 
+function buildPeriodWindow(interval: BillingInterval) {
+  const currentPeriodStart = new Date();
+  const currentPeriodEnd =
+    interval === "yearly"
+      ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  return { currentPeriodStart, currentPeriodEnd };
+}
+
 function redirectWithStatus(origin: string, provider: string, status: string, params?: Record<string, string>) {
   const url = new URL("/dashboard", origin);
   url.searchParams.set("payment", status);
@@ -72,10 +81,8 @@ export const GET = withRequestLogging(withErrorHandling(async (req: Request) => 
     await recordPaystackPayment(data);
 
     if (userId && (normalizedPlan === "STARTER" || normalizedPlan === "PRO" || normalizedPlan === "GROWTH" || normalizedPlan === "BUSINESS")) {
-      const renewalDate =
-        interval === "yearly"
-          ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
-          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      const { currentPeriodStart, currentPeriodEnd } = buildPeriodWindow(interval);
+      const renewalDate = currentPeriodEnd;
       const existingForPlan = await prisma.subscription.findFirst({
         where: { userId, plan: normalizedPlan },
         orderBy: { createdAt: "desc" },
@@ -83,7 +90,15 @@ export const GET = withRequestLogging(withErrorHandling(async (req: Request) => 
       if (existingForPlan) {
         await prisma.subscription.update({
           where: { id: existingForPlan.id },
-          data: { status: "ACTIVE", renewalDate, currency, interval, plan: normalizedPlan },
+          data: {
+            status: "ACTIVE",
+            renewalDate,
+            currency,
+            interval,
+            plan: normalizedPlan,
+            currentPeriodStart,
+            currentPeriodEnd,
+          },
         });
       } else {
         await prisma.subscription.create({
@@ -94,6 +109,8 @@ export const GET = withRequestLogging(withErrorHandling(async (req: Request) => 
             renewalDate,
             currency,
             interval,
+            currentPeriodStart,
+            currentPeriodEnd,
           },
         });
       }
@@ -153,10 +170,8 @@ export const GET = withRequestLogging(withErrorHandling(async (req: Request) => 
   });
 
   if (userId && (normalizedPlan === "STARTER" || normalizedPlan === "PRO" || normalizedPlan === "GROWTH" || normalizedPlan === "BUSINESS")) {
-    const renewalDate =
-      interval === "yearly"
-        ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
-        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const { currentPeriodStart, currentPeriodEnd } = buildPeriodWindow(interval);
+    const renewalDate = currentPeriodEnd;
     const existingForPlan = await prisma.subscription.findFirst({
       where: { userId, plan: normalizedPlan },
       orderBy: { createdAt: "desc" },
@@ -164,7 +179,15 @@ export const GET = withRequestLogging(withErrorHandling(async (req: Request) => 
     if (existingForPlan) {
       await prisma.subscription.update({
         where: { id: existingForPlan.id },
-        data: { status: "ACTIVE", renewalDate, currency, interval, plan: normalizedPlan },
+        data: {
+          status: "ACTIVE",
+          renewalDate,
+          currency,
+          interval,
+          plan: normalizedPlan,
+          currentPeriodStart,
+          currentPeriodEnd,
+        },
       });
     } else {
       await prisma.subscription.create({
@@ -175,6 +198,8 @@ export const GET = withRequestLogging(withErrorHandling(async (req: Request) => 
           renewalDate,
           currency,
           interval,
+          currentPeriodStart,
+          currentPeriodEnd,
         },
       });
     }

@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Bot, CreditCard, LayoutDashboard, Settings } from "lucide-react";
 import { useLanguage } from "@/components/providers/language-provider";
+import { useEffect, useState } from "react";
 
 export function AppShell({
   children,
@@ -18,9 +19,14 @@ export function AppShell({
   announcement?: string;
 }) {
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
   const { language } = useLanguage();
   const t = (en: string, fr: string) => (language === "fr" ? fr : en);
   const showMobileNav = pathname.startsWith("/dashboard");
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
     <>
@@ -47,11 +53,12 @@ export function AppShell({
               { href: "/dashboard/payments", label: t("Pay", "Payer"), Icon: CreditCard },
               { href: "/dashboard/settings", label: t("Settings", "Parametres"), Icon: Settings },
             ].map(({ href, label, Icon }) => {
-              const active = pathname === href || pathname.startsWith(href);
+              const active = mounted && (pathname === href || pathname.startsWith(href));
               return (
                 <Link
                   key={href}
                   href={href}
+                  suppressHydrationWarning
                   className={`flex flex-col items-center gap-1 rounded-xl px-3 py-2 text-[11px] ${
                     active ? "bg-indigo-500/15 text-foreground" : "text-slate-800 dark:text-muted-foreground"
                   }`}

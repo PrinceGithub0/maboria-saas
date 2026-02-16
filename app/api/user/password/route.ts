@@ -6,6 +6,7 @@ import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
 import { passwordUpdateSchema } from "@/lib/validators";
 import { hashPassword } from "@/lib/auth";
+import { PASSWORD_MIN_LENGTH_ERROR } from "@/lib/password-policy";
 
 export const PUT = withRequestLogging(withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
@@ -14,7 +15,18 @@ export const PUT = withRequestLogging(withErrorHandling(async (req: Request) => 
   }
 
   const body = await req.json();
-  const parsed = passwordUpdateSchema.parse(body);
+  const parsedResult = passwordUpdateSchema.safeParse(body);
+  if (!parsedResult.success) {
+    const passwordTooShort = parsedResult.error.issues.some((issue) => {
+      const field = issue.path[0];
+      return (field === "password" || field === "confirm") && issue.message === PASSWORD_MIN_LENGTH_ERROR;
+    });
+    if (passwordTooShort) {
+      return NextResponse.json({ error: PASSWORD_MIN_LENGTH_ERROR }, { status: 400 });
+    }
+    throw parsedResult.error;
+  }
+  const parsed = parsedResult.data;
   if (parsed.password !== parsed.confirm) {
     return NextResponse.json({ error: "Passwords do not match" }, { status: 400 });
   }

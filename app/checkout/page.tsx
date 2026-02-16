@@ -4,29 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { CheckoutPanel } from "@/components/checkout/checkout-panel";
-import {
-  getPaystackEnabledCurrencies,
-  isProviderCurrency,
-  normalizeCurrency,
-} from "@/lib/payments/currency-allowlist";
+import { normalizeCurrency } from "@/lib/payments/currency-allowlist";
 import { getPlanPriceForInterval } from "@/lib/pricing";
-
-const planLabel = (plan: string) => {
-  switch (plan) {
-    case "STARTER":
-      return "Starter";
-    case "PRO":
-      return "Pro";
-    case "GROWTH":
-      return "Growth";
-    case "BUSINESS":
-      return "Business";
-    case "ENTERPRISE":
-      return "Enterprise";
-    default:
-      return plan;
-  }
-};
 
 export default async function CheckoutPage() {
   const session = await getServerSession(authOptions);
@@ -41,8 +20,8 @@ export default async function CheckoutPage() {
 
   if (!subscription) {
     return (
-      <div className="min-h-screen bg-background px-6 py-10 text-foreground">
-        <div className="mx-auto w-full max-w-2xl rounded-3xl border border-border/70 bg-card/80 p-8 shadow-sm">
+      <div className="min-h-screen bg-white px-4 py-12 text-slate-900 sm:px-6">
+        <div className="mx-auto w-full max-w-[980px] rounded-[14px] border border-[#EAEAEA] bg-white p-8 shadow-[0_12px_28px_-20px_rgba(15,23,42,0.14)] sm:p-10">
           <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Checkout</p>
           <h1 className="mt-3 text-3xl font-semibold">Subscription not found</h1>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -74,31 +53,28 @@ export default async function CheckoutPage() {
   });
   const currency = normalizeCurrency(user?.preferredCurrency || "USD");
 
-  const paystackEnabled = getPaystackEnabledCurrencies();
-  const providers = [
-    ...(isProviderCurrency("PAYSTACK", currency) && paystackEnabled.includes(currency) ? ["PAYSTACK"] : []),
-    ...(isProviderCurrency("FLUTTERWAVE", currency) ? ["FLUTTERWAVE"] : []),
-  ] as const;
-
   const monthlyPrice = getPlanPriceForInterval(subscription.plan, currency, "monthly");
   const yearlyPrice = getPlanPriceForInterval(subscription.plan, currency, "yearly");
-
   return (
-    <div className="min-h-screen bg-background px-6 py-10 text-foreground">
-      <div className="mx-auto w-full max-w-2xl rounded-3xl border border-border/70 bg-card/80 p-8 shadow-sm">
-        <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Checkout</p>
-        <h1 className="mt-3 text-3xl font-semibold">Complete your subscription</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Your account is created. Activate your plan to access the dashboard.
-        </p>
+    <div className="min-h-screen bg-white px-4 py-12 text-slate-900 sm:px-6">
+      <div className="mx-auto w-full max-w-[980px]">
+        <div className="rounded-[14px] border border-[#EAEAEA] bg-white p-8 shadow-[0_12px_28px_-20px_rgba(15,23,42,0.14)] sm:p-10">
+          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-500">CHECKOUT</p>
+          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-900">Complete your subscription</h1>
+          <p className="mt-3 text-sm text-slate-500 sm:text-base">
+            Activate your selected plan to unlock automation, invoicing, WhatsApp workflows, and reporting.
+          </p>
+          <p className="mt-3 text-xs font-medium text-slate-500">
+            Secure checkout {"\u00B7"} Cancel anytime {"\u00B7"} No hidden fees
+          </p>
+        </div>
         <CheckoutPanel
-          planLabel={planLabel(subscription.plan)}
+          userId={session.user.id}
           plan={subscription.plan}
           interval={subscription.interval === "yearly" ? "yearly" : "monthly"}
           currency={currency}
           monthlyPrice={monthlyPrice}
           yearlyPrice={yearlyPrice}
-          providers={providers as any}
         />
       </div>
     </div>

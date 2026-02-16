@@ -1,72 +1,196 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { CheckCircle2, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+
+type ViewState = "loading" | "success" | "failed" | "pending";
+
+const SUCCESS_STATUSES = new Set(["success", "synced", "active", "completed"]);
+const PENDING_STATUSES = new Set(["pending", "processing"]);
+
+function normalizeVerifyStatus(status: unknown): ViewState {
+  const value = String(status || "").toLowerCase();
+  if (SUCCESS_STATUSES.has(value)) return "success";
+  if (PENDING_STATUSES.has(value)) return "pending";
+  return "failed";
+}
 
 export default function CheckoutReturnPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const reference = searchParams.get("reference");
-  const [status, setStatus] = useState<string>("processing");
-  const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<ViewState>("loading");
+  const [message, setMessage] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
 
-  useEffect(() => {
-    let mounted = true;
+  const verifyPayment = useCallback(async (): Promise<ViewState> => {
     if (!reference) {
-      setError("Missing payment reference");
-      return;
+      setMessage("Missing payment reference.");
+      return "failed";
     }
-    const poll = async () => {
-      try {
-        const res = await fetch(`/api/checkout/status?reference=${encodeURIComponent(reference)}`);
-        const data = await res.json();
-        if (!mounted) return;
-        if (data?.subscription?.status === "ACTIVE") {
-          router.replace("/onboarding/business");
+
+    const verifyViaApi = async (payload: Record<string, unknown>) => {
+      const res = await fetch("/api/payments/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      return { ok: res.ok, data };
+    };
+
+    // Attempt provider-agnostic payload first.
+    let verification = await verifyViaApi({ reference });
+    if (verification.ok) {
+      return normalizeVerifyStatus(verification.data?.status);
+    }
+
+    // Fallback to existing backend contract by resolving provider from checkout session.
+    const checkoutStatusRes = await fetch(
+      `/api/checkout/status?reference=${encodeURIComponent(reference)}`,
+      { cache: "no-store" }
+    );
+    if (!checkoutStatusRes.ok) {
+      setMessage("Unable to confirm payment at the moment.");
+      return "failed";
+    }
+
+    const checkoutStatus = await checkoutStatusRes.json().catch(() => ({}));
+    const provider = String(checkoutStatus?.checkout?.provider || "").toLowerCase();
+
+    if (provider === "paystack") {
+      verification = await verifyViaApi({ provider: "paystack", reference });
+    } else if (provider === "flutterwave") {
+      verification = await verifyViaApi({ provider: "flutterwave", txRef: reference });
+    } else {
+      setMessage("Unable to identify payment provider.");
+      return "failed";
+    }
+
+    if (!verification.ok) {
+      const errorText = String(verification.data?.error || "").toLowerCase();
+      if (errorText.includes("pending")) return "pending";
+      setMessage("Payment could not be verified yet.");
+      return "failed";
+    }
+
+    return normalizeVerifyStatus(verification.data?.status);
+  }, [reference]);
+
+  const runVerification = useCallback(async () => {
+    setView("loading");
+    setMessage(null);
+    try {
+      const nextView = await verifyPayment();
+      setView(nextView);
+    } catch {
+      setMessage("Unable to confirm payment at the moment.");
+      setView("failed");
+    }
+  }, [verifyPayment]);
+
+  const handleRetryPayment = useCallback(async () => {
+    try {
+      setRetrying(true);
+      const endpoints = ["/api/billing/create-session", "/api/checkout"];
+      for (const endpoint of endpoints) {
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        const data = await res.json().catch(() => ({}));
+        const checkoutUrl = data?.checkoutUrl || data?.redirectUrl;
+        if (res.ok && checkoutUrl) {
+          window.location.href = checkoutUrl;
           return;
         }
-        setStatus(data?.checkout?.status || "processing");
-      } catch {
-        if (!mounted) return;
-        setError("Unable to confirm payment yet.");
       }
-    };
-    const interval = setInterval(poll, 2500);
-    poll();
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
-  }, [reference, router]);
+      setMessage("Unable to start a secure retry right now.");
+    } catch {
+      setMessage("Unable to start a secure retry right now.");
+    } finally {
+      setRetrying(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    runVerification();
+  }, [runVerification]);
+
+  useEffect(() => {
+    if (view !== "success") return;
+    const timer = setTimeout(() => {
+      router.replace("/dashboard");
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [view, router]);
 
   return (
-    <div className="min-h-screen bg-background px-6 py-12 text-foreground">
-      <div className="mx-auto w-full max-w-xl rounded-3xl border border-border/70 bg-card/80 p-8 shadow-sm">
-        <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Checkout</p>
-        <h1 className="mt-3 text-2xl font-semibold">Processing payment</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          We are confirming your payment. You will be redirected automatically.
-        </p>
-        {error ? (
-          <p className="mt-4 text-sm text-rose-600">{error}</p>
-        ) : (
-          <p className="mt-4 text-sm text-muted-foreground">Status: {status}</p>
-        )}
-        <div className="mt-6 flex gap-3">
-          <button
-            type="button"
-            className="rounded-full border border-border px-4 py-2 text-sm font-semibold"
-            onClick={() => router.replace("/checkout")}
-          >
-            Retry payment
-          </button>
-          <button
-            type="button"
-            className="rounded-full border border-border px-4 py-2 text-sm font-semibold"
-            onClick={() => router.refresh()}
-          >
-            Refresh status
-          </button>
+    <div className="min-h-screen bg-[#F8FAFC] px-4 py-12 text-slate-900 sm:px-6 sm:py-20">
+      <div className="mx-auto w-full max-w-[640px]">
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-[0_16px_36px_-24px_rgba(15,23,42,0.24)] sm:p-10">
+          {view === "loading" && (
+            <div className="text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+                <Loader2 className="h-6 w-6 animate-spin text-slate-600" />
+              </div>
+              <h1 className="mt-5 text-2xl font-semibold tracking-tight text-slate-900">Processing your payment</h1>
+              <p className="mt-2 text-sm text-slate-600">
+                We&apos;re confirming your transaction securely. Please wait...
+              </p>
+            </div>
+          )}
+
+          {view === "success" && (
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-6 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
+                <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+              </div>
+              <h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-900">Payment successful</h1>
+              <p className="mt-2 text-sm text-slate-600">
+                Your subscription is now active. Redirecting to your dashboard...
+              </p>
+            </div>
+          )}
+
+          {view === "failed" && (
+            <div className="text-center">
+              <div className="mx-auto h-2 w-16 rounded-full bg-slate-200" />
+              <h1 className="mt-5 text-2xl font-semibold tracking-tight text-slate-900">Payment not completed</h1>
+              <p className="mt-2 text-sm text-slate-600">
+                It looks like your transaction did not go through. You can retry securely below.
+              </p>
+              {message ? <p className="mt-3 text-sm text-slate-500">{message}</p> : null}
+              <button
+                type="button"
+                onClick={handleRetryPayment}
+                disabled={retrying}
+                className="mt-6 h-14 w-full rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-6 text-base font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {retrying ? "Preparing secure checkout..." : "Retry secure payment"}
+              </button>
+            </div>
+          )}
+
+          {view === "pending" && (
+            <div className="text-center">
+              <div className="mx-auto h-2 w-16 rounded-full bg-slate-200" />
+              <h1 className="mt-5 text-2xl font-semibold tracking-tight text-slate-900">Payment pending</h1>
+              <p className="mt-2 text-sm text-slate-600">
+                We&apos;re still waiting for confirmation from your bank.
+              </p>
+              {message ? <p className="mt-3 text-sm text-slate-500">{message}</p> : null}
+              <button
+                type="button"
+                onClick={runVerification}
+                className="mt-6 h-14 w-full rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-6 text-base font-semibold text-white transition hover:brightness-105"
+              >
+                Check again
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

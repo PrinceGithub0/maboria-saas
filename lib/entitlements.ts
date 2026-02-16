@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { log } from "@/lib/logger";
 import { SubscriptionStatus } from "@prisma/client";
+import { PLAN_LIMITS, UNLIMITED } from "@/lib/planLimits";
 
 export type UserPlan = "free" | "starter" | "pro" | "growth" | "business" | "enterprise";
 export type EntitlementStatus = SubscriptionStatus | "INACTIVE";
@@ -211,28 +212,28 @@ export const planLimits: Record<
     whatsappMessages: 0,
   },
   starter: {
-    automationRuns: 3,
-    invoices: 50,
-    aiRequests: 50,
-    whatsappMessages: 100,
+    automationRuns: PLAN_LIMITS.starter.automations,
+    invoices: PLAN_LIMITS.starter.invoices,
+    aiRequests: PLAN_LIMITS.starter.aiRequests,
+    whatsappMessages: PLAN_LIMITS.starter.whatsapp,
   },
   pro: {
-    automationRuns: 10,
-    invoices: 300,
-    aiRequests: 300,
-    whatsappMessages: 1000,
+    automationRuns: PLAN_LIMITS.pro.automations,
+    invoices: PLAN_LIMITS.pro.invoices,
+    aiRequests: PLAN_LIMITS.pro.aiRequests,
+    whatsappMessages: PLAN_LIMITS.pro.whatsapp,
   },
   growth: {
-    automationRuns: 25,
-    invoices: 1000,
-    aiRequests: 1000,
-    whatsappMessages: 3000,
+    automationRuns: PLAN_LIMITS.growth.automations,
+    invoices: PLAN_LIMITS.growth.invoices,
+    aiRequests: PLAN_LIMITS.growth.aiRequests,
+    whatsappMessages: PLAN_LIMITS.growth.whatsapp,
   },
   business: {
-    automationRuns: null,
-    invoices: 3000,
-    aiRequests: 3000,
-    whatsappMessages: 7500,
+    automationRuns: PLAN_LIMITS.business.automations === UNLIMITED ? null : PLAN_LIMITS.business.automations,
+    invoices: PLAN_LIMITS.business.invoices,
+    aiRequests: PLAN_LIMITS.business.aiRequests,
+    whatsappMessages: PLAN_LIMITS.business.whatsapp,
   },
   enterprise: {
     automationRuns: null,

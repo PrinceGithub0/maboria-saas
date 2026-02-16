@@ -13,6 +13,11 @@ import { allowedCurrencies, formatCurrencyOption } from "@/lib/payments/currency
 import { isSepaCountry } from "@/lib/payments/sepa";
 import { useLanguage } from "@/components/providers/language-provider";
 import { formatBusinessAddress, hasRequiredAddress, parseBusinessAddress } from "@/lib/address";
+import {
+  MIN_PASSWORD_LENGTH,
+  PASSWORD_MIN_LENGTH_ERROR,
+  PASSWORD_MIN_LENGTH_HELPER_TEXT,
+} from "@/lib/password-policy";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 const profileFetcher = async (url: string) => {
@@ -239,6 +244,13 @@ export default function SettingsPage() {
   const updatePassword = async () => {
     setPasswordStatus(null);
     setPasswordError(null);
+    if (
+      passwords.password.length < MIN_PASSWORD_LENGTH ||
+      passwords.confirm.length < MIN_PASSWORD_LENGTH
+    ) {
+      setPasswordError(PASSWORD_MIN_LENGTH_ERROR);
+      return;
+    }
     const res = await fetch("/api/user/password", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -815,16 +827,21 @@ export default function SettingsPage() {
         {passwordStatus && <Alert variant="success">{passwordStatus}</Alert>}
         {passwordError && <Alert variant="error">{passwordError}</Alert>}
         <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1 max-md:gap-3">
-          <Input
-            label={t("New password", "Nouveau mot de passe")}
-            type="password"
-            value={passwords.password}
-            onChange={(e) => setPasswords({ ...passwords, password: e.target.value })}
-          />
+          <div className="space-y-1">
+            <Input
+              label={t("New password", "Nouveau mot de passe")}
+              type="password"
+              value={passwords.password}
+              minLength={MIN_PASSWORD_LENGTH}
+              onChange={(e) => setPasswords({ ...passwords, password: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">{PASSWORD_MIN_LENGTH_HELPER_TEXT}</p>
+          </div>
           <Input
             label={t("Confirm password", "Confirmer le mot de passe")}
             type="password"
             value={passwords.confirm}
+            minLength={MIN_PASSWORD_LENGTH}
             onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
           />
           <div className="col-span-2 max-md:col-span-1">

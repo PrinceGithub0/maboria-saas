@@ -3,47 +3,112 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
-
-type Provider = "PAYSTACK" | "FLUTTERWAVE";
+import { Check } from "lucide-react";
+import { getCheckoutPlanConfig } from "@/lib/checkout-plan-config";
 
 type Props = {
-  planLabel: string;
   plan: string;
   interval: "monthly" | "yearly";
   currency: string;
   monthlyPrice: number | null;
   yearlyPrice: number | null;
-  providers: Provider[];
+  userId: string;
 };
 
+function TrustLockIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className="h-[18px] w-[18px] text-[#6B7280] sm:h-5 sm:w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="5" y="10" width="14" height="10" rx="3" />
+      <path d="M8 10V8a4 4 0 0 1 8 0v2" />
+      <circle cx="12" cy="15" r="1.2" />
+      <path d="M12 16.2V17.4" />
+    </svg>
+  );
+}
+
+function TrustShieldCheckIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className="h-[18px] w-[18px] text-[#6B7280] sm:h-5 sm:w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 3.8L18 6.3v5.5c0 3.7-2.3 7-6 8.4-3.7-1.4-6-4.7-6-8.4V6.3L12 3.8Z" />
+      <path d="m9.6 12.4 1.8 1.8 3.2-3.2" />
+    </svg>
+  );
+}
+
+function formatDisplayPrice(value: number | null, currency: string) {
+  if (value == null) return null;
+  if (currency === "USD") return `$${value.toLocaleString()}`;
+  return `${currency} ${value.toLocaleString()}`;
+}
+
+function detectCountryFromNavigator() {
+  if (typeof navigator === "undefined") return null;
+
+  const locales = [navigator.language, ...(navigator.languages || [])].filter(Boolean);
+  for (const locale of locales) {
+    const match = locale.match(/[-_]([a-z]{2})$/i);
+    if (match?.[1]) {
+      return match[1].toUpperCase();
+    }
+  }
+
+  return null;
+}
+
 export function CheckoutPanel({
-  planLabel,
   plan,
   interval,
   currency,
   monthlyPrice,
   yearlyPrice,
-  providers,
+  userId,
 }: Props) {
   const [billing, setBilling] = useState<"monthly" | "yearly">(interval);
-  const [provider, setProvider] = useState<Provider | null>(providers[0] ?? null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const planConfig = useMemo(() => getCheckoutPlanConfig(plan), [plan]);
 
-  const price = useMemo(() => {
-    return billing === "yearly" ? yearlyPrice : monthlyPrice;
-  }, [billing, monthlyPrice, yearlyPrice]);
+  const price = useMemo(
+    () => (billing === "yearly" ? yearlyPrice : monthlyPrice),
+    [billing, monthlyPrice, yearlyPrice]
+  );
+  const displayPrice = useMemo(
+    () => formatDisplayPrice(price, currency),
+    [price, currency]
+  );
 
   const onCheckout = async () => {
-    if (!provider || !price) return;
+    if (!price) return;
+    setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/checkout/session", {
+      const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          provider,
-          interval: billing,
+          selectedPlan: plan,
+          billingCycle: billing,
+          userId,
+          detectedCountry: detectCountryFromNavigator(),
           currency,
         }),
       });
@@ -56,104 +121,103 @@ export function CheckoutPanel({
         return;
       }
       router.refresh();
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
+      setError("Unable to start checkout. Please try again.");
       setLoading(false);
     }
   };
 
   return (
-    <div className="mt-8 space-y-6">
-      <div className="rounded-2xl border border-border bg-background p-6">
-        <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Selected plan</p>
-        <div className="mt-3 flex items-center justify-between">
-          <div>
-            <p className="text-xl font-semibold">{planLabel}</p>
-            <p className="text-sm text-muted-foreground">Plan: {plan}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Billing</p>
-            <p className="mt-1 text-sm font-semibold capitalize">{billing}</p>
-          </div>
-        </div>
-      </div>
+    <div className="mt-[72px] space-y-[72px]">
+      <section className="rounded-[14px] border border-[#EAEAEA] bg-white p-9 shadow-[0_14px_28px_-20px_rgba(15,23,42,0.14)] sm:p-10">
+        <div className="space-y-8">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-500">
+                Selected Plan: {planConfig.planName}
+              </p>
+              <h2 className="text-3xl font-semibold tracking-tight text-slate-900">
+                {planConfig.planName}
+              </h2>
+            </div>
 
-      <div className="rounded-2xl border border-border bg-background p-6">
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            className={clsx(
-              "rounded-full border px-4 py-2 text-sm font-semibold",
-              billing === "monthly"
-                ? "border-indigo-500 bg-indigo-50 text-indigo-700"
-                : "border-border text-muted-foreground"
-            )}
-            onClick={() => setBilling("monthly")}
-          >
-            Monthly
-          </button>
-          <button
-            type="button"
-            className={clsx(
-              "rounded-full border px-4 py-2 text-sm font-semibold",
-              billing === "yearly"
-                ? "border-indigo-500 bg-indigo-50 text-indigo-700"
-                : "border-border text-muted-foreground"
-            )}
-            onClick={() => setBilling("yearly")}
-          >
-            Yearly
-          </button>
-          <div className="ml-auto text-right text-sm text-muted-foreground">
-            {price ? (
-              <>
-                <span className="text-lg font-semibold text-foreground">
-                  {currency} {price.toLocaleString()}
-                </span>
-                <span className="ml-2 text-xs uppercase tracking-[0.2em]">{billing}</span>
-              </>
-            ) : (
-              "Pricing unavailable"
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-border bg-background p-6">
-        <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Choose provider</p>
-        {providers.length === 0 ? (
-          <p className="mt-3 text-sm text-muted-foreground">
-            Payments are not supported in your country yet.
-          </p>
-        ) : (
-          <div className="mt-4 flex flex-wrap gap-3">
-            {providers.map((p) => (
+            <div className="inline-flex rounded-full border border-[#EAEAEA] bg-white p-1">
               <button
-                key={p}
                 type="button"
+                onClick={() => setBilling("monthly")}
                 className={clsx(
-                  "rounded-full border px-4 py-2 text-sm font-semibold",
-                  provider === p
-                    ? "border-indigo-500 bg-indigo-50 text-indigo-700"
-                    : "border-border text-muted-foreground"
+                  "rounded-full px-5 py-2 text-sm font-medium transition",
+                  billing === "monthly"
+                    ? "bg-blue-600 text-white shadow-[0_8px_16px_-12px_rgba(37,99,235,0.8)]"
+                    : "border border-[#EAEAEA] bg-slate-50 text-slate-700"
                 )}
-                onClick={() => setProvider(p)}
               >
-                {p === "PAYSTACK" ? "Paystack" : "Flutterwave"}
+                Monthly
               </button>
-            ))}
+              <button
+                type="button"
+                onClick={() => setBilling("yearly")}
+                className={clsx(
+                  "ml-2 rounded-full px-5 py-2 text-sm font-medium transition",
+                  billing === "yearly"
+                    ? "bg-blue-600 text-white shadow-[0_8px_16px_-12px_rgba(37,99,235,0.8)]"
+                    : "border border-[#EAEAEA] bg-slate-50 text-slate-700"
+                )}
+              >
+                Yearly
+              </button>
+            </div>
           </div>
-        )}
-      </div>
 
-      <button
-        type="button"
-        disabled={loading || !provider || !price}
-        onClick={onCheckout}
-        className="w-full rounded-2xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {loading ? "Redirecting..." : "Continue to payment"}
-      </button>
+          <div className="space-y-2 border-t border-[#EAEAEA] pt-8">
+            <p className="text-6xl font-semibold tracking-tight text-slate-900">
+              {displayPrice ?? "Pricing unavailable"}
+            </p>
+            <p className="text-base text-slate-500">
+              per {billing === "yearly" ? "year" : "month"}
+            </p>
+          </div>
+
+          <p className="border-t border-[#EAEAEA] pt-6 text-base text-slate-600">
+            {planConfig.positioning}
+          </p>
+
+          <ul className="space-y-3 border-t border-[#EAEAEA] pt-6">
+            {(planConfig.features || []).slice(0, 4).map((item) => (
+              <li key={item} className="flex items-start gap-2.5 text-sm text-slate-800">
+                <Check className="mt-0.5 h-4 w-4 text-emerald-600" />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+
+          <p className="border-t border-[#EAEAEA] pt-6 text-sm text-slate-500">
+            Best for {planConfig.targetAudience}
+          </p>
+        </div>
+      </section>
+
+      {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+
+      <div className="space-y-3">
+        <button
+          type="button"
+          disabled={loading || !price}
+          onClick={onCheckout}
+          className="min-h-14 w-full rounded-[14px] bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-4 text-base font-medium text-white shadow-[0_14px_28px_-16px_rgba(37,99,235,0.55)] transition hover:from-blue-700 hover:to-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {loading ? "Redirecting..." : "Subscribe securely"}
+        </button>
+        <p className="mt-5 flex items-center justify-center gap-2 text-[13px] font-medium text-[#6B7280] sm:mt-6 sm:text-sm">
+          <TrustLockIcon />
+          <span>SSL Encrypted</span>
+          <span>{"\u00B7"}</span>
+          <TrustShieldCheckIcon />
+          <span>Secure global payment processing</span>
+        </p>
+      </div>
     </div>
   );
 }
+

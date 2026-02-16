@@ -18,6 +18,11 @@ async function handleProxy(req: NextRequest) {
     "/status",
     "/login",
     "/signup",
+    "/create-account",
+    "/forgot-password",
+    "/reset-password",
+    "/forgot",
+    "/reset",
   ]);
 
   const PUBLIC_PREFIXES = [

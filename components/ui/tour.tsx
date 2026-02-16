@@ -99,6 +99,12 @@ export function TourOverlay() {
     mutate();
   };
 
+  const skip = async () => {
+    await fetch("/api/tour", { method: "POST", body: JSON.stringify({ complete: true }) });
+    setVisible(false);
+    mutate();
+  };
+
   if (!visible) return null;
 
   const containerClass =
@@ -173,7 +179,7 @@ export function TourOverlay() {
                 {t("Finish", "Terminer")}
               </Button>
             )}
-            <Button size="sm" variant="ghost" onClick={() => setVisible(false)}>
+            <Button size="sm" variant="ghost" onClick={skip}>
               {t("Skip", "Ignorer")}
             </Button>
           </div>
