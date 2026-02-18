@@ -398,7 +398,11 @@ export default function DashboardSupportPage() {
               {loadingTickets ? (
                 <p className="text-sm text-slate-500 dark:text-slate-300">{t("Loading tickets...", "Chargement des tickets...")}</p>
               ) : recentTickets.length === 0 ? (
-                <div className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-center dark:border-[#334155] dark:bg-slate-800/40">
+                <div
+                  className={`rounded-xl border border-slate-200 bg-white px-4 py-6 text-center dark:border-[#334155] dark:bg-slate-800/40 ${
+                    forceLight ? "!border-[#E5E7EB] !bg-white" : ""
+                  }`}
+                >
                   <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                     {t("No support tickets yet", "Aucun ticket support pour le moment")}
                   </p>

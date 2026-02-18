@@ -180,11 +180,11 @@ export default function PaymentsPage() {
               )}
             </p>
           </div>
-          <div className="inline-flex items-center rounded-full border border-slate-200 bg-white p-1 text-xs shadow-sm">
+          <div className="inline-flex w-max self-start items-center rounded-full border border-slate-200 bg-white p-1 text-sm shadow-sm">
             <button
               type="button"
               onClick={() => setBillingInterval("monthly")}
-              className={`rounded-full px-4 py-1.5 font-semibold transition duration-150 ${
+              className={`whitespace-nowrap rounded-full px-4 py-1.5 font-semibold transition duration-150 ${
                 billingInterval === "monthly"
                   ? "bg-blue-600 text-white shadow-sm"
                   : "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900"
@@ -195,7 +195,7 @@ export default function PaymentsPage() {
             <button
               type="button"
               onClick={() => setBillingInterval("yearly")}
-              className={`rounded-full px-4 py-1.5 font-semibold transition duration-150 ${
+              className={`whitespace-nowrap rounded-full px-4 py-1.5 font-semibold transition duration-150 ${
                 billingInterval === "yearly"
                   ? "bg-blue-600 text-white shadow-sm"
                   : "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900"

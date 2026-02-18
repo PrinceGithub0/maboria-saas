@@ -7,7 +7,6 @@ import { formatDistanceToNow } from "date-fns";
 import { useLanguage } from "@/components/providers/language-provider";
 import { useTheme } from "@/components/providers/theme-provider";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { MessageSquare } from "lucide-react";
 
 type Ticket = {
@@ -127,11 +126,17 @@ export default function SupportTicketsPage() {
         }`}
       >
         <div className="mb-4 grid gap-3 md:grid-cols-3">
-          <Input
-            placeholder={t("Search tickets", "Rechercher des tickets")}
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
+          <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+            {t("Search", "Recherche")}
+            <input
+              placeholder={t("Search tickets", "Rechercher des tickets")}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              className={`rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 placeholder:normal-case dark:border-[#334155] dark:bg-slate-900 dark:text-slate-100 ${
+                forceLight ? "!border-[#CBD5E1] !bg-white !text-[#0F172A]" : ""
+              }`}
+            />
+          </label>
           <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
             {t("Status", "Statut")}
             <select

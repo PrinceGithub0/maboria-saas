@@ -26,22 +26,39 @@ const profileFetcher = async (url: string) => {
   return { data, status: res.status };
 };
 
+type SettingsTab = "profile" | "business" | "payout" | "security";
+
 export default function SettingsPage() {
   const { language } = useLanguage();
   const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
+  const [pendingTab, setPendingTab] = useState<SettingsTab | null>(null);
+  const [showUnsavedPrompt, setShowUnsavedPrompt] = useState(false);
+  const [dirtyTabs, setDirtyTabs] = useState<Record<SettingsTab, boolean>>({
+    profile: false,
+    business: false,
+    payout: false,
+    security: false,
+  });
+  const [saveToast, setSaveToast] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [profileStatus, setProfileStatus] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileSaving, setProfileSaving] = useState(false);
   const [passwordStatus, setPasswordStatus] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSaving, setPasswordSaving] = useState(false);
   const [profile, setProfile] = useState({ name: "", email: "" });
   const [passwords, setPasswords] = useState({ password: "", confirm: "" });
+  const [currentPassword, setCurrentPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [setup, setSetup] = useState<{ secret: string; uri: string; qr?: string | null } | null>(null);
   const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
   const [disableCode, setDisableCode] = useState("");
+  const [totpBusy, setTotpBusy] = useState(false);
   const [businessStatus, setBusinessStatus] = useState<string | null>(null);
   const [businessError, setBusinessError] = useState<string | null>(null);
+  const [businessSaving, setBusinessSaving] = useState(false);
   const [payoutStatus, setPayoutStatus] = useState<string | null>(null);
   const [payoutError, setPayoutError] = useState<string | null>(null);
   const [payoutSubmitting, setPayoutSubmitting] = useState(false);
@@ -92,15 +109,57 @@ export default function SettingsPage() {
   const { data: merchantAccountRes } = useSWR("/api/merchant-account", profileFetcher);
   const payoutBankList = useMemo(() => payoutBanks?.banks || [], [payoutBanks?.banks]);
   const payoutBankError = payoutBanks?.error ? String(payoutBanks.error) : null;
+  const payoutConnected = Boolean(merchantAccountRes?.status === 200 && merchantAccountRes?.data?.id);
 
   const businessCurrencyOptions = allowedCurrencies.map((code) => ({ code, label: formatCurrencyOption(code) }));
   const requiredMessage = t("This field is required", "This field is required");
+
+  const markDirty = (tab: SettingsTab) => {
+    setDirtyTabs((prev) => (prev[tab] ? prev : { ...prev, [tab]: true }));
+  };
+
+  const clearDirty = (tab: SettingsTab) => {
+    setDirtyTabs((prev) => ({ ...prev, [tab]: false }));
+  };
+
+  const showSavedToast = () => {
+    setSaveToast(t("Changes saved successfully", "Modifications enregistrees avec succes"));
+  };
+
+  const switchTab = (nextTab: SettingsTab) => {
+    if (nextTab === activeTab) return;
+    if (dirtyTabs[activeTab]) {
+      setPendingTab(nextTab);
+      setShowUnsavedPrompt(true);
+      return;
+    }
+    setActiveTab(nextTab);
+  };
+
+  const confirmLeaveWithUnsavedChanges = () => {
+    if (pendingTab) {
+      setActiveTab(pendingTab);
+    }
+    setPendingTab(null);
+    setShowUnsavedPrompt(false);
+  };
+
+  const cancelLeaveWithUnsavedChanges = () => {
+    setPendingTab(null);
+    setShowUnsavedPrompt(false);
+  };
 
   useEffect(() => {
     if (me?.name || me?.email) {
       setProfile({ name: me?.name || "", email: me?.email || "" });
     }
   }, [me?.name, me?.email]);
+
+  useEffect(() => {
+    if (!saveToast) return;
+    const timeout = setTimeout(() => setSaveToast(null), 3000);
+    return () => clearTimeout(timeout);
+  }, [saveToast]);
 
   useEffect(() => {
     if (businessProfile?.id) {
@@ -221,27 +280,58 @@ export default function SettingsPage() {
     setPayoutBankCode((prev) => prev || payoutBankList[0].code);
   }, [payoutBankList, isSepa]);
 
+  const updateProfileField = (field: "name" | "email", value: string) => {
+    setProfile((prev) => ({ ...prev, [field]: value }));
+    markDirty("profile");
+  };
+
+  const updateBusinessField = (
+    field: keyof typeof businessForm,
+    value: string | boolean
+  ) => {
+    setBusinessForm((prev) => ({ ...prev, [field]: value }));
+    markDirty("business");
+  };
+
+  const updatePasswordField = (field: "password" | "confirm", value: string) => {
+    setPasswords((prev) => ({ ...prev, [field]: value }));
+    markDirty("security");
+  };
+
   const saveProfile = async () => {
+    if (profileSaving) return;
     setProfileStatus(null);
     setProfileError(null);
-    const res = await fetch("/api/user/me", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(profile),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setProfileError(data.error || t("Could not update profile.", "Impossible de mettre a jour le profil."));
+    if (!profile.name.trim() || !profile.email.trim()) {
+      setProfileError(requiredMessage);
       return;
     }
-    setProfileStatus(t("Profile updated.", "Profil mis a jour."));
-    if (data?.name || data?.email) {
-      setProfile({ name: data?.name || profile.name, email: data?.email || profile.email });
+    setProfileSaving(true);
+    try {
+      const res = await fetch("/api/user/me", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profile),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setProfileError(data.error || t("Could not update profile.", "Impossible de mettre a jour le profil."));
+        return;
+      }
+      setProfileStatus(t("Profile updated.", "Profil mis a jour."));
+      if (data?.name || data?.email) {
+        setProfile({ name: data?.name || profile.name, email: data?.email || profile.email });
+      }
+      clearDirty("profile");
+      showSavedToast();
+      refreshMe();
+    } finally {
+      setProfileSaving(false);
     }
-    refreshMe();
   };
 
   const updatePassword = async () => {
+    if (passwordSaving) return;
     setPasswordStatus(null);
     setPasswordError(null);
     if (
@@ -251,72 +341,98 @@ export default function SettingsPage() {
       setPasswordError(PASSWORD_MIN_LENGTH_ERROR);
       return;
     }
-    const res = await fetch("/api/user/password", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(passwords),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setPasswordError(data.error || t("Could not update password.", "Impossible de mettre a jour le mot de passe."));
-      return;
+    setPasswordSaving(true);
+    try {
+      const res = await fetch("/api/user/password", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(passwords),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPasswordError(data.error || t("Could not update password.", "Impossible de mettre a jour le mot de passe."));
+        return;
+      }
+      setPasswordStatus(t("Password updated.", "Mot de passe mis a jour."));
+      setPasswords({ password: "", confirm: "" });
+      setCurrentPassword("");
+      clearDirty("security");
+      showSavedToast();
+    } finally {
+      setPasswordSaving(false);
     }
-    setPasswordStatus(t("Password updated.", "Mot de passe mis a jour."));
-    setPasswords({ password: "", confirm: "" });
   };
 
   const startTotpSetup = async () => {
+    if (totpBusy) return;
+    setTotpBusy(true);
     setStatus(null);
     setBackupCodes(null);
-    const res = await fetch("/api/auth/2fa/totp", { method: "POST" });
-    const data = await res.json();
-    if (!res.ok) {
-      setStatus(data.error || t("Could not start 2FA setup.", "Impossible de demarrer la 2FA."));
-      return;
+    try {
+      const res = await fetch("/api/auth/2fa/totp", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setStatus(data.error || t("Could not start 2FA setup.", "Impossible de demarrer la 2FA."));
+        return;
+      }
+      setSetup({ secret: data.secret, uri: data.uri, qr: data.qr });
+      setStatus(null);
+    } finally {
+      setTotpBusy(false);
     }
-    setSetup({ secret: data.secret, uri: data.uri, qr: data.qr });
-    setStatus(
-      t(
-        "Scan the setup in your authenticator app (or enter the secret), then confirm with a code.",
-        "Scannez dans l application d authentification (ou saisissez le secret), puis confirmez avec un code."
-      )
-    );
   };
 
   const enableTotp = async () => {
+    if (totpBusy) return;
     if (!otp.trim()) return;
-    const res = await fetch("/api/auth/2fa/totp", { method: "PUT", body: JSON.stringify({ code: otp }) });
-    const data = await res.json();
-    if (!res.ok) {
-      setStatus(data.error || t("Could not enable 2FA.", "Impossible d activer la 2FA."));
-      return;
+    setTotpBusy(true);
+    try {
+      const res = await fetch("/api/auth/2fa/totp", { method: "PUT", body: JSON.stringify({ code: otp }) });
+      const data = await res.json();
+      if (!res.ok) {
+        setStatus(data.error || t("Could not enable 2FA.", "Impossible d activer la 2FA."));
+        return;
+      }
+      setSetup(null);
+      setOtp("");
+      setBackupCodes(data.backupCodes || null);
+      setStatus(null);
+      clearDirty("security");
+      showSavedToast();
+      refreshTotp();
+    } finally {
+      setTotpBusy(false);
     }
-    setSetup(null);
-    setOtp("");
-    setBackupCodes(data.backupCodes || null);
-    setStatus(t("Two-factor authentication enabled.", "Authentification a deux facteurs activee."));
-    refreshTotp();
   };
 
   const disableTotp = async () => {
+    if (totpBusy) return;
     if (!disableCode.trim()) return;
-    const res = await fetch("/api/auth/2fa/totp", {
-      method: "DELETE",
-      body: JSON.stringify({ code: disableCode }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setStatus(data.error || t("Could not disable 2FA.", "Impossible de desactiver la 2FA."));
-      return;
+    setTotpBusy(true);
+    try {
+      const res = await fetch("/api/auth/2fa/totp", {
+        method: "DELETE",
+        body: JSON.stringify({ code: disableCode }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setStatus(data.error || t("Could not disable 2FA.", "Impossible de desactiver la 2FA."));
+        return;
+      }
+      setDisableCode("");
+      setBackupCodes(null);
+      setSetup(null);
+      setStatus(null);
+      clearDirty("security");
+      showSavedToast();
+      refreshTotp();
+    } finally {
+      setTotpBusy(false);
     }
-    setDisableCode("");
-    setBackupCodes(null);
-    setSetup(null);
-    setStatus(t("Two-factor authentication disabled.", "Authentification a deux facteurs desactivee."));
-    refreshTotp();
   };
 
   const saveBusinessProfile = async () => {
+    if (businessSaving) return;
     setBusinessStatus(null);
     setBusinessError(null);
     setLogoError(null);
@@ -350,6 +466,7 @@ export default function SettingsPage() {
       setBusinessError(requiredMessage);
       return;
     }
+    setBusinessSaving(true);
     const formattedAddress = formatBusinessAddress(addressFields);
     const payload = {
       businessName: businessForm.businessName,
@@ -363,43 +480,49 @@ export default function SettingsPage() {
       vatRate: businessForm.vatEnabled ? Number(businessForm.vatRate) : 0,
       vatPricingMode: businessForm.vatPricingMode,
     };
-    const res = await fetch("/api/business-profile", {
-      method: businessExists ? "PUT" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setBusinessError(data.error || t("Could not save business profile.", "Impossible d enregistrer le profil entreprise."));
-      return;
-    }
-    setBusinessStatus(
-      businessExists
-        ? t("Business profile updated.", "Profil entreprise mis a jour.")
-        : t("Business profile saved.", "Profil entreprise enregistre.")
-    );
-    refreshBusinessProfile();
-    if (logoFile) {
-      setLogoUploading(true);
-      try {
-        const formData = new FormData();
-        formData.append("logo", logoFile);
-        const uploadRes = await fetch("/api/business-profile/logo", {
-          method: "POST",
-          body: formData,
-        });
-        const uploadData = await uploadRes.json().catch(() => ({}));
-        if (!uploadRes.ok) {
-          setLogoError(uploadData.error || t("Logo upload failed.", "Echec du televersement du logo."));
-        } else {
-          setLogoFile(null);
-          refreshBusinessProfile();
-        }
-      } catch {
-        setLogoError(t("Logo upload failed.", "Echec du televersement du logo."));
-      } finally {
-        setLogoUploading(false);
+    try {
+      const res = await fetch("/api/business-profile", {
+        method: businessExists ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setBusinessError(data.error || t("Could not save business profile.", "Impossible d enregistrer le profil entreprise."));
+        return;
       }
+      setBusinessStatus(
+        businessExists
+          ? t("Business profile updated.", "Profil entreprise mis a jour.")
+          : t("Business profile saved.", "Profil entreprise enregistre.")
+      );
+      refreshBusinessProfile();
+      if (logoFile) {
+        setLogoUploading(true);
+        try {
+          const formData = new FormData();
+          formData.append("logo", logoFile);
+          const uploadRes = await fetch("/api/business-profile/logo", {
+            method: "POST",
+            body: formData,
+          });
+          const uploadData = await uploadRes.json().catch(() => ({}));
+          if (!uploadRes.ok) {
+            setLogoError(uploadData.error || t("Logo upload failed.", "Echec du televersement du logo."));
+          } else {
+            setLogoFile(null);
+            refreshBusinessProfile();
+          }
+        } catch {
+          setLogoError(t("Logo upload failed.", "Echec du televersement du logo."));
+        } finally {
+          setLogoUploading(false);
+        }
+      }
+      clearDirty("business");
+      showSavedToast();
+    } finally {
+      setBusinessSaving(false);
     }
   };
 
@@ -488,26 +611,121 @@ export default function SettingsPage() {
       return;
     }
     setPayoutStatus(t("Payout account created.", "Compte de paiement cree."));
+    clearDirty("payout");
+    showSavedToast();
     setPayoutSubmitting(false);
   };
 
+  const passwordStrength = useMemo(() => {
+    const value = passwords.password;
+    if (!value) return { score: 0, key: "none" as const };
+    let score = 0;
+    if (value.length >= MIN_PASSWORD_LENGTH) score += 1;
+    if (/[A-Z]/.test(value) && /[a-z]/.test(value)) score += 1;
+    if (/\d/.test(value)) score += 1;
+    if (/[^A-Za-z0-9]/.test(value)) score += 1;
+    if (score <= 1) return { score, key: "weak" as const };
+    if (score <= 3) return { score, key: "medium" as const };
+    return { score, key: "strong" as const };
+  }, [passwords.password]);
+
+  const passwordStrengthLabel =
+    passwordStrength.key === "none"
+      ? t("No password entered", "Aucun mot de passe saisi")
+      : passwordStrength.key === "weak"
+      ? t("Weak", "Faible")
+      : passwordStrength.key === "medium"
+      ? t("Medium", "Moyen")
+      : t("Strong", "Fort");
+  const passwordFormValid =
+    currentPassword.trim().length > 0 &&
+    passwords.password.length >= MIN_PASSWORD_LENGTH &&
+    passwords.confirm.length >= MIN_PASSWORD_LENGTH &&
+    passwords.password === passwords.confirm;
+
   return (
-    <div className="space-y-6 max-md:space-y-7">
-      <div className="md:contents max-md:rounded-[28px] max-md:border max-md:border-border/60 max-md:bg-card max-md:p-4 max-md:shadow-[0_16px_36px_rgba(15,23,42,0.18)]">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
-            {t("Settings", "Parametres")}
-          </p>
-          <h1 className="text-3xl font-semibold text-foreground">
-            {t("Profile & security", "Profil et securite")}
-          </h1>
+    <div className="mx-auto w-full max-w-[1050px] space-y-6 max-md:space-y-7">
+      {showUnsavedPrompt ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="unsaved-changes-title"
+            className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-2xl"
+          >
+            <h2 id="unsaved-changes-title" className="text-base font-semibold text-foreground">
+              {t("Unsaved changes", "Modifications non enregistrees")}
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {t(
+                "You have unsaved changes. Leave without saving?",
+                "Vous avez des modifications non enregistrees. Quitter sans enregistrer ?"
+              )}
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button variant="secondary" onClick={cancelLeaveWithUnsavedChanges}>
+                {t("Cancel", "Annuler")}
+              </Button>
+              <Button onClick={confirmLeaveWithUnsavedChanges}>
+                {t("Leave", "Quitter")}
+              </Button>
+            </div>
+          </div>
         </div>
-        {status && <div className="mt-4"><Alert variant="info">{status}</Alert></div>}
+      ) : null}
+      {saveToast ? (
+        <div className="fixed right-4 top-4 z-50 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 shadow-lg">
+          {saveToast}
+        </div>
+      ) : null}
+      <div>
+        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
+          {t("Settings", "Parametres")}
+        </p>
+        <h1 className="text-3xl font-semibold text-foreground">{t("Settings", "Parametres")}</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {t(
+            "Manage your account details, security and business information.",
+            "Gerez les details du compte, la securite et les informations entreprise."
+          )}
+        </p>
       </div>
-      <Card title={t("Profile", "Profil")}>
+      <div role="tablist" aria-label={t("Settings sections", "Sections des parametres")} className="flex gap-2 overflow-x-auto border-b border-border pb-3">
+        {[
+          { key: "profile", label: t("Profile", "Profil") },
+          { key: "business", label: t("Business", "Entreprise") },
+          { key: "payout", label: t("Payout", "Paiement") },
+          { key: "security", label: t("Security", "Securite") },
+        ].map((tab) => {
+          const selected = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              onClick={() => switchTab(tab.key as SettingsTab)}
+              className={`relative whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
+                selected
+                  ? "bg-indigo-600 text-white shadow"
+                  : "border border-border bg-background text-foreground hover:bg-muted"
+              }`}
+            >
+              {tab.label}
+              <span
+                className={`absolute inset-x-3 -bottom-1 h-0.5 rounded-full bg-indigo-500 transition-all ${
+                  selected ? "opacity-100" : "opacity-0"
+                }`}
+              />
+            </button>
+          );
+        })}
+      </div>
+      {activeTab === "profile" && (
+      <Card title={t("Profile Information", "Informations du profil")}>
         {profileStatus && <Alert variant="success">{profileStatus}</Alert>}
         {profileError && <Alert variant="error">{profileError}</Alert>}
-        <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1 max-md:gap-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
           <Input
             label={t("User ID", "ID utilisateur")}
             value={me?.publicUserId || me?.publicId || ""}
@@ -518,31 +736,42 @@ export default function SettingsPage() {
             label={t("Name", "Nom")}
             placeholder={t("Your name", "Votre nom")}
             value={profile.name}
-            onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+            onChange={(e) => updateProfileField("name", e.target.value)}
           />
           <Input
             label={t("Email", "Email")}
             placeholder={t("you@company.com", "vous@entreprise.com")}
             type="email"
             value={profile.email}
-            onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+            onChange={(e) => updateProfileField("email", e.target.value)}
           />
-          <div className="col-span-2 max-md:col-span-1">
-            <Button className="max-md:w-full" onClick={saveProfile}>
-              {t("Save profile", "Enregistrer le profil")}
+          <Input
+            label={t("Phone", "Telephone")}
+            value={me?.phone || ""}
+            readOnly
+            className="text-muted-foreground"
+          />
+          <div className="col-span-2 flex justify-end max-md:col-span-1">
+            <Button className="max-md:w-full" onClick={saveProfile} loading={profileSaving}>
+              {t("Save Changes", "Enregistrer les modifications")}
             </Button>
           </div>
         </div>
       </Card>
-      <Card title={t("Business profile", "Profil entreprise")}>
+      )}
+      {activeTab === "business" && (
+      <Card title={t("Business Profile", "Profil entreprise")}>
         {businessStatus && <Alert variant="success">{businessStatus}</Alert>}
         {businessError && <Alert variant="error">{businessError}</Alert>}
         {logoError && <Alert variant="error">{logoError}</Alert>}
         <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1 max-md:gap-3">
+          <div className="col-span-2 border-b border-border pb-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground max-md:col-span-1">
+            {t("Company details", "Details entreprise")}
+          </div>
           <Input
             label={t("Business name", "Nom de l entreprise")}
             value={businessForm.businessName}
-            onChange={(e) => setBusinessForm({ ...businessForm, businessName: e.target.value })}
+            onChange={(e) => updateBusinessField("businessName", e.target.value)}
             required
           />
           <CountrySelect
@@ -550,13 +779,13 @@ export default function SettingsPage() {
             value={businessForm.country}
             locale={language === "fr" ? "fr" : "en"}
             required
-            onChange={(value) => setBusinessForm({ ...businessForm, country: value })}
+            onChange={(value) => updateBusinessField("country", value)}
           />
           <label className="flex flex-col gap-1 text-sm text-foreground">
             {t("Default currency", "Devise par defaut")}
             <select
               value={businessForm.defaultCurrency}
-              onChange={(e) => setBusinessForm({ ...businessForm, defaultCurrency: e.target.value })}
+              onChange={(e) => updateBusinessField("defaultCurrency", e.target.value)}
               className="rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:border-indigo-400 focus:outline-none"
             >
               {businessCurrencyOptions.map((option) => (
@@ -570,7 +799,7 @@ export default function SettingsPage() {
             label={t("Business email", "Email entreprise")}
             type="email"
             value={businessForm.businessEmail}
-            onChange={(e) => setBusinessForm({ ...businessForm, businessEmail: e.target.value })}
+            onChange={(e) => updateBusinessField("businessEmail", e.target.value)}
             required
           />
           <PhoneInput
@@ -578,56 +807,87 @@ export default function SettingsPage() {
             value={businessForm.businessPhone}
             required
             locale={language === "fr" ? "fr" : "en"}
-            onChange={(value) => setBusinessForm({ ...businessForm, businessPhone: value })}
+            onChange={(value) => updateBusinessField("businessPhone", value)}
           />
+          <div className="col-span-2 border-b border-border pb-2 pt-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground max-md:col-span-1">
+            {t("Address", "Adresse")}
+          </div>
           <Input
             label={t("Street address", "Adresse")}
             value={businessForm.streetAddress}
-            onChange={(e) => setBusinessForm({ ...businessForm, streetAddress: e.target.value })}
+            onChange={(e) => updateBusinessField("streetAddress", e.target.value)}
             required
           />
           <Input
             label={t("City", "Ville")}
             value={businessForm.city}
-            onChange={(e) => setBusinessForm({ ...businessForm, city: e.target.value })}
+            onChange={(e) => updateBusinessField("city", e.target.value)}
             required
           />
           <Input
             label={t("Postal code / ZIP (optional)", "Code postal / ZIP (optionnel)")}
             value={businessForm.postalCode}
-            onChange={(e) => setBusinessForm({ ...businessForm, postalCode: e.target.value })}
+            onChange={(e) => updateBusinessField("postalCode", e.target.value)}
           />
-          <label className="flex items-center gap-2 text-sm text-foreground">
-            <input
-              type="checkbox"
-              checked={businessForm.vatEnabled}
-              onChange={(e) => setBusinessForm({ ...businessForm, vatEnabled: e.target.checked })}
-              className="h-4 w-4 rounded border border-input accent-indigo-600"
-            />
-            {t("Enable VAT", "Activer la TVA")}
-          </label>
-          <Input
-            label={t("VAT rate (%)", "Taux TVA (%)")}
-            type="number"
-            min="0"
-            max="30"
-            step="0.1"
-            value={businessForm.vatRate}
-            onChange={(e) => setBusinessForm({ ...businessForm, vatRate: e.target.value })}
-            required={businessForm.vatEnabled}
-          />
-          <label className="flex flex-col gap-1 text-sm text-foreground">
-            {t("VAT pricing mode", "Mode TVA")}
-            <select
-              value={businessForm.vatPricingMode}
-              onChange={(e) => setBusinessForm({ ...businessForm, vatPricingMode: e.target.value })}
-              className="rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:border-indigo-400 focus:outline-none"
+          <div className="col-span-2 border-b border-border pb-2 pt-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground max-md:col-span-1">
+            {t("Tax settings", "Parametres fiscaux")}
+          </div>
+          <div className="col-span-2 rounded-xl border border-border bg-muted/30 p-4 max-md:col-span-1">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium text-foreground">{t("Enable VAT", "Activer la TVA")}</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={businessForm.vatEnabled}
+                onClick={() => updateBusinessField("vatEnabled", !businessForm.vatEnabled)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+                  businessForm.vatEnabled ? "bg-indigo-600" : "bg-slate-300 dark:bg-slate-600"
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                    businessForm.vatEnabled ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
+            <div
+              className={`grid overflow-hidden transition-all duration-200 ${
+                businessForm.vatEnabled ? "mt-4 max-h-80 gap-4 opacity-100 md:grid-cols-3" : "max-h-0 opacity-0"
+              }`}
             >
-              <option value="exclusive">{t("Exclusive", "Exclusif")}</option>
-              <option value="inclusive">{t("Inclusive", "Inclusif")}</option>
-            </select>
-          </label>
-          <label className="col-span-2 flex flex-col gap-1 text-sm text-foreground max-md:order-9 max-md:col-span-1 md:col-span-1">
+              <Input
+                label={t("VAT rate (%)", "Taux TVA (%)")}
+                type="number"
+                min="0"
+                max="30"
+                step="0.1"
+                value={businessForm.vatRate}
+                onChange={(e) => updateBusinessField("vatRate", e.target.value)}
+                required={businessForm.vatEnabled}
+              />
+              <label className="flex flex-col gap-1 text-sm text-foreground">
+                {t("VAT pricing mode", "Mode TVA")}
+                <select
+                  value={businessForm.vatPricingMode}
+                  onChange={(e) => updateBusinessField("vatPricingMode", e.target.value)}
+                  className="rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:border-indigo-400 focus:outline-none"
+                >
+                  <option value="exclusive">{t("Exclusive", "Exclusif")}</option>
+                  <option value="inclusive">{t("Inclusive", "Inclusif")}</option>
+                </select>
+              </label>
+              <Input
+                label={t("Tax ID", "ID fiscal")}
+                value={businessForm.taxId}
+                onChange={(e) => updateBusinessField("taxId", e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="col-span-2 border-b border-border pb-2 pt-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground max-md:col-span-1">
+            {t("Branding", "Image de marque")}
+          </div>
+          <label className="col-span-2 flex flex-col gap-1 text-sm text-foreground max-md:order-9 max-md:col-span-1">
             <span className="flex items-center gap-2">
               {t("Business logo (optional)", "Logo entreprise (optionnel)")}
               <span ref={logoInfoRef} className="relative">
@@ -655,7 +915,10 @@ export default function SettingsPage() {
             <input
               type="file"
               accept=".png,.jpg,.jpeg,.svg"
-              onChange={(e) => setLogoFile(e.target.files?.[0] || null)}
+              onChange={(e) => {
+                setLogoFile(e.target.files?.[0] || null);
+                markDirty("business");
+              }}
               disabled={logoUploading}
               ref={logoInputRef}
               className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground file:mr-4 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-sm file:font-semibold"
@@ -691,14 +954,8 @@ export default function SettingsPage() {
               </div>
             )}
           </label>
-          <Input
-            label={t("Tax ID", "ID fiscal")}
-            value={businessForm.taxId}
-            onChange={(e) => setBusinessForm({ ...businessForm, taxId: e.target.value })}
-            className="max-md:order-8"
-          />
-          <div className="col-span-2 max-md:col-span-1 max-md:order-10">
-            <Button className="max-md:w-full" onClick={saveBusinessProfile}>
+          <div className="col-span-2 flex justify-end max-md:col-span-1 max-md:order-10">
+            <Button className="max-md:w-full" onClick={saveBusinessProfile} loading={businessSaving || logoUploading}>
               {businessExists
                 ? t("Update business profile", "Mettre a jour le profil entreprise")
                 : t("Save business profile", "Enregistrer le profil entreprise")}
@@ -706,13 +963,26 @@ export default function SettingsPage() {
           </div>
         </div>
       </Card>
+      )}
+      {activeTab === "payout" && (
       <Card title={t("Invoice payout setup", "Configuration de paiement facture")}>
         <p className="text-xs text-muted-foreground">
           {t(
-            "Add your Paystack or Flutterwave subaccount so customer invoice payments settle directly to you.",
-            "Ajoutez votre sous-compte Paystack ou Flutterwave pour recevoir les paiements de factures."
+            "Payout details are used for invoice settlements.",
+            "Les details de paiement sont utilises pour les reglements de factures."
           )}
         </p>
+        <div
+          className={`mt-4 rounded-xl border px-4 py-3 text-sm font-medium ${
+            payoutConnected
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300"
+              : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300"
+          }`}
+        >
+          {payoutConnected
+            ? t("Connected payout account", "Compte de paiement connecte")
+            : t("Payout account not configured", "Compte de paiement non configure")}
+        </div>
         <div className="mt-6 rounded-2xl border border-border bg-background/60 p-4">
           <p className="text-sm font-semibold text-foreground">
             {t("Create payout account", "Creer un compte de paiement")}
@@ -734,6 +1004,7 @@ export default function SettingsPage() {
                   setPayoutProvider(e.target.value as "PAYSTACK" | "FLUTTERWAVE");
                   setPayoutBankCode("");
                   setPayoutProviderTouched(true);
+                  markDirty("payout");
                 }}
                 disabled={isSepa}
                 className="rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:border-indigo-400 focus:outline-none"
@@ -760,17 +1031,26 @@ export default function SettingsPage() {
                 <Input
                   label={t("Account holder name", "Nom du titulaire")}
                   value={payoutAccountName}
-                  onChange={(e) => setPayoutAccountName(e.target.value)}
+                  onChange={(e) => {
+                    setPayoutAccountName(e.target.value);
+                    markDirty("payout");
+                  }}
                 />
                 <Input
                   label={t("IBAN", "IBAN")}
                   value={payoutIban}
-                  onChange={(e) => setPayoutIban(e.target.value)}
+                  onChange={(e) => {
+                    setPayoutIban(e.target.value);
+                    markDirty("payout");
+                  }}
                 />
                 <Input
                   label={t("BIC / SWIFT (optional)", "BIC / SWIFT (optionnel)")}
                   value={payoutBicSwift}
-                  onChange={(e) => setPayoutBicSwift(e.target.value)}
+                  onChange={(e) => {
+                    setPayoutBicSwift(e.target.value);
+                    markDirty("payout");
+                  }}
                 />
               </>
             ) : (
@@ -779,7 +1059,10 @@ export default function SettingsPage() {
                   {t("Bank", "Banque")}
                   <select
                     value={payoutBankCode}
-                    onChange={(e) => setPayoutBankCode(e.target.value)}
+                    onChange={(e) => {
+                      setPayoutBankCode(e.target.value);
+                      markDirty("payout");
+                    }}
                     disabled={!payoutBankList.length}
                     className="rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:border-indigo-400 focus:outline-none"
                   >
@@ -798,19 +1081,26 @@ export default function SettingsPage() {
                 <Input
                   label={t("Account name", "Nom du compte")}
                   value={payoutAccountName}
-                  onChange={(e) => setPayoutAccountName(e.target.value)}
+                  onChange={(e) => {
+                    setPayoutAccountName(e.target.value);
+                    markDirty("payout");
+                  }}
                 />
                 <Input
                   label={t("Account number", "Numero de compte")}
                   value={payoutAccountNumber}
-                  onChange={(e) => setPayoutAccountNumber(e.target.value)}
+                  onChange={(e) => {
+                    setPayoutAccountNumber(e.target.value);
+                    markDirty("payout");
+                  }}
                 />
               </>
             )}
-            <div className="col-span-2 max-md:col-span-1">
+            <div className="col-span-2 flex justify-end max-md:col-span-1">
               <Button
                 className="max-md:w-full"
                 onClick={createPayoutAccount}
+                loading={payoutSubmitting}
                 disabled={
                   payoutSubmitting ||
                   (!isSepa && (!payoutBankList.length || Boolean(payoutBankError))) ||
@@ -823,17 +1113,30 @@ export default function SettingsPage() {
           </div>
         </div>
       </Card>
-      <Card title={t("Security", "Securite")}>
+      )}
+      {activeTab === "security" && (
+      <>
+      <Card title={t("Change Password", "Changer le mot de passe")}>
+        {status && <Alert variant="info">{status}</Alert>}
         {passwordStatus && <Alert variant="success">{passwordStatus}</Alert>}
         {passwordError && <Alert variant="error">{passwordError}</Alert>}
         <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1 max-md:gap-3">
+          <Input
+            label={t("Current password", "Mot de passe actuel")}
+            type="password"
+            value={currentPassword}
+            onChange={(e) => {
+              setCurrentPassword(e.target.value);
+              markDirty("security");
+            }}
+          />
           <div className="space-y-1">
             <Input
               label={t("New password", "Nouveau mot de passe")}
               type="password"
               value={passwords.password}
               minLength={MIN_PASSWORD_LENGTH}
-              onChange={(e) => setPasswords({ ...passwords, password: e.target.value })}
+              onChange={(e) => updatePasswordField("password", e.target.value)}
             />
             <p className="text-xs text-muted-foreground">{PASSWORD_MIN_LENGTH_HELPER_TEXT}</p>
           </div>
@@ -842,20 +1145,41 @@ export default function SettingsPage() {
             type="password"
             value={passwords.confirm}
             minLength={MIN_PASSWORD_LENGTH}
-            onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
+            onChange={(e) => updatePasswordField("confirm", e.target.value)}
           />
-          <div className="col-span-2 max-md:col-span-1">
-            <Button variant="secondary" className="max-md:w-full" onClick={updatePassword}>
+          <div className="space-y-2 md:col-span-2">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{t("Password strength", "Force du mot de passe")}</span>
+              <span className="font-semibold">{passwordStrengthLabel}</span>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {[0, 1, 2, 3].map((index) => (
+                <div
+                  key={index}
+                  className={`h-1.5 rounded-full ${passwordStrength.score > index ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-700"}`}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="flex justify-end md:col-span-2">
+            <Button
+              variant="secondary"
+              className="w-full md:w-auto"
+              onClick={updatePassword}
+              loading={passwordSaving}
+              disabled={!passwordFormValid || passwordSaving}
+            >
               {t("Update password", "Mettre a jour le mot de passe")}
             </Button>
           </div>
         </div>
-
-        <div className="mt-8 rounded-2xl border border-border bg-muted/40 p-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      </Card>
+      <Card title={t("Two-Factor Authentication", "Authentification a deux facteurs")}>
+        <div className="rounded-2xl border border-border bg-muted/40 p-4">
+          <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-foreground">
-                {t("Authenticator 2FA (TOTP)", "Authentificateur 2FA (TOTP)")}
+                {t("Two-Factor Authentication", "Authentification a deux facteurs")}
               </p>
               <p className="text-xs text-muted-foreground">
                 {t(
@@ -864,16 +1188,30 @@ export default function SettingsPage() {
                 )}
               </p>
             </div>
-            <div className="flex gap-2">
-              {!enabled ? (
-                <Button onClick={startTotpSetup}>{t("Enable 2FA", "Activer 2FA")}</Button>
-              ) : (
-                <Button variant="secondary" onClick={() => refreshTotp()}>
-                  {t("Refresh", "Actualiser")}
-                </Button>
-              )}
-            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={enabled}
+              onClick={!enabled ? startTotpSetup : undefined}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+                enabled ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                  enabled ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
           </div>
+          {!enabled && !setup && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              {t(
+                "Two-factor authentication is off. Enable it to protect sign-in with a time-based code.",
+                "La double authentification est desactivee. Activez-la pour proteger la connexion."
+              )}
+            </p>
+          )}
 
           {!enabled && setup && (
             <div className="mt-4 space-y-3">
@@ -903,10 +1241,13 @@ export default function SettingsPage() {
                     "Saisissez le code 6 chiffres de votre app"
                   )}
                   value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
+                  onChange={(e) => {
+                    setOtp(e.target.value);
+                    markDirty("security");
+                  }}
                   placeholder="123456"
                 />
-                <Button onClick={enableTotp}>{t("Confirm & enable", "Confirmer et activer")}</Button>
+                <Button onClick={enableTotp} loading={totpBusy}>{t("Confirm & enable", "Confirmer et activer")}</Button>
               </div>
             </div>
           )}
@@ -921,10 +1262,13 @@ export default function SettingsPage() {
                     "Desactiver 2FA (code 2FA actuel ou code de secours)"
                   )}
                   value={disableCode}
-                  onChange={(e) => setDisableCode(e.target.value)}
+                  onChange={(e) => {
+                    setDisableCode(e.target.value);
+                    markDirty("security");
+                  }}
                   placeholder="123456 or ABCDE-F1234"
                 />
-                <Button variant="secondary" onClick={disableTotp}>
+                <Button variant="secondary" onClick={disableTotp} loading={totpBusy}>
                   {t("Disable", "Desactiver")}
                 </Button>
               </div>
@@ -956,6 +1300,8 @@ export default function SettingsPage() {
           ) : null}
         </div>
       </Card>
+      </>
+      )}
     </div>
   );
 }

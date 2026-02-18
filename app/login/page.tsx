@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { Eye, EyeOff, Lock, Mail, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,6 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
   const params = useSearchParams();
   const resetSuccess = params.get("reset") === "success";
   const logoSrc = "/branding/Maboria%20Company%20logo.png";
@@ -66,7 +65,7 @@ export default function LoginPage() {
         );
         return;
       }
-      router.push("/dashboard");
+      window.location.href = "/dashboard";
     } catch {
       setError(t("Sign in failed. Please try again.", "Connexion echouee. Reessayez."));
     } finally {

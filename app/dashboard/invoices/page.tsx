@@ -21,6 +21,7 @@ import { normalizeVatSettings } from "@/lib/vat";
 import { useSession } from "next-auth/react";
 import { useLanguage } from "@/components/providers/language-provider";
 import { formatBusinessAddress, hasRequiredAddress, parseBusinessAddress } from "@/lib/address";
+import { Trash2 } from "lucide-react";
 
 const fetcher = async (url: string) => {
   const res = await fetch(url, { cache: "no-store" });
@@ -114,6 +115,30 @@ export default function InvoicesPage() {
   const scrollToCreate = () => {
     if (typeof window === "undefined") return;
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const buildFreshInvoiceForm = (currency: string) => ({
+    invoiceNumber: `INV-${Date.now()}`,
+    currency,
+    status: "SENT",
+    customerName: "",
+    customerEmail: "",
+    customerStreet: "",
+    customerCity: "",
+    customerPostalCode: "",
+    customerCountry: "",
+    customerType: "INDIVIDUAL",
+    customerCompany: "",
+    customerTaxId: "",
+    issueDate: todayValue,
+    dueDate: "",
+    note: "",
+    items: [{ name: "", quantity: 1, price: 0 }],
+  });
+  const handleNewInvoice = () => {
+    const nextCurrency = String(businessProfile?.data?.defaultCurrency || me?.preferredCurrency || "USD").toUpperCase();
+    setStatus(null);
+    setForm(buildFreshInvoiceForm(nextCurrency));
+    scrollToCreate();
   };
 
   useEffect(() => {
@@ -280,139 +305,6 @@ export default function InvoicesPage() {
       .filter(Boolean);
     if (parts.length) return parts.join("\n");
     return String(input.fallback || "").trim();
-  };
-
-  const createInvoice = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (form.status === "SENT" && !form.customerEmail.trim()) {
-      setStatus({
-        message: t("Customer email is required to send an invoice.", "Email client requis pour envoyer une facture."),
-        variant: "error",
-      });
-      return;
-    }
-    const customerAddress = buildCustomerAddress({
-      street: form.customerStreet,
-      city: form.customerCity,
-      postalCode: form.customerPostalCode,
-      country: form.customerCountry,
-    });
-    const payload: {
-      invoiceNumber: string;
-      currency: string;
-      status: string;
-      customerName?: string;
-      customerEmail?: string;
-      customerAddress?: string;
-      customerStreet?: string;
-      customerCity?: string;
-      customerPostalCode?: string;
-      customerCountry?: string;
-      customerType?: string;
-      customerCompany?: string;
-      customerTaxId?: string;
-      issueDate?: string;
-      dueDate?: string;
-      note?: string;
-      items: { name: string; quantity: number; price: number }[];
-    } = {
-      ...form,
-      invoiceNumber: form.invoiceNumber.trim(),
-      customerName: form.customerName.trim() || undefined,
-      customerEmail: form.customerEmail.trim() || undefined,
-      customerAddress: customerAddress || undefined,
-      customerStreet: form.customerStreet.trim() || undefined,
-      customerCity: form.customerCity.trim() || undefined,
-      customerPostalCode: form.customerPostalCode.trim() || undefined,
-      customerCountry: form.customerCountry.trim() || undefined,
-      customerType: form.customerType,
-      customerCompany: form.customerCompany.trim() || undefined,
-      customerTaxId: form.customerTaxId.trim() || undefined,
-      note: form.note.trim() || undefined,
-    };
-    const issueDateParsed = form.issueDate ? parseDateInput(form.issueDate) : null;
-    if (form.issueDate && !issueDateParsed) {
-      setStatus({
-        message: t("Issue date must be in DD/MM/YYYY format.", "Date d emission au format JJ/MM/AAAA."),
-        variant: "error",
-      });
-      return;
-    }
-    const dueDateParsed = form.dueDate ? parseDateInput(form.dueDate) : null;
-    if (form.dueDate && !dueDateParsed) {
-      setStatus({
-        message: t("Due date must be in DD/MM/YYYY format.", "Date d echeance au format JJ/MM/AAAA."),
-        variant: "error",
-      });
-      return;
-    }
-    payload.issueDate = issueDateParsed ? issueDateParsed.toISOString().slice(0, 10) : undefined;
-    payload.dueDate = dueDateParsed ? dueDateParsed.toISOString().slice(0, 10) : undefined;
-    try {
-      const res = await fetch("/api/invoice", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        const required = json.requiredPlan
-          ? json.requiredPlan === "starter"
-            ? "Starter"
-            : json.requiredPlan === "pro"
-              ? "Pro"
-              : json.requiredPlan === "enterprise"
-                ? "Enterprise"
-                : json.requiredPlan
-          : null;
-        if (json.type === "upgrade_required" || json.type === "limit_reached") {
-          setStatus({
-            message: `${json.reason || t("Upgrade required.", "Mise a niveau requise.")}${
-              required ? ` ${t("Required plan:", "Plan requis :")} ${required}.` : ""
-            }`,
-            variant: "error",
-          });
-        } else {
-          setStatus({ message: json.error || t("Could not create invoice.", "Impossible de creer la facture."), variant: "error" });
-        }
-      } else {
-        const savedNumber = json?.invoiceNumber as string | undefined;
-        if (savedNumber && savedNumber !== form.invoiceNumber) {
-          setStatus({
-            message: t(
-              `Invoice number already existed. Saved as ${savedNumber}.`,
-              `Numero deja utilise. Enregistre comme ${savedNumber}.`
-            ),
-            variant: "success",
-          });
-        } else {
-          setStatus({ message: t("Invoice generated.", "Facture generee."), variant: "success" });
-        }
-        mutate();
-        const nextCurrency =
-          String(businessProfile?.data?.defaultCurrency || me?.preferredCurrency || "USD").toUpperCase();
-        setForm({
-          invoiceNumber: `INV-${Date.now()}`,
-          currency: nextCurrency,
-          status: "SENT",
-          customerName: "",
-          customerEmail: "",
-          customerStreet: "",
-          customerCity: "",
-          customerPostalCode: "",
-          customerCountry: "",
-          customerType: "INDIVIDUAL",
-          customerCompany: "",
-          customerTaxId: "",
-          issueDate: todayValue,
-          dueDate: "",
-          note: "",
-          items: [{ name: "Service", quantity: 1, price: 100 }],
-        });
-      }
-    } catch {
-      setStatus({ message: t("Could not create invoice. Please try again.", "Impossible de creer la facture. Reessayez."), variant: "error" });
-    }
   };
 
   const currencyOptions = allowedCurrencies.map((code) => ({ code, label: formatCurrencyOption(code) }));
@@ -647,17 +539,159 @@ export default function InvoicesPage() {
     }
   };
 
+  const createInvoiceWithStatus = async (statusOverride?: "DRAFT" | "SENT") => {
+    const nextStatus = statusOverride || (form.status as "DRAFT" | "SENT");
+    if (nextStatus === "SENT" && !form.customerEmail.trim()) {
+      setStatus({
+        message: t("Customer email is required to send an invoice.", "Email client requis pour envoyer une facture."),
+        variant: "error",
+      });
+      return;
+    }
+    const customerAddress = buildCustomerAddress({
+      street: form.customerStreet,
+      city: form.customerCity,
+      postalCode: form.customerPostalCode,
+      country: form.customerCountry,
+    });
+    const payload: {
+      invoiceNumber: string;
+      currency: string;
+      status: string;
+      customerName?: string;
+      customerEmail?: string;
+      customerAddress?: string;
+      customerStreet?: string;
+      customerCity?: string;
+      customerPostalCode?: string;
+      customerCountry?: string;
+      customerType?: string;
+      customerCompany?: string;
+      customerTaxId?: string;
+      issueDate?: string;
+      dueDate?: string;
+      note?: string;
+      items: { name: string; quantity: number; price: number }[];
+    } = {
+      ...form,
+      status: nextStatus,
+      invoiceNumber: form.invoiceNumber.trim(),
+      customerName: form.customerName.trim() || undefined,
+      customerEmail: form.customerEmail.trim() || undefined,
+      customerAddress: customerAddress || undefined,
+      customerStreet: form.customerStreet.trim() || undefined,
+      customerCity: form.customerCity.trim() || undefined,
+      customerPostalCode: form.customerPostalCode.trim() || undefined,
+      customerCountry: form.customerCountry.trim() || undefined,
+      customerType: form.customerType,
+      customerCompany: form.customerCompany.trim() || undefined,
+      customerTaxId: form.customerTaxId.trim() || undefined,
+      note: form.note.trim() || undefined,
+    };
+    const issueDateParsed = form.issueDate ? parseDateInput(form.issueDate) : null;
+    if (form.issueDate && !issueDateParsed) {
+      setStatus({
+        message: t("Issue date must be in DD/MM/YYYY format.", "Date d emission au format JJ/MM/AAAA."),
+        variant: "error",
+      });
+      return;
+    }
+    const dueDateParsed = form.dueDate ? parseDateInput(form.dueDate) : null;
+    if (form.dueDate && !dueDateParsed) {
+      setStatus({
+        message: t("Due date must be in DD/MM/YYYY format.", "Date d echeance au format JJ/MM/AAAA."),
+        variant: "error",
+      });
+      return;
+    }
+    payload.issueDate = issueDateParsed ? issueDateParsed.toISOString().slice(0, 10) : undefined;
+    payload.dueDate = dueDateParsed ? dueDateParsed.toISOString().slice(0, 10) : undefined;
+    try {
+      const res = await fetch("/api/invoice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        const required = json.requiredPlan
+          ? json.requiredPlan === "starter"
+            ? "Starter"
+            : json.requiredPlan === "pro"
+              ? "Pro"
+              : json.requiredPlan === "enterprise"
+                ? "Enterprise"
+                : json.requiredPlan
+          : null;
+        if (json.type === "upgrade_required" || json.type === "limit_reached") {
+          setStatus({
+            message: `${json.reason || t("Upgrade required.", "Mise a niveau requise.")}${
+              required ? ` ${t("Required plan:", "Plan requis :")} ${required}.` : ""
+            }`,
+            variant: "error",
+          });
+        } else {
+          setStatus({ message: json.error || t("Could not create invoice.", "Impossible de creer la facture."), variant: "error" });
+        }
+      } else {
+        const savedNumber = json?.invoiceNumber as string | undefined;
+        if (savedNumber && savedNumber !== form.invoiceNumber) {
+          setStatus({
+            message: t(
+              `Invoice number already existed. Saved as ${savedNumber}.`,
+              `Numero deja utilise. Enregistre comme ${savedNumber}.`
+            ),
+            variant: "success",
+          });
+        } else {
+          setStatus({ message: t("Invoice generated.", "Facture generee."), variant: "success" });
+        }
+        mutate();
+        const nextCurrency =
+          String(businessProfile?.data?.defaultCurrency || me?.preferredCurrency || "USD").toUpperCase();
+        setForm(buildFreshInvoiceForm(nextCurrency));
+      }
+    } catch {
+      setStatus({ message: t("Could not create invoice. Please try again.", "Impossible de creer la facture. Reessayez."), variant: "error" });
+    }
+  };
+
+  const createInvoice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await createInvoiceWithStatus();
+  };
+
   return (
-    <div className="space-y-6 max-md:space-y-7">
-      <div className="md:contents max-md:rounded-[28px] max-md:border max-md:border-border/60 max-md:bg-card max-md:p-4 max-md:shadow-[0_16px_36px_rgba(15,23,42,0.18)]">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
-            {t("Invoices", "Factures")}
-          </p>
-          <h1 className="text-3xl font-semibold text-foreground">{t("Generator", "Generateur")}</h1>
+    <div className="mx-auto w-full max-w-[1150px] space-y-8 max-md:space-y-6">
+      <section className="rounded-3xl border border-slate-200 bg-slate-50/70 p-6 shadow-[0_16px_38px_-30px_rgba(15,23,42,0.28)] sm:p-8">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-indigo-600 dark:text-indigo-300">
+              {t("Invoices", "Factures")}
+            </p>
+            <h1 className="text-4xl font-bold tracking-tight text-foreground">
+              {t("Invoice Generator", "Generateur de factures")}
+            </h1>
+            <p className="max-w-3xl text-sm text-muted-foreground">
+              {t(
+                "Create, manage and send professional invoices.",
+                "Creez, gerez et envoyez des factures professionnelles."
+              )}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 max-md:w-full">
+            <Button onClick={handleNewInvoice} className="max-md:flex-1">
+              {t("+ New Invoice", "+ Nouvelle facture")}
+            </Button>
+            <a href="#invoice-history" className="max-md:flex-1">
+              <Button variant="secondary" className="w-full">
+                {t("View history", "Voir l historique")}
+              </Button>
+            </a>
+          </div>
         </div>
-        {status && <div className="mt-4"><Alert variant={status.variant}>{status.message}</Alert></div>}
-      </div>
+        {status && <div className="mt-5"><Alert variant={status.variant}>{status.message}</Alert></div>}
+      </section>
       {profileMissing ? (
         <Card title={t("Business profile required", "Profil requis")}>
           {profileStatus && <Alert variant="success">{profileStatus}</Alert>}
@@ -814,8 +848,10 @@ export default function InvoicesPage() {
           </form>
         </Card>
       ) : (
-        <Card title={t("Create invoice", "Creer une facture")}>
-          <form className="grid grid-cols-2 gap-4 max-md:grid-cols-1 max-md:gap-3" onSubmit={createInvoice}>
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,1fr)]">
+          <div className="min-w-0 space-y-4">
+            <Card title={t("Create invoice", "Creer une facture")} className="min-w-0 shadow-sm">
+              <form className="grid grid-cols-2 gap-4 max-md:grid-cols-1 max-md:gap-3" onSubmit={createInvoice}>
             <Input
               label={t("Invoice number", "Numero de facture")}
               value={form.invoiceNumber}
@@ -908,11 +944,7 @@ export default function InvoicesPage() {
                 onChange={(e) => setForm({ ...form, customerCompany: e.target.value })}
               />
             )}
-            <div
-              className={
-                form.customerType === "BUSINESS" ? "" : "col-span-2 max-md:col-span-1"
-              }
-            >
+            <div>
               <Input
                 label={t("Tax ID (optional)", "ID fiscal (optionnel)")}
                 value={form.customerTaxId}
@@ -920,7 +952,7 @@ export default function InvoicesPage() {
               />
             </div>
             <div className="col-span-2 max-md:col-span-1">
-              <div className="rounded-2xl border border-border bg-muted/10 p-4">
+              <div className="rounded-2xl border border-border bg-muted/10 p-5">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-foreground">{t("Line items", "Articles")}</p>
                   <Button
@@ -936,79 +968,111 @@ export default function InvoicesPage() {
                     {t("Add item", "Ajouter")}
                   </Button>
                 </div>
-                <div className="mt-3 space-y-3">
-                  {form.items.map((item, index) => (
-                    <div
-                      key={`item-${index}`}
-                      className="grid grid-cols-[2fr_0.6fr_0.8fr_0.8fr_auto] gap-3 max-md:grid-cols-1"
-                    >
-                      <Input
-                        label={t("Description", "Description")}
-                        value={item.name}
-                        onChange={(e) =>
-                          setForm((prev) => {
-                            const next = [...prev.items];
-                            next[index] = { ...next[index], name: e.target.value };
-                            return { ...prev, items: next };
-                          })
-                        }
-                      />
-                      <Input
-                        label={t("Qty", "Qt")}
-                        type="number"
-                        min={1}
-                        step={1}
-                        value={item.quantity}
-                        onChange={(e) =>
-                          setForm((prev) => {
-                            const next = [...prev.items];
-                            next[index] = { ...next[index], quantity: Math.max(1, Number(e.target.value)) };
-                            return { ...prev, items: next };
-                          })
-                        }
-                      />
-                      <Input
-                        label={t("Unit price", "Prix unitaire")}
-                        type="number"
-                        min={0}
-                        step={0.01}
-                        value={item.price}
-                        onChange={(e) =>
-                          setForm((prev) => {
-                            const next = [...prev.items];
-                            next[index] = { ...next[index], price: Number(e.target.value) };
-                            return { ...prev, items: next };
-                          })
-                        }
-                      />
-                      <div className="space-y-1">
-                        <label className="flex flex-col gap-1 text-sm text-foreground">
-                          {t("Line total", "Total ligne")}
-                          <div className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground">
+
+                <div className="mt-4">
+                  <div className="hidden grid-cols-[minmax(0,2.2fr)_86px_118px_84px_138px_44px] gap-3 border-b border-border/70 pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground lg:grid">
+                    <p>{t("Description", "Description")}</p>
+                    <p>{t("Qty", "Qt")}</p>
+                    <p>{t("Unit price", "Prix unitaire")}</p>
+                    <p>{t("VAT", "TVA")}</p>
+                    <p>{t("Line total", "Total ligne")}</p>
+                    <p className="flex items-center justify-center">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </p>
+                  </div>
+
+                  <div className="mt-3 space-y-3">
+                    {form.items.map((item, index) => (
+                      <div
+                        key={`item-${index}`}
+                        className="rounded-xl border border-border/70 p-3 lg:grid lg:grid-cols-[minmax(0,2.2fr)_86px_118px_84px_138px_44px] lg:items-end lg:gap-3 lg:rounded-none lg:border-0 lg:p-0"
+                      >
+                        <label className="flex min-w-0 flex-col gap-1 text-sm text-foreground">
+                          <span className="font-medium text-foreground lg:hidden">{t("Description", "Description")}</span>
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) =>
+                              setForm((prev) => {
+                                const next = [...prev.items];
+                                next[index] = { ...next[index], name: e.target.value };
+                                return { ...prev, items: next };
+                              })
+                            }
+                            className="h-12 min-w-0 w-full rounded-lg border border-input bg-background px-3 text-foreground placeholder:text-muted-foreground focus:border-indigo-400 focus:outline-none"
+                          />
+                        </label>
+                        <label className="flex min-w-0 flex-col gap-1 text-sm text-foreground">
+                          <span className="font-medium text-foreground lg:hidden">{t("Qty", "Qt")}</span>
+                          <input
+                            type="number"
+                            min={1}
+                            step={1}
+                            value={item.quantity}
+                            onChange={(e) =>
+                              setForm((prev) => {
+                                const next = [...prev.items];
+                                next[index] = { ...next[index], quantity: Math.max(1, Number(e.target.value)) };
+                                return { ...prev, items: next };
+                              })
+                            }
+                            className="h-12 w-full rounded-lg border border-input bg-background px-3 text-foreground focus:border-indigo-400 focus:outline-none"
+                          />
+                        </label>
+                        <label className="flex min-w-0 flex-col gap-1 text-sm text-foreground">
+                          <span className="font-medium text-foreground lg:hidden">{t("Unit price", "Prix unitaire")}</span>
+                          <input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            value={item.price}
+                            onChange={(e) =>
+                              setForm((prev) => {
+                                const next = [...prev.items];
+                                next[index] = { ...next[index], price: Number(e.target.value) };
+                                return { ...prev, items: next };
+                              })
+                            }
+                            className="h-12 w-full rounded-lg border border-input bg-background px-3 text-foreground focus:border-indigo-400 focus:outline-none"
+                          />
+                        </label>
+                        <div className="min-w-0 space-y-1">
+                          <p className="text-sm font-medium text-foreground lg:hidden">{t("VAT", "TVA")}</p>
+                          <div className="flex h-12 items-center rounded-lg border border-input bg-background px-3 text-sm font-semibold text-foreground whitespace-nowrap">
+                            {showDraftTax
+                              ? `${Number(draftTotals.vatRate || 0).toFixed(1).replace(/\\.0$/, "")}%`
+                              : "-"}
+                          </div>
+                        </div>
+                        <div className="min-w-0 space-y-1">
+                          <p className="text-sm font-medium text-foreground lg:hidden">{t("Line total", "Total ligne")}</p>
+                          <div className="flex h-12 items-center rounded-lg border border-input bg-background px-3 text-sm font-semibold tabular-nums text-foreground whitespace-nowrap">
                             {formatCurrencyWithCode(item.quantity * item.price, form.currency)}
                           </div>
-                        </label>
+                        </div>
+                        <div className="flex items-end justify-end">
+                          <button
+                            type="button"
+                            aria-label={t("Remove line item", "Supprimer la ligne")}
+                            className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-input bg-background text-muted-foreground transition hover:text-foreground"
+                            onClick={() =>
+                              setForm((prev) => {
+                                if (prev.items.length === 1) return prev;
+                                const next = prev.items.filter((_, idx) => idx !== index);
+                                return { ...prev, items: next };
+                              })
+                            }
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-end max-md:items-start">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          onClick={() =>
-                            setForm((prev) => {
-                              if (prev.items.length === 1) return prev;
-                              const next = prev.items.filter((_, idx) => idx !== index);
-                              return { ...prev, items: next };
-                            })
-                          }
-                        >
-                          {t("Remove", "Supprimer")}
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-                <div className="mt-4 flex justify-end">
-                  <div className="w-full max-w-xs space-y-2 border-t border-border/60 pt-3 text-sm text-foreground">
+
+                <div className="mt-5 flex justify-end">
+                  <div className="w-full max-w-[430px] space-y-2 border-t border-border/70 pt-4 text-sm text-foreground">
                     <div className="flex items-center justify-between gap-4">
                       <span className="font-semibold">{t("Subtotal", "Sous-total")}</span>
                       <span className="font-semibold tabular-nums">
@@ -1025,9 +1089,9 @@ export default function InvoicesPage() {
                         </span>
                       </div>
                     ) : null}
-                    <div className="flex items-center justify-between gap-4 text-base font-semibold">
-                      <span>{t("Total Due", "Total du")}</span>
-                      <span className="tabular-nums">
+                    <div className="flex items-center justify-between gap-4 border-t border-border/70 pt-2">
+                      <span className="text-base font-semibold">{t("Total Due", "Total du")}</span>
+                      <span className="text-[1.85rem] font-bold leading-none tabular-nums">
                         {formatCurrencyWithCode(draftTotals.total, form.currency)}
                       </span>
                     </div>
@@ -1035,24 +1099,153 @@ export default function InvoicesPage() {
                 </div>
               </div>
             </div>
-            <div className="col-span-2 max-md:col-span-1">
-              <Textarea
-                label={t("Note to customer (optional)", "Note au client (optionnel)")}
-                value={form.note}
-                onChange={(e) => setForm({ ...form, note: e.target.value })}
-              />
+                <div className="col-span-2 max-md:col-span-1">
+                  <Textarea
+                    label={t("Note to customer (optional)", "Note au client (optionnel)")}
+                    value={form.note}
+                    onChange={(e) => setForm({ ...form, note: e.target.value })}
+                  />
+                </div>
+              </form>
+            </Card>
+
+            <div className="sticky bottom-4 z-20 rounded-2xl border border-border bg-background/95 p-4 shadow-lg backdrop-blur">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-muted-foreground">
+                  {t("Invoice will be saved as Draft", "La facture sera enregistree en brouillon")}
+                </p>
+                <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="sm:min-w-[140px]"
+                    onClick={() => createInvoiceWithStatus("DRAFT")}
+                  >
+                    {t("Save Draft", "Enregistrer brouillon")}
+                  </Button>
+                  <Button
+                    type="button"
+                    className="sm:min-w-[160px]"
+                    onClick={() => createInvoiceWithStatus("SENT")}
+                  >
+                    {t("Save & Send", "Enregistrer et envoyer")}
+                  </Button>
+                </div>
+              </div>
             </div>
-            <div className="col-span-2 max-md:col-span-1">
-              <Button type="submit" className="max-md:w-full">
-                {form.status === "SENT"
-                  ? t("Save & send", "Enregistrer et envoyer")
-                  : t("Save draft", "Enregistrer brouillon")}
-              </Button>
+
+          </div>
+
+          <Card title={t("Live invoice preview", "Apercu en direct")} className="h-fit shadow-sm xl:sticky xl:top-24">
+            <p className="mb-4 text-xs text-muted-foreground">
+              {t("Preview updates as you edit.", "L apercu se met a jour en direct.")}
+            </p>
+            <div className="space-y-5 text-sm">
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {t("From", "Emetteur")}
+                </p>
+                <p className="font-semibold text-foreground">
+                  {String(businessProfile?.data?.businessName || t("Your business", "Votre entreprise"))}
+                </p>
+                <p className="text-muted-foreground">{String(businessProfile?.data?.businessEmail || "")}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 rounded-xl border border-border bg-muted/20 p-3 text-xs">
+                <div>
+                  <p className="text-muted-foreground">{t("Invoice #", "Facture #")}</p>
+                  <p className="font-semibold text-foreground">{form.invoiceNumber || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">{t("Status", "Statut")}</p>
+                  <p className="font-semibold text-foreground">
+                    {form.status === "SENT" ? t("Send now", "Envoyer") : t("Draft", "Brouillon")}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">{t("Issue date", "Date d emission")}</p>
+                  <p className="font-semibold text-foreground">{form.issueDate || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">{t("Due date", "Date d echeance")}</p>
+                  <p className="font-semibold text-foreground">{form.dueDate || "-"}</p>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {t("Bill to", "Client")}
+                </p>
+                <p className="font-semibold text-foreground">
+                  {form.customerName || t("Customer name", "Nom du client")}
+                </p>
+                <p className="text-muted-foreground">{form.customerEmail || "-"}</p>
+                <p className="whitespace-pre-line text-muted-foreground">
+                  {buildCustomerAddress({
+                    street: form.customerStreet,
+                    city: form.customerCity,
+                    postalCode: form.customerPostalCode,
+                    country: form.customerCountry,
+                  }) || "-"}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {t("Line items", "Articles")}
+                </p>
+                <div className="space-y-2">
+                  {form.items.map((item, index) => (
+                    <div
+                      key={`preview-item-${index}`}
+                      className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-foreground">
+                          {item.name || t("Untitled item", "Article sans nom")}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.quantity} x {formatCurrencyWithCode(item.price, form.currency)}
+                        </p>
+                      </div>
+                      <p className="text-sm font-semibold tabular-nums text-foreground">
+                        {formatCurrencyWithCode(item.quantity * item.price, form.currency)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2 border-t border-border pt-3 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-muted-foreground">{t("Subtotal", "Sous-total")}</span>
+                  <span className="font-semibold tabular-nums text-foreground">
+                    {formatCurrencyWithCode(draftTotals.subtotal, form.currency)}
+                  </span>
+                </div>
+                {showDraftTax ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-muted-foreground">
+                      {t("VAT", "TVA")} ({Number(draftTotals.vatRate || 0).toFixed(1).replace(/\\.0$/, "")}%)
+                    </span>
+                    <span className="font-semibold tabular-nums text-foreground">
+                      {formatCurrencyWithCode(draftTotals.taxAmount, form.currency)}
+                    </span>
+                  </div>
+                ) : null}
+                <div className="flex items-center justify-between gap-3 border-t border-border pt-2">
+                  <span className="font-semibold text-foreground">{t("Total due", "Total du")}</span>
+                  <span className="text-lg font-bold tabular-nums text-foreground">
+                    {formatCurrencyWithCode(draftTotals.total, form.currency)}
+                  </span>
+                </div>
+              </div>
             </div>
-          </form>
-        </Card>
+          </Card>
+        </div>
       )}
       <Card
+        id="invoice-history"
         title={t("History", "Historique")}
         actions={
           <div className="flex flex-wrap items-center gap-3">
