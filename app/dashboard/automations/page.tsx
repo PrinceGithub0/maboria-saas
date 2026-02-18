@@ -4,9 +4,6 @@ import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
 import { Copy, GitBranch, PencilLine } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert } from "@/components/ui/alert";
 import { useLanguage } from "@/components/providers/language-provider";
 
 const fetcher = async (url: string) => {
@@ -21,6 +18,24 @@ const fetcher = async (url: string) => {
   return data;
 };
 
+const templates = [
+  {
+    id: "overdue-reminder",
+    title: "Send payment reminder after 3 days",
+    description: "Auto-send reminder if invoice unpaid.",
+  },
+  {
+    id: "thank-you",
+    title: "Send WhatsApp thank you message",
+    description: "Automatically thank customers after payment.",
+  },
+  {
+    id: "invoice-paid",
+    title: "Notify when invoice is paid",
+    description: "Send instant alerts when invoices are settled.",
+  },
+];
+
 export default function AutomationsPage() {
   const router = useRouter();
   const { language } = useLanguage();
@@ -32,30 +47,30 @@ export default function AutomationsPage() {
     revalidateOnFocus: true,
   });
 
-  const [status, setStatus] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
   const flowList = useMemo(() => (Array.isArray(flows) ? flows : []), [flows]);
   const runList = useMemo(() => (Array.isArray(runs) ? runs : []), [runs]);
 
   const runsByFlow = useMemo(() => {
-    const map = new Map<string, any[]>();
+    const grouped = new Map<string, any[]>();
     for (const run of runList) {
       const flowId = String(run?.flowId || run?.flow?.id || "");
       if (!flowId) continue;
-      const current = map.get(flowId) || [];
+      const current = grouped.get(flowId) || [];
       current.push(run);
-      map.set(flowId, current);
+      grouped.set(flowId, current);
     }
-    for (const [flowId, list] of map.entries()) {
+    for (const [key, list] of grouped.entries()) {
       list.sort((a, b) => {
         const aTime = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
         const bTime = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
         return bTime - aTime;
       });
-      map.set(flowId, list);
+      grouped.set(key, list);
     }
-    return map;
+    return grouped;
   }, [runList]);
 
   const sortedFlows = useMemo(() => {
@@ -78,13 +93,19 @@ export default function AutomationsPage() {
     return state === "SUCCESS" || state === "COMPLETED";
   }).length;
   const messagesSent = successfulRuns;
-  const successRate = executionsThisMonth > 0 ? Math.round((successfulRuns / executionsThisMonth) * 100) : 0;
+  const timeSaved = Math.round(executionsThisMonth / 100);
+
+  const isActive = (status?: string) => String(status || "").toLowerCase() === "active";
+
+  const getStatusLabel = (status?: string) => (isActive(status) ? t("Active", "Actif") : t("Paused", "En pause"));
+
+  const getStatusClass = (status?: string) =>
+    isActive(status) ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-700";
 
   const formatRelativeTime = (value?: string) => {
     if (!value) return t("Never", "Jamais");
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return t("Never", "Jamais");
-
     const diffMs = Date.now() - date.getTime();
     if (diffMs < 60 * 1000) return t("just now", "a l instant");
 
@@ -109,78 +130,28 @@ export default function AutomationsPage() {
     return t("just now", "a l instant");
   };
 
-  const isActive = (value?: string) => String(value || "").toLowerCase() === "active";
-
-  const getStatusLabel = (value?: string) => (isActive(value) ? t("Active", "Actif") : t("Paused", "En pause"));
-
-  const getStatusClasses = (value?: string) =>
-    isActive(value) ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-700";
+  const resolveSummary = (flow: any) => {
+    const description = String(flow?.description || "").trim();
+    if (description) return description;
+    return t(
+      "When invoice becomes overdue ? Send WhatsApp message",
+      "Quand une facture devient en retard ? Envoyer un message WhatsApp"
+    );
+  };
 
   const setBusy = (action: string, id: string) => setBusyKey(`${action}:${id}`);
   const clearBusy = () => setBusyKey(null);
   const isBusy = (action: string, id: string) => busyKey === `${action}:${id}`;
 
-  const resolveStatusVariant = (message?: string | null) => {
-    if (!message) return "info" as const;
-    const lowered = message.toLowerCase();
-    if (lowered.includes("could not") || lowered.includes("error") || lowered.includes("missing") || lowered.includes("impossible")) {
-      return "error" as const;
-    }
-    if (lowered.includes("updated") || lowered.includes("duplicated") || lowered.includes("mise a jour") || lowered.includes("dupliquee")) {
-      return "success" as const;
-    }
-    return "info" as const;
-  };
-
-  const resolveSummary = (flow: any) => {
-    const description = String(flow?.description || "").trim();
-    if (description) return description;
-    return t(
-      "When invoice becomes overdue -> Send WhatsApp message",
-      "Quand une facture devient en retard -> Envoyer un message WhatsApp"
-    );
-  };
-
-  const toggleFlow = async (flow: any) => {
-    const flowId = String(flow?.id || "");
-    if (!flowId) {
-      setStatus(t("Missing automation id.", "ID automation manquant."));
-      return;
-    }
-
-    const nextStatus = isActive(flow?.status) ? "paused" : "active";
-    setBusy("toggle", flowId);
-    setStatus(null);
-
-    try {
-      const res = await fetch(`/api/automation/${encodeURIComponent(flowId)}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: nextStatus }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setStatus(json?.reason || json?.error || t("Could not update automation.", "Impossible de mettre a jour."));
-      } else {
-        setStatus(t("Automation updated.", "Automation mise a jour."));
-        mutate();
-      }
-    } catch {
-      setStatus(t("Could not update automation.", "Impossible de mettre a jour."));
-    } finally {
-      clearBusy();
-    }
-  };
-
   const duplicateFlow = async (flow: any) => {
     const flowId = String(flow?.id || "");
     if (!flowId) {
-      setStatus(t("Missing automation id.", "ID automation manquant."));
+      setStatusMessage(t("Missing automation id.", "ID automation manquant."));
       return;
     }
 
     setBusy("duplicate", flowId);
-    setStatus(null);
+    setStatusMessage(null);
 
     try {
       const copyTitle = language === "fr" ? `${flow.title || "Automation"} (Copie)` : `${flow.title || "Automation"} (Copy)`;
@@ -196,19 +167,50 @@ export default function AutomationsPage() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setStatus(json?.reason || json?.error || t("Could not duplicate automation.", "Impossible de dupliquer."));
+        setStatusMessage(json?.reason || json?.error || t("Could not duplicate automation.", "Impossible de dupliquer."));
       } else {
-        setStatus(t("Automation duplicated.", "Automation dupliquee."));
+        setStatusMessage(t("Automation duplicated.", "Automation dupliquee."));
         mutate();
       }
     } catch {
-      setStatus(t("Could not duplicate automation.", "Impossible de dupliquer."));
+      setStatusMessage(t("Could not duplicate automation.", "Impossible de dupliquer."));
     } finally {
       clearBusy();
     }
   };
 
-  const statCards = [
+  const toggleFlow = async (flow: any) => {
+    const flowId = String(flow?.id || "");
+    if (!flowId) {
+      setStatusMessage(t("Missing automation id.", "ID automation manquant."));
+      return;
+    }
+
+    const nextStatus = isActive(flow?.status) ? "paused" : "active";
+    setBusy("toggle", flowId);
+    setStatusMessage(null);
+
+    try {
+      const res = await fetch(`/api/automation/${encodeURIComponent(flowId)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setStatusMessage(json?.reason || json?.error || t("Could not update automation.", "Impossible de mettre a jour."));
+      } else {
+        setStatusMessage(t("Automation updated.", "Automation mise a jour."));
+        mutate();
+      }
+    } catch {
+      setStatusMessage(t("Could not update automation.", "Impossible de mettre a jour."));
+    } finally {
+      clearBusy();
+    }
+  };
+
+  const stats = [
     {
       label: t("Active Automations", "Automations actives"),
       value: activeAutomations.toLocaleString(),
@@ -225,14 +227,14 @@ export default function AutomationsPage() {
       subtext: t("Successful deliveries", "Envois reussis"),
     },
     {
-      label: t("Success Rate", "Taux de succes"),
-      value: `${successRate}%`,
-      subtext: t("Based on monthly runs", "Base sur les runs du mois"),
+      label: t("Time Saved", "Temps gagne"),
+      value: `${timeSaved.toLocaleString()}h`,
+      subtext: t("Estimated this month", "Estime ce mois"),
     },
   ];
 
   return (
-    <div className="mx-auto w-full max-w-[1180px] space-y-8 bg-[#F9FAFB] px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-[1220px] space-y-8 bg-slate-50 px-4 py-6 sm:px-6 lg:px-8">
       <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
           <h1 className="text-3xl font-semibold tracking-tight text-slate-900">{t("Automation", "Automation")}</h1>
@@ -243,23 +245,25 @@ export default function AutomationsPage() {
             )}
           </p>
         </div>
-        <Button className="h-11 w-full rounded-lg px-5 sm:w-auto" onClick={() => router.push("/dashboard/automations/new")}>
+        <button
+          type="button"
+          onClick={() => router.push("/dashboard/automations/new")}
+          className="inline-flex h-12 w-full items-center justify-center rounded-lg bg-blue-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 sm:w-auto"
+        >
           {t("New Automation", "Nouvelle automation")}
-        </Button>
+        </button>
       </section>
 
-      {status ? (
-        <Alert variant={resolveStatusVariant(status)} className="rounded-xl border border-slate-200 bg-white">
-          {status}
-        </Alert>
+      {statusMessage ? (
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">{statusMessage}</div>
       ) : null}
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {statCards.map((card) => (
-          <article key={card.label} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{card.label}</p>
-            <p className="mt-3 text-3xl font-semibold text-slate-900">{card.value}</p>
-            <p className="mt-1 text-xs text-slate-500">{card.subtext}</p>
+        {stats.map((stat) => (
+          <article key={stat.label} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{stat.label}</p>
+            <p className="mt-3 text-3xl font-semibold text-slate-900">{stat.value}</p>
+            <p className="mt-1 text-xs text-slate-500">{stat.subtext}</p>
           </article>
         ))}
       </section>
@@ -268,21 +272,21 @@ export default function AutomationsPage() {
         {isLoading ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
-              <Skeleton key={index} className="h-56 w-full rounded-xl" />
+              <div key={index} className="h-56 animate-pulse rounded-2xl border border-slate-200 bg-white shadow-sm" />
             ))}
           </div>
         ) : null}
 
         {flowsError ? (
-          <Alert variant="error" className="rounded-xl border border-rose-200 bg-white">
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
             {(flowsError as any)?.data?.reason ||
               (flowsError as any)?.data?.error ||
               t("Unable to load automations.", "Impossible de charger les automatisations.")}
-          </Alert>
+          </div>
         ) : null}
 
         {!isLoading && !flowsError && sortedFlows.length === 0 ? (
-          <div className="rounded-xl border border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
+          <div className="rounded-xl border border-slate-200 bg-white px-6 py-14 text-center shadow-sm">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500">
               <GitBranch className="h-5 w-5" />
             </div>
@@ -293,9 +297,13 @@ export default function AutomationsPage() {
                 "Creez votre premier workflow pour commencer a automatiser votre entreprise."
               )}
             </p>
-            <Button className="mt-5 h-11 w-full rounded-lg px-5 sm:w-auto" onClick={() => router.push("/dashboard/automations/new")}>
+            <button
+              type="button"
+              onClick={() => router.push("/dashboard/automations/new")}
+              className="mt-6 inline-flex h-12 w-full items-center justify-center rounded-lg bg-blue-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 sm:w-auto"
+            >
               {t("Create Automation", "Creer une automation")}
-            </Button>
+            </button>
           </div>
         ) : null}
 
@@ -311,20 +319,18 @@ export default function AutomationsPage() {
               return (
                 <article
                   key={flowId}
-                  className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md"
+                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 space-y-0.5">
-                      <div className="flex items-center gap-2">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600">
-                          <GitBranch className="h-4 w-4" />
-                        </span>
-                        <h3 className="truncate text-lg font-semibold text-slate-900">
-                          {flow?.title || t("Untitled automation", "Automation sans titre")}
-                        </h3>
-                      </div>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600">
+                        <GitBranch className="h-4 w-4" />
+                      </span>
+                      <h3 className="truncate text-lg font-semibold text-slate-900">
+                        {flow?.title || t("Untitled automation", "Automation sans titre")}
+                      </h3>
                     </div>
-                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${getStatusClasses(flow?.status)}`}>
+                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${getStatusClass(flow?.status)}`}>
                       {getStatusLabel(flow?.status)}
                     </span>
                   </div>
@@ -342,25 +348,23 @@ export default function AutomationsPage() {
 
                   <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="w-full sm:w-auto"
+                      <button
+                        type="button"
                         onClick={() => router.push(`/dashboard/automations/${encodeURIComponent(flowId)}`)}
+                        className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-transparent bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 sm:w-auto"
                       >
                         <PencilLine className="h-3.5 w-3.5" />
                         {t("Edit", "Modifier")}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="w-full sm:w-auto"
-                        loading={isBusy("duplicate", flowId)}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isBusy("duplicate", flowId)}
                         onClick={() => duplicateFlow(flow)}
+                        className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-transparent bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 disabled:opacity-60 sm:w-auto"
                       >
                         <Copy className="h-3.5 w-3.5" />
                         {t("Duplicate", "Dupliquer")}
-                      </Button>
+                      </button>
                     </div>
 
                     <button
@@ -386,6 +390,34 @@ export default function AutomationsPage() {
             })}
           </div>
         ) : null}
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-xl font-semibold text-slate-900">{t("Templates", "Modeles")}</h2>
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {templates.map((template) => (
+            <article key={template.id} className="rounded-xl border border-slate-200 bg-slate-100/80 p-4">
+              <div className="flex items-start gap-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-slate-600 shadow-sm">
+                  <GitBranch className="h-4 w-4" />
+                </span>
+                <div className="space-y-1">
+                  <h3 className="text-sm font-semibold text-slate-900">{template.title}</h3>
+                  <p className="text-xs text-slate-600">{template.description}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => router.push(`/dashboard/automations/new?template=${encodeURIComponent(template.id)}`)}
+                className="mt-4 inline-flex h-9 items-center justify-center rounded-lg bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+              >
+                {t("Use Template", "Utiliser le modele")}
+              </button>
+            </article>
+          ))}
+        </div>
       </section>
     </div>
   );
