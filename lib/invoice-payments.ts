@@ -308,15 +308,34 @@ export async function recordInvoicePayment({
   }
 
   const paidAt = verifiedAt ? new Date(verifiedAt) : new Date();
-  const shouldMarkPaid = status === "SUCCEEDED" && invoice.status === "SENT";
-  const shouldMarkFailed = status === "FAILED" && invoice.status === "SENT";
-  let invoicePaymentId: string | null = null;
+  const processing = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`invoice-payment:${provider}:${reference}`}))`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`invoice:${invoice.id}`}))`;
 
-  await prisma.$transaction(async (tx) => {
+    const lockedInvoice = await tx.invoice.findUnique({
+      where: { id: invoice.id },
+      select: { id: true, status: true, metadata: true, userId: true, invoiceNumber: true },
+    });
+    if (!lockedInvoice) {
+      return {
+        invoicePaymentId: null as string | null,
+        transitionedToPaid: false,
+        transitionedToFailed: false,
+        previousInvoiceStatus: "UNKNOWN",
+      };
+    }
+
+    const previousInvoiceStatus = String(lockedInvoice.status || "").toUpperCase();
+    const transitionedToPaid = status === "SUCCEEDED" && previousInvoiceStatus === "SENT";
+    const transitionedToFailed = status === "FAILED" && previousInvoiceStatus === "SENT";
+    let invoicePaymentId: string | null = null;
+
     const existing = await tx.invoicePayment.findFirst({ where: { provider, reference } });
     if (existing) {
       invoicePaymentId = existing.id;
-      if (existing.status !== status) {
+      const existingStatus = String(existing.status || "").toUpperCase();
+      const preventDowngrade = existingStatus === "SUCCEEDED" && status === "FAILED";
+      if (!preventDowngrade && existing.status !== status) {
         await tx.invoicePayment.update({
           where: { id: existing.id },
           data: { status, amount: receivedAmount, currency: normalizedCurrency, metadata: rawPayload || undefined },
@@ -362,10 +381,27 @@ export async function recordInvoicePayment({
           },
         },
       });
+    } else {
+      const existingStatus = String(existingPayment.status || "").toUpperCase();
+      const preventDowngrade = existingStatus === "SUCCEEDED" && status === "FAILED";
+      if (!preventDowngrade && existingPayment.status !== status) {
+        await tx.payment.update({
+          where: { id: existingPayment.id },
+          data: {
+            status,
+            amount: receivedAmount,
+            currency: normalizedCurrency,
+            metadata: {
+              ...((existingPayment.metadata as any) || {}),
+              ...(rawPayload || {}),
+            },
+          },
+        });
+      }
     }
 
-    if (shouldMarkPaid) {
-      const metadata = (invoice.metadata as any) || {};
+    if (transitionedToPaid) {
+      const metadata = (lockedInvoice.metadata as any) || {};
       await tx.invoice.update({
         where: { id: invoice.id },
         data: {
@@ -391,8 +427,8 @@ export async function recordInvoicePayment({
       });
     }
 
-    if (shouldMarkFailed) {
-      const metadata = (invoice.metadata as any) || {};
+    if (transitionedToFailed) {
+      const metadata = (lockedInvoice.metadata as any) || {};
       await tx.invoice.update({
         where: { id: invoice.id },
         data: {
@@ -416,12 +452,19 @@ export async function recordInvoicePayment({
         },
       });
     }
+
+    return {
+      invoicePaymentId,
+      transitionedToPaid,
+      transitionedToFailed,
+      previousInvoiceStatus,
+    };
   });
 
-  if (invoicePaymentId && shouldMarkPaid) {
+  if (processing.invoicePaymentId && processing.transitionedToPaid) {
     await markInvoicePublicLinksUsed(invoice.id);
     await maybeCreateInvoiceReceipt({
-      invoicePaymentId,
+      invoicePaymentId: processing.invoicePaymentId,
       invoiceId: invoice.id,
       userId: invoice.userId,
       provider,
@@ -437,28 +480,38 @@ export async function recordInvoicePayment({
       invoiceId: invoice.id,
       invoiceNumber: invoice.invoiceNumber,
       status: "PAID",
+      provider,
+      reference,
+      eventId: `${provider}:${reference}:PAID`,
+      occurredAt: paidAt,
+      source: "payment:webhook-verified",
     }).catch((error) => {
       log("error", "invoice_status_trigger_failed", { invoiceId: invoice.id, error });
     });
   }
 
-  if (shouldMarkFailed) {
+  if (processing.transitionedToFailed) {
     triggerInvoiceStatusAutomations({
       userId: invoice.userId,
       invoiceId: invoice.id,
       invoiceNumber: invoice.invoiceNumber,
       status: "FAILED",
+      provider,
+      reference,
+      eventId: `${provider}:${reference}:FAILED`,
+      occurredAt: verifiedAt || new Date(),
+      source: "payment:webhook-verified",
     }).catch((error) => {
       log("error", "invoice_status_trigger_failed", { invoiceId: invoice.id, error });
     });
   }
 
-  if (status === "SUCCEEDED" && invoice.status !== "SENT") {
+  if (status === "SUCCEEDED" && processing.previousInvoiceStatus !== "SENT") {
     log("warn", "invoice_payment_invalid_state", {
       invoiceId: invoice.id,
       reference,
       provider,
-      status: invoice.status,
+      status: processing.previousInvoiceStatus,
     });
   }
 

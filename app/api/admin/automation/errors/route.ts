@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { withErrorHandling } from "@/lib/api-handler";
+import { sanitizeAutomationPayload } from "@/lib/automation/redaction";
 
 export const GET = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
@@ -19,5 +20,10 @@ export const GET = withErrorHandling(async (req: Request) => {
     skip: (page - 1) * take,
     take,
   });
-  return NextResponse.json(runs);
+  const redacted = runs.map((run) => ({
+    ...run,
+    logs: sanitizeAutomationPayload(run.logs),
+    output: sanitizeAutomationPayload(run.output),
+  }));
+  return NextResponse.json(redacted);
 });

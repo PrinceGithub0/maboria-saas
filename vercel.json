@@ -1,0 +1,24 @@
+{
+  "crons": [
+    {
+      "path": "/api/automation/process-due",
+      "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/admin/automation/health",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/whatsapp/auto-close",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/automation/retention",
+      "schedule": "17 2 * * *"
+    },
+    {
+      "path": "/api/automation/audit-verify",
+      "schedule": "47 2 * * *"
+    }
+  ]
+}

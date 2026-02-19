@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { enforceEntitlement } from "@/lib/entitlements";
+import { sanitizeAutomationPayload } from "@/lib/automation/redaction";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -32,12 +33,24 @@ export async function GET() {
   });
 
   const enriched = runs.map((run) => {
-    const output = run.output as any;
+    const output = sanitizeAutomationPayload((run.output as any) || null) as any;
+    const resumeState = output?.resumeState || null;
     return {
       ...run,
+      logs: sanitizeAutomationPayload(run.logs),
+      output,
       trigger: output?.trigger ?? null,
       source: output?.source ?? null,
       input: output?.input ?? null,
+      flowVersion: output?.flowSnapshot?.version ?? null,
+      flowCapturedAt: output?.flowSnapshot?.capturedAt ?? null,
+      nextRunAt: resumeState?.nextRunAt ?? null,
+      nextStepIndex:
+        typeof resumeState?.nextStepIndex === "number" ? resumeState.nextStepIndex : null,
+      lastCompletedStepIndex:
+        typeof resumeState?.lastCompletedStepIndex === "number"
+          ? resumeState.lastCompletedStepIndex
+          : null,
     };
   });
 

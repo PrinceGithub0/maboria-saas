@@ -14,6 +14,8 @@ import {
   nextPlanAfter,
   requiredPlanForSteps,
 } from "@/lib/entitlements";
+import { getAutomationPermissions, hasAutomationPermission } from "@/lib/automation/permissions";
+import { requiresFinancialAutomationPrivilege } from "@/lib/automation/step-policy";
 
 export const GET = withErrorHandling(async () => {
   const session = await getServerSession(authOptions);
@@ -46,6 +48,19 @@ export const GET = withErrorHandling(async () => {
 export const POST = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const permissions = await getAutomationPermissions(session.user.id);
+  if (!hasAutomationPermission(permissions, "create")) {
+    return NextResponse.json(
+      {
+        error: "Forbidden",
+        type: "permission_denied",
+        action: "create_automation",
+        role: permissions.role,
+        requiredRole: "owner_or_admin",
+      },
+      { status: 403 }
+    );
+  }
 
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "automations",
@@ -66,7 +81,23 @@ export const POST = withErrorHandling(async (req: Request) => {
 
   const body = await req.json();
   const parsed = automationFlowSchema.parse(body);
+  const requestedStatus = String(parsed.status || "DRAFT").toUpperCase();
   assertRateLimit(`automation:${session.user.id}`);
+
+  if (requiresFinancialAutomationPrivilege((parsed.steps as any[]) || [])) {
+    if (!hasAutomationPermission(permissions, "refund")) {
+      return NextResponse.json(
+        {
+          error: "Forbidden",
+          type: "permission_denied",
+          action: "financial_automation",
+          role: permissions.role,
+          requiredRole: "owner_or_admin",
+        },
+        { status: 403 }
+      );
+    }
+  }
 
   const plan = await getUserPlan(session.user.id);
   const required = requiredPlanForSteps((parsed.steps as any[]) || []);
@@ -90,18 +121,18 @@ export const POST = withErrorHandling(async (req: Request) => {
   const result = await prisma.$transaction(async (tx) => {
     if (limitValue != null) {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
-      const used = await tx.automationFlow.count({
-        where: { userId: { in: scope.userIds } },
+      const activeUsed = await tx.automationFlow.count({
+        where: { userId: { in: scope.userIds }, status: "ACTIVE" },
       });
-      if (used >= limitValue) {
+      if (requestedStatus === "ACTIVE" && activeUsed >= limitValue) {
         return {
           error: "Limit reached",
           type: "limit_reached" as const,
-          category: "automations",
+          category: "active_automations",
           requiredPlan: nextPlanAfter(plan),
           plan,
           limit: limitValue,
-          used,
+          used: activeUsed,
         };
       }
     }

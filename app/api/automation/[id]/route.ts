@@ -4,7 +4,17 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { automationFlowSchema } from "@/lib/validators";
 import { withErrorHandling } from "@/lib/api-handler";
-import { enforceEntitlement, getUserPlan, isPlanAtLeast, requiredPlanForSteps } from "@/lib/entitlements";
+import {
+  enforceEntitlement,
+  flowLimits,
+  getUserPlan,
+  getWorkspaceScope,
+  isPlanAtLeast,
+  nextPlanAfter,
+  requiredPlanForSteps,
+} from "@/lib/entitlements";
+import { getAutomationPermissions, hasAutomationPermission } from "@/lib/automation/permissions";
+import { requiresFinancialAutomationPrivilege } from "@/lib/automation/step-policy";
 
 type Params = { params?: { id?: string } };
 
@@ -67,6 +77,19 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
 
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const permissions = await getAutomationPermissions(session.user.id);
+  if (!hasAutomationPermission(permissions, "edit")) {
+    return NextResponse.json(
+      {
+        error: "Forbidden",
+        type: "permission_denied",
+        action: "edit_automation",
+        role: permissions.role,
+        requiredRole: "owner_or_admin",
+      },
+      { status: 403 }
+    );
+  }
 
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "automations",
@@ -87,9 +110,17 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
 
   const body = await req.json();
   const parsed = automationFlowSchema.partial().parse(body);
+  const existing = await prisma.automationFlow.findFirst({
+    where: { id: flowId, userId: session.user.id },
+    select: { id: true, status: true },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const plan = await getUserPlan(session.user.id);
 
   if (parsed.steps) {
-    const plan = await getUserPlan(session.user.id);
     const required = requiredPlanForSteps((parsed.steps as any[]) || []);
     if (required && !isPlanAtLeast(plan, required.plan)) {
       return NextResponse.json(
@@ -103,10 +134,55 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
         { status: 402 }
       );
     }
+
+    if (requiresFinancialAutomationPrivilege((parsed.steps as any[]) || [])) {
+      if (!hasAutomationPermission(permissions, "refund")) {
+        return NextResponse.json(
+          {
+            error: "Forbidden",
+            type: "permission_denied",
+            action: "financial_automation",
+            role: permissions.role,
+            requiredRole: "owner_or_admin",
+          },
+          { status: 403 }
+        );
+      }
+    }
+  }
+
+  const nextStatus = String(parsed.status ?? existing.status ?? "DRAFT").toUpperCase();
+  if (nextStatus === "ACTIVE" && String(existing.status).toUpperCase() !== "ACTIVE") {
+    const limitValue = flowLimits[plan].automations ?? null;
+    if (limitValue != null) {
+      const scope = await getWorkspaceScope(session.user.id);
+      const lockKey = scope.businessId ?? session.user.id;
+      const limitCheck = await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+        const activeUsed = await tx.automationFlow.count({
+          where: { userId: { in: scope.userIds }, status: "ACTIVE" },
+        });
+        return { activeUsed };
+      });
+      if (limitCheck.activeUsed >= limitValue) {
+        return NextResponse.json(
+          {
+            error: "Limit reached",
+            type: "limit_reached",
+            category: "active_automations",
+            requiredPlan: nextPlanAfter(plan),
+            plan,
+            limit: limitValue,
+            used: limitCheck.activeUsed,
+          },
+          { status: 402 }
+        );
+      }
+    }
   }
 
   const updated = await prisma.automationFlow.update({
-    where: { id: flowId, userId: session.user.id },
+    where: { id: flowId },
     data: {
       title: parsed.title ?? undefined,
       description: parsed.description ?? undefined,
@@ -127,6 +203,19 @@ export const DELETE = withErrorHandling(async (req: Request, { params }: Params)
 
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const permissions = await getAutomationPermissions(session.user.id);
+  if (!hasAutomationPermission(permissions, "delete")) {
+    return NextResponse.json(
+      {
+        error: "Forbidden",
+        type: "permission_denied",
+        action: "delete_automation",
+        role: permissions.role,
+        requiredRole: "owner_or_admin",
+      },
+      { status: 403 }
+    );
+  }
 
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "automations",

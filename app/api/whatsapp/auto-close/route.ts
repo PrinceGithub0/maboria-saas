@@ -5,8 +5,10 @@ import { withErrorHandling } from "@/lib/api-handler";
 export const POST = withErrorHandling(async (req: Request) => {
   const secret = process.env.CRON_SECRET;
   if (secret) {
-    const provided = req.headers.get("x-cron-secret");
-    if (provided !== secret) {
+    const providedHeader = req.headers.get("x-cron-secret");
+    const authHeader = req.headers.get("authorization");
+    const providedBearer = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+    if (providedHeader !== secret && providedBearer !== secret) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
   }

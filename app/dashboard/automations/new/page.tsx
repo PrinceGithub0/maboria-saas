@@ -103,20 +103,54 @@ export default function NewAutomationPage() {
   const [form, setForm] = useState({ title: "", description: "", category: "" });
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [startId, setStartId] = useState<StartId>("invoice_overdue");
+  const [startId, setStartId] = useState<StartId | null>(null);
   const [showCatalog, setShowCatalog] = useState(false);
+  const [highlightActionId, setHighlightActionId] = useState<number | null>(null);
   const [dragging, setDragging] = useState<number | null>(null);
   const [cfg, setCfg] = useState({ overdueDays: "3", onlyIfUnpaid: true, paidDelayHours: "0", markAsClosed: true, paymentConfirmMinutes: "5", paymentRetryHours: "6", notifyOnFailure: true, customerDelayDays: "1", messageDelayMinutes: "2" });
   const [actions, setActions] = useState<Act[]>([]);
 
-  const start = STARTS.find((s) => s.id === startId) ?? STARTS[0];
-  const mappedSteps = useMemo(() => [{ type: start.type }, ...actions.map((a) => ({ type: a.type }))], [start, actions]);
+  const start = STARTS.find((s) => s.id === startId) ?? null;
+  const mappedSteps = useMemo(
+    () => [
+      ...(start
+        ? [
+            {
+              type: start.type,
+              config: {
+                startId: start.id,
+              },
+            },
+          ]
+        : []),
+      ...actions.map((a) => ({
+        type: a.type,
+        config: {
+          actionId: a.aid,
+          note: a.note,
+          mode: a.mode,
+          delayValue: a.mode === "after" ? Number(a.val || 1) : 0,
+          delayUnit: a.mode === "after" ? a.unit : undefined,
+          window: a.window,
+          stopOnFailure: a.stop,
+        },
+      })),
+    ],
+    [start, actions]
+  );
+
+  const validationIssues = [
+    !form.title.trim() ? "Enter an automation name." : null,
+    !start ? "Select what starts this automation." : null,
+    actions.length === 0 ? "Add at least one step to complete this automation." : null,
+  ].filter(Boolean) as string[];
+  const canSave = validationIssues.length === 0 && !loading;
 
   const inputClass = "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!mappedSteps.length) return;
+    if (!form.title.trim() || !start || actions.length === 0) return;
     setLoading(true);
     const res = await fetch("/api/automation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, steps: mappedSteps, status: "ACTIVE" }) });
     let json: any = {};
@@ -135,10 +169,19 @@ export default function NewAutomationPage() {
   const addAction = (id: string) => {
     const d = def(id);
     if (!d) return;
-    setActions((p) => [...p, { id: Date.now() + Math.floor(Math.random() * 1000), aid: d.id, type: d.type, note: "", mode: "now", val: "1", unit: "days", window: "anytime", stop: false, edit: true }]);
+    const nextId = Date.now() + Math.floor(Math.random() * 1000);
+    setActions((p) => [...p, { id: nextId, aid: d.id, type: d.type, note: "", mode: "now", val: "1", unit: "days", window: "anytime", stop: false, edit: true }]);
+    setShowCatalog(false);
+    setHighlightActionId(nextId);
+    setTimeout(() => {
+      setHighlightActionId((current) => (current === nextId ? null : current));
+    }, 1600);
   };
   const updateAction = (id: number, patch: Partial<Act>) => setActions((p) => p.map((a) => (a.id === id ? { ...a, ...patch } : a)));
-  const removeAction = (id: number) => setActions((p) => p.filter((a) => a.id !== id));
+  const removeAction = (id: number) => {
+    if (typeof window !== "undefined" && !window.confirm("Delete this step?")) return;
+    setActions((p) => p.filter((a) => a.id !== id));
+  };
   const reorder = (fromId: number, toId: number) => setActions((p) => {
     const from = p.findIndex((a) => a.id === fromId); const to = p.findIndex((a) => a.id === toId);
     if (from < 0 || to < 0 || from === to) return p;
@@ -157,15 +200,15 @@ export default function NewAutomationPage() {
   };
 
   const iconStartTone = (id: StartId) => {
-    if (id === "invoice_created") return "border-blue-200 bg-blue-50 text-blue-700";
-    if (id === "invoice_paid") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-    if (id === "invoice_overdue") return "border-amber-200 bg-amber-50 text-amber-700";
-    if (id === "payment_received") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-    if (id === "payment_failed") return "border-rose-200 bg-rose-50 text-rose-700";
-    if (id === "customer_created") return "border-indigo-200 bg-indigo-50 text-indigo-700";
-    if (id === "whatsapp_received") return "border-teal-200 bg-teal-50 text-teal-700";
-    if (id === "email_received") return "border-cyan-200 bg-cyan-50 text-cyan-700";
-    return "border-slate-200 bg-white text-slate-700";
+    if (id === "invoice_created") return "border-blue-200 bg-blue-100 text-blue-700";
+    if (id === "invoice_paid") return "border-emerald-200 bg-emerald-100 text-emerald-700";
+    if (id === "invoice_overdue") return "border-amber-200 bg-amber-100 text-amber-700";
+    if (id === "payment_received") return "border-lime-200 bg-lime-100 text-lime-700";
+    if (id === "payment_failed") return "border-rose-200 bg-rose-100 text-rose-700";
+    if (id === "customer_created") return "border-indigo-200 bg-indigo-100 text-indigo-700";
+    if (id === "whatsapp_received") return "border-teal-200 bg-teal-100 text-teal-700";
+    if (id === "email_received") return "border-cyan-200 bg-cyan-100 text-cyan-700";
+    return "border-slate-200 bg-slate-100 text-slate-700";
   };
 
   const iconAction = (id: string) => {
@@ -178,12 +221,41 @@ export default function NewAutomationPage() {
     return <FileText className="h-4 w-4" />;
   };
 
+  const iconCategory = (group: string) => {
+    if (group === "Send a Message") return <MessageCircle className="h-4 w-4" />;
+    if (group === "Manage Invoice") return <Receipt className="h-4 w-4" />;
+    if (group === "Payment & Confirmation") return <CreditCard className="h-4 w-4" />;
+    if (group === "Update Customer") return <UserPlus className="h-4 w-4" />;
+    if (group === "AI Assist") return <Sparkles className="h-4 w-4" />;
+    return <FileText className="h-4 w-4" />;
+  };
+
   const timing = (a: Act) => (a.mode === "now" ? "Immediately" : `${a.val || "1"} ${a.unit} later`);
-  const previewSentence = (() => {
-    if (!actions.length) return "When this automation starts, nothing will happen yet.";
-    const parts = actions.map((a) => (a.mode === "now" ? phrase(a.aid) : `${phrase(a.aid)} after ${a.val || "1"} ${a.unit}`));
-    const joined = parts.length === 1 ? parts[0] : parts.length === 2 ? `${parts[0]} and ${parts[1]}` : `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
-    return `When ${start.phrase}, the system will ${joined}.`;
+  const previewData = (() => {
+    if (!actions.length) {
+      return {
+        title: "When this automation starts, nothing will happen yet.",
+        steps: [] as string[],
+      };
+    }
+
+    if (!start) {
+      return {
+        title: "Select what starts this automation.",
+        steps: [] as string[],
+      };
+    }
+
+    if (actions.length === 1) {
+      const action = actions[0];
+      const line = action.mode === "now" ? phrase(action.aid) : `${phrase(action.aid)} after ${action.val || "1"} ${action.unit}`;
+      return { title: `When ${start.phrase}, the system will ${line}.`, steps: [] as string[] };
+    }
+
+    return {
+      title: `When ${start.phrase}:`,
+      steps: actions.map((a) => (a.mode === "now" ? `${phrase(a.aid)} immediately` : `${phrase(a.aid)} after ${a.val || "1"} ${a.unit}`)),
+    };
   })();
 
   const renderStartConfig = (id: StartId) => {
@@ -201,7 +273,20 @@ export default function NewAutomationPage() {
         <header className="space-y-5">
           <div className="flex items-center justify-between gap-3">
             <button type="button" onClick={() => router.push("/dashboard/automations")} className="inline-flex h-9 items-center gap-1.5 text-sm font-medium text-slate-500 transition hover:text-slate-700"><ArrowLeft className="h-4 w-4" />Back to Automations</button>
-            <button type="submit" form="automation-form" disabled={loading} className="inline-flex h-12 items-center justify-center rounded-lg bg-blue-600 px-6 text-base font-semibold text-white shadow-sm transition hover:bg-blue-500 disabled:opacity-60">{loading ? "Saving..." : "Save Automation"}</button>
+            <div className="ml-auto flex max-w-sm flex-col items-end">
+              <button
+                type="submit"
+                form="automation-form"
+                disabled={!canSave}
+                className={`inline-flex h-12 items-center justify-center rounded-lg px-6 text-base font-semibold transition ${
+                  canSave
+                    ? "border border-blue-900 bg-blue-700 text-white shadow-md hover:bg-blue-600"
+                    : "cursor-not-allowed border border-blue-900 bg-blue-700 text-white opacity-70"
+                }`}
+              >
+                {loading ? "Saving..." : "Save Automation"}
+              </button>
+            </div>
           </div>
           <div>
             <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">Create Automation</h1>
@@ -214,7 +299,20 @@ export default function NewAutomationPage() {
             <h2 className="text-lg font-semibold text-slate-900">Create Automation</h2>
             <label className="mt-4 block space-y-2 text-sm text-slate-700"><span className="font-semibold text-slate-900">Automation Name</span><input required value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} placeholder="Example: Invoice reminder" className={inputClass} /></label>
             <label className="mt-4 block space-y-2 text-sm text-slate-700"><span className="font-semibold text-slate-900">Short Description (optional)</span><textarea value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} placeholder="Describe what this automation should do." className="min-h-[110px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100" /></label>
-            <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Live preview</p><p className="mt-2 text-sm text-slate-700">{previewSentence}</p></div>
+            <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Live preview</p>
+              <p className="mt-2 text-sm text-slate-700">{previewData.title}</p>
+              {previewData.steps.length > 0 ? (
+                <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                  {previewData.steps.map((line, idx) => (
+                    <li key={`${line}-${idx}`} className="flex items-start gap-2">
+                      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-slate-400" />
+                      <span>{line}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
           </section>
 
           <section className="rounded-2xl border border-slate-300 bg-white p-5 shadow-md sm:p-6">
@@ -225,8 +323,8 @@ export default function NewAutomationPage() {
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{group}</p>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {STARTS.filter((s) => s.group === group).map((s) => (
-                      <div key={s.id} className={`rounded-xl border transition ${s.id === startId ? "border-slate-300 bg-slate-50" : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60"}`}>
-                        <button type="button" onClick={() => setStartId(s.id)} className="w-full px-3 py-3 text-left"><div className="flex items-start gap-3"><span className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${iconStartTone(s.id)}`}>{iconStart(s.id)}</span><div><p className="text-sm font-semibold text-slate-900">{s.title}</p><p className="mt-0.5 text-xs text-slate-600">{s.desc}</p></div></div></button>
+                      <div key={s.id} className={`rounded-xl border transition ${s.id === startId ? "border-blue-300 bg-blue-50/60 ring-1 ring-blue-100" : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60"}`}>
+                        <button type="button" onClick={() => setStartId(s.id)} className="w-full px-3 py-3 text-left"><div className="flex items-start gap-3"><span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border shadow-sm ${iconStartTone(s.id)}`}>{iconStart(s.id)}</span><div><p className="text-sm font-semibold text-slate-900">{s.title}</p><p className="mt-0.5 text-xs text-slate-600">{s.desc}</p></div></div></button>
                         {s.id === startId ? <div className="border-t border-slate-200 px-3 pb-3 pt-3">{renderStartConfig(s.id)}</div> : null}
                       </div>
                     ))}
@@ -238,42 +336,110 @@ export default function NewAutomationPage() {
 
           <section className="rounded-2xl border border-slate-300 bg-white p-5 shadow-md sm:p-6">
             <h2 className="text-lg font-semibold text-slate-900">What should the system do?</h2>
-            <div className="mt-4 space-y-3">
-              {!actions.length ? <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">No actions added yet.</div> : null}
-              {actions.map((a) => (
-                <article key={a.id} draggable onDragStart={() => setDragging(a.id)} onDragOver={(e) => e.preventDefault()} onDrop={() => { if (dragging !== null) reorder(dragging, a.id); }} onDragEnd={() => setDragging(null)} className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                      <button type="button" className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500" aria-label="Drag to reorder"><GripVertical className="h-4 w-4" /></button>
-                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700">{iconAction(a.aid)}</span>
-                      <div><p className="text-sm font-semibold text-slate-900">{label(a.aid)}</p><p className="mt-1 text-xs text-slate-600">Template: {a.note || "Default"}</p><p className="text-xs text-slate-600">Send: {timing(a)}</p></div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button type="button" onClick={() => updateAction(a.id, { edit: !a.edit })} className="inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100">{a.edit ? "Close" : "Edit"}</button>
-                      <button type="button" onClick={() => removeAction(a.id)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>
-                    </div>
+            <div className="mt-6 border-t border-slate-200 pt-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Steps you&apos;ve added</p>
+              <div className="mt-3 space-y-4">
+                {!actions.length ? (
+                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+                    No steps added yet. Add your first step below.
                   </div>
-
-                  {a.edit ? (
-                    <div className="mt-4 space-y-3 border-t border-slate-200 pt-3">
-                      <label className="block space-y-2 text-sm text-slate-700"><span>Choose action</span><div className="relative"><select value={a.aid} onChange={(e) => { const d = def(e.target.value); if (!d) return; updateAction(a.id, { aid: d.id, type: d.type }); }} className={`${inputClass} h-10 appearance-none pr-10 text-sm`}>{GROUPS.map((g) => <optgroup key={g} label={g}>{DEFS.filter((d) => d.group === g).map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}</optgroup>)}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /></div></label>
-                      <label className="block space-y-2 text-sm text-slate-700"><span>Template or message details</span><input value={a.note} onChange={(e) => updateAction(a.id, { note: e.target.value })} placeholder="Example: Payment Reminder" className={`${inputClass} h-10 text-sm`} /></label>
-                      <div className="grid gap-3 sm:grid-cols-[minmax(0,180px)_minmax(0,1fr)] sm:items-end">
-                        <label className="block space-y-2 text-sm text-slate-700"><span>Send timing</span><select value={a.mode} onChange={(e) => updateAction(a.id, { mode: e.target.value as Mode })} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"><option value="now">Send immediately</option><option value="after">Send after</option></select></label>
-                        {a.mode === "after" ? <div className="grid gap-2 sm:grid-cols-[120px_1fr]"><input type="number" min={1} value={a.val} onChange={(e) => updateAction(a.id, { val: e.target.value })} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100" /><select value={a.unit} onChange={(e) => updateAction(a.id, { unit: e.target.value as Unit })} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"><option value="minutes">minutes</option><option value="hours">hours</option><option value="days">days</option></select></div> : null}
+                ) : null}
+                {actions.map((a, idx) => (
+                  <article
+                    key={a.id}
+                    draggable
+                    onDragStart={() => setDragging(a.id)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => {
+                      if (dragging !== null) reorder(dragging, a.id);
+                    }}
+                    onDragEnd={() => setDragging(null)}
+                    className={`rounded-xl border p-4 shadow-sm transition-all duration-300 hover:shadow ${
+                      highlightActionId === a.id
+                        ? "border-blue-300 bg-blue-50 ring-2 ring-blue-100"
+                        : "border-slate-200 bg-slate-50"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <button type="button" className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500" aria-label="Drag to reorder">
+                          <GripVertical className="h-4 w-4" />
+                        </button>
+                        <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700">{iconAction(a.aid)}</span>
+                        <div>
+                          <span className="inline-flex rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600">Step {idx + 1}</span>
+                          <p className="mt-1 text-sm font-semibold text-slate-900">{label(a.aid)}</p>
+                          <p className="mt-1 text-xs text-slate-600">Template: {a.note || "Default"}</p>
+                          <p className="text-xs text-slate-600">Send: {timing(a)}</p>
+                        </div>
                       </div>
-                      <details className="rounded-xl border border-slate-200 bg-white p-3"><summary className="cursor-pointer text-sm font-medium text-slate-700">Advanced settings</summary><div className="mt-3 space-y-3"><label className="block space-y-2 text-sm text-slate-700"><span>Run this step</span><select value={a.window} onChange={(e) => updateAction(a.id, { window: e.target.value as Window })} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"><option value="anytime">Anytime</option><option value="business">Only during business hours</option><option value="outside">Only outside business hours</option></select></label><label className="inline-flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={a.stop} onChange={(e) => updateAction(a.id, { stop: e.target.checked })} className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" /><span>Stop automation if this step fails</span></label></div></details>
+                      <div className="flex items-center gap-1">
+                        <button type="button" onClick={() => updateAction(a.id, { edit: !a.edit })} className="inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100">{a.edit ? "Close" : "Edit"}</button>
+                        <button type="button" onClick={() => removeAction(a.id)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>
+                      </div>
                     </div>
-                  ) : null}
-                </article>
-              ))}
+
+                    <div className={`overflow-hidden transition-all duration-200 ${a.edit ? "mt-4 max-h-[900px] border-t border-slate-200 pt-3 opacity-100" : "max-h-0 opacity-0"}`}>
+                      <div className="space-y-3">
+                        <label className="block space-y-2 text-sm text-slate-700"><span>Choose action</span><div className="relative"><select value={a.aid} onChange={(e) => { const d = def(e.target.value); if (!d) return; updateAction(a.id, { aid: d.id, type: d.type }); }} className={`${inputClass} h-10 appearance-none pr-10 text-sm`}>{GROUPS.map((g) => <optgroup key={g} label={g}>{DEFS.filter((d) => d.group === g).map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}</optgroup>)}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /></div></label>
+                        <label className="block space-y-2 text-sm text-slate-700"><span>Template or message details</span><input value={a.note} onChange={(e) => updateAction(a.id, { note: e.target.value })} placeholder="Example: Payment Reminder" className={`${inputClass} h-10 text-sm`} /></label>
+                        <div className="grid gap-3 sm:grid-cols-[minmax(0,180px)_minmax(0,1fr)] sm:items-end">
+                          <label className="block space-y-2 text-sm text-slate-700"><span>Send timing</span><select value={a.mode} onChange={(e) => updateAction(a.id, { mode: e.target.value as Mode })} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"><option value="now">Send immediately</option><option value="after">Send after</option></select></label>
+                          {a.mode === "after" ? <div className="grid gap-2 sm:grid-cols-[120px_1fr]"><input type="number" min={1} value={a.val} onChange={(e) => updateAction(a.id, { val: e.target.value })} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100" /><select value={a.unit} onChange={(e) => updateAction(a.id, { unit: e.target.value as Unit })} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"><option value="minutes">minutes</option><option value="hours">hours</option><option value="days">days</option></select></div> : null}
+                        </div>
+                        <details className="rounded-xl border border-slate-200 bg-white p-3"><summary className="cursor-pointer text-sm font-medium text-slate-700">Advanced settings</summary><div className="mt-3 space-y-3"><label className="block space-y-2 text-sm text-slate-700"><span>Run this step</span><select value={a.window} onChange={(e) => updateAction(a.id, { window: e.target.value as Window })} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"><option value="anytime">Anytime</option><option value="business">Only during business hours</option><option value="outside">Only outside business hours</option></select></label><label className="inline-flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={a.stop} onChange={(e) => updateAction(a.id, { stop: e.target.checked })} className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" /><span>Stop automation if this step fails</span></label></div></details>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
             </div>
 
-            <div className="mt-4"><button type="button" onClick={() => setShowCatalog((p) => !p)} className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"><Plus className="h-4 w-4" />Add another step</button></div>
-            {showCatalog ? <div className="mt-4 grid gap-3 sm:grid-cols-2">{GROUPS.map((g) => <div key={g} className="rounded-xl border border-slate-200 bg-slate-50 p-4"><h3 className="text-sm font-semibold text-slate-900">{g}</h3><div className="mt-3 space-y-2">{DEFS.filter((d) => d.group === g).map((d) => <button key={d.id} type="button" onClick={() => addAction(d.id)} className="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-100"><span>{d.title}</span><Plus className="h-4 w-4 text-slate-400" /></button>)}</div></div>)}</div> : null}
+            <div className="mt-6 border-t border-slate-200 pt-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Add another step</p>
+              <div className="mt-3">
+                <button type="button" onClick={() => setShowCatalog(true)} className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"><Plus className="h-4 w-4" />Add another step</button>
+              </div>
+            </div>
+
+            <div className={`mt-6 border-t border-slate-200 transition-all duration-300 ${showCatalog ? "pt-5 opacity-100" : "pt-0 opacity-90"}`}>
+              <div className={`overflow-hidden transition-all duration-300 ${showCatalog ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"}`}>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Available actions</p>
+                <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                  {GROUPS.map((g) => (
+                    <div key={g} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                      <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600">{iconCategory(g)}</span>
+                        {g}
+                      </h3>
+                      <div className="mt-3 space-y-2">
+                        {DEFS.filter((d) => d.group === g).map((d) => (
+                          <button key={d.id} type="button" onClick={() => addAction(d.id)} className="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-100"><span>{d.title}</span><Plus className="h-4 w-4 text-slate-400" /></button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </section>
 
-          <div className="flex justify-end pt-4 sm:pt-8"><button type="submit" form="automation-form" disabled={loading} className="inline-flex h-12 w-full items-center justify-center rounded-lg bg-blue-600 px-6 text-base font-semibold text-white shadow-sm transition hover:bg-blue-500 disabled:opacity-60 sm:w-auto">{loading ? "Saving..." : "Save Automation"}</button></div>
+          <div className="pt-6 sm:pt-8">
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                form="automation-form"
+                disabled={!canSave}
+                className={`inline-flex h-12 w-full items-center justify-center rounded-lg px-6 text-base font-semibold transition sm:w-auto ${
+                  canSave
+                    ? "border border-blue-900 bg-blue-700 text-white shadow-md hover:bg-blue-600"
+                    : "cursor-not-allowed border border-blue-900 bg-blue-700 text-white opacity-70"
+                }`}
+              >
+                {loading ? "Saving..." : "Save Automation"}
+              </button>
+            </div>
+          </div>
         </form>
       </div>
     </div>

@@ -637,6 +637,21 @@ export default function SettingsPage() {
       : passwordStrength.key === "medium"
       ? t("Medium", "Moyen")
       : t("Strong", "Fort");
+  const passwordStrengthTextTone =
+    passwordStrength.key === "weak"
+      ? "text-rose-600"
+      : passwordStrength.key === "medium"
+      ? "text-amber-600"
+      : passwordStrength.key === "strong"
+      ? "text-emerald-600"
+      : "text-muted-foreground";
+  const getPasswordStrengthBarTone = (index: number) => {
+    if (passwordStrength.score <= index) return "bg-slate-300 dark:bg-slate-700";
+    if (passwordStrength.key === "weak") return "bg-rose-500";
+    if (passwordStrength.key === "medium") return "bg-amber-500";
+    if (passwordStrength.key === "strong") return "bg-emerald-500";
+    return "bg-slate-300 dark:bg-slate-700";
+  };
   const passwordFormValid =
     currentPassword.trim().length > 0 &&
     passwords.password.length >= MIN_PASSWORD_LENGTH &&
@@ -744,12 +759,6 @@ export default function SettingsPage() {
             type="email"
             value={profile.email}
             onChange={(e) => updateProfileField("email", e.target.value)}
-          />
-          <Input
-            label={t("Phone", "Telephone")}
-            value={me?.phone || ""}
-            readOnly
-            className="text-muted-foreground"
           />
           <div className="col-span-2 flex justify-end max-md:col-span-1">
             <Button className="max-md:w-full" onClick={saveProfile} loading={profileSaving}>
@@ -1150,13 +1159,13 @@ export default function SettingsPage() {
           <div className="space-y-2 md:col-span-2">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>{t("Password strength", "Force du mot de passe")}</span>
-              <span className="font-semibold">{passwordStrengthLabel}</span>
+              <span className={`font-semibold ${passwordStrengthTextTone}`}>{passwordStrengthLabel}</span>
             </div>
             <div className="grid grid-cols-4 gap-2">
               {[0, 1, 2, 3].map((index) => (
                 <div
                   key={index}
-                  className={`h-1.5 rounded-full ${passwordStrength.score > index ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-700"}`}
+                  className={`h-1.5 rounded-full ${getPasswordStrengthBarTone(index)}`}
                 />
               ))}
             </div>

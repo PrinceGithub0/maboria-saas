@@ -13,10 +13,25 @@ import {
   isPlanAtLeast,
   nextPlanAfter,
 } from "@/lib/entitlements";
+import { getAutomationPermissions, hasAutomationPermission } from "@/lib/automation/permissions";
+import { requiresFinancialAutomationPrivilege } from "@/lib/automation/step-policy";
 
 export const POST = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const permissions = await getAutomationPermissions(session.user.id);
+  if (!hasAutomationPermission(permissions, "run")) {
+    return NextResponse.json(
+      {
+        error: "Forbidden",
+        type: "permission_denied",
+        action: "run_automation",
+        role: permissions.role,
+        requiredRole: "owner_admin_or_agent",
+      },
+      { status: 403 }
+    );
+  }
 
   const { flowId, input } = await req.json();
   if (!flowId || typeof flowId !== "string" || flowId === "undefined" || flowId === "null") {
@@ -75,6 +90,20 @@ export const POST = withErrorHandling(async (req: Request) => {
 
   const plan = await getUserPlan(session.user.id);
   const steps = (flow.steps as any[]) || [];
+  if (requiresFinancialAutomationPrivilege(steps)) {
+    if (!hasAutomationPermission(permissions, "refund")) {
+      return NextResponse.json(
+        {
+          error: "Forbidden",
+          type: "permission_denied",
+          action: "run_financial_automation",
+          role: permissions.role,
+          requiredRole: "owner_or_admin",
+        },
+        { status: 403 }
+      );
+    }
+  }
   const usesAi = steps.some((s) => s?.type === "aiTransform");
   const usesWhatsApp = steps.some((s) => s?.type === "sendWhatsApp");
 
@@ -119,6 +148,9 @@ export const POST = withErrorHandling(async (req: Request) => {
   }
 
   const result = await executeAutomationRun(flow, input || {}, { trigger: "Manual", source: "Dashboard" });
+  if (!result) {
+    return NextResponse.json({ error: "Run failed" }, { status: 500 });
+  }
   if ((result as any).status === "FAILED") {
     if (isPlanAtLeast(plan, "starter")) {
       const aiUsage = await enforceUsageLimit(session.user.id, "aiRequests");

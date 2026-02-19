@@ -319,11 +319,16 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
     });
   }
   if (existing.status !== updated.status && ["SENT", "OVERDUE"].includes(updated.status)) {
+    const eventOccurredAt = new Date();
+    const eventOccurredAtIso = eventOccurredAt.toISOString();
     triggerInvoiceStatusAutomations({
       userId: session.user.id,
       invoiceId: updated.id,
       invoiceNumber: updated.invoiceNumber,
       status: updated.status,
+      eventId: `invoice-manual:${updated.id}:${updated.status}:${eventOccurredAtIso}`,
+      occurredAt: eventOccurredAt,
+      source: "invoice:manual-status-update",
     }).catch((error) => {
       console.error("invoice_status_trigger_failed", error);
     });

@@ -3,10 +3,25 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { enforceEntitlement } from "@/lib/entitlements";
+import { getAutomationPermissions, hasAutomationPermission } from "@/lib/automation/permissions";
+import { requiresFinancialAutomationPrivilege } from "@/lib/automation/step-policy";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const permissions = await getAutomationPermissions(session.user.id);
+  if (!hasAutomationPermission(permissions, "run")) {
+    return NextResponse.json(
+      {
+        error: "Forbidden",
+        type: "permission_denied",
+        action: "schedule_automation",
+        role: permissions.role,
+        requiredRole: "owner_admin_or_agent",
+      },
+      { status: 403 }
+    );
+  }
 
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "automations",
@@ -29,6 +44,20 @@ export async function POST(req: Request) {
   const flow = await prisma.automationFlow.findUnique({ where: { id: flowId } });
   if (!flow || flow.userId !== session.user.id)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (requiresFinancialAutomationPrivilege((flow.steps as any[]) || [])) {
+    if (!hasAutomationPermission(permissions, "refund")) {
+      return NextResponse.json(
+        {
+          error: "Forbidden",
+          type: "permission_denied",
+          action: "schedule_financial_automation",
+          role: permissions.role,
+          requiredRole: "owner_or_admin",
+        },
+        { status: 403 }
+      );
+    }
+  }
 
   const scheduled = await prisma.automationRun.create({
     data: {
