@@ -195,6 +195,8 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
   return NextResponse.json(updated);
 });
 
+export const PATCH = PUT;
+
 export const DELETE = withErrorHandling(async (req: Request, { params }: Params) => {
   const flowId = resolveFlowId(req, params);
   if (!flowId || flowId === "undefined") {

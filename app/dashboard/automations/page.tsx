@@ -47,17 +47,17 @@ const fetcher = async (url: string) => {
 
 const templates = [
   {
-    id: "overdue-reminder",
+    id: "overdue_reminder_3_days",
     title: "Send payment reminder after 3 days",
     description: "Auto-send reminder if invoice unpaid.",
   },
   {
-    id: "thank-you",
+    id: "whatsapp_thank_you",
     title: "Send WhatsApp thank you message",
     description: "Automatically thank customers after payment.",
   },
   {
-    id: "invoice-paid",
+    id: "notify_invoice_paid",
     title: "Notify when invoice is paid",
     description: "Send instant alerts when invoices are settled.",
   },
@@ -126,8 +126,12 @@ export default function AutomationsPage() {
 
   const getStatusLabel = (status?: string) => (isActive(status) ? t("Active", "Actif") : t("Paused", "En pause"));
 
-  const getStatusClass = (status?: string) =>
-    isActive(status) ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-700";
+  const getStatusClass = (status?: string) => {
+    const normalized = normalizeAutomationStatus(status);
+    if (normalized === "ACTIVE") return "bg-emerald-100 text-emerald-700";
+    if (normalized === "PAUSED") return "bg-amber-100 text-amber-700";
+    return "bg-slate-100 text-slate-700";
+  };
 
   const formatRelativeTime = (value?: string) => {
     if (!value) return t("Never", "Jamais");

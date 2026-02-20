@@ -42,6 +42,7 @@ type RunLog = {
 
 const PAGE_SIZE = 24;
 const ROW_HEIGHT = 170;
+const AUTO_REFRESH_STORAGE_KEY = "automation_auto_refresh";
 
 const fetcher = async (url: string) => {
   const res = await fetch(url);
@@ -147,7 +148,10 @@ function Sparkline({ values, color }: { values: number[]; color: string }) {
 export default function RunsPage() {
   const { language } = useLanguage();
   const t = useCallback((en: string, fr: string) => (language === "fr" ? fr : en), [language]);
-  const { data, mutate, isLoading } = useSWR<RunRecord[]>("/api/automation/runs", fetcher, { revalidateOnFocus: false });
+  const { data, mutate, error } = useSWR<RunRecord[]>("/api/automation/runs", fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  });
   const runs = useMemo(() => (Array.isArray(data) ? data : []), [data]);
 
   const [searchInput, setSearchInput] = useState("");
@@ -158,6 +162,8 @@ export default function RunsPage() {
   const [endDate, setEndDate] = useState("");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -170,6 +176,32 @@ export default function RunsPage() {
 
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const virtualRef = useRef<HTMLDivElement | null>(null);
+  const intervalRef = useRef<number | null>(null);
+  const refreshInFlightRef = useRef(false);
+
+  const refreshData = useCallback(
+    async ({ silent = false }: { silent?: boolean } = {}) => {
+      if (refreshInFlightRef.current) return;
+      refreshInFlightRef.current = true;
+      if (!silent) setIsRefreshing(true);
+
+      const pageScrollY = window.scrollY;
+      const listScrollY = virtualRef.current?.scrollTop ?? 0;
+      try {
+        const next = await fetcher("/api/automation/runs");
+        await mutate(next, { revalidate: false, populateCache: true });
+        setLastRefreshed(new Date().toISOString());
+      } finally {
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: pageScrollY });
+          if (virtualRef.current) virtualRef.current.scrollTop = listScrollY;
+        });
+        refreshInFlightRef.current = false;
+        if (!silent) setIsRefreshing(false);
+      }
+    },
+    [mutate]
+  );
 
   useEffect(() => {
     const timer = window.setTimeout(() => setQuery(searchInput.trim().toLowerCase()), 250);
@@ -177,22 +209,48 @@ export default function RunsPage() {
   }, [searchInput]);
 
   useEffect(() => {
-    if (data) setLastRefreshed(new Date().toISOString());
-  }, [data]);
+    try {
+      const saved = window.localStorage.getItem(AUTO_REFRESH_STORAGE_KEY);
+      if (saved === "false") setAutoRefresh(false);
+      else setAutoRefresh(true);
+    } catch {
+      setAutoRefresh(true);
+    }
+  }, []);
 
   useEffect(() => {
+    if (data || error) {
+      setIsInitialLoading(false);
+      if (data) setLastRefreshed(new Date().toISOString());
+    }
+  }, [data, error]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(AUTO_REFRESH_STORAGE_KEY, String(autoRefresh));
+    } catch {
+      // ignore storage exceptions
+    }
+  }, [autoRefresh]);
+
+  useEffect(() => {
+    if (intervalRef.current) {
+      window.clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
     if (!autoRefresh) return;
-    const timer = window.setInterval(async () => {
-      const y = window.scrollY;
-      const listY = virtualRef.current?.scrollTop ?? 0;
-      await mutate(undefined, { revalidate: true });
-      requestAnimationFrame(() => {
-        window.scrollTo({ top: y });
-        if (virtualRef.current) virtualRef.current.scrollTop = listY;
-      });
-    }, 20000);
-    return () => window.clearInterval(timer);
-  }, [autoRefresh, mutate]);
+
+    intervalRef.current = window.setInterval(() => {
+      void refreshData({ silent: true });
+    }, 15000);
+
+    return () => {
+      if (intervalRef.current) {
+        window.clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [autoRefresh, refreshData]);
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
@@ -214,8 +272,7 @@ export default function RunsPage() {
   }, []);
 
   const refreshNow = async () => {
-    await mutate(undefined, { revalidate: true });
-    setLastRefreshed(new Date().toISOString());
+    await refreshData({ silent: false });
   };
 
   const flowOptions = useMemo(() => {
@@ -367,7 +424,7 @@ export default function RunsPage() {
 
   const system = failedLastHour > 0 ? "incident" : pendingCount > 0 || retriesPending > 0 ? "degraded" : "healthy";
   const systemLabel = system === "incident" ? "Incident Detected" : system === "degraded" ? "Degraded" : "Healthy";
-  const systemTone = system === "incident" ? "border-rose-200 bg-rose-50 text-rose-700" : system === "degraded" ? "border-amber-200 bg-amber-50 text-amber-700" : "border-emerald-200 bg-emerald-50 text-emerald-700";
+  const systemTone = system === "incident" ? "border-rose-200 bg-rose-50 text-rose-700" : system === "degraded" ? "border-amber-200 bg-amber-50 text-amber-700" : "border-emerald-300 bg-emerald-100 text-emerald-900";
 
   const alerts = [
     failedLastHour > 0 ? `${failedLastHour} automations failed in the last hour` : "",
@@ -525,22 +582,34 @@ export default function RunsPage() {
               />
               {systemLabel}
             </span>
-            <button
-              type="button"
-              onClick={() => setAutoRefresh((v) => !v)}
-              className={clsx(
-                "rounded-full border px-3 py-1.5 text-xs font-semibold",
-                autoRefresh ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-300 bg-white text-slate-700"
-              )}
-            >
-              Auto-refresh {autoRefresh ? "On" : "Off"}
-            </button>
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1.5">
+              <span className="text-xs font-semibold text-slate-700">Auto-refresh</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={autoRefresh}
+                aria-label="Toggle auto-refresh"
+                onClick={() => setAutoRefresh((v) => !v)}
+                className={clsx(
+                  "relative inline-flex h-5 w-9 items-center rounded-full transition",
+                  autoRefresh ? "bg-blue-600" : "bg-slate-300"
+                )}
+              >
+                <span
+                  className={clsx(
+                    "inline-block h-4 w-4 transform rounded-full bg-white transition",
+                    autoRefresh ? "translate-x-4" : "translate-x-0.5"
+                  )}
+                />
+              </button>
+            </div>
             <button
               type="button"
               onClick={refreshNow}
-              className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+              disabled={isRefreshing}
+              className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <RefreshCw className="h-3.5 w-3.5" />
+              <RefreshCw className={clsx("h-3.5 w-3.5", isRefreshing && "animate-spin")} />
               Refresh
             </button>
           </div>
@@ -553,7 +622,7 @@ export default function RunsPage() {
       <section
         className={clsx(
           "rounded-xl border px-4 py-3 text-sm",
-          alerts.length ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"
+          alerts.length ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-300 bg-emerald-100 text-emerald-900"
         )}
       >
         {alerts.length ? (
@@ -631,7 +700,7 @@ export default function RunsPage() {
         </div>
         <div
           className={clsx(
-            "mt-3 grid gap-3 lg:mt-0 lg:grid-cols-[minmax(220px,2fr)_170px_220px_240px]",
+            "mt-3 grid gap-3 lg:mt-0 lg:grid-cols-[minmax(220px,2fr)_170px_220px_360px]",
             !mobileFiltersOpen && "hidden lg:grid"
           )}
         >
@@ -665,25 +734,25 @@ export default function RunsPage() {
               </option>
             ))}
           </select>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="h-10 rounded-lg border border-slate-300 px-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none"
+              className="h-10 rounded-lg border border-slate-300 pl-3 pr-10 text-sm text-slate-900 focus:border-blue-500 focus:outline-none [&::-webkit-clear-button]:hidden [&::-webkit-inner-spin-button]:hidden"
             />
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="h-10 rounded-lg border border-slate-300 px-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none"
+              className="h-10 rounded-lg border border-slate-300 pl-3 pr-10 text-sm text-slate-900 focus:border-blue-500 focus:outline-none [&::-webkit-clear-button]:hidden [&::-webkit-inner-spin-button]:hidden"
             />
           </div>
         </div>
       </section>
 
       <section className="space-y-3">
-        {isLoading ? (
+        {isInitialLoading ? (
           <div className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center text-sm text-slate-600">
             Loading automation operations...
           </div>
