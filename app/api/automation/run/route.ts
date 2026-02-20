@@ -33,7 +33,7 @@ export const POST = withErrorHandling(async (req: Request) => {
     );
   }
 
-  const { flowId, input } = await req.json();
+  const { flowId, input, idempotencyKey } = await req.json();
   if (!flowId || typeof flowId !== "string" || flowId === "undefined" || flowId === "null") {
     return NextResponse.json({ error: "Invalid automation id" }, { status: 400 });
   }
@@ -147,7 +147,13 @@ export const POST = withErrorHandling(async (req: Request) => {
     }
   }
 
-  const result = await executeAutomationRun(flow, input || {}, { trigger: "Manual", source: "Dashboard" });
+  const safeIdempotencyKey =
+    typeof idempotencyKey === "string" && idempotencyKey.trim() ? idempotencyKey.trim() : undefined;
+  const result = await executeAutomationRun(flow, input || {}, {
+    trigger: "Manual",
+    source: "Dashboard",
+    idempotencyKey: safeIdempotencyKey,
+  });
   if (!result) {
     return NextResponse.json({ error: "Run failed" }, { status: 500 });
   }

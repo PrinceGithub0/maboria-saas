@@ -11,6 +11,7 @@ import {
 import { isAllowedCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
 import { InvoicePreview } from "@/components/invoices/invoice-preview";
 import { normalizeVatSettings } from "@/lib/vat";
+import { formatCurrency } from "@/lib/currency";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,15 @@ export default async function PublicInvoicePage({ params, searchParams }: PagePr
 
   const invoice = link.invoice;
   const metadata = (invoice.metadata as any) || {};
+  const paymentSnapshot =
+    metadata?.payment && typeof metadata.payment === "object" ? metadata.payment : null;
+  const paymentProvider = String(paymentSnapshot?.provider || "").toUpperCase();
+  const paymentProviderLabel =
+    paymentProvider === "PAYSTACK"
+      ? "Paystack"
+      : paymentProvider === "FLUTTERWAVE"
+        ? "Flutterwave"
+        : null;
   const customer = resolveInvoiceCustomer(metadata);
   const note = typeof metadata?.note === "string" ? metadata.note : null;
   const businessSnapshot = metadata.businessProfile || null;
@@ -81,6 +91,9 @@ export default async function PublicInvoicePage({ params, searchParams }: PagePr
   const payable = isPayableStatus(invoice.status) && !link.usedAt && !isFinalStatus(invoice.status);
   const paymentLink = payable ? `/api/invoice/pay/${encodeURIComponent(token)}` : null;
   const logoDataUrl = getBusinessLogoDataUrl(invoice.userId || "");
+  const invoicePath = `/pay/invoice/${encodeURIComponent(token)}`;
+  const isPaid = resolvedSearchParams?.status === "paid";
+  const isFailed = resolvedSearchParams?.status === "failed";
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-12">
@@ -93,6 +106,7 @@ export default async function PublicInvoicePage({ params, searchParams }: PagePr
         items={items}
         totals={totals}
         paymentLink={paymentLink}
+        paymentProviderLabel={paymentProviderLabel}
         logoDataUrl={logoDataUrl}
         business={{
           businessName: business?.businessName || "Business",
@@ -105,12 +119,49 @@ export default async function PublicInvoicePage({ params, searchParams }: PagePr
         note={note}
       />
 
-      {resolvedSearchParams?.status === "paid" ? (
-        <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          Payment confirmed. Thank you!
+      {isPaid ? (
+        <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-900">
+          <p className="text-base font-semibold">Payment confirmed</p>
+          <p className="mt-1 text-sm text-emerald-800">
+            Your payment was received successfully and your invoice is now marked as paid.
+          </p>
+          <div className="mt-4 grid gap-2 rounded-xl border border-emerald-200/80 bg-white/80 p-3 text-sm sm:grid-cols-2">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-emerald-700/80">Invoice</p>
+              <p className="font-semibold text-emerald-950">{invoice.invoiceNumber}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-emerald-700/80">Amount paid</p>
+              <p className="font-semibold text-emerald-950">
+                {formatCurrency(totals.total, normalizedCurrency)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-emerald-700/80">Payment provider</p>
+              <p className="font-semibold text-emerald-950">{paymentProviderLabel || "Secure checkout"}</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-emerald-700/80">Receipt</p>
+              <p className="font-semibold text-emerald-950">Sent to the available email address</p>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href={invoicePath}
+              className="inline-flex items-center justify-center rounded-lg border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100"
+            >
+              View invoice
+            </Link>
+            <Link
+              href={invoicePath}
+              className="inline-flex items-center justify-center rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
+            >
+              Return to business
+            </Link>
+          </div>
         </div>
       ) : null}
-      {resolvedSearchParams?.status === "failed" ? (
+      {isFailed ? (
         <div className="mt-6 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           Payment could not be confirmed. Please try again or contact the sender.
         </div>

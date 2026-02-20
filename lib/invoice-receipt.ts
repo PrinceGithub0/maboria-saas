@@ -124,19 +124,30 @@ export function buildInvoiceReceiptPdfBuffer(input: {
   drawBold(formatCurrency(input.totals.total, input.currency), left + third * 2 + 16, boxY + 14, 12);
 
   y += summaryBoxHeight + 14;
-  doc.roundedRect(left, y, pageWidth, 44, 8).fill("#F8FAFC").strokeColor("#E5E7EB").stroke();
+  const paymentBoxHeight = input.reference ? 58 : 44;
+  doc.roundedRect(left, y, pageWidth, paymentBoxHeight, 8).fill("#F8FAFC").strokeColor("#E5E7EB").stroke();
   doc.fontSize(9).fillColor(labelColor).text("Payment Method", left + 16, y + 8);
   doc
     .fontSize(11)
     .fillColor("#111827")
     .text(`${input.provider} - ${input.paymentMethod || "Card"}`, left + 16, y + 22);
+  if (input.reference) {
+    doc.fontSize(9).fillColor(labelColor).text("Payment Reference", left + pageWidth / 2 - 80, y + 8, {
+      width: 160,
+      align: "center",
+    });
+    doc.fontSize(10.5).fillColor("#111827").text(String(input.reference), left + pageWidth / 2 - 120, y + 22, {
+      width: 240,
+      align: "center",
+    });
+  }
   doc.fontSize(9).fillColor(labelColor).text("Amount Paid", right - 140, y + 8, { width: 120, align: "right" });
   doc
     .fontSize(11)
     .fillColor("#16A34A")
     .text(formatCurrency(input.totals.total, input.currency), right - 140, y + 22, { width: 120, align: "right" });
 
-  y += 64;
+  y += paymentBoxHeight + 20;
   drawBold("Billed To:", left, y, 11);
   const billedLines = [
     input.billTo?.name || "Customer",
@@ -225,11 +236,6 @@ export function buildInvoiceReceiptPdfBuffer(input: {
       .fillColor("#6B7280")
       .text(`Additional items omitted from receipt: ${truncatedCount}`, left, y + 16);
   }
-  if (input.reference) {
-    const refY = y + (truncatedCount > 0 ? 32 : 16);
-    doc.fontSize(10).fillColor("#6B7280").text(`Payment Reference: ${input.reference}`, left, refY);
-  }
-
   doc
     .fontSize(9)
     .fillColor("#6B7280")

@@ -5,9 +5,7 @@ import { formatCurrency } from "@/lib/currency";
 import { formatDateDMY } from "@/lib/date";
 import { InvoiceItem } from "@/lib/invoice";
 import {
-  INVOICE_TOTALS_GAP,
   INVOICE_TOTALS_LABEL_WIDTH,
-  INVOICE_TOTALS_MAX_WIDTH,
   INVOICE_TOTALS_VALUE_WIDTH,
 } from "@/lib/invoice-totals-layout";
 
@@ -28,6 +26,7 @@ type InvoicePreviewProps = {
     vatMode?: string;
   };
   paymentLink?: string | null;
+  paymentProviderLabel?: string | null;
   logoDataUrl?: string | null;
   business: {
     businessName: string;
@@ -69,6 +68,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
       ? `${rawBusinessAddress}, ${businessCountry}`
       : rawBusinessAddress
     : businessCountry;
+  const paymentProviderLabel = String(props.paymentProviderLabel || "").trim();
   return (
     <Card className="p-0">
       <div className="flex flex-col gap-8 p-8 pt-10 max-md:p-5">
@@ -173,13 +173,29 @@ export function InvoicePreview(props: InvoicePreviewProps) {
             <div className="mt-4 text-3xl font-semibold text-foreground">
               {formatCurrency(props.totals.total, props.currency)}
             </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {t("Secure payment checkout", "Paiement securise")}
+            </p>
+            {paymentProviderLabel ? (
+              <p className="mt-1 text-xs font-semibold text-foreground">
+                {t("Payment provider:", "Prestataire de paiement :")} {paymentProviderLabel}
+              </p>
+            ) : null}
+            <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+              <span className="rounded-full border border-border/70 bg-background/80 px-2.5 py-1">
+                {t("SSL encrypted", "SSL chiffre")}
+              </span>
+              <span className="rounded-full border border-border/70 bg-background/80 px-2.5 py-1">
+                {t("Trusted payment provider", "Prestataire de paiement securise")}
+              </span>
+            </div>
             <div className="mt-4">
               {props.paymentLink ? (
                 <a
                   href={props.paymentLink}
                   className="inline-flex w-full items-center justify-center rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-500"
                 >
-                  {t("Pay Now", "Payer")}
+                  {t("Pay Now Securely", "Payer de maniere securisee")}
                 </a>
               ) : (
                 <span className="inline-flex w-full items-center justify-center rounded-full border border-border bg-muted px-4 py-2 text-sm text-muted-foreground">
@@ -187,6 +203,12 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 </span>
               )}
             </div>
+            <p className="mt-3 text-[11px] text-muted-foreground">
+              {t(
+                "Your payment details are encrypted and handled on a secure provider page.",
+                "Les details de paiement sont chiffres et traites sur une page securisee."
+              )}
+            </p>
           </div>
         </div>
 

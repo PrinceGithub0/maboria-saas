@@ -18,8 +18,11 @@ const steps = [
     href: "/dashboard/automations",
   },
   {
-    title: { en: "Runs", fr: "Executions" },
-    desc: { en: "Track automation outcomes and view logs.", fr: "Suivre les resultats et consulter les logs." },
+    title: { en: "Automation Operations", fr: "Operations automatisation" },
+    desc: {
+      en: "Monitor automation health and investigate failed steps.",
+      fr: "Surveiller la sante des automatisations et investiguer les echecs.",
+    },
     href: "/dashboard/runs",
   },
   {

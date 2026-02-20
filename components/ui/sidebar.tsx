@@ -46,7 +46,7 @@ export function Sidebar({ role }: Props) {
     Dashboard: language === "fr" ? "Tableau" : "Dashboard",
     Website: language === "fr" ? "Site" : "Website",
     Automations: language === "fr" ? "Automatisations" : "Automations",
-    Runs: language === "fr" ? "Executions" : "Runs",
+    Runs: language === "fr" ? "Operations automatisation" : "Automation Operations",
     "AI Assistant": language === "fr" ? "Assistant IA" : "AI Assistant",
     Inbox: language === "fr" ? "Boite de reception" : "Inbox",
     Team: language === "fr" ? "Equipe" : "Team",

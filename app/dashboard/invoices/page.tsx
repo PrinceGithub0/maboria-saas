@@ -140,6 +140,25 @@ export default function InvoicesPage() {
     setForm(buildFreshInvoiceForm(nextCurrency));
     scrollToCreate();
   };
+  const toDateValue = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+  const parseDateValue = (value: string) => {
+    if (!value) return new Date();
+    const [year, month, day] = value.split("-").map((part) => Number(part));
+    if (!year || !month || !day) return new Date();
+    return new Date(year, month - 1, day);
+  };
+  const setDueDateFromIssueDate = (days: number) => {
+    setForm((prev) => {
+      const base = parseDateValue(prev.issueDate);
+      base.setDate(base.getDate() + days);
+      return { ...prev, dueDate: toDateValue(base) };
+    });
+  };
 
   useEffect(() => {
     setForm((prev) => (prev.invoiceNumber ? prev : { ...prev, invoiceNumber: `INV-${Date.now()}` }));
@@ -885,12 +904,32 @@ export default function InvoicesPage() {
               value={form.issueDate}
               onChange={(e) => setForm({ ...form, issueDate: e.target.value })}
             />
-            <Input
-              label={t("Due date", "Date d echeance")}
-              type="date"
-              value={form.dueDate}
-              onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
-            />
+            <div className="space-y-2">
+              <Input
+                label={t("Due date", "Date d echeance")}
+                type="date"
+                value={form.dueDate}
+                onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+              />
+              <div className="flex flex-wrap gap-2">
+                {[7, 14, 30].map((days) => (
+                  <button
+                    key={days}
+                    type="button"
+                    onClick={() => setDueDateFromIssueDate(days)}
+                    className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted/40"
+                  >
+                    {t(`+${days} days`, `+${days} jours`)}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  "Set a clear due date so customers know exactly when payment is expected.",
+                  "Definissez une date d echeance claire pour que le client sache quand payer."
+                )}
+              </p>
+            </div>
             <label className="flex flex-col gap-1 text-sm text-foreground">
               {t("Status", "Statut")}
               <select
