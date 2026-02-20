@@ -97,6 +97,19 @@ const DEFS: Def[] = [
 ];
 
 const GROUPS = ["Send a Message", "Manage Invoice", "Payment & Confirmation", "Update Customer", "AI Assist", "Internal / Team Action"] as const;
+const isRawValidationError = (value: unknown) =>
+  typeof value === "string" &&
+  (value.includes("Invalid option: expected one of") || value.includes(`path: ["status"]`));
+const resolveFriendlyApiMessage = (payload: any, fallback: string, devLabel: string) => {
+  const raw = payload?.reason ?? payload?.error;
+  if (typeof raw === "string" && !isRawValidationError(raw)) {
+    return raw;
+  }
+  if (process.env.NODE_ENV !== "production") {
+    console.error(devLabel, payload);
+  }
+  return fallback;
+};
 
 export default function NewAutomationPage() {
   const router = useRouter();
@@ -155,7 +168,11 @@ export default function NewAutomationPage() {
     const res = await fetch("/api/automation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, steps: mappedSteps, status: "ACTIVE" }) });
     let json: any = {};
     try { json = await res.json(); } catch { json = {}; }
-    if (!res.ok) { setStatus(json.reason || json.error || "Could not save automation."); setLoading(false); return; }
+    if (!res.ok) {
+      setStatus(resolveFriendlyApiMessage(json, "Unable to save automation. Please try again.", "automation_create_failed"));
+      setLoading(false);
+      return;
+    }
     const id = json?.id || json?.flow?.id;
     if (!id) { router.push("/dashboard/automations"); setLoading(false); return; }
     router.push(`/dashboard/automations/${encodeURIComponent(id)}`);

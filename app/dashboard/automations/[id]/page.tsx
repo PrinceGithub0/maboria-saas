@@ -13,6 +13,26 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useLanguage } from "@/components/providers/language-provider";
 import { formatDateTimeDMY } from "@/lib/date";
 
+type AutomationStatus = "DRAFT" | "ACTIVE" | "PAUSED" | "ARCHIVED";
+const AUTOMATION_STATUSES: AutomationStatus[] = ["DRAFT", "ACTIVE", "PAUSED", "ARCHIVED"];
+const normalizeAutomationStatus = (value: unknown, fallback: AutomationStatus = "DRAFT"): AutomationStatus => {
+  const next = String(value || "").trim().toUpperCase() as AutomationStatus;
+  return AUTOMATION_STATUSES.includes(next) ? next : fallback;
+};
+const isRawValidationError = (value: unknown) =>
+  typeof value === "string" &&
+  (value.includes("Invalid option: expected one of") || value.includes(`path: ["status"]`));
+const resolveFriendlyApiMessage = (payload: any, fallback: string, devLabel: string) => {
+  const raw = payload?.reason ?? payload?.error;
+  if (typeof raw === "string" && !isRawValidationError(raw)) {
+    return raw;
+  }
+  if (process.env.NODE_ENV !== "production") {
+    console.error(devLabel, payload);
+  }
+  return fallback;
+};
+
 const fetcher = async (url: string) => {
   const res = await fetch(url, { cache: "no-store" });
   const text = await res.text();
@@ -166,7 +186,7 @@ export default function AutomationDetailsPage() {
       title: flow.title || "",
       description: flow.description || "",
       category: flow.category || "",
-      status: flow.status || "DRAFT",
+      status: normalizeAutomationStatus(flow.status),
       steps: normalizeSteps(flow.steps),
     });
     setInitialized(true);
@@ -199,7 +219,13 @@ export default function AutomationDetailsPage() {
             )} ${formatPlan(json.requiredPlan)}.`
           );
         } else {
-          setStatus(json.reason || json.error || t("Could not run automation.", "Impossible de lancer l automation."));
+          setStatus(
+            resolveFriendlyApiMessage(
+              json,
+              t("Could not run automation.", "Impossible de lancer l automation."),
+              "automation_run_failed"
+            )
+          );
         }
       } else {
         setStatus(t("Automation run started.", "Execution demarree."));
@@ -245,10 +271,14 @@ export default function AutomationDetailsPage() {
     }
     setSaving(true);
     try {
+      const payload = {
+        ...editForm,
+        status: normalizeAutomationStatus(editForm.status),
+      };
       const res = await fetch(`/api/automation/${encodeURIComponent(safeId)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editForm),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -267,7 +297,13 @@ export default function AutomationDetailsPage() {
             )} ${formatPlan(json.requiredPlan)}.`
           );
         } else {
-          setStatus(json.reason || json.error || t("Could not update automation.", "Impossible de modifier l automation."));
+          setStatus(
+            resolveFriendlyApiMessage(
+              json,
+              t("Unable to update automation. Please try again.", "Impossible de modifier l automation. Reessayez."),
+              "automation_update_failed"
+            )
+          );
         }
       } else {
         setStatus(t("Automation updated.", "Automation mise a jour."));
@@ -302,7 +338,11 @@ export default function AutomationDetailsPage() {
     const message =
       statusCode === 404
         ? t("Automation not found.", "Automation introuvable.")
-        : errorData.reason || errorData.error || t("Unable to load automation.", "Impossible de charger l automation.");
+        : resolveFriendlyApiMessage(
+            errorData,
+            t("Unable to load automation.", "Impossible de charger l automation."),
+            "automation_details_load_failed"
+          );
     return (
       <div className="space-y-4 max-md:space-y-6">
         <Alert variant="error">{message}</Alert>

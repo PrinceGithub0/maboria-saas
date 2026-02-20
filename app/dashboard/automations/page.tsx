@@ -6,6 +6,33 @@ import { useRouter } from "next/navigation";
 import { Copy, GitBranch, PencilLine } from "lucide-react";
 import { useLanguage } from "@/components/providers/language-provider";
 
+type AutomationStatus = "DRAFT" | "ACTIVE" | "PAUSED" | "ARCHIVED";
+const AUTOMATION_STATUSES: AutomationStatus[] = ["DRAFT", "ACTIVE", "PAUSED", "ARCHIVED"];
+
+const normalizeAutomationStatus = (value: unknown, fallback: AutomationStatus = "DRAFT"): AutomationStatus => {
+  const next = String(value || "").trim().toUpperCase() as AutomationStatus;
+  return AUTOMATION_STATUSES.includes(next) ? next : fallback;
+};
+
+const isRawValidationError = (value: unknown) =>
+  typeof value === "string" &&
+  (value.includes("Invalid option: expected one of") || value.includes(`path: ["status"]`));
+
+const resolveAutomationErrorMessage = (
+  payload: any,
+  fallback: string,
+  devLabel: string
+) => {
+  const raw = payload?.reason ?? payload?.error;
+  if (typeof raw === "string" && !isRawValidationError(raw)) {
+    return raw;
+  }
+  if (process.env.NODE_ENV !== "production") {
+    console.error(devLabel, payload);
+  }
+  return fallback;
+};
+
 const fetcher = async (url: string) => {
   const res = await fetch(url, { cache: "no-store" });
   const data = await res.json().catch(() => ({}));
@@ -81,7 +108,7 @@ export default function AutomationsPage() {
     });
   }, [flowList]);
 
-  const activeAutomations = flowList.filter((flow: any) => String(flow?.status || "").toLowerCase() === "active").length;
+  const activeAutomations = flowList.filter((flow: any) => normalizeAutomationStatus(flow?.status) === "ACTIVE").length;
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
   const monthlyRuns = runList.filter((run: any) => {
     const createdAt = run?.createdAt ? new Date(run.createdAt).getTime() : 0;
@@ -95,7 +122,7 @@ export default function AutomationsPage() {
   const messagesSent = successfulRuns;
   const timeSaved = Math.round(executionsThisMonth / 100);
 
-  const isActive = (status?: string) => String(status || "").toLowerCase() === "active";
+  const isActive = (status?: string) => normalizeAutomationStatus(status) === "ACTIVE";
 
   const getStatusLabel = (status?: string) => (isActive(status) ? t("Active", "Actif") : t("Paused", "En pause"));
 
@@ -162,12 +189,18 @@ export default function AutomationsPage() {
           title: copyTitle,
           description: flow?.description || "",
           steps: Array.isArray(flow?.steps) ? flow.steps : [],
-          status: "draft",
+          status: "DRAFT",
         }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setStatusMessage(json?.reason || json?.error || t("Could not duplicate automation.", "Impossible de dupliquer."));
+        setStatusMessage(
+          resolveAutomationErrorMessage(
+            json,
+            t("Could not duplicate automation.", "Impossible de dupliquer."),
+            "automation_duplicate_failed"
+          )
+        );
       } else {
         setStatusMessage(t("Automation duplicated.", "Automation dupliquee."));
         mutate();
@@ -186,7 +219,7 @@ export default function AutomationsPage() {
       return;
     }
 
-    const nextStatus = isActive(flow?.status) ? "paused" : "active";
+    const nextStatus = isActive(flow?.status) ? "PAUSED" : "ACTIVE";
     setBusy("toggle", flowId);
     setStatusMessage(null);
 
@@ -198,7 +231,13 @@ export default function AutomationsPage() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setStatusMessage(json?.reason || json?.error || t("Could not update automation.", "Impossible de mettre a jour."));
+        setStatusMessage(
+          resolveAutomationErrorMessage(
+            json,
+            t("Unable to update automation. Please try again.", "Impossible de mettre a jour l automation. Reessayez."),
+            "automation_toggle_failed"
+          )
+        );
       } else {
         setStatusMessage(t("Automation updated.", "Automation mise a jour."));
         mutate();
@@ -279,9 +318,11 @@ export default function AutomationsPage() {
 
         {flowsError ? (
           <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {(flowsError as any)?.data?.reason ||
-              (flowsError as any)?.data?.error ||
-              t("Unable to load automations.", "Impossible de charger les automatisations.")}
+            {resolveAutomationErrorMessage(
+              (flowsError as any)?.data,
+              t("Unable to load automations.", "Impossible de charger les automatisations."),
+              "automation_list_load_failed"
+            )}
           </div>
         ) : null}
 
