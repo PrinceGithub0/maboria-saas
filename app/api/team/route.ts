@@ -8,6 +8,7 @@ import {
   buildInviteToken,
   canAssignBillingAdmin,
   canActorChangeTargetRole,
+  canManageSubscription,
   countActiveOrgSeats,
   getSeatLimitForPlan,
   hasOrgPermission,
@@ -18,6 +19,7 @@ import {
 import { sendPlatformMail } from "@/lib/email";
 import { isPlatformRole } from "@/lib/global-role";
 import { buildTeamActivityMessage, TEAM_ACTIVITY_ACTION_TYPES } from "@/lib/team-activity";
+import { buildTeamInviteSubject, renderTeamInviteEmail } from "@/emails/templates/team-invite";
 
 const inviteSchema = z.object({
   email: z.string().email(),
@@ -52,11 +54,27 @@ function toPlanLabel(plan?: string | null) {
   return "starter";
 }
 
-function buildInviteLink(token: string, email: string, mode: "signup" | "login" = "signup") {
+function buildInviteLink(input: {
+  token: string;
+  email: string;
+  mode?: "signup" | "login";
+  workspaceName?: string | null;
+  role?: "member" | "admin" | "billing_admin";
+  inviter?: string | null;
+}) {
   const baseUrl = process.env.APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
-  const url = new URL(mode === "login" ? "/login" : "/signup", baseUrl);
-  url.searchParams.set("invite", token);
-  url.searchParams.set("email", email);
+  const url = new URL((input.mode || "signup") === "login" ? "/login" : "/signup", baseUrl);
+  url.searchParams.set("invite", input.token);
+  url.searchParams.set("email", input.email);
+  if (input.workspaceName) {
+    url.searchParams.set("org", input.workspaceName);
+  }
+  if (input.role) {
+    url.searchParams.set("role", input.role);
+  }
+  if (input.inviter) {
+    url.searchParams.set("inviter", input.inviter);
+  }
   return url.toString();
 }
 
@@ -75,6 +93,9 @@ async function sendWorkspaceInviteEmail(input: {
   orgId: string;
   email: string;
   rawToken: string;
+  role: "member" | "admin" | "billing_admin";
+  inviterName?: string | null;
+  inviterEmail?: string | null;
   mode?: "signup" | "login";
 }) {
   const business = await prisma.business.findUnique({
@@ -82,12 +103,38 @@ async function sendWorkspaceInviteEmail(input: {
     select: { name: true },
   });
 
+  const workspaceName = business?.name || "your organization";
+  const acceptUrl = buildInviteLink({
+    token: input.rawToken,
+    email: input.email,
+    mode: input.mode || "signup",
+    workspaceName,
+    role: input.role,
+    inviter: input.inviterName || input.inviterEmail || null,
+  });
+  const message = renderTeamInviteEmail({
+    workspaceName,
+    recipientEmail: input.email,
+    inviterName: input.inviterName,
+    inviterEmail: input.inviterEmail,
+    role: input.role,
+    acceptUrl,
+    mode: input.mode || "signup",
+  });
+
   await sendPlatformMail({
     to: input.email,
-    subject: "You are invited to Maboria",
-    html: `<p>You have been invited to join <strong>${business?.name || "your organization"}</strong> on Maboria.</p>
-         <p><a href=\"${buildInviteLink(input.rawToken, input.email, input.mode || "signup")}\">Accept invitation</a></p>
-         <p>This invitation expires in 7 days and can be used once.</p>`,
+    subject: buildTeamInviteSubject({
+      workspaceName,
+      recipientEmail: input.email,
+      inviterName: input.inviterName,
+      inviterEmail: input.inviterEmail,
+      role: input.role,
+      acceptUrl,
+      mode: input.mode || "signup",
+    }),
+    html: message.html,
+    text: message.text,
   });
 }
 
@@ -102,6 +149,7 @@ export async function GET() {
   if (!access.ok) return jsonError(access.status, access.message, { code: access.code });
 
   const { context } = access;
+  const canViewTeamOperations = hasOrgPermission(context.role, "team:invite") || canManageSubscription(context.role);
   const seatLimit = getSeatLimitForPlan(context.orgPlan);
   const [members, pendingInvites, seatsUsed, auditLogs] = await Promise.all([
     prisma.businessMember.findMany({
@@ -164,43 +212,47 @@ export async function GET() {
       const bJoined = b.joinedAt?.getTime?.() || b.createdAt?.getTime?.() || 0;
       return aJoined - bJoined;
     }),
-    pendingInvites: pendingInvites.map((invite) => ({
-      id: invite.id,
-      email: invite.email,
-      role: invite.role,
-      createdAt: invite.createdAt,
-      expiresAt: invite.expiresAt,
-    })),
-    recentActivity: auditLogs.map((entry) => {
-      const metadata =
-        entry.metadata && typeof entry.metadata === "object" && !Array.isArray(entry.metadata)
-          ? (entry.metadata as Record<string, unknown>)
-          : null;
-      const targetUser = entry.targetUserId ? targetUserMap.get(entry.targetUserId) : null;
-      return {
-        id: entry.id,
-        actionType: entry.actionType || entry.action,
-        createdAt: entry.createdAt,
-        actor: {
-          id: entry.user?.id || null,
-          name: entry.user?.name || null,
-          email: entry.user?.email || null,
-        },
-        target: {
-          id: targetUser?.id || null,
-          name: targetUser?.name || null,
-          email: targetUser?.email || null,
-        },
-        message: buildTeamActivityMessage({
-          actionType: entry.actionType || entry.action,
-          actorName: entry.user?.name,
-          actorEmail: entry.user?.email,
-          targetName: targetUser?.name || null,
-          targetEmail: targetUser?.email || null,
-          metadata,
-        }),
-      };
-    }),
+    pendingInvites: canViewTeamOperations
+      ? pendingInvites.map((invite) => ({
+          id: invite.id,
+          email: invite.email,
+          role: invite.role,
+          createdAt: invite.createdAt,
+          expiresAt: invite.expiresAt,
+        }))
+      : [],
+    recentActivity: canViewTeamOperations
+      ? auditLogs.map((entry) => {
+          const metadata =
+            entry.metadata && typeof entry.metadata === "object" && !Array.isArray(entry.metadata)
+              ? (entry.metadata as Record<string, unknown>)
+              : null;
+          const targetUser = entry.targetUserId ? targetUserMap.get(entry.targetUserId) : null;
+          return {
+            id: entry.id,
+            actionType: entry.actionType || entry.action,
+            createdAt: entry.createdAt,
+            actor: {
+              id: entry.user?.id || null,
+              name: entry.user?.name || null,
+              email: entry.user?.email || null,
+            },
+            target: {
+              id: targetUser?.id || null,
+              name: targetUser?.name || null,
+              email: targetUser?.email || null,
+            },
+            message: buildTeamActivityMessage({
+              actionType: entry.actionType || entry.action,
+              actorName: entry.user?.name,
+              actorEmail: entry.user?.email,
+              targetName: targetUser?.name || null,
+              targetEmail: targetUser?.email || null,
+              metadata,
+            }),
+          };
+        })
+      : [],
     seatLimit,
     seatsUsed,
     planLabel: toPlanLabel(context.orgPlan),
@@ -211,6 +263,7 @@ export async function GET() {
       canPromoteMember: hasOrgPermission(context.role, "team:promote_member"),
       canDemoteAdmin: hasOrgPermission(context.role, "team:demote_admin"),
       canManageSubscription: hasOrgPermission(context.role, "subscription:manage"),
+      canViewTeamOperations,
     },
   });
 }
@@ -303,7 +356,10 @@ export async function POST(req: Request) {
       orgId: context.orgId,
       email: normalizedEmail,
       rawToken: token.rawToken,
-      mode: existingUser ? "login" : "signup",
+      role: parsed.role,
+      inviterName: session.user.name || null,
+      inviterEmail: session.user.email || null,
+      mode: "signup",
     });
 
     await writeOrgAuditLog({
@@ -374,12 +430,10 @@ export async function PATCH(req: Request) {
         orgId: context.orgId,
         email: invite.email,
         rawToken: token.rawToken,
-        mode: (await prisma.user.findUnique({
-          where: { email: invite.email },
-          select: { id: true },
-        }))
-          ? "login"
-          : "signup",
+        role: normalizeOrgRole(invite.role) as "member" | "admin" | "billing_admin",
+        inviterName: session.user.name || null,
+        inviterEmail: session.user.email || null,
+        mode: "signup",
       });
 
       await writeOrgAuditLog({

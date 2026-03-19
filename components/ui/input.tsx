@@ -36,7 +36,7 @@ export function Input({ label, error, className, type, required, ...props }: Pro
 
   if (!mounted) {
     return (
-      <label className="flex flex-col gap-1 text-sm text-foreground">
+      <label className="flex flex-col gap-1 text-sm text-foreground dark:text-slate-200">
         {label ? `${label}${required ? " *" : ""}` : null}
         <div className="relative">
           <div
@@ -52,7 +52,7 @@ export function Input({ label, error, className, type, required, ...props }: Pro
   }
 
   return (
-    <label className="flex flex-col gap-1 text-sm text-foreground">
+    <label className="flex flex-col gap-1 text-sm text-foreground dark:text-slate-200">
       {label ? `${label}${required ? " *" : ""}` : null}
       <div className="relative" suppressHydrationWarning>
         <input
@@ -63,7 +63,7 @@ export function Input({ label, error, className, type, required, ...props }: Pro
           data-gramm_editor="false"
           data-enable-grammarly="false"
           className={clsx(
-            "w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground focus:border-indigo-400 focus:outline-none",
+            "w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground focus:border-indigo-400 focus:outline-none dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-100 dark:placeholder:text-slate-400",
             isPassword && "pr-10",
             className
           )}

@@ -3,6 +3,7 @@ import { log } from "@/lib/logger";
 import { SubscriptionStatus } from "@prisma/client";
 import { PLAN_LIMITS, UNLIMITED } from "@/lib/planLimits";
 import { isPlatformRole } from "@/lib/global-role";
+import { isOrgSubscriptionActive, resolveOrgContext } from "@/lib/org-auth";
 
 export type UserPlan = "free" | "starter" | "pro" | "growth" | "business" | "enterprise";
 export type EntitlementStatus = SubscriptionStatus | "INACTIVE";
@@ -100,6 +101,21 @@ export async function getUserPlan(userId: string): Promise<UserPlan> {
     return "enterprise";
   }
 
+  const orgContext = await resolveOrgContext(userId);
+  if (orgContext?.orgAccessStatus === "ACTIVE" && isOrgSubscriptionActive(orgContext.orgSubscriptionStatus)) {
+    const orgPlan = subscriptionPlanToUserPlan(orgContext.orgPlan);
+    if (orgPlan !== "free") {
+      log("info", "plan_resolved", {
+        userId,
+        plan: orgPlan,
+        reason: "active_workspace_subscription",
+        orgId: orgContext.orgId,
+        role: orgContext.role,
+      });
+      return orgPlan;
+    }
+  }
+
   const sub = await prisma.subscription.findFirst({
     where: { userId, status: "ACTIVE" },
     orderBy: { createdAt: "desc" },
@@ -138,6 +154,24 @@ export async function getEntitlementForUser(userId: string): Promise<UserEntitle
       canAI: true,
       canWhatsapp: true,
     };
+  }
+
+  const orgContext = await resolveOrgContext(userId);
+  if (orgContext?.orgAccessStatus === "ACTIVE" && isOrgSubscriptionActive(orgContext.orgSubscriptionStatus)) {
+    const plan = subscriptionPlanToUserPlan(orgContext.orgPlan);
+    if (plan !== "free") {
+      return {
+        plan,
+        status: "ACTIVE",
+        isTrialActive: false,
+        canDashboard: true,
+        canAutomations: true,
+        canWorkflows: true,
+        canInvoices: true,
+        canAI: isPlanAtLeast(plan, "starter"),
+        canWhatsapp: isPlanAtLeast(plan, "starter"),
+      };
+    }
   }
 
   const sub = await prisma.subscription.findFirst({

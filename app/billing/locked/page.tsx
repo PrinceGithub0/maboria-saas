@@ -10,6 +10,8 @@ import { CheckCircle2 } from "lucide-react";
 import { RetrySecurePaymentButton } from "./retry-secure-payment-button";
 import { resolveImpersonationFromRequestContext } from "@/lib/admin/impersonation";
 import { ExitImpersonationButton } from "./exit-impersonation-button";
+import { resolveOrgContext } from "@/lib/org-auth";
+import { canManageSubscription } from "@/lib/org-permissions";
 
 function TrustLockIcon() {
   return (
@@ -63,6 +65,15 @@ export default async function BillingLockedPage() {
   }
 
   const impersonation = await resolveImpersonationFromRequestContext(session.user.id);
+  const context = await resolveOrgContext(session.user.id);
+  const actorCanManageSubscription = context ? canManageSubscription(context.role) : false;
+  const owner =
+    context
+      ? await prisma.user.findUnique({
+          where: { id: context.ownerUserId },
+          select: { name: true, email: true },
+        })
+      : null;
 
   const subscription = await prisma.subscription.findFirst({
     where: { userId: session.user.id },
@@ -93,42 +104,64 @@ export default async function BillingLockedPage() {
           ) : null}
 
           <div className="absolute right-6 top-6 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-            Subscription Incomplete
+            {actorCanManageSubscription ? "Subscription Incomplete" : "Workspace Locked"}
           </div>
 
           <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-500">Billing</p>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Complete Your Subscription</h1>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+            {actorCanManageSubscription ? "Complete Your Subscription" : "Workspace Subscription Inactive"}
+          </h1>
           <p className="mt-3 text-sm text-slate-600 sm:text-base">
-            Your account is almost ready. Complete payment to unlock full access.
+            {actorCanManageSubscription
+              ? "Your account is almost ready. Complete payment to unlock full access."
+              : `This workspace is currently unavailable because its subscription is inactive. Contact ${
+                  owner?.name || owner?.email || "the workspace owner"
+                } to restore access.`}
           </p>
 
-          <section className="mt-8 rounded-xl border border-slate-200 bg-slate-50 p-5 sm:p-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Selected Plan</p>
-            <p className="mt-3 text-xl font-semibold text-slate-900">{selectedPlanName}</p>
-            <p className="mt-1 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">{formatPlanPrice(currency, price)}</p>
-            <p className="mt-2 text-sm font-medium text-slate-600">Billed {interval}</p>
-            <p className="mt-4 text-sm leading-relaxed text-slate-600">{planDescription}</p>
-          </section>
+          {actorCanManageSubscription ? (
+            <section className="mt-8 rounded-xl border border-slate-200 bg-slate-50 p-5 sm:p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Selected Plan</p>
+              <p className="mt-3 text-xl font-semibold text-slate-900">{selectedPlanName}</p>
+              <p className="mt-1 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">{formatPlanPrice(currency, price)}</p>
+              <p className="mt-2 text-sm font-medium text-slate-600">Billed {interval}</p>
+              <p className="mt-4 text-sm leading-relaxed text-slate-600">{planDescription}</p>
+            </section>
+          ) : null}
 
-          <section className="mt-6">
-            <ul className="space-y-3">
-              {planConfig.features.map((feature) => (
-                <li key={feature} className="flex items-start gap-3 text-sm text-slate-700 sm:text-base">
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[#16A34A]" strokeWidth={2} />
-                  <span>{feature}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
+          {actorCanManageSubscription ? (
+            <section className="mt-6">
+              <ul className="space-y-3">
+                {planConfig.features.map((feature) => (
+                  <li key={feature} className="flex items-start gap-3 text-sm text-slate-700 sm:text-base">
+                    <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[#16A34A]" strokeWidth={2} />
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
 
           <section className="mt-8 border-t border-slate-200 pt-6">
-            <h2 className="text-base font-semibold text-slate-900">Payment Status</h2>
-            <p className="mt-2 text-sm text-slate-600">Your previous payment attempt was not completed.</p>
-            <p className="mt-1 text-sm text-slate-500">Retry below to activate your subscription instantly.</p>
+            <h2 className="text-base font-semibold text-slate-900">
+              {actorCanManageSubscription ? "Payment Status" : "Next Step"}
+            </h2>
+            <p className="mt-2 text-sm text-slate-600">
+              {actorCanManageSubscription
+                ? "Your previous payment attempt was not completed."
+                : "Only the workspace owner or billing admin can restore subscription access."}
+            </p>
+            <p className="mt-1 text-sm text-slate-500">
+              {actorCanManageSubscription
+                ? "Retry below to activate your subscription instantly."
+                : owner?.email
+                  ? `Ask ${owner.email} to renew or reactivate the workspace subscription.`
+                  : "Ask the workspace owner to renew or reactivate the workspace subscription."}
+            </p>
           </section>
 
           <div className="mt-6">
-            <RetrySecurePaymentButton />
+            {actorCanManageSubscription ? <RetrySecurePaymentButton /> : null}
             <div className="mt-3 text-center">
               <Link href="/logout" className="text-sm font-medium text-slate-500 transition hover:text-slate-700">
                 Log out

@@ -6,6 +6,7 @@ import { evaluateWorkspaceGate, isPlatformRole, shouldRunWorkspaceChecks } from 
 import { resolveOrgContext } from "@/lib/org-auth";
 import { resolveImpersonationFromRequestContext } from "@/lib/admin/impersonation";
 import { getActorSystemFlagRole } from "@/lib/system-flags";
+import { prisma } from "@/lib/prisma";
 
 export default async function DashboardLayout({
   children,
@@ -49,9 +50,24 @@ export default async function DashboardLayout({
 
   if (shouldRunWorkspaceChecks(globalRole)) {
     const context = await resolveOrgContext(session.user.id);
+    if (!context) {
+      const subscription = await prisma.subscription.findFirst({
+        where: { userId: session.user.id },
+        orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+        select: { status: true },
+      });
+
+      if (subscription?.status === "ACTIVE") {
+        redirect("/dashboard/onboarding");
+      }
+      if (subscription) {
+        redirect("/checkout");
+      }
+      redirect("/start-workspace");
+    }
     const outcome = evaluateWorkspaceGate({
       globalRole,
-      hasTenantContext: Boolean(context),
+      hasTenantContext: true,
       orgAccessStatus: context?.orgAccessStatus,
       subscriptionStatus: context?.orgSubscriptionStatus,
     });

@@ -7,7 +7,7 @@ import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
 import { generatePublicId } from "@/lib/public-id";
 import { PASSWORD_MIN_LENGTH_ERROR } from "@/lib/password-policy";
-import { getSeatLimitForPlan, hashInviteToken, safeTokenCompare } from "@/lib/org-auth";
+import { ACTIVE_ORG_COOKIE_NAME, getSeatLimitForPlan, hashInviteToken, safeTokenCompare } from "@/lib/org-auth";
 import { requireSystemFlag } from "@/lib/system-flags-guard";
 
 async function resolvePendingBusinessInvite({
@@ -263,6 +263,16 @@ export const POST = withRequestLogging(
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
+      if (parsed.inviteToken) {
+        return NextResponse.json(
+          {
+            error: "An account already exists for this invited email. Sign in instead to accept the workspace invitation.",
+            signInRequired: true,
+            redirectTo: "/login",
+          },
+          { status: 409 }
+        );
+      }
       const existingSub = await prisma.subscription.findFirst({
         where: { userId: existing.id },
         orderBy: { createdAt: "desc" },
@@ -298,6 +308,16 @@ export const POST = withRequestLogging(
         if (error?.code === "P2002") {
           const targets = Array.isArray(error?.meta?.target) ? error.meta.target : [];
           if (targets.includes("email")) {
+            if (parsed.inviteToken) {
+              return NextResponse.json(
+                {
+                  error: "An account already exists for this invited email. Sign in instead to accept the workspace invitation.",
+                  signInRequired: true,
+                  redirectTo: "/login",
+                },
+                { status: 409 }
+              );
+            }
             return NextResponse.json({ error: "Email already in use" }, { status: 409 });
           }
           if (targets.includes("publicId")) {
@@ -320,7 +340,7 @@ export const POST = withRequestLogging(
 
     if (pendingInvite) {
       if (inviteAcceptance?.status === "accepted") {
-        return NextResponse.json(
+        const response = NextResponse.json(
           {
             success: true,
             userId: created.publicId,
@@ -329,6 +349,14 @@ export const POST = withRequestLogging(
           },
           { status: 201 }
         );
+        response.cookies.set(ACTIVE_ORG_COOKIE_NAME, pendingInvite.businessId, {
+          httpOnly: true,
+          sameSite: "lax",
+          secure: process.env.NODE_ENV === "production",
+          path: "/",
+          maxAge: 60 * 60 * 24 * 30,
+        });
+        return response;
       }
 
       if (inviteAcceptance?.status === "seat_limit") {

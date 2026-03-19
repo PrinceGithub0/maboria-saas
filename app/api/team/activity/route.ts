@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { requireOrgPermission } from "@/lib/org-auth";
+import { canManageSubscription, hasOrgPermission, requireOrgPermission } from "@/lib/org-auth";
 import { buildTeamActivityMessage, TEAM_ACTIVITY_ACTION_TYPES } from "@/lib/team-activity";
 
 function jsonError(status: number, error: string, extras?: Record<string, unknown>) {
@@ -19,6 +19,9 @@ export async function GET(req: NextRequest) {
     requireActiveSubscription: true,
   });
   if (!access.ok) return jsonError(access.status, access.message, { code: access.code });
+  if (!(hasOrgPermission(access.context.role, "team:invite") || canManageSubscription(access.context.role))) {
+    return jsonError(403, "You do not have permission to view team activity.", { code: "FORBIDDEN" });
+  }
 
   const limitParam = Number(req.nextUrl.searchParams.get("limit") || "20");
   const take = Number.isFinite(limitParam) ? Math.min(Math.max(limitParam, 1), 50) : 20;

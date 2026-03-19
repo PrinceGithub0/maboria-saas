@@ -68,6 +68,7 @@ type TeamResponse = {
     canPromoteMember?: boolean;
     canDemoteAdmin?: boolean;
     canManageSubscription?: boolean;
+    canViewTeamOperations?: boolean;
   };
 };
 
@@ -116,6 +117,7 @@ export default function TeamPage() {
   const permissions = data?.permissions || {};
   const canInvite = Boolean(permissions.canInvite);
   const canRemoveMember = Boolean(permissions.canRemoveMember);
+  const canViewTeamOperations = Boolean(permissions.canViewTeamOperations);
   const currentOrgRole = String(data?.currentRole || "").toLowerCase();
   const seatLimit =
     typeof data?.seatLimit === "number" ? data.seatLimit : data?.seatLimit === null ? null : undefined;
@@ -173,7 +175,7 @@ export default function TeamPage() {
 
   const visiblePlanLabel = planLabel ?? cachedPlanLabel ?? undefined;
   const canAssignBillingAdmin = currentOrgRole === "owner";
-  const seatsUsed = members.length;
+  const seatsUsed = typeof data?.seatsUsed === "number" ? data.seatsUsed : members.length;
   const seatLabel =
     seatLimit === null
       ? t("Unlimited / Contract-based", "Illimite / Contrat")
@@ -201,7 +203,7 @@ export default function TeamPage() {
     ? ({ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1" } as const)
     : undefined;
 
-  const visibleMembers = visiblePlanLabel === "starter" ? members.filter((member) => member.role === "owner") : members;
+  const visibleMembers = members;
   const filteredMembers = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return visibleMembers.filter((member) => {
@@ -770,6 +772,7 @@ export default function TeamPage() {
             </div>
           </section>
 
+          {canViewTeamOperations ? (
           <section className="rounded-3xl border border-border/60 bg-card px-6 py-6 shadow-sm">
             <h2 className="text-xl font-semibold text-foreground">{t("Pending Invitations", "Invitations en attente")}</h2>
             <div className="mt-4 rounded-2xl border border-border/60">
@@ -856,17 +859,24 @@ export default function TeamPage() {
               )}
             </div>
           </section>
+          ) : null}
         </div>
 
         <aside className="rounded-3xl border border-border/60 bg-card px-6 py-6 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-xl font-semibold text-foreground">{t("Team Activity", "Activite de l equipe")}</h2>
-            <Link href="/dashboard/team/activity" className="text-sm font-medium text-blue-600 hover:text-blue-500">
-              {t("View all", "Voir tout")}
-            </Link>
+            {canViewTeamOperations ? (
+              <Link href="/dashboard/team/activity" className="text-sm font-medium text-blue-600 hover:text-blue-500">
+                {t("View all", "Voir tout")}
+              </Link>
+            ) : null}
           </div>
           <div className="mt-5 space-y-4">
-            {recentActivity.length === 0 ? (
+            {!canViewTeamOperations ? (
+              <p className="text-sm text-muted-foreground">
+                {t("Activity details are available to workspace managers only.", "Les details d activite sont reserves aux gestionnaires de l espace.")}
+              </p>
+            ) : recentActivity.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 {t("No recent team activity.", "Aucune activite recente.")}
               </p>

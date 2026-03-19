@@ -21,9 +21,18 @@ export default function LoginPage() {
   const resetSuccess = params.get("reset") === "success";
   const inviteToken = params.get("invite") || undefined;
   const inviteEmail = params.get("email") || "";
+  const inviteOrg = params.get("org") || "";
+  const inviteRole = params.get("role") || "member";
+  const inviteInviter = params.get("inviter") || "";
   const logoSrc = "/branding/Maboria%20Company%20logo.png";
   const { language } = useLanguage();
   const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const inviteMode = Boolean(inviteToken);
+  const inviteRoleLabel =
+    inviteRole === "billing_admin" ? "Billing Admin" : inviteRole === "admin" ? "Admin" : "Member";
+  const inviteQuery = params.toString();
+  const createAccountHref = inviteToken && inviteQuery ? `/create-account?${inviteQuery}` : "/create-account";
+  const forgotPasswordHref = inviteToken && inviteQuery ? `/forgot-password?${inviteQuery}` : "/forgot-password";
 
   useEffect(() => {
     if (inviteEmail && !email) {
@@ -107,44 +116,136 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-10 text-foreground">
-      <div className="w-full max-w-[420px] rounded-xl border border-border/70 bg-card p-8 shadow-[0_16px_36px_-22px_rgba(15,23,42,0.35)] sm:p-10">
-        <div className="space-y-4">
-          <div className="relative h-9 w-9 overflow-hidden rounded-xl border border-border bg-card">
-            <Image src={logoSrc} alt="Maboria" fill sizes="36px" className="object-contain p-0 scale-110" priority />
-          </div>
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">MABORIA</p>
-            <h1 className="text-3xl font-semibold tracking-tight text-foreground">{t("Welcome back", "Bon retour")}</h1>
-            <p className="text-sm text-muted-foreground">
-              {t(
-                "Sign in to manage invoices, automation, and billing.",
-                "Connectez-vous pour gerer factures, automatisation et facturation."
-              )}
-            </p>
-          </div>
-        </div>
+    <div
+      className={
+        inviteMode
+          ? "min-h-screen bg-white text-foreground"
+          : "flex min-h-screen items-center justify-center bg-background px-4 py-10 text-foreground"
+      }
+    >
+      <div
+        className={
+          inviteMode
+            ? "grid min-h-screen w-full lg:grid-cols-[1.1fr_0.9fr]"
+            : "w-full max-w-[460px] rounded-[28px] border border-border/70 bg-card p-8 shadow-[0_20px_48px_-24px_rgba(15,23,42,0.4)] sm:p-10"
+        }
+      >
+        {inviteMode ? (
+          <section className="relative hidden border-r border-sky-100/80 bg-[linear-gradient(135deg,#f7fbff_0%,#eef7ff_48%,#f5fbff_100%)] px-10 py-12 lg:flex lg:flex-col lg:justify-between xl:px-16">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.14),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(59,130,246,0.12),transparent_32%)]" />
+            <div className="relative mx-auto w-full max-w-[580px] space-y-10">
+              <div className="relative h-10 w-10 overflow-hidden rounded-2xl border border-sky-100 bg-white shadow-sm">
+                <Image src={logoSrc} alt="Maboria" fill sizes="40px" className="object-contain p-0 scale-110" priority />
+              </div>
+              <div className="space-y-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-700">MABORIA</p>
+                <h1 className="text-5xl font-semibold leading-[1.02] tracking-tight text-slate-950">
+                  {inviteOrg
+                    ? t(`Join ${inviteOrg}`, `Rejoindre ${inviteOrg}`)
+                    : t("Join your workspace", "Rejoindre votre espace")}
+                </h1>
+                <p className="max-w-lg text-base leading-8 text-slate-600">
+                  {t(
+                    "This access flow is reserved for invited teammates. Sign in with your existing account and we will attach the workspace invite automatically.",
+                    "Ce flux d acces est reserve aux membres invites. Connectez-vous avec votre compte existant et nous rattacherons automatiquement l invitation."
+                  )}
+                </p>
+              </div>
+              <div className="grid gap-6 border-y border-sky-100/90 py-7 md:grid-cols-2">
+                <div className="space-y-2">
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">{t("Invited by", "Invite par")}</p>
+                  <p className="text-xl font-semibold text-slate-950">{inviteInviter || "Maboria team"}</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">{t("Access level", "Niveau d acces")}</p>
+                  <p className="text-xl font-semibold text-slate-950">{inviteRoleLabel}</p>
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">{t("Invitation email", "Email de l invitation")}</p>
+                  <p className="break-all text-xl font-semibold text-slate-950">{inviteEmail || t("Use the invited address", "Utilisez l adresse invitee")}</p>
+                </div>
+              </div>
+            </div>
+            <div className="relative mx-auto mt-10 w-full max-w-[580px] border-t border-slate-200 pt-6 text-slate-950">
+              <p className="text-[11px] uppercase tracking-[0.22em] text-sky-700">{t("Why sign in first", "Pourquoi se connecter d abord")}</p>
+              <p className="mt-3 max-w-xl text-sm leading-7 text-slate-600">
+                {t(
+                  "Existing teammates can accept the invite without creating a duplicate account. If you do not have an account yet, use the create account link below and the invite will stay attached.",
+                  "Les membres existants peuvent accepter l invitation sans creer de compte en double. Si vous n avez pas encore de compte, utilisez le lien de creation ci-dessous et l invitation restera attachee."
+                )}
+              </p>
+            </div>
+          </section>
+        ) : null}
 
-        {resetSuccess && (
-          <Alert className="mt-5" variant="success">
-            {t(
-              "Your password has been updated successfully. You can now sign in.",
-              "Votre mot de passe a ete mis a jour avec succes. Vous pouvez maintenant vous connecter."
-            )}
-          </Alert>
-        )}
-        {inviteToken && (
-          <Alert className="mt-5" variant="info">
-            {t(
-              "Sign in to accept your workspace invitation.",
-              "Connectez-vous pour accepter votre invitation a l espace de travail."
-            )}
-          </Alert>
-        )}
-        {params.get("message") && <Alert className="mt-5" variant="success">{params.get("message")}</Alert>}
-        {error && <Alert className="mt-5" variant="error">{error}</Alert>}
+        <section className={inviteMode ? "flex min-h-screen flex-col justify-center bg-white px-5 py-10 sm:px-8 lg:px-12 xl:px-16" : ""}>
+          <div className={inviteMode ? "mx-auto w-full max-w-[520px]" : ""}>
+            <div className="space-y-4">
+              <div className="relative h-9 w-9 overflow-hidden rounded-xl border border-border bg-card">
+                <Image src={logoSrc} alt="Maboria" fill sizes="36px" className="object-contain p-0 scale-110" priority />
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">MABORIA</p>
+                <h1 className="text-3xl font-semibold tracking-tight text-foreground">{t("Welcome back", "Bon retour")}</h1>
+                <p className="text-sm text-muted-foreground">
+                  {t(
+                    "Sign in to manage invoices, automation, and billing.",
+                    "Connectez-vous pour gerer factures, automatisation et facturation."
+                  )}
+                </p>
+              </div>
+            </div>
 
-        <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
+            {resetSuccess && (
+              <Alert className="mt-5" variant="success">
+                {t(
+                  "Your password has been updated successfully. You can now sign in.",
+                  "Votre mot de passe a ete mis a jour avec succes. Vous pouvez maintenant vous connecter."
+                )}
+              </Alert>
+            )}
+            {inviteToken && (
+              <div className="mt-5 space-y-4 border-y border-sky-100 py-5 text-slate-900">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="inline-flex rounded-full bg-sky-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-sky-700">
+                    {t("Workspace invite", "Invitation espace")}
+                  </span>
+                  <span className="inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+                    {inviteRoleLabel}
+                  </span>
+                </div>
+                <div>
+                  <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
+                    {t("Accept your team access", "Acceptez votre acces equipe")}
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    {inviteOrg
+                      ? t(
+                          `Sign in to join ${inviteOrg} on Maboria.`,
+                          `Connectez-vous pour rejoindre ${inviteOrg} sur Maboria.`
+                        )
+                      : t(
+                          "Sign in to accept your workspace invitation.",
+                          "Connectez-vous pour accepter votre invitation a l espace de travail."
+                        )}
+                  </p>
+                </div>
+                <div className="grid gap-4 text-sm sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{t("Invited by", "Invite par")}</p>
+                    <p className="font-medium text-slate-900">{inviteInviter || "Maboria team"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{t("Email", "Email")}</p>
+                    <p className="break-all font-medium text-slate-900">{inviteEmail || t("Use the invited address", "Utilisez l adresse invitee")}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {params.get("message") && <Alert className="mt-5" variant="success">{params.get("message")}</Alert>}
+            {error && <Alert className="mt-5" variant="error">{error}</Alert>}
+
+            <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
           <label className="grid gap-2 text-sm font-medium text-foreground">
             {t("Email", "Email")}
             <span className="relative">
@@ -155,10 +256,19 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@company.com"
                 autoComplete="email"
+                readOnly={Boolean(inviteMode && inviteEmail)}
                 className="h-11 w-full rounded-lg border border-input bg-background pl-10 pr-3 text-foreground placeholder:text-muted-foreground focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-300/40"
                 required
               />
             </span>
+            {inviteMode && inviteEmail ? (
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  "This invitation is tied to the invited email address.",
+                  "Cette invitation est liee a l adresse email invitee."
+                )}
+              </p>
+            ) : null}
           </label>
 
           <label className="grid gap-2 text-sm font-medium text-foreground">
@@ -206,21 +316,23 @@ export default function LoginPage() {
           >
             {t("Sign in", "Se connecter")}
           </Button>
-        </form>
+            </form>
 
-        <div className="mt-6 flex items-center justify-between text-sm text-muted-foreground">
-          <Link href="/create-account" className="transition hover:text-indigo-500 dark:hover:text-indigo-300">
-            {t("Create account", "Creer un compte")}
-          </Link>
-          <Link href="/forgot-password" className="transition hover:text-indigo-500 dark:hover:text-indigo-300">
-            {t("Forgot password?", "Mot de passe oublie ?")}
-          </Link>
-        </div>
-        <div className="mt-3 text-center text-sm text-muted-foreground">
-          <Link href="/faq" className="transition hover:text-indigo-500 dark:hover:text-indigo-300">
-            {t("View FAQ", "Voir la FAQ")}
-          </Link>
-        </div>
+            <div className="mt-6 flex items-center justify-between text-sm text-muted-foreground">
+              <Link href={createAccountHref} className="transition hover:text-indigo-500 dark:hover:text-indigo-300">
+                {t("Create account", "Creer un compte")}
+              </Link>
+              <Link href={forgotPasswordHref} className="transition hover:text-indigo-500 dark:hover:text-indigo-300">
+                {t("Forgot password?", "Mot de passe oublie ?")}
+              </Link>
+            </div>
+            <div className="mt-3 text-center text-sm text-muted-foreground">
+              <Link href="/faq" className="transition hover:text-indigo-500 dark:hover:text-indigo-300">
+                {t("View FAQ", "Voir la FAQ")}
+              </Link>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );

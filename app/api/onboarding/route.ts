@@ -11,6 +11,7 @@ import {
   normalizeCountryCode,
   normalizeCurrencyCode,
 } from "@/lib/business-profile";
+import { getOrCreateBusinessForUser } from "@/lib/business";
 
 const onboardingSchema = z.object({
   businessName: z.string().min(2),
@@ -24,6 +25,14 @@ const onboardingSchema = z.object({
 export const POST = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const activeSubscription = await prisma.subscription.findFirst({
+    where: { userId: session.user.id, status: "ACTIVE" },
+    orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+    select: { id: true },
+  });
+  if (!activeSubscription) {
+    return NextResponse.json({ error: "Active subscription required before onboarding." }, { status: 403 });
+  }
   const parsed = onboardingSchema.parse(await req.json());
   const normalizedCurrency = normalizeCurrencyCode(parsed.currency || "USD");
   const normalizedCountry = normalizeCountryCode(parsed.country);
@@ -91,5 +100,7 @@ export const POST = withErrorHandling(async (req: Request) => {
       },
     });
   });
+
+  await getOrCreateBusinessForUser(session.user.id);
   return NextResponse.json({ success: true });
 });

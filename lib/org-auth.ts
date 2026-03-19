@@ -1,9 +1,9 @@
 import "server-only";
 
 import crypto from "crypto";
+import { cookies } from "next/headers";
 import { OrgSubscriptionStatus, Prisma, SubscriptionPlan } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getOrCreateBusinessForUser } from "@/lib/business";
 import {
   canManageSubscription,
   hasOrgPermission,
@@ -34,6 +34,18 @@ export type OrgContext = {
   orgPlan: SubscriptionPlan | null;
   apiAccessEnabled: boolean;
 };
+
+export const ACTIVE_ORG_COOKIE_NAME = "maboria_active_org";
+const ACTIVE_GATE_ORG_SUBSCRIPTION_STATUSES = new Set<OrgSubscriptionStatus>(["ACTIVE"]);
+
+function mapSubscriptionStatusToOrgStatus(status?: string | null): OrgSubscriptionStatus | "NONE" {
+  const value = String(status || "").toUpperCase();
+  if (value === "ACTIVE") return "ACTIVE";
+  if (value === "PAST_DUE") return "PAST_DUE";
+  if (value === "TRIALING") return "TRIALING";
+  if (value === "CANCELED" || value === "INACTIVE" || value === "REVOKED") return "CANCELED";
+  return "NONE";
+}
 
 export function normalizeMemberStatus(value?: string | null) {
   const status = String(value || "").trim().toLowerCase();
@@ -71,6 +83,19 @@ const ORG_ROLE_PRIORITY: Record<OrgRole, number> = {
   member: 1,
 };
 
+function getCandidateHealthScore(input: {
+  accessStatus?: string | null;
+  subscriptionStatus?: OrgSubscriptionStatus | "NONE" | null;
+}) {
+  const accessScore = String(input.accessStatus || "").toUpperCase() === "ACTIVE" ? 2 : 0;
+  const subscriptionScore = ACTIVE_GATE_ORG_SUBSCRIPTION_STATUSES.has(
+    (input.subscriptionStatus || "NONE") as OrgSubscriptionStatus
+  )
+    ? 1
+    : 0;
+  return accessScore + subscriptionScore;
+}
+
 export async function resolveOrgContext(userId: string): Promise<OrgContext | null> {
   const authPlane = await resolveAuthPlaneContextFromRequestContext({
     actorUserId: userId,
@@ -78,8 +103,17 @@ export async function resolveOrgContext(userId: string): Promise<OrgContext | nu
   const actorIsPlatform = isPlatformRole(authPlane.actorGlobalRole);
   const scopedUserId = authPlane.effectiveUserId;
   const scopedOrgId = authPlane.effectiveTenantId;
+  let preferredOrgId: string | null = null;
 
-  let members = await prisma.businessMember.findMany({
+  if (!scopedOrgId) {
+    try {
+      preferredOrgId = (await cookies()).get(ACTIVE_ORG_COOKIE_NAME)?.value || null;
+    } catch {
+      preferredOrgId = null;
+    }
+  }
+
+  const members = await prisma.businessMember.findMany({
     where: { userId: scopedUserId, status: "active", ...(scopedOrgId ? { businessId: scopedOrgId } : {}) },
     include: {
       business: {
@@ -103,41 +137,100 @@ export async function resolveOrgContext(userId: string): Promise<OrgContext | nu
     if (actorIsPlatform) {
       return null;
     }
-
-    await getOrCreateBusinessForUser(scopedUserId);
-    members = await prisma.businessMember.findMany({
-      where: { userId: scopedUserId, status: "active", ...(scopedOrgId ? { businessId: scopedOrgId } : {}) },
-      include: {
-        business: {
-          select: {
-            ownerId: true,
-            plan: true,
-            accessStatus: true,
-            orgSubscription: {
-              select: {
-                status: true,
-                planId: true,
-                apiAccessEnabled: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    return null;
   }
 
   if (!members.length) return null;
+  const ownerIdsNeedingFallback = Array.from(
+    new Set(
+      members
+        .filter((member) => !member.business?.orgSubscription)
+        .map((member) => member.business?.ownerId)
+        .filter((value): value is string => Boolean(value))
+    )
+  );
+  const fallbackOwnerSubscriptions = ownerIdsNeedingFallback.length
+    ? await prisma.subscription.findMany({
+        where: {
+          userId: { in: ownerIdsNeedingFallback },
+          status: { in: ["ACTIVE", "PAST_DUE", "TRIALING"] },
+        },
+        orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+        select: { userId: true, status: true, plan: true, updatedAt: true, createdAt: true, id: true },
+      })
+    : [];
+  const fallbackOwnerSubscriptionMap = new Map<
+    string,
+    { status: string; plan: SubscriptionPlan; updatedAt: Date; createdAt: Date; id: string }
+  >();
+  for (const subscription of fallbackOwnerSubscriptions) {
+    if (!fallbackOwnerSubscriptionMap.has(subscription.userId)) {
+      fallbackOwnerSubscriptionMap.set(subscription.userId, subscription);
+    }
+  }
 
-  // Deterministic org selection: prefer highest role (owner > admin > member),
-  // then the oldest membership for stability.
-  const member = members
-    .slice()
-    .sort((a, b) => {
-      const roleDelta =
-        ORG_ROLE_PRIORITY[normalizeOrgRole(b.role)] - ORG_ROLE_PRIORITY[normalizeOrgRole(a.role)];
-      if (roleDelta !== 0) return roleDelta;
-      return a.createdAt.getTime() - b.createdAt.getTime();
-    })[0];
+  const candidates = members
+    .filter((member) => Boolean(member.business))
+    .map((member) => {
+      const fallbackOwnerSubscription = member.business?.ownerId
+        ? fallbackOwnerSubscriptionMap.get(member.business.ownerId) || null
+        : null;
+      const resolvedOrgSubscriptionStatus =
+        member.business?.orgSubscription?.status ??
+        mapSubscriptionStatusToOrgStatus(fallbackOwnerSubscription?.status);
+      const resolvedOrgPlan =
+        member.business?.orgSubscription?.planId ??
+        fallbackOwnerSubscription?.plan ??
+        member.business?.plan ??
+        null;
+
+      return {
+        member,
+        resolvedOrgSubscriptionStatus,
+        resolvedOrgPlan,
+      };
+    });
+
+  if (!candidates.length) return null;
+
+  const sortedCandidates = candidates.slice().sort((left, right) => {
+    const rightHealth = getCandidateHealthScore({
+      accessStatus: right.member.business?.accessStatus,
+      subscriptionStatus: right.resolvedOrgSubscriptionStatus,
+    });
+    const leftHealth = getCandidateHealthScore({
+      accessStatus: left.member.business?.accessStatus,
+      subscriptionStatus: left.resolvedOrgSubscriptionStatus,
+    });
+    if (rightHealth !== leftHealth) return rightHealth - leftHealth;
+
+    const roleDelta =
+      ORG_ROLE_PRIORITY[normalizeOrgRole(right.member.role)] - ORG_ROLE_PRIORITY[normalizeOrgRole(left.member.role)];
+    if (roleDelta !== 0) return roleDelta;
+    return left.member.createdAt.getTime() - right.member.createdAt.getTime();
+  });
+
+  const preferredCandidate =
+    preferredOrgId
+      ? sortedCandidates.find((candidate) => candidate.member.businessId === preferredOrgId) || null
+      : null;
+  const healthiestCandidate = sortedCandidates[0];
+  const selected =
+    preferredCandidate &&
+    getCandidateHealthScore({
+      accessStatus: preferredCandidate.member.business?.accessStatus,
+      subscriptionStatus: preferredCandidate.resolvedOrgSubscriptionStatus,
+    }) >=
+      getCandidateHealthScore({
+        accessStatus: healthiestCandidate.member.business?.accessStatus,
+        subscriptionStatus: healthiestCandidate.resolvedOrgSubscriptionStatus,
+      })
+      ? preferredCandidate
+      : healthiestCandidate;
+
+  const member = selected.member;
+  const resolvedOrgSubscriptionStatus = selected.resolvedOrgSubscriptionStatus;
+  const resolvedOrgPlan = selected.resolvedOrgPlan;
 
   if (!member.business) return null;
 
@@ -147,8 +240,8 @@ export async function resolveOrgContext(userId: string): Promise<OrgContext | nu
     memberId: member.id,
     role: normalizeOrgRole(member.role),
     orgAccessStatus: member.business.accessStatus,
-    orgSubscriptionStatus: member.business.orgSubscription?.status ?? "NONE",
-    orgPlan: member.business.orgSubscription?.planId ?? member.business.plan ?? null,
+    orgSubscriptionStatus: resolvedOrgSubscriptionStatus,
+    orgPlan: resolvedOrgPlan,
     apiAccessEnabled: Boolean(member.business.orgSubscription?.apiAccessEnabled),
   };
 }

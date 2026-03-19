@@ -127,8 +127,8 @@ export function PhoneInput({
   }, [formatted, nationalNumber, value, onChange]);
 
   return (
-    <div ref={containerRef} className="flex flex-col gap-1 text-sm text-foreground">
-      <label className="text-sm text-foreground">
+    <div ref={containerRef} className="flex flex-col gap-1 text-sm text-foreground dark:text-slate-200">
+      <label className="text-sm text-foreground dark:text-slate-200">
         {label}
         {required ? " *" : ""}
       </label>
@@ -156,7 +156,10 @@ export function PhoneInput({
           inputMode="numeric"
           required={required}
           placeholder={locale === "fr" ? "Numero de telephone" : "Phone number"}
-          className={clsx("w-full bg-transparent px-2 py-1 text-sm text-foreground outline-none", inputClassName)}
+          className={clsx(
+            "w-full bg-transparent px-2 py-1 text-sm text-foreground outline-none placeholder:text-muted-foreground dark:text-slate-100 dark:placeholder:text-slate-400",
+            inputClassName
+          )}
         />
       </div>
       {open ? (

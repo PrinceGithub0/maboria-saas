@@ -5,11 +5,19 @@ import { signOut } from "next-auth/react";
 
 export default function LogoutPage() {
   useEffect(() => {
-    signOut({ callbackUrl: "/" }).catch(() => {
-      if (typeof window !== "undefined") {
-        window.location.href = "/";
-      }
-    });
+    const run = async () => {
+      try {
+        await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+      } catch {}
+
+      signOut({ callbackUrl: "/" }).catch(() => {
+        if (typeof window !== "undefined") {
+          window.location.href = "/";
+        }
+      });
+    };
+
+    run();
   }, []);
 
   return (

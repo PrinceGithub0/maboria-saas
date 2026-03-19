@@ -42,26 +42,55 @@ let cachedFlags: { value: SystemFlagSnapshot; expiresAt: number } = {
 async function getFlagSnapshot(req: NextRequest): Promise<SystemFlagSnapshot> {
   if (Date.now() < cachedFlags.expiresAt) return cachedFlags.value;
 
+  const internalOrigin = process.env.INTERNAL_APP_URL?.trim();
+  const requestOrigin = new URL(req.url).origin;
+  const fallbackPort = process.env.PORT || "3000";
+  const candidateOrigins = Array.from(
+    new Set(
+      [
+        internalOrigin || null,
+        process.env.NODE_ENV !== "production" ? `http://127.0.0.1:${fallbackPort}` : null,
+        requestOrigin,
+      ].filter((value): value is string => Boolean(value))
+    )
+  );
+
   try {
-    const url = new URL("/api/system-flags/snapshot", req.url);
     const snapshotToken = process.env.SYSTEM_FLAGS_SNAPSHOT_TOKEN || process.env.NEXTAUTH_SECRET || "";
-    const res = await fetch(url, {
-      method: "GET",
-      headers: { "x-system-flags-internal": snapshotToken },
-      cache: "no-store",
-    });
-    if (!res.ok) throw new Error("flag snapshot failed");
-    const payload = (await res.json()) as { flags?: Partial<SystemFlagSnapshot> };
-    const next: SystemFlagSnapshot = {
-      ...DEFAULT_FLAG_SNAPSHOT,
-      ...(payload.flags || {}),
-    };
-    cachedFlags = {
-      value: next,
-      expiresAt: Date.now() + 15_000,
-    };
-    return next;
+    for (const origin of candidateOrigins) {
+      try {
+        const url = new URL("/api/system-flags/snapshot", origin);
+        const res = await fetch(url, {
+          method: "GET",
+          headers: { "x-system-flags-internal": snapshotToken },
+          cache: "no-store",
+        });
+        if (!res.ok) {
+          throw new Error(`flag snapshot failed (${res.status})`);
+        }
+        const payload = (await res.json()) as { flags?: Partial<SystemFlagSnapshot> };
+        const next: SystemFlagSnapshot = {
+          ...DEFAULT_FLAG_SNAPSHOT,
+          ...(payload.flags || {}),
+        };
+        cachedFlags = {
+          value: next,
+          expiresAt: Date.now() + 15_000,
+        };
+        return next;
+      } catch {
+        continue;
+      }
+    }
+    throw new Error("flag snapshot failed");
   } catch {
+    if (cachedFlags.expiresAt > 0) {
+      cachedFlags = {
+        value: cachedFlags.value,
+        expiresAt: Date.now() + 10_000,
+      };
+      return cachedFlags.value;
+    }
     cachedFlags = {
       value: DEFAULT_FLAG_SNAPSHOT,
       expiresAt: Date.now() + 10_000,

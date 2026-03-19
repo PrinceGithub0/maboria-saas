@@ -2551,17 +2551,17 @@ export default function InvoicesPage() {
         open={customerModalOpen}
         onClose={() => setCustomerModalOpen(false)}
         hideHeader
-        className="max-w-[1120px] rounded-[2rem] border-border/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.94))] p-0 shadow-[0_38px_90px_-42px_rgba(15,23,42,0.48)] max-md:max-w-none"
+        className="max-w-[1120px] rounded-[2rem] border-border/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.94))] p-0 shadow-[0_38px_90px_-42px_rgba(15,23,42,0.48)] dark:border-slate-800 dark:bg-[linear-gradient(180deg,rgba(7,12,24,0.98),rgba(10,16,30,0.96))] dark:shadow-[0_42px_100px_-44px_rgba(0,0,0,0.82)] max-md:max-w-none"
         bodyClassName="max-h-[82vh] pr-0"
       >
-        <div className="border-b border-border/60 bg-[radial-gradient(circle_at_top_left,rgba(79,70,229,0.12),transparent_38%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.9))] px-6 py-5">
+        <div className="border-b border-border/60 bg-[radial-gradient(circle_at_top_left,rgba(79,70,229,0.12),transparent_38%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.9))] px-6 py-5 dark:border-slate-800 dark:bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.22),transparent_34%),linear-gradient(180deg,rgba(8,14,28,0.98),rgba(10,18,32,0.94))]">
           <div className="flex items-start justify-between gap-4">
             <div className="flex min-w-0 items-start gap-4">
               <div className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#5b4df5,#4338ca)] text-white shadow-[0_20px_45px_-24px_rgba(79,70,229,0.9)]">
                 <UserPlus className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-indigo-600/80">
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-indigo-600/80 dark:text-indigo-300/90">
                   {t("Customer profile", "Profil client")}
                 </p>
                 <h3 className="mt-1 text-[1.7rem] font-semibold tracking-tight text-foreground">
@@ -2579,17 +2579,20 @@ export default function InvoicesPage() {
               type="button"
               aria-label={t("Close", "Fermer")}
               onClick={() => setCustomerModalOpen(false)}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-border/70 bg-white/85 text-muted-foreground shadow-[0_18px_36px_-30px_rgba(15,23,42,0.55)] transition hover:border-slate-300 hover:text-foreground"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-border/70 bg-white/85 text-muted-foreground shadow-[0_18px_36px_-30px_rgba(15,23,42,0.55)] transition hover:border-slate-300 hover:text-foreground dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-300 dark:shadow-[0_18px_36px_-30px_rgba(0,0,0,0.8)] dark:hover:border-slate-500 dark:hover:text-slate-100"
             >
               <X className="h-5 w-5" />
             </button>
           </div>
         </div>
 
-        <form className="grid grid-cols-1 gap-x-5 gap-y-5 px-6 py-5 lg:grid-cols-2" onSubmit={createCustomerInline}>
+        <form
+          className="grid grid-cols-1 gap-x-5 gap-y-5 px-6 py-5 text-foreground dark:[color-scheme:dark] dark:text-slate-100 lg:grid-cols-2"
+          onSubmit={createCustomerInline}
+        >
           <div>
             <Input
-              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 text-[15px] leading-tight shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)]"
+              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 text-[15px] leading-tight shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
               label={t("Name", "Nom")}
               value={newCustomerForm.name}
               onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, name: event.target.value }))}
@@ -2603,7 +2606,7 @@ export default function InvoicesPage() {
           </div>
           <div>
             <Input
-              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 text-[15px] leading-tight shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)]"
+              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 text-[15px] leading-tight shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
               label={t("Email", "Email")}
               type="email"
               value={newCustomerForm.email}
@@ -2624,10 +2627,10 @@ export default function InvoicesPage() {
                 newCustomerForm.deliveryPreference === "WHATSAPP" ||
                 newCustomerForm.deliveryPreference === "BOTH"
               }
-              fieldClassName="h-12 rounded-2xl border-border/80 bg-white/85 px-3 shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)]"
+              fieldClassName="h-12 rounded-2xl border-border/80 bg-white/85 px-3 shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
             />
           </div>
-          <label className="flex flex-col gap-1 text-sm text-foreground">
+          <label className="flex flex-col gap-1 text-sm text-foreground dark:text-slate-200">
             <span className="font-medium">{t("Delivery method", "Mode de livraison")} *</span>
             <select
               value={newCustomerForm.deliveryPreference}
@@ -2635,7 +2638,7 @@ export default function InvoicesPage() {
                 setNewCustomerForm((prev) => ({ ...prev, deliveryPreference: event.target.value }))
               }
               required
-              className="h-12 rounded-2xl border border-border/80 bg-white/85 px-4 text-foreground shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] focus:border-indigo-400 focus:outline-none"
+              className="h-12 rounded-2xl border border-border/80 bg-white/85 px-4 text-foreground shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] focus:border-indigo-400 focus:outline-none dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
             >
               <option value="">{t("Choose a method", "Choisir un mode")}</option>
               <option value="EMAIL">Email</option>
@@ -2645,7 +2648,7 @@ export default function InvoicesPage() {
           </label>
           <div>
             <Input
-              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 text-[15px] leading-tight shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)]"
+              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 text-[15px] leading-tight shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
               label={t("Address", "Adresse")}
               value={newCustomerForm.addressLine1}
               onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, addressLine1: event.target.value }))}
@@ -2656,7 +2659,7 @@ export default function InvoicesPage() {
           </div>
           <div>
             <Input
-              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)]"
+              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
               label={t("Tax ID (optional)", "Numero fiscal (optionnel)")}
               value={newCustomerForm.taxId}
               onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, taxId: event.target.value }))}
@@ -2665,7 +2668,7 @@ export default function InvoicesPage() {
           </div>
           <div>
             <Input
-              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 text-[15px] leading-tight shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)]"
+              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 text-[15px] leading-tight shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
               label={t("City", "Ville")}
               value={newCustomerForm.city}
               onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, city: event.target.value }))}
@@ -2675,7 +2678,7 @@ export default function InvoicesPage() {
           </div>
           <div>
             <Input
-              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 text-[15px] leading-tight shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)]"
+              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 text-[15px] leading-tight shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
               label={t("State", "Etat")}
               value={newCustomerForm.state}
               onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, state: event.target.value }))}
@@ -2685,7 +2688,7 @@ export default function InvoicesPage() {
           </div>
           <div>
             <Input
-              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)]"
+              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
               label={t("Postal code", "Code postal")}
               value={newCustomerForm.postalCode}
               onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, postalCode: event.target.value }))}
@@ -2699,12 +2702,12 @@ export default function InvoicesPage() {
               locale={language === "fr" ? "fr" : "en"}
               onChange={(value) => setNewCustomerForm((prev) => ({ ...prev, country: value }))}
               required
-              triggerClassName="h-12 rounded-2xl border-border/80 bg-white/85 px-4 shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)]"
+              triggerClassName="h-12 rounded-2xl border-border/80 bg-white/85 px-4 shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
             />
           </div>
-          <div className="flex flex-col gap-4 border-t border-border/60 pt-5 lg:col-span-2 lg:flex-row lg:items-center lg:justify-between">
-            <p className="text-sm text-muted-foreground">
-              <span className="font-semibold text-foreground">{t("Required fields", "Champs requis")}</span>
+          <div className="flex flex-col gap-4 border-t border-border/60 pt-5 dark:border-slate-800 lg:col-span-2 lg:flex-row lg:items-center lg:justify-between">
+            <p className="text-sm text-muted-foreground dark:text-slate-400">
+              <span className="font-semibold text-foreground dark:text-slate-100">{t("Required fields", "Champs requis")}</span>
               <span className="ml-2">
                 {t("must be completed before saving.", "doivent etre remplis avant l enregistrement.")}
               </span>
@@ -2713,7 +2716,7 @@ export default function InvoicesPage() {
               <Button
                 type="button"
                 variant="secondary"
-                className="h-12 min-w-[136px] rounded-2xl border-slate-300 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(241,245,249,0.92))] px-6 text-[15px] font-semibold text-slate-700 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.45)] hover:border-slate-400 hover:bg-[linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,0.96))] hover:text-slate-900"
+                className="h-12 min-w-[136px] rounded-2xl border-slate-300 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(241,245,249,0.92))] px-6 text-[15px] font-semibold text-slate-700 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.45)] hover:border-slate-400 hover:bg-[linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,0.96))] hover:text-slate-900 dark:border-slate-700 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.98),rgba(15,23,42,0.9))] dark:text-slate-200 dark:shadow-[0_18px_40px_-30px_rgba(0,0,0,0.82)] dark:hover:border-slate-500 dark:hover:bg-[linear-gradient(180deg,rgba(17,24,39,1),rgba(15,23,42,0.94))] dark:hover:text-slate-100"
                 onClick={() => setCustomerModalOpen(false)}
               >
                 {t("Cancel", "Annuler")}

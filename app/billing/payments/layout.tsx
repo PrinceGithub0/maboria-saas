@@ -7,6 +7,7 @@ import { resolveImpersonationFromRequestContext } from "@/lib/admin/impersonatio
 import { evaluateWorkspaceGate, isPlatformRole, shouldRunWorkspaceChecks } from "@/lib/global-role";
 import { resolveOrgContext } from "@/lib/org-auth";
 import { getActorSystemFlagRole } from "@/lib/system-flags";
+import { prisma } from "@/lib/prisma";
 
 export default async function BillingPaymentsLayout({
   children,
@@ -50,9 +51,24 @@ export default async function BillingPaymentsLayout({
 
   if (shouldRunWorkspaceChecks(globalRole)) {
     const context = await resolveOrgContext(session.user.id);
+    if (!context) {
+      const subscription = await prisma.subscription.findFirst({
+        where: { userId: session.user.id },
+        orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+        select: { status: true },
+      });
+
+      if (subscription?.status === "ACTIVE") {
+        redirect("/dashboard/onboarding");
+      }
+      if (subscription) {
+        redirect("/checkout");
+      }
+      redirect("/start-workspace");
+    }
     const outcome = evaluateWorkspaceGate({
       globalRole,
-      hasTenantContext: Boolean(context),
+      hasTenantContext: true,
       orgAccessStatus: context?.orgAccessStatus,
       subscriptionStatus: context?.orgSubscriptionStatus,
     });

@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getSeatLimitForPlan, hashInviteToken, safeTokenCompare } from "@/lib/org-auth";
+import { ACTIVE_ORG_COOKIE_NAME, getSeatLimitForPlan, hashInviteToken, safeTokenCompare } from "@/lib/org-auth";
 
 function jsonError(status: number, error: string, extras?: Record<string, unknown>) {
   return NextResponse.json({ error, ...(extras || {}) }, { status });
@@ -29,12 +29,7 @@ export async function POST(request: Request) {
   const inviteTokenHash = hashInviteToken(inviteToken);
   const invite = await prisma.businessInvite.findFirst({
     where: {
-      email: normalizedEmail,
-      status: "PENDING",
-      AND: [
-        { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
-        { OR: [{ tokenHash: inviteTokenHash }, { token: inviteTokenHash }, { token: inviteToken }] },
-      ],
+      OR: [{ tokenHash: inviteTokenHash }, { token: inviteTokenHash }, { token: inviteToken }],
     },
     orderBy: { createdAt: "desc" },
   });
@@ -50,7 +45,45 @@ export async function POST(request: Request) {
     return jsonError(400, "Invitation token is invalid.");
   }
 
+  if (invite.email.trim().toLowerCase() !== normalizedEmail) {
+    return jsonError(409, "This invitation belongs to a different email address. Sign in with the invited account.");
+  }
+
+  if (invite.status === "ACCEPTED") {
+    const existingMember = await prisma.businessMember.findUnique({
+      where: {
+        businessId_userId: {
+          businessId: invite.businessId,
+          userId: session.user.id,
+        },
+      },
+    });
+
+    if (existingMember?.status === "active") {
+      const response = NextResponse.json({ accepted: true, alreadyJoined: true, redirectTo: "/dashboard" });
+      response.cookies.set(ACTIVE_ORG_COOKIE_NAME, invite.businessId, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 30,
+      });
+      return response;
+    }
+
+    return jsonError(409, "This invitation has already been used.");
+  }
+
+  if (invite.status !== "PENDING") {
+    return jsonError(404, "Invitation not found or expired.");
+  }
+
+  if (invite.expiresAt && invite.expiresAt <= now) {
+    return jsonError(404, "Invitation not found or expired.");
+  }
+
   try {
+    let acceptedBusinessId: string | null = null;
     await prisma.$transaction(
       async (tx) => {
         const currentInvite = await tx.businessInvite.findUnique({
@@ -76,6 +109,7 @@ export async function POST(request: Request) {
         if (!business) {
           throw new Error("INVITE_NOT_FOUND");
         }
+        acceptedBusinessId = business.id;
 
         const existingMember = await tx.businessMember.findUnique({
           where: {
@@ -161,8 +195,17 @@ export async function POST(request: Request) {
       },
       { isolationLevel: "Serializable" }
     );
-
-    return NextResponse.json({ accepted: true, redirectTo: "/dashboard" });
+    const response = NextResponse.json({ accepted: true, redirectTo: "/dashboard" });
+    if (acceptedBusinessId) {
+      response.cookies.set(ACTIVE_ORG_COOKIE_NAME, acceptedBusinessId, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 30,
+      });
+    }
+    return response;
   } catch (error: any) {
     if (error?.message === "TEAM_SEAT_LIMIT_REACHED") {
       return jsonError(

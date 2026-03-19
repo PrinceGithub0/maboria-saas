@@ -207,14 +207,14 @@ export default function CustomersPage() {
   };
 
   const statusStyles: Record<CustomerRow["status"], string> = {
-    ACTIVE: "border-emerald-300 bg-emerald-100 text-emerald-800",
-    ATTENTION: "border-amber-300 bg-amber-100 text-amber-800",
-    NEW: "border-slate-200 bg-slate-100 text-slate-700",
-    DISABLED: "border-rose-200 bg-rose-50 text-rose-700",
+    ACTIVE: "border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-200",
+    ATTENTION: "border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-200",
+    NEW: "border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200",
+    DISABLED: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/15 dark:text-rose-200",
   };
 
   return (
-    <div className="bg-[#F9FAFB] py-12">
+    <div className="bg-[#F9FAFB] py-12 dark:bg-[#0B1020]">
       <div className="mx-auto w-full max-w-[1100px] space-y-8">
         <header className="mt-12 flex flex-wrap items-end justify-between gap-6">
           <div className="space-y-2">
@@ -228,7 +228,7 @@ export default function CustomersPage() {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder={t("Search customers", "Rechercher des clients")}
-                className="h-11 w-full rounded-xl border border-slate-300 bg-white pl-9 pr-3 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-indigo-400 focus:outline-none"
+                className="h-11 w-full rounded-xl border border-slate-300 bg-white pl-9 pr-3 text-[15px] text-foreground placeholder:text-muted-foreground focus:border-indigo-400 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-400"
               />
             </div>
             <Button className="h-11 rounded-xl bg-blue-600 px-5 text-white shadow-sm hover:bg-blue-500" onClick={() => setModalOpen(true)}>
@@ -252,11 +252,11 @@ export default function CustomersPage() {
           </Alert>
         ) : null}
 
-        <Card className="rounded-2xl border border-slate-200 bg-white p-8 shadow-[0_10px_30px_rgba(15,23,42,0.06)]">
+        <Card className="rounded-2xl border border-slate-200 bg-white p-8 shadow-[0_10px_30px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-950 dark:shadow-[0_18px_40px_rgba(2,6,23,0.45)]">
           <div className="space-y-1">
             {isLoading ? (
               [...Array(4)].map((_, index) => (
-                <div key={index} className="h-[88px] animate-pulse rounded-xl bg-slate-50" />
+                <div key={index} className="h-[88px] animate-pulse rounded-xl bg-slate-50 dark:bg-slate-900" />
               ))
             ) : customers.length === 0 ? (
               <div className="px-6 py-16 text-center">
@@ -275,10 +275,10 @@ export default function CustomersPage() {
                   <Link
                     key={customer.id}
                     href={`/dashboard/customers/${customer.id}`}
-                    className="group grid min-h-[88px] gap-4 rounded-xl px-4 py-5 transition-colors hover:bg-[#F9FAFB] md:grid-cols-[minmax(0,2.2fr)_minmax(0,2.4fr)_minmax(160px,0.9fr)]"
+                    className="group grid min-h-[88px] gap-4 rounded-xl px-4 py-5 transition-colors hover:bg-[#F9FAFB] dark:hover:bg-slate-900 md:grid-cols-[minmax(0,2.2fr)_minmax(0,2.4fr)_minmax(160px,0.9fr)]"
                   >
                     <div className="flex min-w-0 items-center gap-3">
-                      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500">
+                      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                         <User className="h-4 w-4" />
                       </span>
                       <div className="min-w-0">
@@ -293,19 +293,19 @@ export default function CustomersPage() {
 
                     <div className="flex min-w-0 flex-wrap items-start justify-center gap-6 lg:gap-8">
                       <div className="space-y-0.5 text-center">
-                        <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">{t("Invoiced", "Facture")}</p>
-                        <p className="text-[15px] font-semibold text-slate-900">{formatCurrency(customer.metrics.invoiced, displayCurrency)}</p>
-                        <p className="text-[11px] text-slate-400">{displayCurrency}</p>
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{t("Invoiced", "Facture")}</p>
+                        <p className="text-[15px] font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(customer.metrics.invoiced, displayCurrency)}</p>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500">{displayCurrency}</p>
                       </div>
                       <div className="space-y-0.5 text-center">
-                        <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">{t("Paid", "Paye")}</p>
-                        <p className="text-[15px] font-semibold text-slate-900">{formatCurrency(customer.metrics.paid, displayCurrency)}</p>
-                        <p className="text-[11px] text-slate-400">{displayCurrency}</p>
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{t("Paid", "Paye")}</p>
+                        <p className="text-[15px] font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(customer.metrics.paid, displayCurrency)}</p>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500">{displayCurrency}</p>
                       </div>
                       <div className="space-y-0.5 text-center">
-                        <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">{t("Outstanding", "En attente")}</p>
-                        <p className="text-[15px] font-semibold text-slate-900">{formatCurrency(customer.metrics.outstanding, displayCurrency)}</p>
-                        <p className="text-[11px] text-slate-400">{displayCurrency}</p>
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{t("Outstanding", "En attente")}</p>
+                        <p className="text-[15px] font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(customer.metrics.outstanding, displayCurrency)}</p>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500">{displayCurrency}</p>
                       </div>
                     </div>
 
@@ -321,7 +321,7 @@ export default function CustomersPage() {
                           ? t("Active", "Actif")
                           : t("New", "Nouveau")}
                       </span>
-                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors group-hover:text-slate-700">
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors group-hover:text-slate-700 dark:text-slate-500 dark:group-hover:text-slate-200">
                         <ChevronRight className="h-4 w-4" />
                       </span>
                     </div>
@@ -331,13 +331,13 @@ export default function CustomersPage() {
             )}
           </div>
 
-          <div className="mt-6 border-t border-slate-100 pt-5">
+          <div className="mt-6 border-t border-slate-100 pt-5 dark:border-slate-800">
             <div className="flex items-center justify-center gap-2">
               <button
                 type="button"
                 onClick={() => setPage((prev) => Math.max(0, prev - 1))}
                 disabled={page === 0 || isValidating}
-                className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
               >
                 {t("Previous", "Precedent")}
               </button>
@@ -350,8 +350,8 @@ export default function CustomersPage() {
                     onClick={() => setPage(pageNumber - 1)}
                     className={`h-9 min-w-9 rounded-lg border px-3 text-sm transition ${
                       active
-                        ? "border-indigo-500 bg-indigo-50 text-indigo-700"
-                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        ? "border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-200"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
                     }`}
                   >
                     {pageNumber}
@@ -362,25 +362,25 @@ export default function CustomersPage() {
                 type="button"
                 onClick={() => setPage((prev) => prev + 1)}
                 disabled={!hasMore || isValidating}
-                className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
               >
                 {t("Next", "Suivant")}
               </button>
             </div>
-            <p className="mt-3 text-center text-xs text-slate-500">{pageLabel}</p>
+            <p className="mt-3 text-center text-xs text-slate-500 dark:text-slate-400">{pageLabel}</p>
           </div>
         </Card>
       </div>
 
       {modalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-4xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+          <div className="w-full max-w-4xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950">
             <div className="mb-5 flex items-center justify-between">
               <h2 className="text-xl font-semibold text-foreground">{t("New Customer", "Nouveau client")}</h2>
               <button
                 type="button"
                 onClick={() => setModalOpen(false)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-slate-100 hover:text-foreground"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-slate-100 hover:text-foreground dark:hover:bg-slate-900"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -388,7 +388,7 @@ export default function CustomersPage() {
             <form onSubmit={submitNewCustomer} className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2">
                 <section className="space-y-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{t("Basic info", "Infos de base")}</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{t("Basic info", "Infos de base")}</p>
                   <Input
                     label={t("Name", "Nom")}
                     value={form.name}
@@ -410,7 +410,7 @@ export default function CustomersPage() {
                   />
                 </section>
                 <section className="space-y-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{t("Contact info", "Coordonnees")}</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{t("Contact info", "Coordonnees")}</p>
                   <Input
                     label={t("Address line 1", "Adresse ligne 1")}
                     value={form.addressLine1}
@@ -464,7 +464,7 @@ export default function CustomersPage() {
                   </label>
                 </section>
               </div>
-              <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4">
+              <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
                 <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>
                   {t("Cancel", "Annuler")}
                 </Button>
