@@ -1,0 +1,116 @@
+:root {
+  --sidebar-bg: #f6f7fb;
+  --text: #111827;
+  --muted: #6b7280;
+  --icon: #6b7280;
+  --border: rgba(17, 24, 39, 0.08);
+  --hover-bg: rgba(17, 24, 39, 0.04);
+  --active-bg: rgba(59, 130, 246, 0.1);
+  --accent: #3b82f6;
+}
+
+.maboria-sidebar {
+  width: 280px;
+  min-height: 100vh;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  padding: 20px 16px;
+  color: var(--text);
+}
+
+.maboria-brand {
+  margin-bottom: 18px;
+  padding: 8px 8px 4px;
+}
+
+.maboria-brand-kicker {
+  margin: 0 0 2px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.maboria-brand h2 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.25;
+  font-weight: 650;
+}
+
+.maboria-nav {
+  display: grid;
+  gap: 14px;
+}
+
+.maboria-section h3 {
+  margin: 0 0 8px;
+  padding: 0 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.maboria-section ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+}
+
+.maboria-row {
+  width: 100%;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 999px;
+  padding: 0 10px;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+  text-align: left;
+}
+
+.maboria-row:hover {
+  background: var(--hover-bg);
+}
+
+.maboria-icon-wrap {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--icon);
+  transition: color 160ms ease;
+}
+
+.maboria-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.maboria-label {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.maboria-row.is-active {
+  background: var(--active-bg);
+}
+
+.maboria-row.is-active .maboria-icon-wrap,
+.maboria-row.is-active .maboria-label {
+  color: var(--accent);
+}

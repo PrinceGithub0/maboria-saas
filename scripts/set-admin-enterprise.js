@@ -11,7 +11,7 @@ const email = "collinserons126@gmail.com".toLowerCase();
     return;
   }
 
-  await p.user.update({ where: { email }, data: { role: "ADMIN" } });
+  await p.user.update({ where: { email }, data: { role: "OPS_ADMIN" } });
 
   let sub = await p.subscription.findFirst({
     where: { userId: user.id },
@@ -55,7 +55,7 @@ const email = "collinserons126@gmail.com".toLowerCase();
     console.log("UPDATED_SUB");
   }
 
-  console.log("ADMIN_ENTERPRISE_READY");
+  console.log("OPS_ADMIN_ENTERPRISE_READY");
   await p.$disconnect();
 })().catch((e) => {
   console.error(e);

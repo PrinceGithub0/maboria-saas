@@ -1,0 +1,3 @@
+ALTER TABLE "BusinessProfile"
+ADD COLUMN IF NOT EXISTS "logoData" BYTEA,
+ADD COLUMN IF NOT EXISTS "logoMimeType" TEXT;

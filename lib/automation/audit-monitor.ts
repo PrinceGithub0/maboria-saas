@@ -74,7 +74,7 @@ export async function emitAutomationAuditIntegrityAlerts(snapshot: AuditIntegrit
   }
 
   const admins = await prisma.user.findMany({
-    where: { role: "ADMIN" },
+    where: { role: { in: ["OPS_ADMIN"] } },
     select: { id: true },
   });
   if (!admins.length) {

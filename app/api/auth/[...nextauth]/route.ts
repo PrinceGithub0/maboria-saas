@@ -8,7 +8,11 @@ async function handler(req: Request, ctx: any) {
   try {
     const { authOptions } = await import("@/lib/auth");
     const baseHandler = NextAuth(authOptions);
-    return await baseHandler(req, ctx);
+    const normalizedCtx =
+      ctx && ctx.params && typeof ctx.params?.then === "function"
+        ? { ...ctx, params: await ctx.params }
+        : ctx;
+    return await baseHandler(req, normalizedCtx);
   } catch (error: any) {
     console.error("NEXTAUTH_INIT_ERROR", error);
     return NextResponse.json(

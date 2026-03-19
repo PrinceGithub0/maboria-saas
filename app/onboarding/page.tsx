@@ -4,25 +4,33 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
+import { TransientAlert } from "@/components/ui/transient-alert";
 import { useLanguage } from "@/components/providers/language-provider";
 
 export default function OnboardingPage() {
   const { language } = useLanguage();
   const t = (en: string, fr: string) => (language === "fr" ? fr : en);
   const [form, setForm] = useState({ name: "", domain: "" });
-  const [status, setStatus] = useState<string | null>(null);
+  const [status, setStatus] = useState<{ message: string; variant: "success" | "error" } | null>(null);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const res = await fetch("/api/business", { method: "POST", body: JSON.stringify(form) });
     const data = await res.json();
-    setStatus(
-      data.error ||
-        t(
-          "Business created. Redirecting to dashboard...",
-          "Entreprise creee. Redirection vers le tableau..."
-        )
-    );
+    if (!res.ok || data.error) {
+      setStatus({
+        message: data.error || t("Could not create business.", "Creation impossible."),
+        variant: "error",
+      });
+      return;
+    }
+    setStatus({
+      message: t(
+        "Business created. Redirecting to dashboard...",
+        "Entreprise creee. Redirection vers le tableau..."
+      ),
+      variant: "success",
+    });
     if (res.ok) {
       setTimeout(() => (window.location.href = "/dashboard"), 800);
     }
@@ -43,7 +51,15 @@ export default function OnboardingPage() {
             "Configurez votre espace pour demarrer les automatisations et la facturation."
           )}
         </p>
-        {status && <Alert variant="info">{status}</Alert>}
+        {status ? (
+          status.variant === "success" ? (
+            <TransientAlert variant="success" onDismiss={() => setStatus(null)}>
+              {status.message}
+            </TransientAlert>
+          ) : (
+            <Alert variant="error">{status.message}</Alert>
+          )
+        ) : null}
         <form className="mt-4 space-y-4" onSubmit={submit}>
           <Input
             label={t("Business name", "Nom de l'entreprise")}

@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { log } from "@/lib/logger";
+import { emitSystemEvent } from "@/lib/system-events";
 
 type WebhookEventResult = {
   id: string;
@@ -29,6 +30,19 @@ export async function beginWebhookEvent(params: {
     await prisma.webhookEvent.update({
       where: { id: existing.id },
       data: { payloadHash: params.payloadHash, status: "RECEIVED" },
+    });
+    await emitSystemEvent({
+      eventType: "webhook_retried",
+      severity: "WARNING",
+      source: "SYSTEM",
+      entityType: "webhook",
+      entityId: params.eventId,
+      requestId: params.eventId,
+      message: `Webhook retried for ${params.provider}.`,
+      metadata: {
+        provider: params.provider,
+        eventId: params.eventId,
+      },
     });
     return { id: existing.id, duplicate: false };
   }
@@ -72,6 +86,20 @@ export async function markWebhookFailed(eventId: string, error: string) {
       resourceType: "webhook",
       resourceId: updated.eventId,
       metadata: { provider: updated.provider, error },
+    },
+  });
+  await emitSystemEvent({
+    eventType: "webhook_failed",
+    severity: "WARNING",
+    source: "SYSTEM",
+    entityType: "webhook",
+    entityId: updated.eventId,
+    requestId: updated.eventId,
+    message: `Webhook failed for ${updated.provider}.`,
+    metadata: {
+      provider: updated.provider,
+      eventId: updated.eventId,
+      error,
     },
   });
 }

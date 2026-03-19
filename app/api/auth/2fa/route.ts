@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { sendEmail } from "@/lib/email";
+import { sendPlatformMail } from "@/lib/email";
 
 export async function POST() {
   const session = await getServerSession(authOptions);
@@ -13,7 +13,7 @@ export async function POST() {
   await prisma.twoFactorToken.create({
     data: { userId: session.user.id, code, expiresAt },
   });
-  await sendEmail({
+  await sendPlatformMail({
     to: session.user.email!,
     subject: "Your Maboria 2FA code",
     html: `<p>Your code: <strong>${code}</strong>. It expires in 10 minutes.</p>`,

@@ -133,7 +133,7 @@ export function MarketingCta({ variant }: { variant: Variant }) {
         </div>
         <p className="text-sm text-muted-foreground max-md:text-xs">
           {t(
-            "Your subscription is cancelled or inactive. Choose a plan to continue.",
+            "Your subscription is canceled or inactive. Choose a plan to continue.",
             "Votre abonnement est annule ou inactif. Choisissez une offre."
           )}
         </p>

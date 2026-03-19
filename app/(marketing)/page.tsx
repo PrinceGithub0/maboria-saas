@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { CheckCircle2, Menu } from "lucide-react";
+import { CheckCircle2, CreditCard, Info, Linkedin, Mail, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { pricingTableDualCurrency } from "@/lib/pricing";
 import { PricingSection } from "@/components/pricing/pricing-section";
@@ -44,13 +44,13 @@ const featureGroups = [
     ],
   },
   {
-    title: { en: "WhatsApp + Email Messaging", fr: "WhatsApp + Email" },
+    title: { en: "Unified Inbox", fr: "Boite de reception unifiee" },
     items: [
-      { en: "Send WhatsApp messages directly from the app", fr: "Envoyer des messages WhatsApp depuis l app" },
-      { en: "Trigger messages based on payment status", fr: "Messages selon statut de paiement" },
+      { en: "Manage email and WhatsApp conversations in one inbox", fr: "Gerer les conversations email et WhatsApp dans une seule boite" },
+      { en: "Send email and WhatsApp messages directly from the app", fr: "Envoyer des messages email et WhatsApp depuis l app" },
       {
-        en: "WhatsApp is built in. Email runs through automation workflows.",
-        fr: "WhatsApp est integre. Les emails passent par des workflows d automatisation.",
+        en: "Trigger inbox follow-ups based on payment status and workflow events.",
+        fr: "Declencher des relances de boite de reception selon le statut de paiement et les evenements du workflow.",
       },
       { en: "No switching tools", fr: "Pas de changement d outil" },
     ],
@@ -194,33 +194,33 @@ export default function LandingPage() {
           <div className="relative">
             <div className="absolute -right-10 -top-10 hidden h-28 w-28 rounded-full bg-indigo-500/20 blur-3xl lg:block" />
             <div
-              className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-slate-50 p-6 text-slate-900 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.25)]"
+              className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-slate-50 p-6 text-slate-900 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.25)] dark:border-slate-700 dark:bg-slate-900/88 dark:text-slate-100 dark:shadow-[0_24px_48px_-28px_rgba(2,6,23,0.55)]"
             >
-              <div className="flex items-center justify-between text-xs text-slate-900">
+              <div className="flex items-center justify-between text-xs text-slate-900 dark:text-slate-100">
                 <span>
                   <LangText en="Collections overview" fr="Apercu recouvrement" />
                 </span>
-                <span className="rounded-full bg-emerald-200 px-2 py-0.5 text-[10px] font-semibold text-emerald-900 ring-1 ring-emerald-300">
+                <span className="rounded-full bg-emerald-200 px-2 py-0.5 text-[10px] font-semibold text-emerald-900 ring-1 ring-emerald-300 dark:bg-emerald-400/12 dark:text-emerald-300 dark:ring-emerald-400/30">
                   <LangText en="Live" fr="Actif" />
                 </span>
               </div>
               <div className="mt-6 grid gap-4">
                 <div className="grid gap-2">
-                  <div className="h-2 w-32 rounded-full border border-slate-200 bg-slate-400/70 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)]" />
-                  <div className="h-2 w-48 rounded-full border border-slate-200 bg-slate-400/70 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)]" />
+                  <div className="h-2 w-32 rounded-full border border-slate-200 bg-slate-400/70 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-700" />
+                  <div className="h-2 w-48 rounded-full border border-slate-200 bg-slate-400/70 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-700" />
                 </div>
                 <div className="grid gap-3">
-                  <div className="flex items-center justify-between text-xs font-semibold text-slate-900">
+                  <div className="flex items-center justify-between text-xs font-semibold text-slate-900 dark:text-slate-100">
                     <span>
                       <LangText en="Payment detected" fr="Paiement detecte" />
                     </span>
                     <span className="font-semibold">$12,480</span>
                   </div>
-                  <div className="h-3 w-full rounded-full bg-slate-300/80">
-                    <div className="h-3 w-4/5 rounded-full bg-indigo-600" />
+                  <div className="h-3 w-full rounded-full bg-slate-300/80 dark:bg-slate-800">
+                    <div className="h-3 w-4/5 rounded-full bg-indigo-600 dark:bg-indigo-500" />
                   </div>
                 </div>
-                <div className="grid gap-2 text-xs text-slate-900">
+                <div className="grid gap-2 text-xs text-slate-900 dark:text-slate-100">
                   <div className="flex items-center justify-between">
                     <span>
                       <LangText en="Receipt issued" fr="Recu emis" />
@@ -412,28 +412,87 @@ export default function LandingPage() {
       </main>
 
       <footer className="border-t border-border bg-background/80 px-4 py-8 backdrop-blur md:px-6">
-        <div className="mx-auto flex max-w-[420px] flex-col gap-3 text-sm text-slate-900 dark:text-slate-300 sm:max-w-6xl sm:flex-row sm:items-center sm:justify-between max-md:mx-0 max-md:w-full max-md:max-w-none">
-          <div className="flex gap-3">
-            <Link href="/faq" className="hover:text-foreground">
-              <LangText en="FAQ" fr="FAQ" />
-            </Link>
-            <Link href="/terms" className="hover:text-foreground">
-              <LangText en="Terms" fr="Conditions" />
-            </Link>
-            <Link href="/privacy" className="hover:text-foreground">
-              <LangText en="Privacy" fr="Confidentialite" />
-            </Link>
-            <Link href="/support" className="hover:text-foreground">
-              <LangText en="Support" fr="Support" />
-            </Link>
+        <div className="mx-auto w-full max-w-6xl">
+          <div className="grid grid-cols-1 gap-8 text-sm text-slate-600 max-md:max-w-none md:grid-cols-2 lg:grid-cols-4 dark:text-slate-300">
+            <section className="space-y-3">
+              <h3 className="text-sm font-semibold text-foreground">Maboria Automation Cloud</h3>
+              <p className="text-sm leading-relaxed text-slate-500 dark:text-slate-400">
+                Build predictable revenue — without manual work.
+              </p>
+            </section>
+
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                <LangText en="Product" fr="Produit" />
+              </h3>
+              <nav className="flex flex-col gap-2">
+                <Link href="/features" className="transition-colors duration-150 hover:text-indigo-600 dark:hover:text-indigo-300">
+                  <LangText en="Features" fr="Fonctionnalites" />
+                </Link>
+                <Link href="/pricing" className="transition-colors duration-150 hover:text-indigo-600 dark:hover:text-indigo-300">
+                  <LangText en="Pricing" fr="Tarifs" />
+                </Link>
+                <Link href="/faq" className="transition-colors duration-150 hover:text-indigo-600 dark:hover:text-indigo-300">
+                  <LangText en="FAQ" fr="FAQ" />
+                </Link>
+              </nav>
+            </section>
+
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                <LangText en="Company" fr="Entreprise" />
+              </h3>
+              <nav className="flex flex-col gap-2">
+                <Link href="/terms" className="transition-colors duration-150 hover:text-indigo-600 dark:hover:text-indigo-300">
+                  <LangText en="Terms" fr="Conditions" />
+                </Link>
+                <Link href="/privacy" className="transition-colors duration-150 hover:text-indigo-600 dark:hover:text-indigo-300">
+                  <LangText en="Privacy" fr="Confidentialite" />
+                </Link>
+              </nav>
+            </section>
+
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                <LangText en="Contact" fr="Contact" />
+              </h3>
+              <div className="flex flex-col gap-2">
+                <a
+                  href="mailto:support@mail.maboria.com"
+                  className="flex items-center gap-2 hover:text-blue-600 transition-colors"
+                >
+                  <Mail size={18} />
+                  support@mail.maboria.com
+                </a>
+                <a
+                  href="mailto:billing@maboria.com"
+                  className="flex items-center gap-2 hover:text-blue-600 transition-colors"
+                >
+                  <CreditCard size={18} />
+                  billing@maboria.com
+                </a>
+                <a
+                  href="mailto:info@maboria.com"
+                  className="flex items-center gap-2 hover:text-blue-600 transition-colors"
+                >
+                  <Info size={18} />
+                  info@maboria.com
+                </a>
+                <a
+                  href="https://www.linkedin.com/in/maboria-inc-2157a13b2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 hover:text-blue-600 transition-colors"
+                >
+                  <Linkedin size={18} />
+                  LinkedIn
+                </a>
+              </div>
+            </section>
           </div>
-          <div className="flex flex-col items-start gap-1 sm:items-end">
-            <a href="mailto:info@maboria.com" className="hover:text-foreground">
-              info@maboria.com
-            </a>
-            <p>
-              {"\u00A9"} {new Date().getFullYear()} Maboria Inc.
-            </p>
+
+          <div className="mt-8 border-t border-border/70 pt-4 text-center text-xs text-slate-500 dark:text-slate-400">
+            {"\u00A9"} {new Date().getFullYear()} Maboria Inc. All rights reserved.
           </div>
         </div>
       </footer>

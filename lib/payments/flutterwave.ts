@@ -7,6 +7,7 @@ import { notifyPaymentSucceeded } from "../whatsapp";
 import { maybeSendSubscriptionReceipt } from "../subscription-receipt";
 import { recordInvoicePayment } from "../invoice-payments";
 import type { BillingInterval } from "../pricing";
+import { finalizeSubscriptionPayment } from "./subscription";
 
 const FLUTTERWAVE_BASE = "https://api.flutterwave.com/v3";
 
@@ -106,6 +107,40 @@ export async function verifyFlutterwaveTransactionByReference(txRef: string) {
   return res.json();
 }
 
+export async function createFlutterwaveRefund({
+  transactionId,
+  amount,
+  comments,
+}: {
+  transactionId: string | number;
+  amount?: number | null;
+  comments?: string | null;
+}) {
+  const body: Record<string, unknown> = {};
+  if (typeof amount === "number" && Number.isFinite(amount) && amount > 0) {
+    body.amount = amount;
+  }
+  if (comments) {
+    body.comments = comments;
+  }
+
+  const res = await fetch(`${FLUTTERWAVE_BASE}/transactions/${encodeURIComponent(String(transactionId))}/refund`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.flutterwaveSecret}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Flutterwave refund failed: ${err}`);
+  }
+
+  return res.json();
+}
+
 export async function listFlutterwaveBanks(country: string) {
   const res = await fetch(`${FLUTTERWAVE_BASE}/banks/${encodeURIComponent(country)}`, {
     headers: { Authorization: `Bearer ${env.flutterwaveSecret}` },
@@ -113,6 +148,17 @@ export async function listFlutterwaveBanks(country: string) {
   if (!res.ok) {
     const err = await res.text();
     throw new Error(`Flutterwave bank list failed: ${err}`);
+  }
+  return res.json();
+}
+
+export async function listFlutterwaveBankBranches(bankId: string | number) {
+  const res = await fetch(`${FLUTTERWAVE_BASE}/banks/${encodeURIComponent(String(bankId))}/branches`, {
+    headers: { Authorization: `Bearer ${env.flutterwaveSecret}` },
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Flutterwave branch list failed: ${err}`);
   }
   return res.json();
 }
@@ -129,6 +175,7 @@ export async function createFlutterwaveSubaccount({
   iban,
   bicSwift,
   currency,
+  payoutDetails,
 }: {
   businessName: string;
   businessEmail: string;
@@ -141,8 +188,25 @@ export async function createFlutterwaveSubaccount({
   iban?: string | null;
   bicSwift?: string | null;
   currency?: string | null;
+  payoutDetails?: {
+    branchCode?: string | null;
+    routingNumber?: string | null;
+    sortCode?: string | null;
+  };
 }) {
   const isSepa = payoutType === "sepa";
+  const meta = [
+    ...(bicSwift ? [{ meta_name: "swiftCode", meta_value: bicSwift }] : []),
+    ...(payoutDetails?.routingNumber
+      ? [{ meta_name: "routingNumber", meta_value: payoutDetails.routingNumber }]
+      : []),
+    ...(payoutDetails?.branchCode
+      ? [{ meta_name: "bank_branch", meta_value: payoutDetails.branchCode }]
+      : []),
+    ...(payoutDetails?.sortCode
+      ? [{ meta_name: "sortCode", meta_value: payoutDetails.sortCode }]
+      : []),
+  ];
   const res = await fetch(`${FLUTTERWAVE_BASE}/subaccounts`, {
     method: "POST",
     headers: {
@@ -158,7 +222,7 @@ export async function createFlutterwaveSubaccount({
       business_contact_mobile: phone,
       country,
       ...(currency ? { currency } : {}),
-      ...(isSepa && bicSwift ? { beneficiary_swift: bicSwift } : {}),
+      ...(meta.length ? { meta } : {}),
     }),
   });
 
@@ -212,36 +276,6 @@ export async function recordFlutterwavePayment(data: any) {
     return;
   }
 
-  const existing = await prisma.payment.findFirst({ where: { reference } });
-  if (existing) {
-    const existingMeta = (existing.metadata as any) || {};
-    const receiptSentAt = existingMeta?.receiptSentAt;
-    const plan = existingMeta?.plan ?? data?.meta?.plan;
-    const interval = normalizeInterval(existingMeta?.interval || data?.meta?.interval);
-    const paymentMethod = existingMeta?.paymentMethod || normalizeFlutterwavePaymentMethod(data);
-    const verified = existingMeta?.verified === true;
-    if (existing.status === "SUCCEEDED" && !receiptSentAt && verified) {
-      try {
-        await maybeSendSubscriptionReceipt({
-          paymentId: existing.id,
-          userId: existing.userId,
-          amount: Number(existing.amount),
-          currency: existing.currency,
-          provider: "FLUTTERWAVE",
-          reference,
-          paidAt: existing.createdAt,
-          plan,
-          interval,
-          paymentMethod,
-          verified,
-        });
-      } catch (error: any) {
-        log("error", "flutterwave_receipt_failed", { userId, reference, error: error.message });
-      }
-    }
-    return;
-  }
-
   const amount = typeof data.amount === "number" ? data.amount : Number(data.amount || 0);
   const currency = (data.currency || "NGN").toUpperCase();
   const status = data.status === "successful" ? "SUCCEEDED" : "FAILED";
@@ -249,40 +283,33 @@ export async function recordFlutterwavePayment(data: any) {
   const interval = normalizeInterval(data?.meta?.interval);
   const paymentMethod = data?.meta?.paymentMethod || normalizeFlutterwavePaymentMethod(data);
   const verified = data?.meta?.verified === true;
-  const metadata = {
-    ...(data?.meta || {}),
-    userId: resolvedUserId,
-    plan,
-    interval,
-    paymentMethod,
-    verified,
-  };
-
-  const created = await prisma.payment.create({
-    data: {
-      userId: resolvedUserId,
+  if (status === "SUCCEEDED" && verified) {
+    const finalized = await finalizeSubscriptionPayment({
+      provider: "FLUTTERWAVE",
+      reference,
       amount,
       currency,
-      provider: "FLUTTERWAVE",
-      status,
-      reference,
-      metadata,
-    },
-  });
-
-  log("info", "Flutterwave payment recorded", { userId: resolvedUserId, amount, currency, reference });
-  if (status === "SUCCEEDED" && verified) {
+      userId: resolvedUserId,
+      plan,
+      interval,
+      paymentMethod,
+      verifiedAt: data?.paid_at || data?.charged_at || data?.created_at,
+      rawPayload: data,
+    });
+    if (!finalized?.payment) {
+      return;
+    }
     try {
       await maybeSendSubscriptionReceipt({
-        paymentId: created.id,
+        paymentId: finalized.payment.id,
         userId: resolvedUserId,
         amount,
         currency,
         provider: "FLUTTERWAVE",
         reference,
-        paidAt: created.createdAt,
-        plan,
-        interval,
+        paidAt: finalized.payment.createdAt,
+        plan: finalized.plan,
+        interval: finalized.interval,
         paymentMethod,
         verified,
       });
@@ -300,5 +327,32 @@ export async function recordFlutterwavePayment(data: any) {
     } catch (error: any) {
       log("error", "flutterwave_whatsapp_failed", { userId, reference, error: error.message });
     }
+    return;
   }
+
+  const existing = await prisma.payment.findFirst({ where: { reference } });
+  if (existing) {
+    return;
+  }
+
+  await prisma.payment.create({
+    data: {
+      userId: resolvedUserId,
+      amount,
+      currency,
+      provider: "FLUTTERWAVE",
+      status,
+      reference,
+      metadata: {
+        ...(data?.meta || {}),
+        userId: resolvedUserId,
+        plan,
+        interval,
+        paymentMethod,
+        verified,
+      },
+    },
+  });
+
+  log("info", "Flutterwave payment recorded", { userId: resolvedUserId, amount, currency, reference });
 }

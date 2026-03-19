@@ -6,6 +6,7 @@ import {
   emitAutomationHealthAlerts,
   getAutomationHealthSnapshot,
 } from "@/lib/automation/monitoring";
+import { requireNoImpersonationMode, requirePlatformAdmin } from "@/lib/admin/admin-rbac";
 
 const isAuthorizedRequest = async (req: Request) => {
   const cronSecret = process.env.CRON_SECRET;
@@ -17,7 +18,15 @@ const isAuthorizedRequest = async (req: Request) => {
   }
 
   const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== "ADMIN") {
+  const denied = requirePlatformAdmin(session?.user);
+  if (denied) {
+    return { ok: false as const, source: "denied" as const };
+  }
+  const impersonationBlocked = await requireNoImpersonationMode({
+    actorUserId: session!.user.id,
+    cookieHeader: req.headers.get("cookie"),
+  });
+  if (impersonationBlocked) {
     return { ok: false as const, source: "denied" as const };
   }
 

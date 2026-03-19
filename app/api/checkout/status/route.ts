@@ -16,7 +16,7 @@ export const GET = withErrorHandling(async (req: Request) => {
 
   const checkout = await prisma.checkoutSession.findFirst({
     where: { reference, userId: session.user.id },
-    select: { status: true, provider: true, plan: true, billingCycle: true },
+    select: { status: true, provider: true, plan: true, billingCycle: true, currency: true, amount: true },
   });
   if (!checkout) return NextResponse.json({ error: "Not found" }, { status: 404 });
 

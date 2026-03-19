@@ -2,12 +2,17 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireNoImpersonationMode, requirePlatformAdmin } from "@/lib/admin/admin-rbac";
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const denied = requirePlatformAdmin(session?.user);
+  if (denied) return denied;
+  const impersonationBlocked = await requireNoImpersonationMode({
+    actorUserId: session!.user.id,
+    cookieHeader: req.headers.get("cookie"),
+  });
+  if (impersonationBlocked) return impersonationBlocked;
 
   const [totalUsers, totalPayments, revenueByProvider, automationErrors, tickets, pendingRuns, aiMemories] =
     await Promise.all([

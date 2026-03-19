@@ -13,9 +13,13 @@ import {
   normalizeCountryCode,
   normalizeCurrencyCode,
   isSupportedCountry,
+  hasRequiredBusinessTaxId,
+  normalizeBusinessTaxId,
 } from "@/lib/business-profile";
 import { hasRequiredAddress, parseBusinessAddress } from "@/lib/address";
-import { normalizeVatSettings } from "@/lib/vat";
+import { normalizeVatRateDisplay, normalizeVatSettings } from "@/lib/vat";
+import { requireOrgPermission } from "@/lib/org-auth";
+import { hasBusinessLogo } from "@/lib/business-logo";
 import path from "path";
 import fs from "fs/promises";
 
@@ -41,6 +45,16 @@ export const GET = withRequestLogging(withErrorHandling(async () => {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const access = await requireOrgPermission(session.user.id, {
+    permission: "settings:business:read",
+    requireActiveSubscription: true,
+  });
+  if (!access.ok) {
+    return NextResponse.json({ error: access.message, code: access.code }, { status: access.status });
+  }
+
+  const targetUserId = access.context.ownerUserId;
+
   const profileClient = (prisma as any).businessProfile;
   if (!profileClient) {
     return NextResponse.json(
@@ -50,14 +64,31 @@ export const GET = withRequestLogging(withErrorHandling(async () => {
   }
 
   const profile = await profileClient.findUnique({
-    where: { userId: session.user.id },
+    where: { userId: targetUserId },
+    select: {
+      id: true,
+      userId: true,
+      businessName: true,
+      country: true,
+      defaultCurrency: true,
+      businessAddress: true,
+      businessEmail: true,
+      businessPhone: true,
+      taxId: true,
+      vatEnabled: true,
+      vatRate: true,
+      vatRateDisplay: true,
+      vatPricingMode: true,
+      createdAt: true,
+      updatedAt: true,
+    },
   });
 
   if (!profile) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const logoUrl = await getLogoUrl(session.user.id);
+  const logoUrl = (await hasBusinessLogo(targetUserId)) ? `/api/business-profile/logo?v=${profile.updatedAt.getTime()}` : await getLogoUrl(targetUserId);
   return NextResponse.json({ ...profile, logoUrl });
 }));
 
@@ -66,6 +97,16 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const access = await requireOrgPermission(session.user.id, {
+    permission: "settings:business:write",
+    requireActiveSubscription: true,
+  });
+  if (!access.ok) {
+    return NextResponse.json({ error: access.message, code: access.code }, { status: access.status });
+  }
+
+  const targetUserId = access.context.ownerUserId;
 
   const profileClient = (prisma as any).businessProfile;
   if (!profileClient) {
@@ -76,14 +117,15 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
   }
 
   const existing = await profileClient.findUnique({
-    where: { userId: session.user.id },
+    where: { userId: targetUserId },
     select: { id: true },
   });
   if (existing) {
     return NextResponse.json({ error: "Business profile already exists" }, { status: 409 });
   }
 
-  const parsed = businessProfileCreateSchema.parse(await req.json());
+  const body = await req.json();
+  const parsed = businessProfileCreateSchema.parse(body);
   const country = normalizeCountryCode(parsed.country);
   const currency = normalizeCurrencyCode(parsed.defaultCurrency);
   const addressFields = parseBusinessAddress(parsed.businessAddress);
@@ -92,6 +134,9 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     rate: parsed.vatRate ?? 0,
     mode: parsed.vatPricingMode ?? "exclusive",
   });
+  const vatRateDisplay = vatSettings.enabled
+    ? normalizeVatRateDisplay(parsed.vatRateDisplay ?? parsed.vatRate)
+    : null;
 
   if (!parsed.businessName?.trim()) {
     return NextResponse.json({ error: REQUIRED_MESSAGE }, { status: 400 });
@@ -114,22 +159,26 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
   if (parsed.vatEnabled && (parsed.vatRate === undefined || parsed.vatRate === null)) {
     return NextResponse.json({ error: REQUIRED_MESSAGE }, { status: 400 });
   }
+  if (!hasRequiredBusinessTaxId({ vatEnabled: parsed.vatEnabled, taxId: parsed.taxId })) {
+    return NextResponse.json({ error: "Tax ID is required when VAT is enabled." }, { status: 400 });
+  }
   if (parsed.vatRate !== undefined && (parsed.vatRate < 0 || parsed.vatRate > 30)) {
     return NextResponse.json({ error: "Invalid VAT rate" }, { status: 400 });
   }
 
   const created = await profileClient.create({
     data: {
-      userId: session.user.id,
+      userId: targetUserId,
       businessName: parsed.businessName.trim(),
       country,
       defaultCurrency: currency,
       businessAddress: parsed.businessAddress?.trim(),
       businessEmail: parsed.businessEmail?.toLowerCase().trim(),
       businessPhone: parsed.businessPhone?.trim(),
-      taxId: parsed.taxId?.trim(),
+      taxId: normalizeBusinessTaxId({ vatEnabled: parsed.vatEnabled, taxId: parsed.taxId }),
       vatEnabled: vatSettings.enabled,
       vatRate: vatSettings.enabled ? vatSettings.rate : 0,
+      vatRateDisplay,
       vatPricingMode: vatSettings.mode.toUpperCase(),
     },
   });
@@ -158,6 +207,16 @@ export const PUT = withRequestLogging(withErrorHandling(async (req: Request) => 
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const access = await requireOrgPermission(session.user.id, {
+    permission: "settings:business:write",
+    requireActiveSubscription: true,
+  });
+  if (!access.ok) {
+    return NextResponse.json({ error: access.message, code: access.code }, { status: access.status });
+  }
+
+  const targetUserId = access.context.ownerUserId;
+
   const profileClient = (prisma as any).businessProfile;
   if (!profileClient) {
     return NextResponse.json(
@@ -167,13 +226,14 @@ export const PUT = withRequestLogging(withErrorHandling(async (req: Request) => 
   }
 
   const existing = await profileClient.findUnique({
-    where: { userId: session.user.id },
+    where: { userId: targetUserId },
   });
   if (!existing) {
     return NextResponse.json({ error: "Business profile not found" }, { status: 404 });
   }
 
-  const parsed = businessProfileUpdateSchema.parse(await req.json());
+  const body = await req.json();
+  const parsed = businessProfileUpdateSchema.parse(body);
   const updateData: Record<string, any> = {};
 
   if (parsed.businessName) updateData.businessName = parsed.businessName.trim();
@@ -194,14 +254,21 @@ export const PUT = withRequestLogging(withErrorHandling(async (req: Request) => 
   if (parsed.businessAddress !== undefined) updateData.businessAddress = parsed.businessAddress?.trim();
   if (parsed.businessEmail !== undefined) updateData.businessEmail = parsed.businessEmail?.toLowerCase().trim();
   if (parsed.businessPhone !== undefined) updateData.businessPhone = parsed.businessPhone?.trim();
-  if (parsed.taxId !== undefined) updateData.taxId = parsed.taxId?.trim();
+  if (Object.prototype.hasOwnProperty.call(body, "taxId")) {
+    const nextTaxId = typeof body.taxId === "string" ? body.taxId.trim() : "";
+    updateData.taxId = nextTaxId || null;
+  }
   if (parsed.vatEnabled !== undefined) {
     updateData.vatEnabled = parsed.vatEnabled;
     if (parsed.vatEnabled === false && parsed.vatRate === undefined) {
       updateData.vatRate = 0;
+      updateData.vatRateDisplay = null;
     }
   }
   if (parsed.vatRate !== undefined) updateData.vatRate = parsed.vatRate;
+  if (parsed.vatRateDisplay !== undefined) {
+    updateData.vatRateDisplay = normalizeVatRateDisplay(parsed.vatRateDisplay);
+  }
   if (parsed.vatPricingMode !== undefined) {
     updateData.vatPricingMode = parsed.vatPricingMode.toUpperCase();
   }
@@ -220,6 +287,7 @@ export const PUT = withRequestLogging(withErrorHandling(async (req: Request) => 
     taxId: updateData.taxId ?? existing.taxId,
     vatEnabled: updateData.vatEnabled ?? existing.vatEnabled ?? false,
     vatRate: updateData.vatRate ?? existing.vatRate ?? 0,
+    vatRateDisplay: updateData.vatRateDisplay ?? existing.vatRateDisplay ?? null,
     vatPricingMode: updateData.vatPricingMode ?? existing.vatPricingMode ?? "EXCLUSIVE",
   };
   const nextAddress = parseBusinessAddress(nextProfile.businessAddress);
@@ -229,7 +297,6 @@ export const PUT = withRequestLogging(withErrorHandling(async (req: Request) => 
     !nextProfile.defaultCurrency?.trim() ||
     !nextProfile.businessEmail?.trim() ||
     !nextProfile.businessPhone?.trim() ||
-    !nextProfile.taxId?.trim() ||
     !nextProfile.businessAddress?.trim() ||
     !hasRequiredAddress(nextAddress)
   ) {
@@ -238,12 +305,31 @@ export const PUT = withRequestLogging(withErrorHandling(async (req: Request) => 
   if (nextProfile.vatEnabled && (nextProfile.vatRate === null || nextProfile.vatRate === undefined)) {
     return NextResponse.json({ error: REQUIRED_MESSAGE }, { status: 400 });
   }
+  if (!hasRequiredBusinessTaxId({ vatEnabled: nextProfile.vatEnabled, taxId: nextProfile.taxId })) {
+    return NextResponse.json({ error: "Tax ID is required when VAT is enabled." }, { status: 400 });
+  }
   if (nextProfile.vatRate !== null && (Number(nextProfile.vatRate) < 0 || Number(nextProfile.vatRate) > 30)) {
     return NextResponse.json({ error: "Invalid VAT rate" }, { status: 400 });
   }
+  if (nextProfile.vatEnabled) {
+    updateData.vatRateDisplay = normalizeVatRateDisplay(
+      Object.prototype.hasOwnProperty.call(updateData, "vatRateDisplay")
+        ? updateData.vatRateDisplay
+        : nextProfile.vatRateDisplay ?? nextProfile.vatRate
+    );
+  } else {
+    updateData.vatRateDisplay = null;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(updateData, "taxId") || nextProfile.vatEnabled === false) {
+    updateData.taxId = normalizeBusinessTaxId({
+      vatEnabled: nextProfile.vatEnabled,
+      taxId: Object.prototype.hasOwnProperty.call(updateData, "taxId") ? updateData.taxId : nextProfile.taxId,
+    });
+  }
 
   const updated = await profileClient.update({
-    where: { userId: session.user.id },
+    where: { userId: targetUserId },
     data: updateData,
   });
 

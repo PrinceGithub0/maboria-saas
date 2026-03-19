@@ -9,7 +9,7 @@ type Props = InputHTMLAttributes<HTMLInputElement> & {
   error?: string;
 };
 
-export function Input({ label, error, className, type, ...props }: Props) {
+export function Input({ label, error, className, type, required, ...props }: Props) {
   const isPassword = type === "password";
   const [showPassword, setShowPassword] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -37,7 +37,7 @@ export function Input({ label, error, className, type, ...props }: Props) {
   if (!mounted) {
     return (
       <label className="flex flex-col gap-1 text-sm text-foreground">
-        {label}
+        {label ? `${label}${required ? " *" : ""}` : null}
         <div className="relative">
           <div
             className={clsx(
@@ -53,7 +53,7 @@ export function Input({ label, error, className, type, ...props }: Props) {
 
   return (
     <label className="flex flex-col gap-1 text-sm text-foreground">
-      {label}
+      {label ? `${label}${required ? " *" : ""}` : null}
       <div className="relative" suppressHydrationWarning>
         <input
           ref={inputRef}
@@ -67,6 +67,7 @@ export function Input({ label, error, className, type, ...props }: Props) {
             isPassword && "pr-10",
             className
           )}
+          required={required}
           {...props}
         />
         {isPassword && (

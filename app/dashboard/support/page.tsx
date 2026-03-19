@@ -6,15 +6,23 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
+import { TransientAlert } from "@/components/ui/transient-alert";
 import { useLanguage } from "@/components/providers/language-provider";
 import { useTheme } from "@/components/providers/theme-provider";
-import { CheckCircle2, Headset, Mail, Paperclip, X } from "lucide-react";
+import { supportEmail, supportMailto } from "@/lib/support/contact";
+import { CheckCircle2, Mail, Paperclip, X } from "lucide-react";
 import Link from "next/link";
 import useSWR from "swr";
 import { formatDistanceToNow } from "date-fns";
 import Image from "next/image";
 
-type Urgency = "low" | "normal" | "high" | "critical";
+type Urgency = "low" | "medium" | "high" | "urgent";
+type SupportAttachmentPayload = {
+  filename: string;
+  contentType: "image/jpeg" | "image/png" | "application/pdf";
+  base64: string;
+  sizeBytes: number;
+};
 type Ticket = {
   id: string;
   title: string;
@@ -23,6 +31,9 @@ type Ticket = {
   message?: string;
   metadata?: Record<string, unknown> | null;
 };
+
+const MAX_ATTACHMENTS = 3;
+const ALLOWED_ATTACHMENT_TYPES = ["image/jpeg", "image/png", "application/pdf"] as const;
 
 const CATEGORY_OPTIONS = [
   { value: "billing-payments", label: "Billing & Payments", labelFr: "Facturation et paiements" },
@@ -52,6 +63,74 @@ const fetcher = async (url: string) => {
   return res.json();
 };
 
+function SupportCenterIllustration({ forceLight }: { forceLight: boolean }) {
+  const imageSources = [
+    "/support/support-center-illustration.png",
+    "/support/support-center-illustration.webp",
+    "/support/support-center-illustration.jpg",
+    "/support/support-center-illustration.jpeg",
+    "/support/support-center-illustration.svg",
+  ];
+  const [imageIndex, setImageIndex] = useState(0);
+  const imageSrc = imageSources[imageIndex] ?? null;
+
+  useEffect(() => {
+    setImageIndex(0);
+  }, [forceLight]);
+
+  if (!imageSrc) {
+    return (
+      <div className="relative w-full max-w-[248px]">
+        <div className="relative aspect-square overflow-hidden rounded-[30px] border border-[#DCE7F5] bg-[linear-gradient(180deg,#F8FBFF_0%,#EEF6FF_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+          <div className="absolute inset-x-10 bottom-5 h-3 rounded-full bg-[#DCE7F5] blur-sm" />
+          <div className="absolute left-6 top-12 h-44 w-44 rounded-full bg-[#DDF0FF]" />
+          <div className="absolute bottom-10 left-4 h-36 w-52 rounded-[44px] bg-[#D9EDFF] opacity-90" />
+          <div className="absolute right-8 top-14 h-14 w-14 rounded-full bg-white/70 shadow-sm" />
+          <div className="absolute right-16 top-26 h-8 w-8 rounded-full border-[6px] border-white/80" />
+          <div className="absolute left-9 top-28 h-3 w-3 rounded-full bg-[#64748B]" />
+          <div className="absolute left-[92px] top-[102px] h-[142px] w-[142px] rounded-[38px] border border-white/65 bg-white/55 shadow-[0_22px_40px_-30px_rgba(37,99,235,0.2)] backdrop-blur-sm" />
+          <div className="absolute left-[126px] top-[134px] h-[86px] w-[86px] rounded-[28px] bg-[linear-gradient(145deg,#FFFFFF_0%,#F3F8FF_60%,#E7F0FF_100%)] shadow-inner" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative w-full max-w-[248px]">
+      {forceLight ? <div className="absolute inset-x-8 bottom-0 h-3 rounded-full bg-slate-200/70 blur-sm" /> : null}
+      <div
+        className={`relative aspect-square overflow-hidden ${
+          forceLight
+            ? "rounded-[30px] border border-transparent bg-white/55 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]"
+            : "rounded-[30px] bg-transparent p-0 shadow-none"
+        }`}
+        style={
+          forceLight
+            ? {
+                backgroundColor: "rgba(255,255,255,0.55)",
+              }
+            : undefined
+        }
+      >
+        <Image
+          src={imageSrc}
+          alt=""
+          fill
+          sizes="(max-width: 1024px) 220px, 248px"
+          className={
+            forceLight
+              ? "object-contain object-bottom"
+              : "object-contain object-bottom"
+          }
+          onError={() => setImageIndex((current) => current + 1)}
+          unoptimized
+          priority
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardSupportPage() {
   const { language } = useLanguage();
   const { resolvedTheme } = useTheme();
@@ -59,32 +138,38 @@ export default function DashboardSupportPage() {
   const forceLight = resolvedTheme === "light";
   const [form, setForm] = useState({
     category: CATEGORY_OPTIONS[0].value,
-    urgency: "normal" as Urgency,
+    urgency: "medium" as Urgency,
     subject: "",
     message: "",
   });
   const [status, setStatus] = useState<{ message: string; variant: "info" | "success" | "warning" | "error" } | null>(null);
   const [sending, setSending] = useState(false);
   const [errors, setErrors] = useState<{ subject?: string; message?: string }>({});
-  const [attachment, setAttachment] = useState<File | null>(null);
-  const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [attachmentPreviews, setAttachmentPreviews] = useState<Record<string, string>>({});
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const {
     data: tickets,
     mutate: refreshTickets,
     isLoading: loadingTickets,
-  } = useSWR<Ticket[]>("/api/support", fetcher, { shouldRetryOnError: false });
+    error: ticketsError,
+  } = useSWR<Ticket[]>("/api/support?limit=3", fetcher, { shouldRetryOnError: false });
 
   useEffect(() => {
-    if (!attachment || attachment.type === "application/pdf") {
-      setAttachmentPreview(null);
-      return;
-    }
-    const nextPreview = URL.createObjectURL(attachment);
-    setAttachmentPreview(nextPreview);
-    return () => URL.revokeObjectURL(nextPreview);
-  }, [attachment]);
+    const nextPreviews: Record<string, string> = {};
+    const allocated: string[] = [];
+    attachments.forEach((file) => {
+      if (file.type === "application/pdf") return;
+      const preview = URL.createObjectURL(file);
+      nextPreviews[`${file.name}-${file.size}-${file.lastModified}`] = preview;
+      allocated.push(preview);
+    });
+    setAttachmentPreviews(nextPreviews);
+    return () => {
+      allocated.forEach((preview) => URL.revokeObjectURL(preview));
+    };
+  }, [attachments]);
 
   const avgResponseTime = useMemo(() => {
     if (!tickets || tickets.length === 0) return "2-4 hours";
@@ -93,45 +178,83 @@ export default function DashboardSupportPage() {
 
   const urgencyClassMap: Record<Urgency, string> = {
     low: "border-[#CBD5E1] bg-white text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200",
-    normal:
+    medium:
       "border-blue-200 bg-blue-50 text-blue-700 font-bold dark:border-blue-500/40 dark:bg-blue-500/10 dark:text-blue-300",
     high: "border-orange-200 bg-orange-50 text-orange-700 font-bold dark:border-orange-500/40 dark:bg-orange-500/10 dark:text-orange-300",
-    critical: "border-red-200 bg-red-50 text-red-700 font-bold dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-300",
+    urgent: "border-red-200 bg-red-50 text-red-700 font-bold dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-300",
   };
 
-  const handleFileSelect = (file: File | null) => {
-    if (!file) {
+  const handleFileSelect = (fileList: FileList | File[] | null) => {
+    const incoming = Array.from(fileList || []);
+    if (incoming.length === 0) {
       setUploadError(null);
       return;
     }
-    const validTypes = ["image/jpeg", "image/png", "application/pdf"];
-    if (!validTypes.includes(file.type)) {
-      setAttachment(null);
-      setUploadError(t("Only JPG, PNG, or PDF files are supported.", "Seuls les fichiers JPG, PNG, ou PDF sont acceptes."));
-      setStatus({
-        message: t("Only JPG, PNG, or PDF files are supported.", "Seuls les fichiers JPG, PNG, ou PDF sont acceptes."),
-        variant: "warning",
-      });
+
+    const nextFiles = [...attachments];
+    let nextError: string | null = null;
+
+    for (const file of incoming) {
+      if (!ALLOWED_ATTACHMENT_TYPES.includes(file.type as (typeof ALLOWED_ATTACHMENT_TYPES)[number])) {
+        nextError = t("Only JPG, PNG, or PDF files are supported.", "Seuls les fichiers JPG, PNG, ou PDF sont acceptes.");
+        continue;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        nextError = t("File too large. Maximum allowed is 5MB.", "Fichier trop volumineux. Le maximum autorise est de 5 Mo.");
+        continue;
+      }
+      if (nextFiles.some((existing) => existing.name === file.name && existing.size === file.size && existing.lastModified === file.lastModified)) {
+        continue;
+      }
+      if (nextFiles.length >= MAX_ATTACHMENTS) {
+        nextError = t(
+          "You can attach up to 3 files per ticket.",
+          "Vous pouvez joindre jusqu a 3 fichiers par ticket."
+        );
+        break;
+      }
+      nextFiles.push(file);
+    }
+
+    setAttachments(nextFiles);
+    setUploadError(nextError);
+    if (nextError) {
+      setStatus({ message: nextError, variant: "warning" });
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setAttachment(null);
-      setUploadError(t("File size must be 5MB or less.", "La taille du fichier doit etre de 5 Mo maximum."));
-      setStatus({
-        message: t("File too large. Maximum allowed is 5MB.", "Fichier trop volumineux. Le maximum autorise est de 5 Mo."),
-        variant: "warning",
-      });
-      return;
-    }
-    setUploadError(null);
     setStatus(null);
-    setAttachment(file);
   };
 
   const formatFileSize = (size: number) => {
     if (size < 1024) return `${size} B`;
     if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
     return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const fileToBase64 = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = String(reader.result || "");
+        const base64 = result.includes(",") ? result.split(",")[1] : result;
+        if (!base64) {
+          reject(new Error("Attachment encoding failed"));
+          return;
+        }
+        resolve(base64);
+      };
+      reader.onerror = () => reject(new Error("Attachment encoding failed"));
+      reader.readAsDataURL(file);
+    });
+
+  const toAttachmentPayload = async (file: File): Promise<SupportAttachmentPayload> => {
+    const base64 = await fileToBase64(file);
+    return {
+      filename: file.name,
+      contentType: file.type as SupportAttachmentPayload["contentType"],
+      base64,
+      sizeBytes: file.size,
+    };
   };
 
   const submit = async () => {
@@ -156,14 +279,16 @@ export default function DashboardSupportPage() {
     try {
       const categoryEntry = CATEGORY_OPTIONS.find((item) => item.value === form.category) || CATEGORY_OPTIONS[CATEGORY_OPTIONS.length - 1];
       const categoryLabel = t(categoryEntry.label, categoryEntry.labelFr);
+      const attachmentsPayload =
+        attachments.length > 0 ? await Promise.all(attachments.map((file) => toAttachmentPayload(file))) : undefined;
       const res = await fetch("/api/support", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: `[${categoryLabel}] ${subject}`,
           message,
-          priority: form.urgency === "critical" ? "high" : form.urgency,
-          attachments: attachment ? [attachment.name] : undefined,
+          priority: form.urgency,
+          attachments: attachmentsPayload,
         }),
       });
       const data = await res.json();
@@ -181,7 +306,7 @@ export default function DashboardSupportPage() {
               `Ticket submitted, but email could not be sent: ${data.emailError}`,
               `Ticket envoye, mais l'email n'a pas pu etre envoye: ${data.emailError}`
             ),
-            variant: "error",
+            variant: "warning",
           });
         } else {
           setStatus({
@@ -193,7 +318,7 @@ export default function DashboardSupportPage() {
           });
         }
         setForm((prev) => ({ ...prev, category: CATEGORY_OPTIONS[0].value, subject: "", message: "" }));
-        setAttachment(null);
+        setAttachments([]);
         setErrors({});
         refreshTickets();
       }
@@ -229,7 +354,7 @@ export default function DashboardSupportPage() {
       return {
         label: t("Closed", "Ferme"),
         className:
-          "bg-slate-100 text-slate-700 border-slate-300 font-bold dark:bg-slate-600/20 dark:text-slate-200 dark:border-slate-500/40",
+          "bg-emerald-100 text-emerald-700 border-emerald-200 font-bold dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/40",
       };
     }
     if (normalized === "IN_PROGRESS" || normalized === "PENDING") {
@@ -246,75 +371,114 @@ export default function DashboardSupportPage() {
     };
   };
 
+  const heroCardClass = forceLight
+    ? "rounded-[20px] border border-[#D9E2EC] bg-[linear-gradient(135deg,#FFFFFF_0%,#F8FAFC_55%,#EFF6FF_100%)] px-8 py-7 shadow-[0_14px_34px_rgba(15,23,42,0.08)] transition-all duration-200 hover:-translate-y-[1px] hover:shadow-[0_18px_40px_rgba(15,23,42,0.1)] max-md:px-5 max-md:py-6"
+    : "rounded-[20px] border border-slate-800 bg-[linear-gradient(135deg,rgba(15,23,42,0.98),rgba(15,23,42,0.95)_58%,rgba(30,41,59,0.9))] px-8 py-7 shadow-[0_18px_48px_rgba(2,6,23,0.45)] transition-all duration-200 hover:-translate-y-[1px] hover:shadow-[0_18px_40px_rgba(15,23,42,0.1)] max-md:px-5 max-md:py-6";
+  const sectionCardClass = forceLight
+    ? "rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-[0_18px_40px_rgba(15,23,42,0.08)] max-md:p-5"
+    : "rounded-[18px] border border-slate-800 bg-[linear-gradient(180deg,rgba(15,23,42,0.96),rgba(17,24,39,0.94))] p-7 shadow-[0_18px_44px_rgba(2,6,23,0.35)] max-md:p-5";
+  const insetPanelClass = forceLight
+    ? "border-[#E2E8F0] bg-[#F8FAFC]"
+    : "dark:border-slate-800 dark:bg-slate-950/45";
+  const ticketCardClass = forceLight
+    ? "!border-[#E2E8F0] !bg-white hover:!bg-[#F8FAFC]"
+    : "dark:border-slate-800 dark:bg-slate-950/45 dark:hover:bg-slate-900/70";
+  const formCardClass = forceLight
+    ? "order-1 rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-[0_18px_40px_rgba(15,23,42,0.08)] max-md:p-5 lg:order-2 lg:col-span-7"
+    : "order-1 rounded-[18px] border border-slate-800 bg-[linear-gradient(180deg,rgba(15,23,42,0.97),rgba(17,24,39,0.95))] p-7 shadow-[0_20px_44px_rgba(2,6,23,0.38)] max-md:p-5 lg:order-2 lg:col-span-7";
+  const scrollToSubmitTicket = () => {
+    document.getElementById("submit-ticket")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <div
       className="mx-auto w-full max-w-[1150px] space-y-8 bg-[#F9FAFB] p-1 dark:bg-[#0F172A] max-md:space-y-6"
       style={forceLight ? { backgroundColor: "#F8FAFC" } : undefined}
     >
-      <section
-        className="rounded-[20px] border border-slate-200/80 bg-white px-8 py-7 shadow-[0_12px_34px_rgba(15,23,42,0.08)] transition-all duration-200 hover:-translate-y-[1px] hover:shadow-[0_18px_40px_rgba(15,23,42,0.1)] dark:border-[#334155] dark:bg-[#1E293B] max-md:px-5 max-md:py-6"
-        style={
-          forceLight
-            ? {
-                background: "linear-gradient(to right, #F1F5F9, #FFFFFF)",
-                borderColor: "#E5E7EB",
-                boxShadow: "0 6px 18px rgba(0,0,0,0.04)",
-              }
-            : undefined
-        }
-      >
-        <div className="flex flex-wrap items-start justify-between gap-5">
-          <div className="max-w-3xl space-y-2">
-            <p className="text-xs uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-              {t("Support", "Support")}
-            </p>
-            <div className="support-title-wrapper flex items-center gap-3">
-              <div className="support-avatar inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-border bg-card text-foreground">
-                <Headset className="h-6 w-6" strokeWidth={1.9} aria-hidden="true" />
-              </div>
+      <section className={heroCardClass}>
+        <div className="border-b border-slate-200/70 pb-4 dark:border-slate-800/80">
+          <div className="flex items-center gap-3">
+            <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 shadow-sm dark:bg-blue-500/10 dark:text-blue-300">
+              <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M6 5.5C6 4.12 7.12 3 8.5 3H13.5V8C13.5 9.38 12.38 10.5 11 10.5H6V5.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M14 9.5V14.5C14 15.88 12.88 17 11.5 17H6.5V12C6.5 10.62 7.62 9.5 9 9.5H14Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <div>
+              <p
+                className="text-[15px] font-semibold text-slate-900 dark:text-[#E2E8F0]"
+                style={forceLight ? { color: "#1E293B" } : undefined}
+              >
+                {t("Support Center", "Centre de support")}
+              </p>
+              <p
+                className="text-xs text-slate-500 dark:text-slate-400"
+                style={forceLight ? { color: "#64748B" } : undefined}
+              >
+                {t("Priority support for your workspace", "Support prioritaire pour votre espace")}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid items-center gap-8 pt-7 lg:grid-cols-[248px_minmax(0,540px)] lg:justify-between">
+          <div className="-mt-2 flex justify-center lg:justify-start">
+            <SupportCenterIllustration forceLight={forceLight} />
+          </div>
+          <div className="max-w-[540px] space-y-6">
+            <div className="space-y-3">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
+                {t("Support", "Support")}
+              </p>
               <h1
                 className="text-[34px] font-bold leading-tight text-slate-900 dark:text-[#E2E8F0] max-md:text-[30px]"
                 style={forceLight ? { color: "#0F172A" } : undefined}
               >
-                {t("Contact Support", "Contact Support")}
+                {t("Need help with something?", "Besoin d'aide pour quelque chose ?")}
               </h1>
+              <p
+                className="max-w-[500px] text-[17px] leading-relaxed text-slate-500 dark:text-slate-300"
+                style={forceLight ? { color: "#667085" } : undefined}
+              >
+                {t(
+                  "Create a support ticket or continue your existing support conversation.",
+                  "Creez un ticket de support ou poursuivez votre conversation de support existante."
+                )}
+              </p>
             </div>
-            <p
-              className="text-sm leading-relaxed text-slate-600 dark:text-slate-300"
-              style={forceLight ? { color: "#475569" } : undefined}
-            >
-              {t(
-                "Send a ticket directly from your dashboard. Our team typically responds within 24 hours.",
-                "Envoyez un ticket directement depuis votre tableau de bord. Notre equipe repond generalement sous 24 heures."
-              )}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={`rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300 ${
-                forceLight ? "!border-emerald-200 !bg-emerald-50 !text-emerald-700" : ""
-              }`}
-            >
-              {t(`Current avg response time: ${avgResponseTime}`, `Temps moyen actuel : ${avgResponseTime}`)}
-            </span>
-            <span
-              className={`rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 dark:border-[#334155] dark:bg-slate-800/70 dark:text-slate-300 ${
-                forceLight ? "!border-slate-200 !bg-slate-50 !text-slate-600" : ""
-              }`}
-            >
-              {t("Priority support available", "Support prioritaire disponible")}
-            </span>
+
+            <div className="flex flex-col items-start gap-3">
+              <Button
+                type="button"
+                onClick={scrollToSubmitTicket}
+                className="min-h-12 rounded-2xl bg-[linear-gradient(135deg,#4F8EF7,#2F6DEB)] px-7 text-base shadow-[0_16px_34px_rgba(47,109,235,0.28)] hover:brightness-105"
+              >
+                {t("Create Ticket", "Creer un ticket")}
+              </Button>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span
+                  className={`rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-300 ${
+                    forceLight ? "!border-emerald-200 !bg-emerald-50 !text-emerald-700" : ""
+                  }`}
+                >
+                  {t(`Current avg. response time: ${avgResponseTime}`, `Temps moyen actuel : ${avgResponseTime}`)}
+                </span>
+                <span
+                  className={`rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:border-[#334155] dark:bg-slate-800/70 dark:text-slate-300 ${
+                    forceLight ? "!border-slate-200 !bg-slate-50 !text-slate-600" : ""
+                  }`}
+                >
+                  {t("Priority support available", "Support prioritaire disponible")}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       <div className="grid gap-6 lg:grid-cols-12">
         <div className="order-2 space-y-6 lg:order-1 lg:col-span-5">
-          <Card
-            className={`rounded-[18px] border-slate-200/80 bg-white p-7 shadow-[0_12px_30px_rgba(15,23,42,0.06)] transition-all duration-200 hover:-translate-y-[1px] hover:shadow-[0_18px_36px_rgba(15,23,42,0.08)] dark:border-[#334155] dark:bg-[#1E293B] max-md:p-5 ${
-              forceLight ? "!rounded-2xl !border-[#E5E7EB] !bg-white !p-6 !shadow-[0_8px_24px_rgba(15,23,42,0.06)]" : ""
-            }`}
-          >
+          <Card className={sectionCardClass}>
             <h2
               className="text-lg font-semibold text-slate-900 dark:text-[#E2E8F0]"
               style={forceLight ? { color: "#0F172A" } : undefined}
@@ -323,32 +487,39 @@ export default function DashboardSupportPage() {
             </h2>
             <div className="mt-6 space-y-6">
               <div
-                className={`rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-[#334155] dark:bg-slate-800/60 ${
-                  forceLight ? "!border-slate-200 !bg-slate-50/70" : ""
-                }`}
+                className={`rounded-2xl border border-slate-200 bg-slate-50/70 p-4 ${insetPanelClass}`}
               >
                 <p className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{t("Channels", "Canaux")}</p>
                 <div className="mt-3 flex items-start gap-3">
                   <span
-                    className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 dark:border-[#334155] dark:bg-slate-900 dark:text-slate-300 ${
-                      forceLight ? "!border-slate-200 !bg-white !text-slate-700" : ""
+                    className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 ${
+                      forceLight ? "!border-[#D9E2EC] !bg-white !text-slate-700" : ""
                     }`}
                   >
                     <Mail className="h-[18px] w-[18px]" strokeWidth={1.8} />
                   </span>
-                  <div>
+                  <div className="pt-0.5">
                     <p
                       className="text-sm font-semibold text-slate-900 dark:text-[#E2E8F0]"
                       style={forceLight ? { color: "#0F172A" } : undefined}
                     >
                       {t("Email-first support", "Support prioritaire par email")}
                     </p>
-                    <p
-                      className="text-sm text-slate-600 dark:text-slate-300"
-                      style={forceLight ? { color: "#475569" } : undefined}
-                    >
-                      {t("We reply from info@maboria.com", "Nous repondons depuis info@maboria.com")}
-                    </p>
+                    <div className="mt-1.5 space-y-0.5">
+                      <p
+                        className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400"
+                        style={forceLight ? { color: "#64748B" } : undefined}
+                      >
+                        {t("We reply from", "Nous repondons depuis")}
+                      </p>
+                      <a
+                        href={supportMailto}
+                        className="block text-base font-medium leading-tight text-slate-700 hover:text-slate-900 dark:text-slate-200 dark:hover:text-white"
+                        style={forceLight ? { color: "#334155" } : undefined}
+                      >
+                        {supportEmail}
+                      </a>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -378,11 +549,7 @@ export default function DashboardSupportPage() {
             </div>
           </Card>
 
-          <Card
-            className={`rounded-[18px] border-slate-200/80 bg-white p-7 shadow-[0_12px_30px_rgba(15,23,42,0.06)] transition-all duration-200 hover:-translate-y-[1px] hover:shadow-[0_18px_36px_rgba(15,23,42,0.08)] dark:border-[#334155] dark:bg-[#1E293B] max-md:p-5 ${
-              forceLight ? "!rounded-2xl !border-[#E5E7EB] !bg-white !p-6 !shadow-[0_8px_24px_rgba(15,23,42,0.06)]" : ""
-            }`}
-          >
+          <Card className={sectionCardClass}>
             <div className="mb-4 flex items-center justify-between">
               <h2
                 className="text-lg font-semibold text-slate-900 dark:text-[#E2E8F0]"
@@ -397,11 +564,16 @@ export default function DashboardSupportPage() {
             <div className="space-y-3">
               {loadingTickets ? (
                 <p className="text-sm text-slate-500 dark:text-slate-300">{t("Loading tickets...", "Chargement des tickets...")}</p>
+              ) : ticketsError ? (
+                <Alert variant="error">
+                  {t(
+                    "We could not load your recent support tickets right now.",
+                    "Nous n avons pas pu charger vos tickets support recents pour le moment."
+                  )}
+                </Alert>
               ) : recentTickets.length === 0 ? (
                 <div
-                  className={`rounded-xl border border-slate-200 bg-white px-4 py-6 text-center dark:border-[#334155] dark:bg-slate-800/40 ${
-                    forceLight ? "!border-[#E5E7EB] !bg-white" : ""
-                  }`}
+                  className={`rounded-xl border border-slate-200 bg-white px-4 py-6 text-center ${insetPanelClass}`}
                 >
                   <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                     {t("No support tickets yet", "Aucun ticket support pour le moment")}
@@ -427,9 +599,7 @@ export default function DashboardSupportPage() {
                     <Link
                       key={ticket.id}
                       href={`/dashboard/support/tickets/${ticket.id}`}
-                      className={`block rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 transition-colors hover:bg-slate-100/80 dark:border-[#334155] dark:bg-slate-800/50 dark:hover:bg-slate-800/80 ${
-                        forceLight ? "!border-[#E5E7EB] !bg-white hover:!bg-slate-50" : ""
-                      }`}
+                      className={`block rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 transition-colors hover:bg-slate-100/80 ${ticketCardClass}`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
@@ -461,12 +631,7 @@ export default function DashboardSupportPage() {
           </Card>
         </div>
 
-        <Card
-          id="submit-ticket"
-          className={`order-1 rounded-[18px] border-slate-200/80 bg-white p-7 shadow-[0_12px_30px_rgba(15,23,42,0.08)] transition-all duration-200 hover:-translate-y-[1px] hover:shadow-[0_18px_38px_rgba(15,23,42,0.1)] dark:border-[#334155] dark:bg-[#1E293B] max-md:p-5 lg:order-2 lg:col-span-7 ${
-            forceLight ? "!rounded-2xl !border-[#E5E7EB] !bg-white !p-6 !shadow-[0_8px_24px_rgba(15,23,42,0.06)]" : ""
-          }`}
-        >
+        <Card id="submit-ticket" className={formCardClass}>
           <h2
             className="text-lg font-semibold text-slate-900 dark:text-[#E2E8F0]"
             style={forceLight ? { color: "#0F172A" } : undefined}
@@ -475,7 +640,9 @@ export default function DashboardSupportPage() {
           </h2>
           {status && (
             <div className="mt-4">
-              <Alert variant={status.variant}>{status.message}</Alert>
+              <TransientAlert variant={status.variant} onDismiss={() => setStatus(null)}>
+                {status.message}
+              </TransientAlert>
             </div>
           )}
           <div className="mt-5 space-y-4">
@@ -486,7 +653,7 @@ export default function DashboardSupportPage() {
                   value={form.category}
                   onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value }))}
                   style={forceLight ? { colorScheme: "light" } : undefined}
-                  className={`rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-900 transition-colors hover:border-slate-300 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100 dark:border-[#334155] dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-600 dark:focus:border-blue-400 dark:focus:ring-blue-500/25 ${
+                  className={`rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-900 transition-colors hover:border-slate-300 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950/90 dark:text-slate-100 dark:hover:border-slate-500 dark:focus:border-blue-400 dark:focus:ring-blue-500/25 ${
                     forceLight
                       ? "!border-[#CBD5E1] !bg-white !text-[#0F172A] hover:!border-slate-400 focus:!border-[#2563EB] focus:!ring-[3px] focus:!ring-[rgba(37,99,235,0.15)]"
                       : ""
@@ -524,9 +691,9 @@ export default function DashboardSupportPage() {
                   }`}
                 >
                   <option value="low" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Low", "Faible")}</option>
-                  <option value="normal" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Normal", "Normal")}</option>
+                  <option value="medium" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Medium", "Moyenne")}</option>
                   <option value="high" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("High", "Elevee")}</option>
-                  <option value="critical" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Critical", "Critique")}</option>
+                  <option value="urgent" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Urgent", "Urgente")}</option>
                 </select>
               </label>
             </div>
@@ -542,7 +709,7 @@ export default function DashboardSupportPage() {
               minLength={5}
               required
               error={errors.subject}
-              className={`rounded-xl border-slate-200 px-3.5 py-3 text-sm transition-colors hover:border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-[#334155] dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400 dark:hover:border-slate-600 dark:focus:border-blue-400 dark:focus:ring-blue-500/25 ${
+              className={`rounded-xl border-slate-200 px-3.5 py-3 text-sm transition-colors hover:border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950/90 dark:text-slate-100 dark:placeholder:text-slate-500 dark:hover:border-slate-500 dark:focus:border-blue-400 dark:focus:ring-blue-500/25 ${
                 forceLight
                   ? "!border-[#CBD5E1] !bg-white !text-[#0F172A] placeholder:!text-slate-600 placeholder:opacity-100 hover:!border-slate-400 focus:!border-[#2563EB] focus:!ring-[3px] focus:!ring-[rgba(37,99,235,0.15)]"
                   : ""
@@ -560,7 +727,7 @@ export default function DashboardSupportPage() {
               required
               error={errors.message}
               rows={8}
-              className={`min-h-[180px] rounded-xl border-slate-200 px-3.5 py-3 text-sm transition-colors hover:border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-[#334155] dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-400 dark:hover:border-slate-600 dark:focus:border-blue-400 dark:focus:ring-blue-500/25 ${
+              className={`min-h-[180px] rounded-xl border-slate-200 px-3.5 py-3 text-sm transition-colors hover:border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950/90 dark:text-slate-100 dark:placeholder:text-slate-500 dark:hover:border-slate-500 dark:focus:border-blue-400 dark:focus:ring-blue-500/25 ${
                 forceLight
                   ? "!border-[#CBD5E1] !bg-white !text-[#0F172A] placeholder:!text-slate-600 placeholder:opacity-100 hover:!border-slate-400 focus:!border-[#2563EB] focus:!ring-[3px] focus:!ring-[rgba(37,99,235,0.15)]"
                   : ""
@@ -571,11 +738,11 @@ export default function DashboardSupportPage() {
               <p className="text-sm font-medium text-slate-900 dark:text-[#E2E8F0]">{t("Attach File", "Joindre un fichier")}</p>
               <label
                 className={`group relative flex w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 text-center transition-colors ${
-                  attachment ? "min-h-[102px]" : "min-h-[120px]"
+                  attachments.length > 0 ? "min-h-[102px]" : "min-h-[120px]"
                 } ${
                   dragging
-                    ? "border-blue-400 bg-blue-50/80 dark:border-blue-400 dark:bg-slate-700/50"
-                    : "border-slate-300 bg-slate-50/70 hover:border-slate-400 dark:border-[#334155] dark:bg-slate-800/35 dark:hover:border-slate-400"
+                    ? "border-blue-400 bg-blue-50/80 dark:border-blue-400 dark:bg-slate-900/80"
+                    : "border-slate-300 bg-slate-50/70 hover:border-slate-400 dark:border-slate-700 dark:bg-slate-950/55 dark:hover:border-slate-500"
                 } ${forceLight ? "!border-[#CBD5E1] !bg-slate-50/70 hover:!border-slate-400" : ""}`}
                 onDragOver={(event) => {
                   event.preventDefault();
@@ -585,7 +752,7 @@ export default function DashboardSupportPage() {
                 onDrop={(event) => {
                   event.preventDefault();
                   setDragging(false);
-                  handleFileSelect(event.dataTransfer.files?.[0] ?? null);
+                  handleFileSelect(event.dataTransfer.files);
                 }}
               >
                 <Paperclip className="h-5 w-5 text-slate-500 dark:text-slate-300" />
@@ -596,56 +763,85 @@ export default function DashboardSupportPage() {
                   {t("or click to upload", "ou cliquez pour televerser")}
                 </p>
                 <span className="pointer-events-none absolute bottom-3 right-3 text-[11px] text-slate-500 dark:text-slate-400">
-                  {t("JPG, PNG, PDF - Max 5MB", "JPG, PNG, PDF - Max 5 Mo")}
+                  {t("JPG, PNG, PDF - Up to 3 files, 5MB each", "JPG, PNG, PDF - Jusqu a 3 fichiers, 5 Mo chacun")}
                 </span>
                 <input
                   type="file"
                   accept=".jpg,.jpeg,.png,.pdf"
+                  multiple
                   className="hidden"
-                  onChange={(event) => handleFileSelect(event.target.files?.[0] ?? null)}
+                  onChange={(event) => handleFileSelect(event.target.files)}
                 />
               </label>
               {uploadError ? (
                 <p className="text-xs text-rose-600 dark:text-rose-300">{uploadError}</p>
               ) : null}
-              {attachment && (
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-[#334155] dark:bg-slate-800/35 max-md:flex-col max-md:items-start">
-                  <div className="flex min-w-0 items-center gap-3">
-                    {attachmentPreview ? (
-                      <Image
-                        src={attachmentPreview}
-                        alt="attachment preview"
-                        width={36}
-                        height={36}
-                        unoptimized
-                        className="h-9 w-9 rounded-md object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-9 w-9 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                        PDF
+              {attachments.length > 0 ? (
+                <div className="space-y-2">
+                  {attachments.map((attachment) => {
+                    const preview = attachmentPreviews[`${attachment.name}-${attachment.size}-${attachment.lastModified}`];
+                    return (
+                      <div
+                        key={`${attachment.name}-${attachment.size}-${attachment.lastModified}`}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-950/60 max-md:flex-col max-md:items-start"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          {preview ? (
+                            <Image
+                              src={preview}
+                              alt="attachment preview"
+                              width={36}
+                              height={36}
+                              unoptimized
+                              className="h-9 w-9 rounded-md object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                              PDF
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-slate-700 dark:text-slate-200">{attachment.name}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{formatFileSize(attachment.size)}</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAttachments((current) =>
+                              current.filter(
+                                (file) =>
+                                  !(
+                                    file.name === attachment.name &&
+                                    file.size === attachment.size &&
+                                    file.lastModified === attachment.lastModified
+                                  )
+                              )
+                            );
+                            setUploadError(null);
+                          }}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                          aria-label="Remove attachment"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
                       </div>
-                    )}
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-slate-700 dark:text-slate-200">{attachment.name}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{formatFileSize(attachment.size)}</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAttachment(null);
-                      setUploadError(null);
-                    }}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-                    aria-label="Remove attachment"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+                    );
+                  })}
                 </div>
-              )}
+              ) : null}
             </div>
 
             <div className="flex flex-wrap items-center gap-3 pt-6">
+              <p className="w-full text-sm text-slate-500 dark:text-slate-400">
+                {t("Our team replies from ", "Notre equipe repond depuis ")}
+                <a
+                  href={supportMailto}
+                  className="font-medium text-slate-700 transition-colors hover:text-slate-900 dark:text-slate-200 dark:hover:text-white"
+                >
+                  {supportEmail}
+                </a>
+              </p>
               <Button
                 onClick={submit}
                 loading={sending}

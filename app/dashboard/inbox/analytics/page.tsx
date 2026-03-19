@@ -2,7 +2,6 @@
 
 import useSWR from "swr";
 import { MiniAreaChart } from "@/components/charts/area-chart";
-import { Badge } from "@/components/ui/badge";
 import { formatDateTimeDMY } from "@/lib/date";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -24,7 +23,7 @@ const formatDuration = (ms: number) => {
 };
 
 export default function InboxAnalyticsPage() {
-  const { data } = useSWR<AnalyticsData>("/api/whatsapp/analytics", fetcher, { shouldRetryOnError: false });
+  const { data } = useSWR<AnalyticsData>("/api/inbox/unified/analytics", fetcher, { shouldRetryOnError: false });
 
   const chartData = (data?.series || []).map((point) => ({
     name: new Date(point.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }),
@@ -39,7 +38,9 @@ export default function InboxAnalyticsPage() {
           <h1 className="text-3xl font-semibold text-slate-900">Inbox analytics</h1>
           <p className="text-sm text-slate-500">Operational visibility across WhatsApp conversations.</p>
         </div>
-        <Badge className="rounded-full bg-emerald-50 text-emerald-700">Live</Badge>
+        <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+          Live
+        </span>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

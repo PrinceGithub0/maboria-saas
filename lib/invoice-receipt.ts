@@ -3,7 +3,7 @@ import path from "path";
 import { existsSync } from "fs";
 import fs from "fs/promises";
 import { prisma } from "./prisma";
-import { sendEmail } from "./email";
+import { sendBillingMail } from "./email";
 import { log } from "./logger";
 import { formatCurrency } from "./currency";
 import { formatDateDMY } from "./date";
@@ -14,7 +14,8 @@ import {
   normalizeInvoiceItems,
   resolveInvoiceCustomer,
 } from "./invoice";
-import { normalizeVatSettings } from "./vat";
+import { formatVatRateLabel, normalizeVatSettings } from "./vat";
+import { logUserActivity } from "./user-activity";
 
 const interFontPath = path.join(process.cwd(), "assets", "fonts", "Inter.ttf");
 function ensureFontPath() {
@@ -52,6 +53,7 @@ export function buildInvoiceReceiptPdfBuffer(input: {
     businessAddress?: string | null;
     businessEmail?: string | null;
     businessPhone?: string | null;
+    vatRateDisplay?: string | null;
   };
   logoBuffer?: Buffer | null;
   billTo?: { name?: string | null; email?: string | null; address?: string | null } | null;
@@ -205,7 +207,7 @@ export function buildInvoiceReceiptPdfBuffer(input: {
   y += 14;
   if (vatEnabled && input.totals.taxAmount > 0) {
     drawBold(
-      `VAT (${vatRate ? vatRate.toFixed(1).replace(/\\.0$/, "") : "0"}%)`,
+      `VAT (${formatVatRateLabel(vatRate, input.business.vatRateDisplay)}%)`,
       right - 260,
       y,
       10.5
@@ -296,6 +298,7 @@ export async function maybeCreateInvoiceReceipt({
         businessPhone: true,
         vatEnabled: true,
         vatRate: true,
+        vatRateDisplay: true,
         vatPricingMode: true,
       },
     });
@@ -330,8 +333,9 @@ export async function maybeCreateInvoiceReceipt({
       businessAddress: business.businessAddress,
       businessEmail: business.businessEmail,
       businessPhone: business.businessPhone,
+      vatRateDisplay: business.vatRateDisplay,
     },
-    logoBuffer: getBusinessLogoBuffer(userId),
+    logoBuffer: await getBusinessLogoBuffer(userId),
     billTo: customer || undefined,
     items,
     totals,
@@ -358,6 +362,20 @@ export async function maybeCreateInvoiceReceipt({
     },
   });
 
+  await logUserActivity({
+    userId,
+    actorId: userId,
+    eventType: "receipt_generated",
+    metadata: {
+      receiptId: receipt.id,
+      receiptNumber,
+      invoiceId,
+      invoicePaymentId,
+      provider,
+      reference: reference || null,
+    },
+  });
+
   const merchant = await prisma.user.findUnique({
     where: { id: userId },
     select: { email: true, name: true },
@@ -374,7 +392,7 @@ export async function maybeCreateInvoiceReceipt({
         <p style="margin-top: 24px;">- The Maboria Team</p>
       </div>
     `;
-    await sendEmail({
+    await sendBillingMail({
       to: Array.from(recipients).join(","),
       subject,
       html,

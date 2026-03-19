@@ -6,6 +6,8 @@ import { withErrorHandling } from "@/lib/api-handler";
 import { enforceEntitlement } from "@/lib/entitlements";
 import { executeAutomationRun } from "@/lib/automation/engine";
 import { readFlowSnapshotFromRunOutput } from "@/lib/automation/versioning";
+import { requireSystemFlag } from "@/lib/system-flags-guard";
+import { requireNoImpersonationMode, requirePlatformAdmin } from "@/lib/admin/admin-rbac";
 
 const SAFE_PROVIDER_STEPS = new Set(["sendEmail", "sendWhatsApp"]);
 
@@ -32,12 +34,23 @@ const readLastFailedStep = (logs: unknown) => {
 };
 
 export const POST = withErrorHandling(async (req: Request) => {
-  const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const replayDisabled = await requireSystemFlag(
+    "automation_replay_enabled",
+    "Automation replay is currently disabled."
+  );
+  if (replayDisabled) return replayDisabled;
 
-  const entitlement = await enforceEntitlement(session.user.id, {
+  const session = await getServerSession(authOptions);
+  const denied = requirePlatformAdmin(session?.user);
+  if (denied) return denied;
+  const actorUserId = session!.user.id;
+  const impersonationBlocked = await requireNoImpersonationMode({
+    actorUserId,
+    cookieHeader: req.headers.get("cookie"),
+  });
+  if (impersonationBlocked) return impersonationBlocked;
+
+  const entitlement = await enforceEntitlement(actorUserId, {
     feature: "automations",
     requiredPlan: "starter",
     allowTrial: false,
@@ -118,7 +131,7 @@ export const POST = withErrorHandling(async (req: Request) => {
 
   await prisma.activityLog.create({
     data: {
-      userId: session.user.id,
+      userId: actorUserId,
       action: "ADMIN_AUTOMATION_SAFE_RETRY",
       metadata: {
         runId: run.id,

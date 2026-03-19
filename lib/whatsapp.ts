@@ -230,6 +230,30 @@ export async function sendWhatsAppText({
   });
 }
 
+export async function sendWhatsAppDocument({
+  to,
+  link,
+  filename,
+  caption,
+}: {
+  to: string;
+  link: string;
+  filename: string;
+  caption?: string;
+}) {
+  const normalized = normalizePhoneNumber(to);
+  return sendWhatsAppPayload({
+    messaging_product: "whatsapp",
+    to: normalized,
+    type: "document",
+    document: {
+      link,
+      filename,
+      ...(caption ? { caption } : {}),
+    },
+  });
+}
+
 export async function sendWhatsAppTemplate({
   to,
   name,
@@ -560,22 +584,7 @@ export async function recordOutboundMessage({
   actorId?: string | null;
 }) {
   const attachmentsJson = attachments as Prisma.InputJsonValue | undefined;
-  if (status === "SENT" || status === "DELIVERED") {
-    const conversation = await prisma.conversation.findUnique({
-      where: { id: conversationId },
-      select: { businessId: true, business: { select: { ownerId: true } } },
-    });
-    if (conversation?.businessId && conversation.business?.ownerId) {
-      await recordAnalyticsEvent({
-        userId: conversation.business.ownerId,
-        workspaceId: conversation.businessId,
-        orgId: conversation.businessId,
-        type: "WHATSAPP_MESSAGE_SENT",
-        count: 1,
-      });
-    }
-  }
-
+  let createdMessageId: string | null = null;
   await prisma.$transaction(async (tx) => {
     const message = await tx.message.create({
       data: {
@@ -588,6 +597,7 @@ export async function recordOutboundMessage({
         attachments: attachmentsJson,
       },
     });
+    createdMessageId = message.id;
 
     await tx.conversation.update({
       where: { id: conversationId },
@@ -604,4 +614,21 @@ export async function recordOutboundMessage({
       },
     });
   });
+
+  if ((status === "SENT" || status === "DELIVERED") && createdMessageId) {
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+      select: { businessId: true, business: { select: { ownerId: true } } },
+    });
+    if (conversation?.businessId && conversation.business?.ownerId) {
+      await recordAnalyticsEvent({
+        userId: conversation.business.ownerId,
+        workspaceId: conversation.businessId,
+        orgId: conversation.businessId,
+        type: "WHATSAPP_MESSAGE_SENT",
+        count: 1,
+        idempotencyKey: `wa:${createdMessageId}`,
+      });
+    }
+  }
 }

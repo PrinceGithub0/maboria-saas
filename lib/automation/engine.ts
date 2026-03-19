@@ -3,8 +3,9 @@ import "server-only";
 import { AutomationFlow, AutomationRunStatus, Prisma } from "@prisma/client";
 import OpenAI from "openai";
 import { prisma } from "../prisma";
-import { sendEmail } from "../email";
+import { sendNotificationsMail } from "../email";
 import { createInvoiceRecord, calculateTotals } from "../invoice";
+import { buildInvoiceIssuerCode, buildInvoiceNumberDraft } from "../invoice-number";
 import { normalizeVatSettings } from "../vat";
 import { log } from "../logger";
 import { meterUsage, autoInvoiceFromUsage, recoverFailedPayment } from "../billing";
@@ -18,6 +19,13 @@ import { AutomationFlowSnapshot, buildFlowSnapshot, readFlowSnapshotFromRunOutpu
 import { appendAutomationAuditEvent } from "./audit";
 import { sanitizeAutomationPayload } from "./redaction";
 import { shouldProcessEventForFlow } from "./ordering";
+import { createOrGetCustomer } from "../customers";
+import { applyLateFee } from "../late-fee";
+import { getOrCreateSubscriberSetting, toLateFeeSettingsSnapshot } from "../subscriber-settings";
+import { createAdminNotificationFromEvent } from "../admin/notifications";
+import { assertSystemFlagEnabled } from "../system-flags";
+import { logUserActivity } from "../user-activity";
+import { emitSystemEvent } from "../system-events";
 
 type Context = Record<string, any>;
 type ExecuteAutomationMeta = {
@@ -26,6 +34,7 @@ type ExecuteAutomationMeta = {
   event?: VerifiedAutomationEvent | null;
   idempotencyKey?: string | null;
   resumeRunId?: string | null;
+  originalRunId?: string | null;
 };
 type RetryStepState = {
   attempts: number;
@@ -39,6 +48,7 @@ type DuplicateRunReservation = {
   logs: Prisma.JsonValue;
   output: Prisma.JsonValue | null;
   completedAt: Date | null;
+  originalRunId: string | null;
 };
 type ResumeState = {
   lastCompletedStepIndex: number;
@@ -53,15 +63,25 @@ type ResumeRunRecord = {
   logs: Prisma.JsonValue;
   output: Prisma.JsonValue | null;
   completedAt: Date | null;
+  originalRunId: string | null;
 };
 type AutomationRunMeta = {
   trigger: string;
   source: string;
   input: Context;
   idempotencyKey: string | null;
+  originalRunId: string | null;
   event: VerifiedAutomationEvent | null;
   flowSnapshot: AutomationFlowSnapshot;
   resumeState: ResumeState;
+};
+type FailedStepRecord = {
+  stepId: string;
+  stepIndex: number;
+  stepType: string;
+  transient: boolean;
+  attempts: number;
+  error: Error;
 };
 
 const asJsonObject = (value: Record<string, unknown>): Prisma.InputJsonValue =>
@@ -153,15 +173,81 @@ const resolveStepRunAt = (step: any, config: Record<string, any>, now: Date) => 
   return null;
 };
 
-const isRetryableProviderStep = (stepType: string) =>
-  stepType === "sendEmail" || stepType === "sendWhatsApp";
+const DEFAULT_STEP_RETRY_POLICY = {
+  attempts: 4,
+  delaysMs: [10_000, 30_000, 120_000, 300_000],
+  maxDelayMs: 300_000,
+  jitterRatio: 0.2,
+} as const;
 
-const getProviderRetryPolicy = (step: any, config: Record<string, any>) => {
-  const rawAttempts = Number(config.retryAttempts ?? config.maxRetries ?? step?.retryAttempts ?? step?.maxRetries);
-  const rawDelayMs = Number(config.retryDelayMs ?? config.delayMs ?? step?.retryDelayMs ?? step?.delayMs);
-  const maxAttempts = Number.isFinite(rawAttempts) && rawAttempts > 0 ? Math.min(8, Math.floor(rawAttempts)) : 3;
-  const baseDelayMs = Number.isFinite(rawDelayMs) && rawDelayMs > 0 ? Math.max(30_000, rawDelayMs) : 60_000;
-  return { maxAttempts, baseDelayMs };
+const TRANSIENT_ERROR_PATTERN =
+  /(timeout|timed out|network|socket|econnreset|ecanceled|enotfound|eai_again|etimedout|ehostunreach|503|502|504|5\d\d|service unavailable|temporar(il)?y|rate limit|too many requests)/i;
+const NON_RETRYABLE_ERROR_PATTERN =
+  /(validation|invalid|missing|required|permission|forbidden|unauthorized|not allowed|not found|already exists|conflict)/i;
+
+const IDEMPOTENT_SIDE_EFFECT_STEPS = new Set([
+  "sendEmail",
+  "sendWhatsApp",
+  "generateInvoice",
+  "recoverPayment",
+  "autoInvoice",
+  "webhook",
+]);
+
+const normalizeErrorMessage = (error: unknown) => {
+  if (!error) return "unknown_error";
+  if (error instanceof Error) return error.message || "unknown_error";
+  if (typeof error === "string") return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+};
+
+const extractHttpStatus = (error: unknown): number | null => {
+  if (!error || typeof error !== "object") return null;
+  const raw = (error as Record<string, unknown>)["status"] ?? (error as Record<string, unknown>)["statusCode"];
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
+};
+
+const isTransientStepError = (error: unknown) => {
+  const message = normalizeErrorMessage(error);
+  const status = extractHttpStatus(error);
+  if (status && status >= 500) return true;
+  if (status === 429) return true;
+  if (NON_RETRYABLE_ERROR_PATTERN.test(message)) return false;
+  return TRANSIENT_ERROR_PATTERN.test(message);
+};
+
+const getRetryDelayMs = (attemptNumber: number) => {
+  const index = Math.max(0, Math.min(DEFAULT_STEP_RETRY_POLICY.delaysMs.length - 1, attemptNumber - 1));
+  const baseDelay = DEFAULT_STEP_RETRY_POLICY.delaysMs[index] || DEFAULT_STEP_RETRY_POLICY.maxDelayMs;
+  const jitterWindow = Math.floor(baseDelay * DEFAULT_STEP_RETRY_POLICY.jitterRatio);
+  const jitterOffset = jitterWindow > 0 ? Math.floor(Math.random() * (jitterWindow * 2 + 1)) - jitterWindow : 0;
+  return Math.max(1_000, Math.min(DEFAULT_STEP_RETRY_POLICY.maxDelayMs, baseDelay + jitterOffset));
+};
+
+const resolveStepId = (step: any, stepIndex: number, stepType: string) => {
+  const explicit = String(step?.id || step?.stepId || "").trim();
+  if (explicit) return explicit;
+  return `${stepType}:${stepIndex}`;
+};
+
+const shouldTrackStepIdempotency = (stepType: string) => IDEMPOTENT_SIDE_EFFECT_STEPS.has(stepType);
+
+const deriveRecoveryStatus = ({
+  status,
+  originalRunId,
+}: {
+  status: AutomationRunStatus;
+  originalRunId: string | null;
+}) => {
+  if (originalRunId) return "REPLAYED" as const;
+  if (status === "PENDING") return "RETRYING" as const;
+  if (status === "FAILED") return "FAILED" as const;
+  return "RESOLVED" as const;
 };
 
 const FLOW_RUNS_PER_MINUTE_LIMIT = 180;
@@ -376,7 +462,7 @@ const loadResumeRun = async ({
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
     const run = await tx.automationRun.findFirst({
       where: { id: runId, flowId, userId, runStatus: "PENDING" },
-      select: { id: true, runStatus: true, logs: true, output: true, completedAt: true },
+      select: { id: true, runStatus: true, logs: true, output: true, completedAt: true, originalRunId: true },
     });
     if (!run) return null;
     await tx.automationRun.update({
@@ -396,12 +482,14 @@ const reserveAutomationRun = async ({
   startedAt,
   output,
   idempotencyKey,
+  originalRunId,
 }: {
   flowId: string;
   userId: string;
   startedAt: Date;
   output: Record<string, unknown>;
   idempotencyKey?: string | null;
+  originalRunId?: string | null;
 }) => {
   if (!idempotencyKey) {
     const created = await prisma.automationRun.create({
@@ -412,6 +500,7 @@ const reserveAutomationRun = async ({
         logs: [],
         output: asJsonObject(output),
         startedAt,
+        originalRunId: originalRunId || null,
       },
       select: { id: true },
     });
@@ -430,7 +519,7 @@ const reserveAutomationRun = async ({
         },
       },
       orderBy: { createdAt: "desc" },
-      select: { id: true, runStatus: true, logs: true, output: true, completedAt: true },
+      select: { id: true, runStatus: true, logs: true, output: true, completedAt: true, originalRunId: true },
     });
     if (duplicateRun) {
       return { runId: null, duplicateRun };
@@ -444,10 +533,104 @@ const reserveAutomationRun = async ({
         logs: [],
         output: asJsonObject(output),
         startedAt,
+        originalRunId: originalRunId || null,
       },
       select: { id: true },
     });
     return { runId: created.id, duplicateRun: null as DuplicateRunReservation | null };
+  });
+};
+
+const stepAlreadyExecuted = async ({
+  originalRunId,
+  stepId,
+}: {
+  originalRunId: string;
+  stepId: string;
+}) => {
+  const existing = await prisma.automationStepExecution.findFirst({
+    where: {
+      originalRunId,
+      stepId,
+      status: "SUCCESS",
+    },
+    select: { id: true },
+  });
+  return Boolean(existing);
+};
+
+const markStepStarted = async ({
+  runId,
+  originalRunId,
+  stepId,
+  stepIndex,
+  stepType,
+}: {
+  runId: string;
+  originalRunId: string;
+  stepId: string;
+  stepIndex: number;
+  stepType: string;
+}) => {
+  const executionKey = `${runId}:${stepIndex}`;
+  await prisma.automationStepExecution.upsert({
+    where: { executionKey },
+    update: {
+      status: "STARTED",
+      startedAt: new Date(),
+      finishedAt: null,
+      durationMs: null,
+      errorMessage: null,
+      errorCode: null,
+      safeOutput: Prisma.JsonNull,
+      stepType,
+      stepId,
+      originalRunId,
+    },
+    create: {
+      runId,
+      executionKey,
+      originalRunId,
+      stepId,
+      stepIndex,
+      stepType,
+      status: "STARTED",
+      startedAt: new Date(),
+    },
+  });
+};
+
+const markStepFinished = async ({
+  runId,
+  stepIndex,
+  status,
+  startedAt,
+  errorMessage,
+  errorCode,
+  safeOutput,
+}: {
+  runId: string;
+  stepIndex: number;
+  status: "SUCCESS" | "FAILED" | "SKIPPED";
+  startedAt: number;
+  errorMessage?: string | null;
+  errorCode?: string | null;
+  safeOutput?: unknown;
+}) => {
+  const executionKey = `${runId}:${stepIndex}`;
+  await prisma.automationStepExecution.updateMany({
+    where: { executionKey },
+    data: {
+      status,
+      finishedAt: new Date(),
+      durationMs: Math.max(0, Date.now() - startedAt),
+      errorMessage: errorMessage ? String(errorMessage).slice(0, 1200) : null,
+      errorCode: errorCode ? String(errorCode).slice(0, 120) : null,
+      safeOutput:
+        safeOutput === undefined
+          ? Prisma.JsonNull
+          : (sanitizeAutomationPayload(safeOutput) as Prisma.InputJsonValue),
+    },
   });
 };
 
@@ -456,6 +639,8 @@ export async function executeAutomationRun(
   input: Context,
   meta?: ExecuteAutomationMeta
 ) {
+  await assertSystemFlagEnabled("automation_enabled", "Automation engine is currently disabled.");
+
   let logs: any[] = [];
   let status: AutomationRunStatus = "RUNNING";
   const runStartedAt = new Date();
@@ -463,6 +648,8 @@ export async function executeAutomationRun(
   let lastCompletedStepIndex = -1;
   let resumeRetryState: Record<string, RetryStepState> = {};
   let runId: string | null = null;
+  let runOriginalRunId: string | null = meta?.originalRunId || null;
+  let lastFailedStep: FailedStepRecord | null = null;
 
   if (meta?.resumeRunId) {
     const resumed = await loadResumeRun({
@@ -472,6 +659,10 @@ export async function executeAutomationRun(
     });
     if (resumed) {
       runId = resumed.id;
+      runOriginalRunId = resumed.originalRunId || runOriginalRunId || null;
+      if (!runOriginalRunId) {
+        runOriginalRunId = runId;
+      }
       logs = Array.isArray(resumed.logs) ? [...resumed.logs] : [];
       const snapshot = readFlowSnapshotFromRunOutput(resumed.output);
       if (snapshot) {
@@ -499,6 +690,7 @@ export async function executeAutomationRun(
     source: meta?.source ?? "Dashboard",
     input,
     idempotencyKey: meta?.idempotencyKey ?? null,
+    originalRunId: runOriginalRunId,
     event: meta?.event ?? null,
     flowSnapshot,
     resumeState: {
@@ -572,6 +764,7 @@ export async function executeAutomationRun(
       startedAt: runStartedAt,
       output: runMeta,
       idempotencyKey: meta?.idempotencyKey,
+      originalRunId: runOriginalRunId,
     });
     if (reservation.duplicateRun) {
       return {
@@ -584,6 +777,44 @@ export async function executeAutomationRun(
       };
     }
     runId = reservation.runId;
+    if (!runOriginalRunId && runId) {
+      runOriginalRunId = runId;
+      runMeta.originalRunId = runOriginalRunId;
+    }
+  }
+
+  if (runId) {
+    await logUserActivity({
+      tenantId: usageScope.businessId ?? null,
+      userId: flow.userId,
+      actorId: flow.userId,
+      eventType: "automation_triggered",
+      metadata: {
+        runId,
+        flowId: flow.id,
+        flowTitle: flow.title,
+        trigger: runMeta.trigger,
+        source: runMeta.source,
+      },
+    });
+    await emitSystemEvent({
+      tenantId: usageScope.businessId ?? null,
+      userId: flow.userId,
+      actorId: flow.userId,
+      eventType: "automation_run_started",
+      severity: "INFO",
+      source: "AUTOMATION",
+      entityType: "automation_run",
+      entityId: runId,
+      message: `Automation ${flow.title} started.`,
+      metadata: {
+        flowId: flow.id,
+        flowTitle: flow.title,
+        trigger: runMeta.trigger,
+        source: runMeta.source,
+        originalRunId: runOriginalRunId,
+      },
+    });
   }
 
   try {
@@ -623,27 +854,41 @@ export async function executeAutomationRun(
       });
     };
 
-    const scheduleProviderRetry = async ({
+    const scheduleTransientRetry = async ({
       stepIndex,
       stepType,
-      step,
-      config,
+      stepId,
       error,
     }: {
       stepIndex: number;
       stepType: string;
-      step: any;
-      config: Record<string, any>;
+      stepId: string;
       error: Error;
     }) => {
-      if (!runId) return false;
-      const { maxAttempts, baseDelayMs } = getProviderRetryPolicy(step, config);
+      if (!runId) return { scheduled: false, attempts: 1 };
       const retryKey = String(stepIndex);
       const previous = runMeta.resumeState.retryState?.[retryKey];
       const attempts = (previous?.attempts ?? 0) + 1;
       const retryState = { ...(runMeta.resumeState.retryState || {}) };
+      const maxRetries = DEFAULT_STEP_RETRY_POLICY.attempts;
 
-      if (attempts >= maxAttempts) {
+      await prisma.activityLog.create({
+        data: {
+          userId: flow.userId,
+          action: "AUTOMATION_RETRY_ATTEMPT",
+          metadata: {
+            runId,
+            flowId: flow.id,
+            stepId,
+            stepType,
+            stepIndex,
+            attempt: attempts,
+            maxRetries,
+          },
+        },
+      });
+
+      if (attempts > maxRetries) {
         retryState[retryKey] = {
           attempts,
           exhausted: true,
@@ -662,7 +907,7 @@ export async function executeAutomationRun(
           step: stepType,
           result: "retry-exhausted",
           attempts,
-          maxAttempts,
+          maxRetries,
           error: error.message,
         });
         await recordProviderFailureAndNotifyIfRepeated({
@@ -673,13 +918,13 @@ export async function executeAutomationRun(
           stepType,
           stepIndex,
           attempts,
-          maxAttempts,
+          maxAttempts: maxRetries,
           errorMessage: error.message,
         });
-        return false;
+        return { scheduled: false, attempts };
       }
 
-      const delayMs = Math.min(baseDelayMs * Math.max(1, attempts), 15 * 60_000);
+      const delayMs = getRetryDelayMs(attempts);
       const nextRunAt = new Date(Date.now() + delayMs);
       retryState[retryKey] = {
         attempts,
@@ -699,7 +944,7 @@ export async function executeAutomationRun(
         step: stepType,
         result: "retry-scheduled",
         attempts,
-        maxAttempts,
+        maxRetries,
         nextRunAt: nextRunAt.toISOString(),
         error: error.message,
       });
@@ -708,12 +953,13 @@ export async function executeAutomationRun(
         where: { id: runId },
         data: {
           runStatus: "PENDING",
+          recoveryStatus: "RETRYING",
           logs: asJsonArray(logs),
           output: asJsonObject(runMeta),
           completedAt: null,
         },
       });
-      return true;
+      return { scheduled: true, attempts };
     };
 
     for (let stepIndex = 0; stepIndex < steps.length; stepIndex += 1) {
@@ -726,6 +972,43 @@ export async function executeAutomationRun(
         pushLog({ stepIndex, step: "unknown", error: "Invalid step configuration" });
         await persistProgress(stepIndex);
         continue;
+      }
+      const stepId = resolveStepId(step, stepIndex, stepType);
+      const idempotencyScope = runOriginalRunId || runId;
+      const stepStartedAt = Date.now();
+      if (runId && idempotencyScope) {
+        await markStepStarted({
+          runId,
+          originalRunId: idempotencyScope,
+          stepId,
+          stepIndex,
+          stepType,
+        });
+      }
+      if (runId && idempotencyScope && shouldTrackStepIdempotency(stepType)) {
+        const alreadyExecuted = await stepAlreadyExecuted({
+          originalRunId: idempotencyScope,
+          stepId,
+        });
+        if (alreadyExecuted) {
+          pushLog({
+            stepIndex,
+            step: stepType,
+            stepId,
+            result: "idempotent-skip",
+          });
+          if (runId) {
+            await markStepFinished({
+              runId,
+              stepIndex,
+              status: "SKIPPED",
+              startedAt: stepStartedAt,
+              safeOutput: { reason: "idempotent-skip" },
+            });
+          }
+          await persistProgress(stepIndex);
+          continue;
+        }
       }
       const stepRunAt = resolveStepRunAt(step, config, new Date());
       if (stepRunAt && stepRunAt.getTime() > Date.now()) {
@@ -742,6 +1025,15 @@ export async function executeAutomationRun(
           result: "scheduled",
           scheduledFor: stepRunAt.toISOString(),
         });
+        if (runId) {
+          await markStepFinished({
+            runId,
+            stepIndex,
+            status: "SKIPPED",
+            startedAt: stepStartedAt,
+            safeOutput: { reason: "scheduled", scheduledFor: stepRunAt.toISOString() },
+          });
+        }
         status = "PENDING";
         break;
       }
@@ -790,7 +1082,17 @@ export async function executeAutomationRun(
               headers: config.headers,
               body: config.body ? JSON.stringify(config.body) : undefined,
             });
-            const data = await response.json();
+            const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+            const data = contentType.includes("application/json")
+              ? await response.json().catch(() => ({}))
+              : await response.text().catch(() => "");
+            if (!response.ok) {
+              const apiError = new Error(
+                `API call failed (${response.status})${typeof data === "string" && data ? `: ${data.slice(0, 180)}` : ""}`
+              ) as Error & { status?: number };
+              apiError.status = response.status;
+              throw apiError;
+            }
             context.api = data;
             pushLog({ stepIndex, step: stepType, result: data });
             break;
@@ -816,12 +1118,76 @@ export async function executeAutomationRun(
             break;
           }
           case "generateInvoice": {
-            const invoiceNumber = `INV-${Date.now()}`;
+            if (String(config.actionId || "").toLowerCase() === "apply_late_fee") {
+              const targetInvoiceId = String(
+                config.invoiceId ||
+                  config.targetInvoiceId ||
+                  context.input?.invoiceId ||
+                  input?.invoiceId ||
+                  ""
+              ).trim();
+              if (!targetInvoiceId) {
+                pushLog({
+                  stepIndex,
+                  step: stepType,
+                  skipped: true,
+                  reason: "Missing invoice id for late fee",
+                });
+                break;
+              }
+
+              const lateFeeSettings = toLateFeeSettingsSnapshot(
+                await getOrCreateSubscriberSetting(flow.userId)
+              );
+              if (!lateFeeSettings.enabled) {
+                pushLog({
+                  stepIndex,
+                  step: "applyLateFee",
+                  skipped: true,
+                  reason: "late_fee_disabled",
+                });
+                break;
+              }
+              if (!lateFeeSettings.allowAutomationLateFee) {
+                pushLog({
+                  stepIndex,
+                  step: "applyLateFee",
+                  skipped: true,
+                  reason: "automation_late_fee_blocked",
+                });
+                break;
+              }
+
+              const lateFeeResult = await applyLateFee(targetInvoiceId, {
+                triggeredBy: "automation",
+                automationId: flow.id,
+              });
+              pushLog({
+                stepIndex,
+                step: "applyLateFee",
+                result: lateFeeResult,
+              });
+              break;
+            }
+            const invoiceNumber = buildInvoiceNumberDraft(
+              new Date(),
+              buildInvoiceIssuerCode(flow.userId, flow.userId)
+            );
             const items = Array.isArray(config.items)
               ? config.items
               : [{ name: "Automation Service", quantity: 1, price: 10000 }];
+            const owner = await prisma.user.findUnique({
+              where: { id: flow.userId },
+              select: { email: true, name: true },
+            });
+            const customer = await createOrGetCustomer({
+              userId: flow.userId,
+              name: String(config.customerName || owner?.name || "Unknown Customer"),
+              email: String(config.customerEmail || context.extracted?.email || owner?.email || `unknown+${flow.userId}@placeholder.local`),
+            });
             const invoice = await createInvoiceRecord({
               userId: flow.userId,
+              customerId: customer.id,
               invoiceNumber,
               currency: config.currency || "USD",
               items,
@@ -829,7 +1195,7 @@ export async function executeAutomationRun(
               discount: config.discount ?? 0,
             });
             context.invoice = invoice;
-            pushLog({ stepIndex, step: stepType, result: { invoiceNumber } });
+            pushLog({ stepIndex, step: stepType, result: { invoiceNumber: invoice.invoiceNumber } });
             break;
           }
           case "sendEmail": {
@@ -844,10 +1210,22 @@ export async function executeAutomationRun(
               limitPerMinute: PROVIDER_DISPATCH_PER_MINUTE_LIMIT,
               message: "Email dispatch rate limit exceeded. Retrying shortly.",
             });
-            await sendEmail({
+            await sendNotificationsMail({
               to,
               subject: config.subject || "Automation Update",
               html: config.html || `<p>Automation ${flow.title} completed.</p>`,
+            });
+            await logUserActivity({
+              tenantId: usageScope.businessId ?? null,
+              userId: flow.userId,
+              actorId: flow.userId,
+              eventType: "notification_sent",
+              metadata: {
+                channel: "email",
+                to,
+                flowId: flow.id,
+                runId,
+              },
             });
             pushLog({ stepIndex, step: stepType, result: { to } });
             break;
@@ -888,6 +1266,7 @@ export async function executeAutomationRun(
               orgId: usageScope.businessId ?? flow.userId,
               type: "AI_REQUEST",
               count: 1,
+              idempotencyKey: runId ? `auto_ai:${runId}:${stepIndex}` : undefined,
             });
             await recordAnalyticsEvent({
               userId: flow.userId,
@@ -956,22 +1335,68 @@ export async function executeAutomationRun(
           default:
             pushLog({ stepIndex, step: stepType, error: "Unknown step" });
         }
+        if (runId) {
+          await markStepFinished({
+            runId,
+            stepIndex,
+            status: "SUCCESS",
+            startedAt: stepStartedAt,
+            safeOutput: {
+              step: stepType,
+              completed: true,
+            },
+          });
+        }
       } catch (stepError: any) {
         const normalizedError =
           stepError instanceof Error ? stepError : new Error(typeof stepError === "string" ? stepError : "Step failed");
-        if (isRetryableProviderStep(stepType)) {
-          const scheduledRetry = await scheduleProviderRetry({
+        if (runId) {
+          await markStepFinished({
+            runId,
+            stepIndex,
+            status: "FAILED",
+            startedAt: stepStartedAt,
+            errorMessage: normalizedError.message,
+            errorCode: extractHttpStatus(normalizedError)?.toString() || null,
+          });
+        }
+        const transient = isTransientStepError(normalizedError);
+        if (transient) {
+          const retryDecision = await scheduleTransientRetry({
             stepIndex,
             stepType,
-            step,
-            config,
+            stepId,
             error: normalizedError,
           });
-          if (scheduledRetry) {
+          if (retryDecision.scheduled) {
             break;
           }
+          lastFailedStep = {
+            stepId,
+            stepIndex,
+            stepType,
+            transient,
+            attempts: retryDecision.attempts,
+            error: normalizedError,
+          };
+        } else {
+          lastFailedStep = {
+            stepId,
+            stepIndex,
+            stepType,
+            transient,
+            attempts: 1,
+            error: normalizedError,
+          };
         }
-        pushLog({ stepIndex, step: stepType, result: "failed", error: normalizedError.message });
+        pushLog({
+          stepIndex,
+          step: stepType,
+          stepId,
+          result: "failed",
+          transient,
+          error: normalizedError.message,
+        });
         throw normalizedError;
       }
       await persistProgress(stepIndex);
@@ -993,11 +1418,14 @@ export async function executeAutomationRun(
     if (!runId) return;
     const runCompletedAt = new Date();
     const shouldFinalizeRun = status !== "PENDING";
+    const failedStep: FailedStepRecord | null = lastFailedStep;
+    const recoveryStatus = deriveRecoveryStatus({ status, originalRunId: runOriginalRunId });
     const operations: Prisma.PrismaPromise<any>[] = [
       prisma.automationRun.update({
         where: { id: runId },
         data: {
           runStatus: status,
+          recoveryStatus,
           logs: asJsonArray(logs),
           output: asJsonObject(runMeta),
           completedAt: shouldFinalizeRun ? runCompletedAt : null,
@@ -1007,7 +1435,12 @@ export async function executeAutomationRun(
         data: {
           userId: flow.userId,
           action: `AUTOMATION_RUN_${status}`,
-          metadata: { flowId: flow.id, logsCount: logs.length },
+          metadata: {
+            flowId: flow.id,
+            logsCount: logs.length,
+            runId,
+            recoveryStatus,
+          },
         },
       }),
       prisma.notification.create({
@@ -1021,7 +1454,131 @@ export async function executeAutomationRun(
         },
       }),
     ];
+    if (status === "FAILED" && failedStep !== null) {
+      const failedStepData = failedStep as FailedStepRecord;
+      operations.push(
+        prisma.automationRunError.create({
+          data: {
+            runId,
+            flowId: flow.id,
+            userId: flow.userId,
+            stepId: failedStepData.stepId,
+            stepIndex: failedStepData.stepIndex,
+            errorType: failedStepData.stepType,
+            message: failedStepData.error.message.slice(0, 2000),
+            stackTrace: failedStepData.error.stack?.slice(0, 10_000) || null,
+            transient: failedStepData.transient,
+          },
+        })
+      );
+      operations.push(
+        prisma.activityLog.create({
+          data: {
+            userId: flow.userId,
+            action: "AUTOMATION_FAILURE_RECORDED",
+            metadata: {
+              runId,
+              flowId: flow.id,
+              stepId: failedStepData.stepId,
+              stepType: failedStepData.stepType,
+              stepIndex: failedStepData.stepIndex,
+              transient: failedStepData.transient,
+              attempts: failedStepData.attempts,
+            },
+          },
+        })
+      );
+    }
+    if (status === "PENDING") {
+      operations.push(
+        prisma.activityLog.create({
+          data: {
+            userId: flow.userId,
+            action: "AUTOMATION_RECOVERY_RETRYING",
+            metadata: {
+              runId,
+              flowId: flow.id,
+            },
+          },
+        })
+      );
+    }
+    if (status === "SUCCESS") {
+      operations.push(
+        prisma.activityLog.create({
+          data: {
+            userId: flow.userId,
+            action: "AUTOMATION_RECOVERED",
+            metadata: {
+              runId,
+              flowId: flow.id,
+              originalRunId: runOriginalRunId,
+            },
+          },
+        })
+      );
+    }
     await prisma.$transaction(operations);
+    if (status === "FAILED") {
+      const failedStepData = failedStep as FailedStepRecord | null;
+      await emitSystemEvent({
+        tenantId: usageScope.businessId ?? null,
+        userId: flow.userId,
+        actorId: flow.userId,
+        eventType: "automation_run_failed",
+        severity: "WARNING",
+        source: "AUTOMATION",
+        entityType: "automation_run",
+        entityId: runId,
+        message: `Automation ${flow.title} failed.`,
+        metadata: {
+          flowId: flow.id,
+          flowTitle: flow.title,
+          originalRunId: runOriginalRunId,
+          failedStepId: failedStepData?.stepId || null,
+          failedStepType: failedStepData?.stepType || null,
+        },
+      });
+      try {
+        await createAdminNotificationFromEvent({
+          eventType: "AUTOMATION_RUN_FAILED",
+          tenantId: usageScope.businessId ?? null,
+          entityId: runId,
+          payload: {
+            runId,
+            flowId: flow.id,
+            flowTitle: flow.title,
+            userId: flow.userId,
+            summary: `Automation ${flow.title} failed.`,
+          },
+          occurredAt: runCompletedAt,
+        });
+      } catch (error) {
+        log("error", "automation_admin_notification_failed", {
+          flowId: flow.id,
+          runId,
+          error,
+        });
+      }
+    }
+    if (status === "SUCCESS") {
+      await emitSystemEvent({
+        tenantId: usageScope.businessId ?? null,
+        userId: flow.userId,
+        actorId: flow.userId,
+        eventType: "automation_run_succeeded",
+        severity: "INFO",
+        source: "AUTOMATION",
+        entityType: "automation_run",
+        entityId: runId,
+        message: `Automation ${flow.title} succeeded.`,
+        metadata: {
+          flowId: flow.id,
+          flowTitle: flow.title,
+          originalRunId: runOriginalRunId,
+        },
+      });
+    }
     try {
       await appendAutomationAuditEvent({
         userId: flow.userId,
@@ -1048,6 +1605,7 @@ export async function executeAutomationRun(
           orgId: usageScope.businessId ?? flow.userId,
           type: "AUTOMATION_RUN",
           count: 1,
+          idempotencyKey: runId ? `auto_run:${runId}` : undefined,
         });
       } catch (error) {
         log("error", "analytics_automation_failed", { flowId: flow.id, error });

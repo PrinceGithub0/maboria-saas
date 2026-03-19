@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { sendEmail } from "@/lib/email";
+import { sendPlatformMail } from "@/lib/email";
 import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
@@ -114,7 +114,7 @@ export const POST = withRequestLogging(
     const logoUrl = `${baseUrl}/branding/Maboria%20Company%20logo.png`;
 
     try {
-      await sendEmail({
+      await sendPlatformMail({
         to: email,
         subject: "Reset your Maboria password",
         html: buildPasswordResetEmailHtml({ resetUrl, logoUrl }),

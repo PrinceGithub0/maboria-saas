@@ -27,20 +27,11 @@ import { fromMinorUnits } from "@/lib/payments/currency-allowlist";
 import { log } from "@/lib/logger";
 
 const payloadSchema = z.object({
-  provider: z.enum(["paystack", "flutterwave"]),
+  provider: z.enum(["paystack", "flutterwave", "stripe"]).optional(),
   reference: z.string().optional(),
   transactionId: z.union([z.string(), z.number()]).optional(),
   txRef: z.string().optional(),
 });
-
-function buildPeriodWindow(interval: BillingInterval) {
-  const currentPeriodStart = new Date();
-  const currentPeriodEnd =
-    interval === "yearly"
-      ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
-      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-  return { currentPeriodStart, currentPeriodEnd };
-}
 
 export const POST = withRequestLogging(withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
@@ -49,7 +40,60 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
   const parsed = payloadSchema.parse(await req.json());
   assertRateLimit(`payment-verify:${session.user.id}`, 10, 60_000);
 
-  if (parsed.provider === "paystack") {
+  let provider = parsed.provider;
+  let checkoutStatus: "CREATED" | "REDIRECTED" | "SUCCESS" | "FAILED" | "ABANDONED" | null = null;
+  if (!provider && parsed.reference) {
+    const checkout = await prisma.checkoutSession.findFirst({
+      where: { reference: parsed.reference, userId: session.user.id },
+      select: { provider: true, status: true },
+    });
+
+    if (!checkout) {
+      return NextResponse.json({ error: "Unknown checkout reference" }, { status: 404 });
+    }
+
+    provider = checkout.provider.toLowerCase() as "paystack" | "flutterwave" | "stripe";
+    checkoutStatus = checkout.status;
+
+    if (checkout.status === "SUCCESS") {
+      return NextResponse.json({ status: "synced" });
+    }
+    if (checkout.status === "ABANDONED" || checkout.status === "FAILED") {
+      return NextResponse.json({ status: "failed" });
+    }
+    if (checkout.provider === "STRIPE") {
+      return NextResponse.json({ status: "pending" });
+    }
+  }
+
+  if (!provider) {
+    return NextResponse.json({ error: "Missing provider" }, { status: 400 });
+  }
+
+  if (provider === "stripe") {
+    if (!parsed.reference) {
+      return NextResponse.json({ error: "Missing reference" }, { status: 400 });
+    }
+
+    const checkout = await prisma.checkoutSession.findFirst({
+      where: { reference: parsed.reference, userId: session.user.id },
+      select: { status: true },
+    });
+
+    if (!checkout) {
+      return NextResponse.json({ error: "Unknown checkout reference" }, { status: 404 });
+    }
+
+    if (checkout.status === "SUCCESS") {
+      return NextResponse.json({ status: "synced" });
+    }
+    if (checkout.status === "ABANDONED" || checkout.status === "FAILED") {
+      return NextResponse.json({ status: "failed" });
+    }
+    return NextResponse.json({ status: "pending" });
+  }
+
+  if (provider === "paystack") {
     if (!parsed.reference) {
       return NextResponse.json({ error: "Missing reference" }, { status: 400 });
     }
@@ -90,7 +134,13 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
         normalizedPlan === "ENTERPRISE"
           ? normalizedPlan
           : null;
-      const expected = planKey ? getPlanPriceForInterval(planKey, currency, interval) : null;
+      const checkout = parsed.reference
+        ? await prisma.checkoutSession.findUnique({
+            where: { reference: parsed.reference },
+            select: { amount: true },
+          })
+        : null;
+      const expected = checkout ? Number(checkout.amount) : planKey ? getPlanPriceForInterval(planKey, currency, interval) : null;
       if (expected && Math.abs(amount - expected) > 0.01) {
         log("warn", "paystack_amount_mismatch", { userId, plan: normalizedPlan, amount, expected, source: "verify" });
         return NextResponse.json({ status: "pending" });
@@ -99,39 +149,6 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
 
     await recordPaystackPayment(data);
     if (normalizedPlan === "STARTER" || normalizedPlan === "PRO" || normalizedPlan === "GROWTH" || normalizedPlan === "BUSINESS") {
-      const { currentPeriodStart, currentPeriodEnd } = buildPeriodWindow(interval);
-      const renewalDate = currentPeriodEnd;
-      const existingForPlan = await prisma.subscription.findFirst({
-        where: { userId, plan: normalizedPlan },
-        orderBy: { createdAt: "desc" },
-      });
-      if (existingForPlan) {
-        await prisma.subscription.update({
-          where: { id: existingForPlan.id },
-          data: {
-            status: "ACTIVE",
-            renewalDate,
-            currency,
-            interval,
-            plan: normalizedPlan,
-            currentPeriodStart,
-            currentPeriodEnd,
-          },
-        });
-      } else {
-        await prisma.subscription.create({
-          data: {
-            userId,
-            plan: normalizedPlan,
-            status: "ACTIVE",
-            renewalDate,
-            currency,
-            interval,
-            currentPeriodStart,
-            currentPeriodEnd,
-          },
-        });
-      }
       log("info", "paystack_subscription_synced", { userId, plan: normalizedPlan, status: "ACTIVE", source: "verify" });
       const newPlan = subscriptionPlanToUserPlan(normalizedPlan);
       log("info", "billing_plan_transition", {
@@ -146,13 +163,18 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     return NextResponse.json({ status: "synced" });
   }
 
-  if (!parsed.transactionId && !parsed.txRef) {
+  const flutterwaveTxRef = parsed.txRef || (provider === "flutterwave" ? parsed.reference : undefined);
+
+  if (!parsed.transactionId && !flutterwaveTxRef) {
+    if (checkoutStatus === "CREATED" || checkoutStatus === "REDIRECTED") {
+      return NextResponse.json({ status: "pending" });
+    }
     return NextResponse.json({ error: "Missing transactionId" }, { status: 400 });
   }
 
   const verification = parsed.transactionId
     ? await verifyFlutterwaveTransaction(parsed.transactionId)
-    : await verifyFlutterwaveTransactionByReference(parsed.txRef as string);
+    : await verifyFlutterwaveTransactionByReference(flutterwaveTxRef as string);
   const verified = verification?.data;
   if (!verified || verification?.status !== "success" || verified?.status !== "successful") {
     return NextResponse.json({ status: "pending" });
@@ -181,7 +203,14 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
       normalizedPlan === "ENTERPRISE"
         ? normalizedPlan
         : null;
-    const expected = planKey ? getPlanPriceForInterval(planKey, currency, interval) : null;
+    const checkoutReference = flutterwaveTxRef || parsed.txRef;
+    const checkout = checkoutReference
+      ? await prisma.checkoutSession.findUnique({
+          where: { reference: checkoutReference },
+          select: { amount: true },
+        })
+      : null;
+    const expected = checkout ? Number(checkout.amount) : planKey ? getPlanPriceForInterval(planKey, currency, interval) : null;
     if (expected && Math.abs(amount - expected) > 0.01) {
       log("warn", "flutterwave_amount_mismatch", { userId, plan: normalizedPlan, amount, expected, source: "verify" });
       return NextResponse.json({ status: "pending" });
@@ -200,39 +229,6 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     },
   });
   if (normalizedPlan === "STARTER" || normalizedPlan === "PRO" || normalizedPlan === "GROWTH" || normalizedPlan === "BUSINESS") {
-    const { currentPeriodStart, currentPeriodEnd } = buildPeriodWindow(interval);
-    const renewalDate = currentPeriodEnd;
-    const existingForPlan = await prisma.subscription.findFirst({
-      where: { userId, plan: normalizedPlan },
-      orderBy: { createdAt: "desc" },
-    });
-    if (existingForPlan) {
-      await prisma.subscription.update({
-        where: { id: existingForPlan.id },
-        data: {
-          status: "ACTIVE",
-          renewalDate,
-          currency,
-          interval,
-          plan: normalizedPlan,
-          currentPeriodStart,
-          currentPeriodEnd,
-        },
-      });
-    } else {
-      await prisma.subscription.create({
-        data: {
-          userId,
-          plan: normalizedPlan,
-          status: "ACTIVE",
-          renewalDate,
-          currency,
-          interval,
-          currentPeriodStart,
-          currentPeriodEnd,
-        },
-      });
-    }
     log("info", "flutterwave_subscription_synced", { userId, plan: normalizedPlan, status: "ACTIVE", source: "verify" });
     const newPlan = subscriptionPlanToUserPlan(normalizedPlan);
     log("info", "billing_plan_transition", {

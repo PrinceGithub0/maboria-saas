@@ -7,6 +7,7 @@ import {
   archiveOldAutomationRunLogs,
   getAutomationRetentionOverview,
 } from "@/lib/automation/retention";
+import { isPlatformRole } from "@/lib/global-role";
 
 const isAuthorizedRequest = async (req: Request) => {
   const cronSecret = process.env.CRON_SECRET;
@@ -18,7 +19,7 @@ const isAuthorizedRequest = async (req: Request) => {
   }
 
   const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!session?.user || !isPlatformRole(session.user.role)) {
     return { ok: false as const, source: "denied" as const, userId: null as string | null };
   }
   return { ok: true as const, source: "admin" as const, userId: session.user.id };

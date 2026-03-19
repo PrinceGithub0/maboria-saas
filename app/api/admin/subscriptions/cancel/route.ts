@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { withErrorHandling } from "@/lib/api-handler";
+import { requireNoImpersonationMode } from "@/lib/admin/admin-rbac";
 import { log } from "@/lib/logger";
 
 function normalize(input: string) {
@@ -11,8 +12,19 @@ function normalize(input: string) {
 
 export const POST = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== "ADMIN") {
+  const normalizedRole = String(session?.user?.role || "").toUpperCase();
+  if (
+    !session?.user?.id ||
+    (normalizedRole !== "OPS_ADMIN" && normalizedRole !== "SUPER_ADMIN")
+  ) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const impersonationBlocked = await requireNoImpersonationMode({
+    actorUserId: session.user.id,
+    cookieHeader: req.headers.get("cookie"),
+  });
+  if (impersonationBlocked) {
+    return impersonationBlocked;
   }
 
   const body = await req.json().catch(() => ({}));

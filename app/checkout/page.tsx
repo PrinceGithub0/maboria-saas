@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { CheckoutPanel } from "@/components/checkout/checkout-panel";
-import { normalizeCurrency } from "@/lib/payments/currency-allowlist";
+import { isAllowedCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
 import { getPlanPriceForInterval } from "@/lib/pricing";
 
 export default async function CheckoutPage() {
@@ -51,7 +51,10 @@ export default async function CheckoutPage() {
     where: { id: session.user.id },
     select: { preferredCurrency: true },
   });
-  const currency = normalizeCurrency(user?.preferredCurrency || "USD");
+  let currency = normalizeCurrency(user?.preferredCurrency || "USD");
+  if (!isAllowedCurrency(currency)) {
+    currency = "USD";
+  }
 
   const monthlyPrice = getPlanPriceForInterval(subscription.plan, currency, "monthly");
   const yearlyPrice = getPlanPriceForInterval(subscription.plan, currency, "yearly");

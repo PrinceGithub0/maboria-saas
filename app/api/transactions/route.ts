@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isPlatformRole } from "@/lib/global-role";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -18,7 +19,7 @@ export async function GET() {
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (session.user.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!isPlatformRole(session.user.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { amount, currency, status, reference, metadata } = await req.json();
   const normalizedCurrency = (currency || "USD").toUpperCase();
   const txn = await prisma.transaction.create({

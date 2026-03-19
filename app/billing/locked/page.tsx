@@ -8,6 +8,8 @@ import { getCheckoutPlanConfig } from "@/lib/checkout-plan-config";
 import { normalizeCurrency } from "@/lib/payments/currency-allowlist";
 import { CheckCircle2 } from "lucide-react";
 import { RetrySecurePaymentButton } from "./retry-secure-payment-button";
+import { resolveImpersonationFromRequestContext } from "@/lib/admin/impersonation";
+import { ExitImpersonationButton } from "./exit-impersonation-button";
 
 function TrustLockIcon() {
   return (
@@ -60,6 +62,8 @@ export default async function BillingLockedPage() {
     redirect("/signup");
   }
 
+  const impersonation = await resolveImpersonationFromRequestContext(session.user.id);
+
   const subscription = await prisma.subscription.findFirst({
     where: { userId: session.user.id },
     orderBy: { createdAt: "desc" },
@@ -77,6 +81,17 @@ export default async function BillingLockedPage() {
     <div className="min-h-screen bg-[#F8FAFC] px-4 py-16 text-slate-900 sm:px-6 sm:py-20">
       <div className="mx-auto w-full max-w-[720px]">
         <div className="relative rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_14px_40px_-28px_rgba(15,23,42,0.28)] sm:p-8">
+          {impersonation ? (
+            <div className="impersonation-banner mb-5 rounded-xl border p-3 text-sm font-semibold">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="font-medium">
+                  {`Impersonating: ${impersonation.targetEmail || impersonation.targetName || "Tenant user"} (Tenant: ${impersonation.tenantName || "Unknown tenant"})`}
+                </p>
+                <ExitImpersonationButton />
+              </div>
+            </div>
+          ) : null}
+
           <div className="absolute right-6 top-6 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
             Subscription Incomplete
           </div>

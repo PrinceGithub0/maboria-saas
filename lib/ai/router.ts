@@ -14,6 +14,7 @@ import { env } from "../env";
 import { log } from "../logger";
 import { recordAnalyticsEvent } from "../analytics";
 import { getWorkspaceScope } from "../entitlements";
+import { assertSystemFlagEnabled } from "../system-flags";
 
 const client = new OpenAI({ apiKey: env.openaiKey });
 
@@ -30,6 +31,8 @@ export async function aiRouter({
   context?: any;
   userId: string;
 }) {
+  await assertSystemFlagEnabled("ai_enabled", "AI assistant is currently disabled.");
+
   const rawPrompt = prompt.split(/\nRecent memory:/i)[0] || prompt;
   const normalized = rawPrompt.trim().toLowerCase();
   const normalizedClean = normalized.replace(/[^\w\s]/g, "").replace(/\s+/g, " ").trim();
@@ -186,7 +189,7 @@ export async function aiRouter({
         : (res.usage?.input_tokens ?? 0) + (res.usage?.output_tokens ?? 0);
     const fallbackTokens = Math.max(1, Math.ceil((input.length + output.length) / 4));
     const resolvedTokens = usageTokens > 0 ? usageTokens : fallbackTokens;
-    await prisma.aiUsageLog.create({
+    const usageLog = await prisma.aiUsageLog.create({
       data: { userId, model: "gpt-4.1-mini", tokens: resolvedTokens, prompt: input },
     });
     const workspace = await getWorkspaceScope(userId);
@@ -194,15 +197,16 @@ export async function aiRouter({
     await recordAnalyticsEvent({
       userId,
       workspaceId,
-      orgId: userId,
+      orgId: workspaceId,
       type: "AI_REQUEST",
       count: 1,
       createdAt: new Date(),
+      idempotencyKey: `ai:${usageLog.id}`,
     });
     await recordAnalyticsEvent({
       userId,
       workspaceId,
-      orgId: userId,
+      orgId: workspaceId,
       type: "AI_TOKENS",
       count: resolvedTokens,
       tokenCount: resolvedTokens,
@@ -233,6 +237,8 @@ export async function aiRouterStream({
   context?: any;
   userId: string;
 }) {
+  await assertSystemFlagEnabled("ai_enabled", "AI assistant is currently disabled.");
+
   const rawPrompt = prompt.split(/\nRecent memory:/i)[0] || prompt;
   const normalized = rawPrompt.trim().toLowerCase();
   const normalizedClean = normalized.replace(/[^\w\s]/g, "").replace(/\s+/g, " ").trim();
@@ -413,7 +419,7 @@ export async function aiRouterStream({
     }
     const fallbackTokens = Math.max(1, Math.ceil((input.length + finalOutput.length) / 4));
     const resolvedTokens = usageTokens > 0 ? usageTokens : fallbackTokens;
-    await prisma.aiUsageLog.create({
+    const usageLog = await prisma.aiUsageLog.create({
       data: { userId, model: "gpt-4.1-mini", tokens: resolvedTokens, prompt: input },
     });
     const workspace = await getWorkspaceScope(userId);
@@ -421,15 +427,16 @@ export async function aiRouterStream({
     await recordAnalyticsEvent({
       userId,
       workspaceId,
-      orgId: userId,
+      orgId: workspaceId,
       type: "AI_REQUEST",
       count: 1,
       createdAt: new Date(),
+      idempotencyKey: `ai:${usageLog.id}`,
     });
     await recordAnalyticsEvent({
       userId,
       workspaceId,
-      orgId: userId,
+      orgId: workspaceId,
       type: "AI_TOKENS",
       count: resolvedTokens,
       tokenCount: resolvedTokens,

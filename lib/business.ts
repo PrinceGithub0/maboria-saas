@@ -24,7 +24,7 @@ export async function getOrCreateBusinessForUser(userId: string) {
   const plan = activeSub?.plan ?? "STARTER";
 
   const existingMember = await prisma.businessMember.findFirst({
-    where: { userId },
+    where: { userId, status: "active" },
     include: { business: true },
   });
   if (existingMember) {
@@ -45,8 +45,10 @@ export async function getOrCreateBusinessForUser(userId: string) {
     if (ownedBusiness.plan !== plan) {
       await prisma.business.update({ where: { id: ownedBusiness.id }, data: { plan } });
     }
-    const member = await prisma.businessMember.create({
-      data: { userId, businessId: ownedBusiness.id, role: "owner" },
+    const member = await prisma.businessMember.upsert({
+      where: { businessId_userId: { businessId: ownedBusiness.id, userId } },
+      create: { userId, businessId: ownedBusiness.id, role: "owner", status: "active", joinedAt: new Date() },
+      update: { role: "owner", status: "active", joinedAt: new Date() },
     });
     return { business: { ...ownedBusiness, plan }, role: member.role };
   }
@@ -78,7 +80,7 @@ export async function getOrCreateBusinessForUser(userId: string) {
       plan,
       billingCycleStartAt,
       usageResetAt,
-      members: { create: [{ userId, role: "owner" }] },
+      members: { create: [{ userId, role: "owner", status: "active", joinedAt: new Date() }] },
     },
   });
   return { business, role: "owner" };

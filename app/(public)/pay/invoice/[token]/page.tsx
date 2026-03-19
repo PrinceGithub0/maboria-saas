@@ -3,14 +3,14 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { resolveInvoicePublicLink } from "@/lib/invoice-public-link";
 import {
-  calculateTotalsFromAmounts,
   normalizeInvoiceItems,
   resolveInvoiceCustomer,
   getBusinessLogoDataUrl,
+  resolveInvoiceBusinessSnapshot,
+  resolveStoredInvoiceTotals,
 } from "@/lib/invoice";
 import { isAllowedCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
 import { InvoicePreview } from "@/components/invoices/invoice-preview";
-import { normalizeVatSettings } from "@/lib/vat";
 import { formatCurrency } from "@/lib/currency";
 
 export const dynamic = "force-dynamic";
@@ -46,6 +46,12 @@ export default async function PublicInvoicePage({ params, searchParams }: PagePr
         : null;
   const customer = resolveInvoiceCustomer(metadata);
   const note = typeof metadata?.note === "string" ? metadata.note : null;
+  const poNumber =
+    typeof invoice.poNumber === "string" && invoice.poNumber.trim()
+      ? invoice.poNumber.trim()
+      : typeof metadata?.poNumber === "string" && metadata.poNumber.trim()
+        ? metadata.poNumber.trim()
+        : null;
   const businessSnapshot = metadata.businessProfile || null;
   const business =
     businessSnapshot ||
@@ -53,12 +59,15 @@ export default async function PublicInvoicePage({ params, searchParams }: PagePr
       where: { userId: invoice.userId },
       select: {
         businessName: true,
+        country: true,
+        defaultCurrency: true,
         businessEmail: true,
         businessPhone: true,
         businessAddress: true,
         taxId: true,
         vatEnabled: true,
         vatRate: true,
+        vatRateDisplay: true,
         vatPricingMode: true,
       },
     }));
@@ -78,19 +87,14 @@ export default async function PublicInvoicePage({ params, searchParams }: PagePr
   const dueDate = dueDateRaw && !Number.isNaN(dueDateRaw.getTime()) ? dueDateRaw : null;
 
   const items = normalizeInvoiceItems(invoice.items);
-  const vatSettings = normalizeVatSettings({
-    enabled: business?.vatEnabled ?? false,
-    rate: business?.vatRate ? Number(business.vatRate) : 0,
-    mode:
-      String(business?.vatPricingMode || "EXCLUSIVE").toLowerCase() === "inclusive"
-        ? "inclusive"
-        : "exclusive",
-  });
-  const totals = calculateTotalsFromAmounts(items, vatSettings, Number(invoice.discount || 0));
+  const resolvedBusiness = resolveInvoiceBusinessSnapshot(invoice, business);
+  const totals = resolveStoredInvoiceTotals(invoice, resolvedBusiness);
+  const lateFeeAmount = Number(invoice.lateFeeTotalAccumulated || invoice.lateFeeAmount || 0);
+  const totalDue = Number(invoice.total || 0);
 
   const payable = isPayableStatus(invoice.status) && !link.usedAt && !isFinalStatus(invoice.status);
   const paymentLink = payable ? `/api/invoice/pay/${encodeURIComponent(token)}` : null;
-  const logoDataUrl = getBusinessLogoDataUrl(invoice.userId || "");
+  const logoDataUrl = await getBusinessLogoDataUrl(invoice.userId || "");
   const invoicePath = `/pay/invoice/${encodeURIComponent(token)}`;
   const isPaid = resolvedSearchParams?.status === "paid";
   const isFailed = resolvedSearchParams?.status === "failed";
@@ -99,21 +103,26 @@ export default async function PublicInvoicePage({ params, searchParams }: PagePr
     <div className="mx-auto max-w-5xl px-6 py-12">
       <InvoicePreview
         invoiceNumber={invoice.invoiceNumber}
+        poNumber={poNumber}
         status={invoice.status}
         issuedAt={invoice.generatedAt}
         dueDate={dueDate}
         currency={normalizedCurrency}
         items={items}
         totals={totals}
+        lateFeeAmount={lateFeeAmount}
+        totalDue={totalDue}
         paymentLink={paymentLink}
         paymentProviderLabel={paymentProviderLabel}
         logoDataUrl={logoDataUrl}
         business={{
-          businessName: business?.businessName || "Business",
-          businessEmail: business?.businessEmail,
-          businessAddress: business?.businessAddress,
-          businessPhone: business?.businessPhone,
-          taxId: business?.taxId,
+          businessName: resolvedBusiness?.businessName || "Business",
+          country: resolvedBusiness?.country,
+          businessEmail: resolvedBusiness?.businessEmail,
+          businessAddress: resolvedBusiness?.businessAddress,
+          businessPhone: resolvedBusiness?.businessPhone,
+          taxId: resolvedBusiness?.taxId,
+          vatRateDisplay: resolvedBusiness?.vatRateDisplay,
         }}
         billTo={customer}
         note={note}
@@ -133,7 +142,7 @@ export default async function PublicInvoicePage({ params, searchParams }: PagePr
             <div>
               <p className="text-xs uppercase tracking-wide text-emerald-700/80">Amount paid</p>
               <p className="font-semibold text-emerald-950">
-                {formatCurrency(totals.total, normalizedCurrency)}
+                {formatCurrency(totalDue, normalizedCurrency)}
               </p>
             </div>
             <div>

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { isPlatformRole } from "@/lib/global-role";
 
 type AutomationAction = "create" | "edit" | "delete" | "pause" | "run" | "refund" | "view";
 
@@ -16,6 +17,7 @@ type AutomationPermissions = {
 const ROLE_RANK: Record<string, number> = {
   owner: 30,
   admin: 20,
+  member: 10,
   agent: 10,
 };
 
@@ -36,7 +38,7 @@ const resolvePermissionsByRole = (role: string, source: AutomationPermissions["s
     };
   }
   return {
-    role: role || "agent",
+    role: role || "member",
     source,
     canCreate: false,
     canEdit: false,
@@ -52,12 +54,12 @@ export async function getAutomationPermissions(userId: string): Promise<Automati
     where: { id: userId },
     select: { role: true },
   });
-  if (user?.role === "ADMIN") {
+  if (isPlatformRole(user?.role)) {
     return resolvePermissionsByRole("platform_admin", "platform_admin");
   }
 
   const memberships = await prisma.businessMember.findMany({
-    where: { userId },
+    where: { userId, status: "active" },
     select: { role: true },
   });
   if (!memberships.length) {
@@ -68,7 +70,7 @@ export async function getAutomationPermissions(userId: string): Promise<Automati
     .map((m) => normalizeRole(m.role))
     .sort((a, b) => (ROLE_RANK[b] || 0) - (ROLE_RANK[a] || 0))[0];
 
-  return resolvePermissionsByRole(primaryRole || "agent", "business_member");
+  return resolvePermissionsByRole(primaryRole || "member", "business_member");
 }
 
 export function hasAutomationPermission(permissions: AutomationPermissions, action: AutomationAction) {

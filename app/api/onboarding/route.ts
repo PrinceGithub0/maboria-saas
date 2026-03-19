@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { withErrorHandling } from "@/lib/api-handler";
+import { isAllowedCurrency } from "@/lib/payments/currency-allowlist";
 import { z } from "zod";
 import {
   isSupportedBusinessCurrency,
@@ -37,7 +38,10 @@ export const POST = withErrorHandling(async (req: Request) => {
   await prisma.$transaction(async (tx) => {
     await tx.user.update({
       where: { id: session.user.id },
-      data: { onboardingComplete: true, preferredCurrency: normalizedCurrency },
+      data: {
+        onboardingComplete: true,
+        ...(isAllowedCurrency(normalizedCurrency) ? { preferredCurrency: normalizedCurrency } : {}),
+      },
     });
 
     const existing = await tx.businessProfile.findUnique({

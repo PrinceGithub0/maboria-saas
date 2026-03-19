@@ -22,7 +22,7 @@ export async function GET() {
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const businesses = await prisma.businessMember.findMany({
-    where: { userId: session.user.id },
+    where: { userId: session.user.id, status: "active" },
     include: { business: true },
   });
 

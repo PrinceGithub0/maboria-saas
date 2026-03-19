@@ -4,8 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { withErrorHandling } from "@/lib/api-handler";
 import { enforceEntitlement } from "@/lib/entitlements";
-import fs from "fs/promises";
-import path from "path";
+import { requireBillingAccess } from "@/lib/permissions";
 import { ensureInvoicePdf, resolveInvoiceCustomer } from "@/lib/invoice";
 
 type Params = { params: { id: string } };
@@ -16,7 +15,11 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const entitlement = await enforceEntitlement(session.user.id, {
+  const access = await requireBillingAccess(session.user.id);
+  if (!access.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const targetUserId = access.ownerUserId;
+
+  const entitlement = await enforceEntitlement(targetUserId, {
     feature: "invoices",
     requiredPlan: "starter",
     allowTrial: false,
@@ -48,11 +51,12 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
 
   const invoice = await prisma.invoice.findFirst({
     where: {
-      userId: session.user.id,
+      userId: targetUserId,
       OR: [
         { id: invoiceId },
         { invoiceNumber: invoiceId },
         { invoiceNumber: { equals: invoiceId, mode: "insensitive" } },
+        { metadata: { path: ["invoiceNumberAliases"], array_contains: [invoiceId] } },
       ],
     },
   });
@@ -62,7 +66,7 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
   let business = metadata.businessProfile;
   const customer = resolveInvoiceCustomer(metadata);
   const profile = await prisma.businessProfile.findUnique({
-    where: { userId: session.user.id },
+    where: { userId: targetUserId },
     select: {
       businessName: true,
       country: true,
@@ -80,7 +84,7 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
     business = profile;
   } else if (!business?.businessName) {
     const account = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: targetUserId },
       select: { name: true, email: true },
     });
     const fallbackName =

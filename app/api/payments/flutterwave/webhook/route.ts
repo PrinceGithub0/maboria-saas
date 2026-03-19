@@ -19,15 +19,6 @@ import {
   markWebhookProcessed,
 } from "@/lib/webhook-events";
 
-function buildPeriodWindow(interval: BillingInterval) {
-  const currentPeriodStart = new Date();
-  const currentPeriodEnd =
-    interval === "yearly"
-      ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
-      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-  return { currentPeriodStart, currentPeriodEnd };
-}
-
 export const POST = withErrorHandling(async (req: Request) => {
   const signature =
     req.headers.get("verif-hash") || req.headers.get("x-flutterwave-signature") || undefined;
@@ -97,11 +88,19 @@ export const POST = withErrorHandling(async (req: Request) => {
     }
 
     if (plan) {
-      const expected = getPlanPriceForInterval(
-        plan as "STARTER" | "PRO" | "GROWTH" | "BUSINESS" | "PREMIUM" | "ENTERPRISE",
-        currency,
-        interval
-      );
+      const checkout = txRef
+        ? await prisma.checkoutSession.findUnique({
+            where: { reference: txRef },
+            select: { amount: true },
+          })
+        : null;
+      const expected = checkout
+        ? Number(checkout.amount)
+        : getPlanPriceForInterval(
+            plan as "STARTER" | "PRO" | "GROWTH" | "BUSINESS" | "PREMIUM" | "ENTERPRISE",
+            currency,
+            interval
+          );
       if (expected && Math.abs(amount - expected) > 0.01) {
         log("warn", "flutterwave_amount_mismatch", { userId, plan, amount, expected, txRef, interval });
         await markWebhookFailed(webhookEvent.id, "amount_mismatch");
@@ -127,57 +126,7 @@ export const POST = withErrorHandling(async (req: Request) => {
         const oldPlan = existing ? subscriptionPlanToUserPlan(existing.plan) : "free";
 
         if (plan === "STARTER" || plan === "PRO" || plan === "GROWTH" || plan === "BUSINESS") {
-          const { currentPeriodStart, currentPeriodEnd } = buildPeriodWindow(interval);
-          const renewalDate = currentPeriodEnd;
-          let subscriptionId: string | null = null;
-          await prisma.$transaction(async (tx) => {
-            await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`;
-            const existingForPlan = await tx.subscription.findFirst({
-              where: { userId, plan },
-              orderBy: { createdAt: "desc" },
-            });
-            if (existingForPlan) {
-              await tx.subscription.update({
-                where: { id: existingForPlan.id },
-                data: {
-                  status: "ACTIVE",
-                  renewalDate,
-                  currency,
-                  interval,
-                  plan,
-                  currentPeriodStart,
-                  currentPeriodEnd,
-                },
-              });
-              subscriptionId = existingForPlan.id;
-            } else {
-              const created = await tx.subscription.create({
-                data: {
-                  userId,
-                  plan,
-                  status: "ACTIVE",
-                  renewalDate,
-                  currency,
-                  interval,
-                  currentPeriodStart,
-                  currentPeriodEnd,
-                },
-              });
-              subscriptionId = created.id;
-            }
-          });
           const newPlan = subscriptionPlanToUserPlan(plan);
-          if (subscriptionId) {
-            await prisma.activityLog.create({
-              data: {
-                userId,
-                action: "SUBSCRIPTION_UPDATED",
-                resourceType: "subscription",
-                resourceId: subscriptionId,
-                metadata: { status: "ACTIVE", plan },
-              },
-            });
-          }
           log("info", "flutterwave_subscription_synced", { userId, plan, status: "ACTIVE" });
           log("info", "billing_plan_transition", {
             provider: "flutterwave",

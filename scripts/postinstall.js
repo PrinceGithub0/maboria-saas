@@ -9,9 +9,14 @@ function main() {
     return;
   }
 
+  const env = { ...process.env };
+
+  // Prevent shell-level no-engine settings from generating an Accelerate-only client.
+  delete env.PRISMA_GENERATE_NO_ENGINE;
+
   const result = spawnSync("npx", ["prisma", "generate"], {
     shell: true,
-    env: process.env,
+    env,
     encoding: "utf8",
   });
 

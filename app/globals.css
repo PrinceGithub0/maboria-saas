@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *, [data-resolved-theme="dark"], [data-resolved-theme="dark"] *));
 
 *,
 *::before,
@@ -322,6 +323,43 @@ html.dark .automation-throughput-card {
   background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), #0b1222 55%, #0b1222 100%) !important;
 }
 
+html:not(.dark) .provider-health-pill {
+  background-color: #047857 !important;
+  border-color: #065f46 !important;
+  color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+html:not(.dark) .delta-text {
+  font-weight: 700 !important;
+}
+
+html:not(.dark) .delta-positive {
+  color: #059669 !important;
+}
+
+html:not(.dark) .delta-negative {
+  color: #9f1239 !important;
+}
+
+html:not(.dark) .delta-neutral {
+  color: #475569 !important;
+}
+
+html:not(.dark) .delta-unknown {
+  color: #94a3b8 !important;
+}
+
+.dark .provider-health-pill {
+  background-color: rgba(16, 185, 129, 0.2) !important;
+  border-color: rgba(16, 185, 129, 0.65) !important;
+  color: #ecfdf5 !important;
+  opacity: 1 !important;
+}
+
+
+
+
 html[data-lang="en"] [data-lang="fr"],
 html[data-lang="fr"] [data-lang="en"] {
   display: none !important;
@@ -427,3 +465,53 @@ html[data-lang="fr"] [data-lang="en"] {
   border-radius: 4px;
   padding: 0 2px;
 }
+
+html:not(.dark):not([data-theme="dark"]) .impersonation-banner {
+  border-color: #f5d486 !important;
+  background-color: #fffbeb !important;
+  color: #92400e !important;
+}
+
+html:not(.dark):not([data-theme="dark"]) .impersonation-banner-action {
+  border-color: #eab308 !important;
+  background-color: #fff7e0 !important;
+  color: #92400e !important;
+}
+
+html:not(.dark):not([data-theme="dark"]) .impersonation-banner-action:hover {
+  background-color: #ffefc2 !important;
+}
+
+.dark .impersonation-banner {
+  border-color: rgba(251, 191, 36, 0.4) !important;
+  background-color: rgba(245, 158, 11, 0.1) !important;
+  color: #fde68a !important;
+}
+
+[data-theme="dark"] .impersonation-banner {
+  border-color: rgba(251, 191, 36, 0.4) !important;
+  background-color: rgba(245, 158, 11, 0.1) !important;
+  color: #fde68a !important;
+}
+
+.dark .impersonation-banner-action {
+  border-color: rgba(251, 191, 36, 0.4) !important;
+  background-color: transparent !important;
+  color: #fde68a !important;
+}
+
+[data-theme="dark"] .impersonation-banner-action {
+  border-color: rgba(251, 191, 36, 0.4) !important;
+  background-color: transparent !important;
+  color: #fde68a !important;
+}
+
+.dark .impersonation-banner-action:hover {
+  background-color: rgba(245, 158, 11, 0.18) !important;
+}
+
+[data-theme="dark"] .impersonation-banner-action:hover {
+  background-color: rgba(245, 158, 11, 0.18) !important;
+}
+
+

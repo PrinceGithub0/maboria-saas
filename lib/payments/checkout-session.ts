@@ -6,20 +6,30 @@ import { prisma } from "@/lib/prisma";
 import { log } from "@/lib/logger";
 import { initializePaystackTransaction } from "@/lib/payments/paystack";
 import { initializeFlutterwavePayment } from "@/lib/payments/flutterwave";
-import { getPlanPriceForInterval, type BillingInterval } from "@/lib/pricing";
+import { initializeStripeCheckoutSession } from "@/lib/payments/stripe";
+import type { BillingInterval } from "@/lib/pricing";
 import {
   isAllowedCurrency,
   isProviderCurrency,
   isPaystackCurrencyEnabled,
+  isStripeSupportedCurrency,
   normalizeCurrency,
   toMinorUnits,
 } from "@/lib/payments/currency-allowlist";
 import {
+  type CheckoutProvider,
+  getCheckoutFallbackProviders,
   getCountryFromRequestHeaders,
+  isCheckoutProviderEnabled,
   normalizeCountryCode,
   resolvePaymentProvider,
-  toPaymentProviderEnum,
 } from "@/lib/payments/payment-providers";
+import { resolveOrgContext } from "@/lib/org-auth";
+import {
+  buildSubscriptionCheckoutQuote,
+  isDowngradeChange,
+  normalizeBillingInterval,
+} from "@/lib/payments/subscription-change";
 
 type StartCheckoutSessionInput = {
   req: Request;
@@ -28,11 +38,24 @@ type StartCheckoutSessionInput = {
   billingCycle: BillingInterval;
   detectedCountry?: string | null;
   requestedCurrency?: string | null;
+  requestedProvider?: CheckoutProvider | null;
 };
 
 type ProviderInitResult = {
   redirectUrl?: string;
   payload?: unknown;
+};
+
+type CheckoutContextPayload = {
+  action: "new_subscription" | "renewal" | "upgrade";
+  currentPlan: SubscriptionPlan | null;
+  currentInterval: BillingInterval | null;
+  targetPlan: SubscriptionPlan;
+  targetInterval: BillingInterval;
+  fullAmount: number;
+  amountDue: number;
+  creditAmount: number;
+  remainingRatio: number;
 };
 
 const createHttpError = (message: string, status: number) => {
@@ -55,6 +78,15 @@ const toPlanEnum = (plan: string): SubscriptionPlan => {
     default:
       return "STARTER";
   }
+};
+
+const toSubscriptionStatusFromOrgStatus = (status?: string | null) => {
+  const normalized = String(status || "").toUpperCase();
+  if (normalized === "ACTIVE") return "ACTIVE" as const;
+  if (normalized === "PAST_DUE") return "PAST_DUE" as const;
+  if (normalized === "TRIALING") return "TRIALING" as const;
+  if (normalized === "CANCELED") return "CANCELED" as const;
+  return "INCOMPLETE" as const;
 };
 
 const getAppUrl = (req: Request) => {
@@ -117,6 +149,33 @@ async function initializeProviderCheckout({
     };
   }
 
+  if (provider === "STRIPE") {
+    const init = await initializeStripeCheckoutSession({
+      amount,
+      currency,
+      customerEmail: userEmail,
+      customerName: userName,
+      reference,
+      successUrl: `${appUrl}/checkout/return?reference=${encodeURIComponent(reference)}`,
+      cancelUrl: `${appUrl}/checkout`,
+      planName: `Maboria ${plan} plan`,
+      interval: billingCycle,
+      metadata: {
+        type: "checkout_session",
+        checkoutSessionId: checkoutId,
+        subscriptionId,
+        userId,
+        plan,
+        interval: billingCycle,
+        country: countryCode,
+      },
+    });
+    return {
+      redirectUrl: init?.url,
+      payload: init ?? null,
+    };
+  }
+
   const init = await initializeFlutterwavePayment({
     amount,
     currency,
@@ -147,6 +206,7 @@ export async function startCheckoutSession({
   billingCycle,
   detectedCountry,
   requestedCurrency,
+  requestedProvider,
 }: StartCheckoutSessionInput) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -162,12 +222,45 @@ export async function startCheckoutSession({
     throw createHttpError("User not found", 404);
   }
 
-  const subscription = await prisma.subscription.findFirst({
+  let subscription = await prisma.subscription.findFirst({
     where: { userId },
     orderBy: { createdAt: "desc" },
   });
+
   if (!subscription) {
-    throw createHttpError("Subscription not found", 404);
+    const orgContext = await resolveOrgContext(userId);
+    if (orgContext?.role !== "owner") {
+      throw createHttpError("Only organization owners can retry subscription payment", 403);
+    }
+    const orgSub = await prisma.orgSubscription.findUnique({
+      where: { orgId: orgContext.orgId },
+      select: {
+        planId: true,
+        status: true,
+        billingInterval: true,
+        paidThroughAt: true,
+        provider: true,
+      },
+    });
+    if (!orgSub) {
+      throw createHttpError("Subscription not found", 404);
+    }
+
+    subscription = await prisma.subscription.create({
+      data: {
+        userId: orgContext.ownerUserId,
+        plan: orgSub.planId,
+        status: toSubscriptionStatusFromOrgStatus(orgSub.status),
+        renewalDate: orgSub.paidThroughAt ?? new Date(),
+        usageLimit: null,
+        usagePeriod: "monthly",
+        currency: "USD",
+        autoRenew: true,
+        cancelAtPeriodEnd: false,
+        provider: orgSub.provider ?? undefined,
+        interval: orgSub.billingInterval === "YEARLY" ? "yearly" : "monthly",
+      },
+    });
   }
 
   const plan = toPlanEnum(subscription.plan);
@@ -175,14 +268,27 @@ export async function startCheckoutSession({
     throw createHttpError("Enterprise is contact sales", 400);
   }
 
-  if (selectedPlan && toPlanEnum(selectedPlan) !== plan) {
-    throw createHttpError("Selected plan mismatch", 400);
+  const currentInterval = normalizeBillingInterval(subscription.interval);
+  const targetPlan = selectedPlan ? toPlanEnum(selectedPlan) : plan;
+  if (targetPlan === "ENTERPRISE") {
+    throw createHttpError("Enterprise is contact sales", 400);
+  }
+
+  if (
+    isDowngradeChange({
+      currentPlan: plan,
+      targetPlan,
+      currentInterval,
+      targetInterval: billingCycle,
+    })
+  ) {
+    throw createHttpError("Use scheduled downgrade for lower plans or shorter billing cycles", 400);
   }
 
   let currency = normalizeCurrency(
     requestedCurrency || user.preferredCurrency || subscription.currency || "USD"
   );
-  if (!isAllowedCurrency(currency)) {
+  if (!isAllowedCurrency(currency) && !isStripeSupportedCurrency(currency)) {
     currency = "USD";
   }
 
@@ -192,26 +298,77 @@ export async function startCheckoutSession({
   const ipCountry = getCountryFromRequestHeaders(req.headers);
   const detected = normalizeCountryCode(detectedCountry);
   const resolvedCountry = billingCountry || ipCountry || detected;
+  const providerCandidates = [
+    resolvePaymentProvider(resolvedCountry, requestedProvider),
+    ...getCheckoutFallbackProviders(
+      resolvePaymentProvider(resolvedCountry, requestedProvider),
+      resolvedCountry
+    ),
+  ].filter((provider, index, providers) => providers.indexOf(provider) === index);
 
-  let provider = toPaymentProviderEnum(resolvePaymentProvider(resolvedCountry));
+  const checkoutCandidates = providerCandidates
+    .map((provider) => {
+      if (!isCheckoutProviderEnabled(provider)) return null;
+      let providerCurrency = currency;
+      const providerAcceptsRequestedCurrency =
+        isProviderCurrency(provider, providerCurrency) &&
+        (provider !== "PAYSTACK" || isPaystackCurrencyEnabled(providerCurrency));
 
-  if (
-    provider === "PAYSTACK" &&
-    (!isProviderCurrency("PAYSTACK", currency) || !isPaystackCurrencyEnabled(currency))
-  ) {
-    provider = "FLUTTERWAVE";
-  }
+      if (!providerAcceptsRequestedCurrency) {
+        providerCurrency = "USD";
+      }
 
-  if (!isProviderCurrency(provider, currency)) {
-    currency = "USD";
-  }
-  if (!isProviderCurrency(provider, currency)) {
+      const providerAcceptsFallbackCurrency =
+        isProviderCurrency(provider, providerCurrency) &&
+        (provider !== "PAYSTACK" || isPaystackCurrencyEnabled(providerCurrency));
+
+      if (!providerAcceptsFallbackCurrency) {
+        return null;
+      }
+
+      const quote = buildSubscriptionCheckoutQuote({
+        currency: providerCurrency,
+        targetPlan,
+        targetInterval: billingCycle,
+        currentPlan: plan,
+        currentInterval,
+        currentPeriodStart: subscription.currentPeriodStart,
+        currentPeriodEnd: subscription.currentPeriodEnd,
+      });
+      if (!quote || quote.amountDue <= 0) return null;
+
+      return {
+        provider,
+        currency: providerCurrency,
+        amount: quote.amountDue,
+        context: {
+          action: quote.action,
+          currentPlan: quote.currentPlan,
+          currentInterval: quote.currentInterval,
+          targetPlan: quote.targetPlan,
+          targetInterval: quote.targetInterval,
+          fullAmount: quote.fullAmount,
+          amountDue: quote.amountDue,
+          creditAmount: quote.creditAmount,
+          remainingRatio: quote.remainingRatio,
+        } satisfies CheckoutContextPayload,
+      };
+    })
+    .filter(
+      (
+        candidate
+      ): candidate is {
+        provider: CheckoutProvider;
+        currency: string;
+        amount: number;
+        context: CheckoutContextPayload;
+      } =>
+        Boolean(candidate)
+    );
+
+  const initialCheckout = checkoutCandidates[0];
+  if (!initialCheckout) {
     throw createHttpError("Unsupported currency", 400);
-  }
-
-  const planAmount = getPlanPriceForInterval(plan, currency, billingCycle);
-  if (!planAmount) {
-    throw createHttpError("Pricing not configured for currency", 500);
   }
 
   log("info", "checkout_provider_resolved", {
@@ -220,8 +377,9 @@ export async function startCheckoutSession({
     ipCountry,
     detectedCountry: detected,
     resolvedCountry: resolvedCountry || null,
-    provider,
-    currency,
+    provider: initialCheckout.provider,
+    currency: initialCheckout.currency,
+    requestedProvider: requestedProvider || null,
   });
 
   const reference = `mb_${Date.now().toString(36).slice(-6)}_${crypto.randomBytes(2).toString("hex")}`;
@@ -229,76 +387,54 @@ export async function startCheckoutSession({
     data: {
       userId,
       subscriptionId: subscription.id,
-      plan,
+      plan: targetPlan,
       billingCycle,
-      provider,
-      currency,
-      amount: planAmount,
+      provider: initialCheckout.provider,
+      currency: initialCheckout.currency,
+      amount: initialCheckout.amount,
       reference,
       status: "CREATED",
+      providerPayload: {
+        checkoutContext: initialCheckout.context,
+      } as Prisma.InputJsonValue,
     },
   });
 
   const appUrl = getAppUrl(req);
-  let finalProvider: PaymentProvider = provider;
-  let finalCurrency = currency;
-  let finalAmount = planAmount;
+  let finalProvider: PaymentProvider = initialCheckout.provider;
+  let finalCurrency = initialCheckout.currency;
+  let finalAmount = initialCheckout.amount;
+  let finalContext = initialCheckout.context;
   let initialized: ProviderInitResult | null = null;
   let initError: unknown = null;
 
-  try {
-    initialized = await initializeProviderCheckout({
-      provider: finalProvider,
-      amount: finalAmount,
-      currency: finalCurrency,
-      reference,
-      checkoutId: checkout.id,
-      subscriptionId: subscription.id,
-      userId,
-      userEmail: user.email,
-      userName: user.name || user.email,
-      plan,
-      billingCycle,
-      appUrl,
-      countryCode: resolvedCountry || null,
-    });
-  } catch (error) {
-    initError = error;
-    log("error", "checkout_provider_init_failed", {
-      userId,
-      reference,
-      provider: finalProvider,
-      error: (error as Error).message,
-    });
-  }
+  for (let index = 0; index < checkoutCandidates.length; index += 1) {
+    const candidate = checkoutCandidates[index];
+    finalProvider = candidate.provider;
+    finalCurrency = candidate.currency;
+    finalAmount = candidate.amount;
+    finalContext = candidate.context;
 
-  if ((initError || !initialized?.redirectUrl) && finalProvider !== "FLUTTERWAVE") {
-    finalProvider = "FLUTTERWAVE";
-    if (!isProviderCurrency("FLUTTERWAVE", finalCurrency)) {
-      finalCurrency = "USD";
+    if (index > 0) {
+      await prisma.checkoutSession.update({
+        where: { id: checkout.id },
+        data: {
+          provider: finalProvider,
+          currency: finalCurrency,
+          amount: finalAmount,
+          providerPayload: {
+            checkoutContext: finalContext,
+          } as Prisma.InputJsonValue,
+        },
+      });
+
+      log("warn", "checkout_provider_fallback", {
+        userId,
+        reference,
+        fallbackTo: finalProvider,
+      });
     }
-    const fallbackAmount = getPlanPriceForInterval(plan, finalCurrency, billingCycle);
-    if (!fallbackAmount) {
-      throw createHttpError("Pricing not configured for fallback currency", 500);
-    }
-    finalAmount = fallbackAmount;
 
-    await prisma.checkoutSession.update({
-      where: { id: checkout.id },
-      data: {
-        provider: finalProvider,
-        currency: finalCurrency,
-        amount: finalAmount,
-      },
-    });
-
-    log("warn", "checkout_provider_fallback", {
-      userId,
-      reference,
-      fallbackTo: finalProvider,
-    });
-
-    initError = null;
     try {
       initialized = await initializeProviderCheckout({
         provider: finalProvider,
@@ -310,11 +446,15 @@ export async function startCheckoutSession({
         userId,
         userEmail: user.email,
         userName: user.name || user.email,
-        plan,
+        plan: targetPlan,
         billingCycle,
         appUrl,
         countryCode: resolvedCountry || null,
       });
+      initError = null;
+      if (initialized?.redirectUrl) {
+        break;
+      }
     } catch (error) {
       initError = error;
       log("error", "checkout_provider_init_failed", {
@@ -341,10 +481,13 @@ export async function startCheckoutSession({
       currency: finalCurrency,
       amount: finalAmount,
       status: "REDIRECTED",
-      providerPayload:
-        initialized.payload == null
-          ? Prisma.JsonNull
-          : (initialized.payload as Prisma.InputJsonValue),
+      providerPayload: {
+        checkoutContext: finalContext,
+        providerInit:
+          initialized.payload == null
+            ? null
+            : (initialized.payload as Prisma.InputJsonValue),
+      } as Prisma.InputJsonValue,
     },
   });
 

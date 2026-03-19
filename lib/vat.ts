@@ -8,6 +8,8 @@ export type VatSettings = {
   mode: VatPricingMode;
 };
 
+const VAT_DISPLAY_REGEX = /^\d+(?:[.,]\d{1,2})?$/;
+
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 
 const clampVatRate = (value: number) => {
@@ -22,6 +24,33 @@ export function normalizeVatSettings(input?: Partial<VatSettings> | null): VatSe
   const rate = clampVatRate(Number(input?.rate ?? 0));
   const mode = input?.mode === "inclusive" ? "inclusive" : "exclusive";
   return { enabled, rate, mode };
+}
+
+export function normalizeVatRateDisplay(value: unknown) {
+  if (value === null || value === undefined) return null;
+  const raw = String(value).trim().replace(/%$/, "").trim();
+  if (!raw || !VAT_DISPLAY_REGEX.test(raw)) return null;
+  const normalized = raw.replace(",", ".");
+  const numeric = Number(normalized);
+  if (!Number.isFinite(numeric)) return null;
+  return normalized;
+}
+
+export function formatVatRateLabel(rate?: number | null, display?: string | null) {
+  const numericRate = Number(rate ?? 0);
+  const normalizedDisplay = normalizeVatRateDisplay(display);
+  if (normalizedDisplay !== null) {
+    const displayNumeric = Number(normalizedDisplay);
+    if (Number.isFinite(displayNumeric) && Math.abs(displayNumeric - numericRate) < 0.0001) {
+      return normalizedDisplay;
+    }
+  }
+
+  if (!Number.isFinite(numericRate) || numericRate <= 0) return "0";
+  return String(numericRate)
+    .replace(/(\.\d*?[1-9])0+$/, "$1")
+    .replace(/\.0+$/, "")
+    .replace(/\.$/, "");
 }
 
 export function calculateVatFromAmount(

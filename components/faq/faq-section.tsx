@@ -226,10 +226,17 @@ const faqSections: FaqSection[] = [
     meta: { en: "How to reach the team", fr: "How to reach the team" },
     items: [
       {
-        question: { en: "How do I get help?", fr: "How do I get help?" },
+        question: { en: "Which email should I contact?", fr: "Quelle adresse email dois-je contacter ?" },
         answer: {
-          en: "You can contact support through the Support link in the footer or via the official contact details on the site.",
-          fr: "You can contact support through the Support link in the footer or via the official contact details on the site.",
+          en: "Support -> support@mail.maboria.com (app help and issues). Billing -> billing@maboria.com (subscriptions and payments). General -> info@maboria.com.",
+          fr: "Support -> support@mail.maboria.com (aide et problemes). Facturation -> billing@maboria.com (abonnements et paiements). General -> info@maboria.com.",
+        },
+      },
+      {
+        question: { en: "When will you reply?", fr: "Quand repondez-vous ?" },
+        answer: {
+          en: "Usually within 24 hours.",
+          fr: "Generalement sous 24 heures.",
         },
       },
     ],

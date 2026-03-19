@@ -7,6 +7,8 @@ import { withRequestLogging } from "@/lib/request-logger";
 import { getUserPlan } from "@/lib/entitlements";
 import { ensureUserPublicId } from "@/lib/public-id";
 import { profileUpdateSchema } from "@/lib/validators";
+import { resolveOrgContext } from "@/lib/org-auth";
+import { isPlatformRole } from "@/lib/global-role";
 
 export const GET = withRequestLogging(withErrorHandling(async () => {
   const session = await getServerSession(authOptions);
@@ -39,7 +41,7 @@ export const GET = withRequestLogging(withErrorHandling(async () => {
   }
 
   const adminSubscription =
-    user.role === "ADMIN"
+    isPlatformRole(user.role)
       ? [
           {
             id: "admin-override",
@@ -62,7 +64,16 @@ export const GET = withRequestLogging(withErrorHandling(async () => {
       : user.subscriptions;
 
   const plan = await getUserPlan(session.user.id);
-  return NextResponse.json({ ...user, publicId, publicUserId: publicId, plan, subscriptions: adminSubscription });
+  const orgContext = await resolveOrgContext(session.user.id);
+  return NextResponse.json({
+    ...user,
+    publicId,
+    publicUserId: publicId,
+    plan,
+    subscriptions: adminSubscription,
+    orgRole: orgContext?.role ?? null,
+    orgId: orgContext?.orgId ?? null,
+  });
 }));
 
 export const PUT = withRequestLogging(withErrorHandling(async (req: Request) => {

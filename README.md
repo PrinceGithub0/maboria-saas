@@ -40,6 +40,7 @@ Copy `.env.example` to `.env` and set:
 - `FLUTTERWAVE_PUBLIC_KEY`, `FLUTTERWAVE_SECRET_KEY`, `FLUTTERWAVE_WEBHOOK_SECRET`
 - `PAYSTACK_PUBLIC_KEY`, `PAYSTACK_SECRET_KEY`, `PAYSTACK_WEBHOOK_SECRET`
 - `OPENAI_API_KEY`, `APP_URL`
+- `SYSTEM_FLAGS_SNAPSHOT_TOKEN` (recommended; secures internal system-flag snapshot endpoint used by proxy)
 - `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
 
 ## Setup
@@ -67,5 +68,11 @@ Start Postgres locally: `docker-compose up -d`.
 
 ## Testing & Verification
 - `npm run lint` for linting.
+- `npm run test:system-flags` to verify system flag RBAC, validation, dangerous flag controls, audit history, and snapshot protection.
+  - Required env for this test:
+    - `ADMIN_SESSION_COOKIE`
+    - optional `USER_SESSION_COOKIE` (non-admin denial check)
+    - optional `NON_ROOT_ADMIN_SESSION_COOKIE` (ADMIN dangerous-flag denial check)
+    - optional `SUPER_ADMIN_SESSION_COOKIE` (SUPER_ADMIN dangerous-flag allowance check)
 - Seed users: `user@maboria.com` / `password123`, `admin@maboria.com` / `admin123`.
 - Exercise dashboards and APIs per `docs/API.md`.

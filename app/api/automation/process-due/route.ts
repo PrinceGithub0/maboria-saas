@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { withErrorHandling } from "@/lib/api-handler";
 import { prisma } from "@/lib/prisma";
 import { processDueAutomationRuns } from "@/lib/automation/scheduler";
+import { requireSystemFlag } from "@/lib/system-flags-guard";
+import { isPlatformRole } from "@/lib/global-role";
 
 const isAuthorizedCronRequest = async (req: Request) => {
   const cronSecret = process.env.CRON_SECRET;
@@ -16,7 +18,7 @@ const isAuthorizedCronRequest = async (req: Request) => {
   }
 
   const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!session?.user || !isPlatformRole(session.user.role)) {
     return { ok: false as const, source: "denied" as const, userId: null as string | null };
   }
 
@@ -24,6 +26,12 @@ const isAuthorizedCronRequest = async (req: Request) => {
 };
 
 export const POST = withErrorHandling(async (req: Request) => {
+  const automationDisabled = await requireSystemFlag(
+    "automation_enabled",
+    "Automation engine is currently disabled."
+  );
+  if (automationDisabled) return automationDisabled;
+
   const auth = await isAuthorizedCronRequest(req);
   if (!auth.ok) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

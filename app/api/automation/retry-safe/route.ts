@@ -6,6 +6,7 @@ import { withErrorHandling } from "@/lib/api-handler";
 import { enforceEntitlement } from "@/lib/entitlements";
 import { executeAutomationRun } from "@/lib/automation/engine";
 import { readFlowSnapshotFromRunOutput } from "@/lib/automation/versioning";
+import { requireSystemFlag } from "@/lib/system-flags-guard";
 import { getAutomationPermissions, hasAutomationPermission } from "@/lib/automation/permissions";
 
 const SAFE_PROVIDER_STEPS = new Set(["sendEmail", "sendWhatsApp"]);
@@ -33,6 +34,12 @@ const readLastFailedStep = (logs: unknown) => {
 };
 
 export const POST = withErrorHandling(async (req: Request) => {
+  const replayDisabled = await requireSystemFlag(
+    "automation_replay_enabled",
+    "Automation replay is currently disabled."
+  );
+  if (replayDisabled) return replayDisabled;
+
   const session = await getServerSession(authOptions);
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -155,4 +162,3 @@ export const POST = withErrorHandling(async (req: Request) => {
     logs: result.logs,
   });
 });
-

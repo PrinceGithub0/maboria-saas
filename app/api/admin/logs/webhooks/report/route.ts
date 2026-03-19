@@ -3,12 +3,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { withErrorHandling } from "@/lib/api-handler";
+import { requirePlatformAdmin } from "@/lib/admin/admin-rbac";
 
 export const GET = withErrorHandling(async () => {
   const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthenticated", code: "UNAUTHENTICATED" }, { status: 401 });
+  const denied = requirePlatformAdmin(session.user);
+  if (denied) return denied;
 
   const byProvider = await prisma.webhookEvent.groupBy({
     by: ["provider", "status"],

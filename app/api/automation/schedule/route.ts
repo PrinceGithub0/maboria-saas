@@ -5,8 +5,15 @@ import { prisma } from "@/lib/prisma";
 import { enforceEntitlement } from "@/lib/entitlements";
 import { getAutomationPermissions, hasAutomationPermission } from "@/lib/automation/permissions";
 import { requiresFinancialAutomationPrivilege } from "@/lib/automation/step-policy";
+import { requireSystemFlag } from "@/lib/system-flags-guard";
 
 export async function POST(req: Request) {
+  const automationDisabled = await requireSystemFlag(
+    "automation_enabled",
+    "Automation engine is currently disabled."
+  );
+  if (automationDisabled) return automationDisabled;
+
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const permissions = await getAutomationPermissions(session.user.id);

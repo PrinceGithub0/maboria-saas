@@ -1,5 +1,6 @@
 "use client";
 
+import clsx from "clsx";
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Search } from "lucide-react";
 import {
@@ -17,6 +18,8 @@ type PhoneInputProps = {
   locale?: "en" | "fr";
   defaultCountry?: string;
   required?: boolean;
+  fieldClassName?: string;
+  inputClassName?: string;
 };
 
 const normalizeCode = (value: string) => String(value || "").toUpperCase();
@@ -28,6 +31,8 @@ export function PhoneInput({
   locale = "en",
   defaultCountry = "US",
   required,
+  fieldClassName,
+  inputClassName,
 }: PhoneInputProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -127,7 +132,12 @@ export function PhoneInput({
         {label}
         {required ? " *" : ""}
       </label>
-      <div className="flex items-center rounded-lg border border-input bg-background px-2 py-1 text-foreground focus-within:border-indigo-400">
+      <div
+        className={clsx(
+          "flex items-center rounded-lg border border-input bg-background px-2 py-1 text-foreground focus-within:border-indigo-400",
+          fieldClassName
+        )}
+      >
         <button
           type="button"
           onClick={() => {
@@ -144,8 +154,9 @@ export function PhoneInput({
           value={nationalNumber}
           onChange={(event) => setNationalNumber(event.target.value.replace(/\D/g, ""))}
           inputMode="numeric"
+          required={required}
           placeholder={locale === "fr" ? "Numero de telephone" : "Phone number"}
-          className="w-full bg-transparent px-2 py-1 text-sm text-foreground outline-none"
+          className={clsx("w-full bg-transparent px-2 py-1 text-sm text-foreground outline-none", inputClassName)}
         />
       </div>
       {open ? (

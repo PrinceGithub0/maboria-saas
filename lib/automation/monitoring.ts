@@ -198,7 +198,7 @@ export async function emitAutomationHealthAlerts(snapshot: AutomationHealthSnaps
   }
 
   const admins = await prisma.user.findMany({
-    where: { role: "ADMIN" },
+    where: { role: { in: ["OPS_ADMIN"] } },
     select: { id: true },
   });
   if (!admins.length) {

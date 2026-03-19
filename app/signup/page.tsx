@@ -26,6 +26,8 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [redirectTarget, setRedirectTarget] = useState<string>("/checkout");
+  const [joinedWorkspace, setJoinedWorkspace] = useState(false);
   const [loading, setLoading] = useState(false);
   const logoSrc = "/branding/Maboria%20Company%20logo.png";
   const { language } = useLanguage();
@@ -52,6 +54,8 @@ export default function SignupPage() {
       const email = form.email.toLowerCase().trim();
       const locale = typeof navigator !== "undefined" && navigator.language ? navigator.language : undefined;
       const timeZone = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : undefined;
+      const nextRedirectTarget =
+        inviteToken ? "/dashboard" : "/checkout";
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -63,13 +67,17 @@ export default function SignupPage() {
         return;
       }
       setUserId(data.userId || null);
+      setRedirectTarget(typeof data.redirectTo === "string" && data.redirectTo ? data.redirectTo : nextRedirectTarget);
+      setJoinedWorkspace(Boolean(data.joinedWorkspace));
       setSuccess(true);
+      const callbackUrl =
+        typeof data.redirectTo === "string" && data.redirectTo ? data.redirectTo : nextRedirectTarget;
 
       const result = await signIn("credentials", {
         redirect: false,
         email,
         password: form.password,
-        callbackUrl: "/checkout",
+        callbackUrl,
       });
       if (result?.error) {
         setError(
@@ -81,7 +89,7 @@ export default function SignupPage() {
         return;
       }
       if (typeof window !== "undefined") {
-        window.location.href = result?.url || "/checkout";
+        window.location.href = result?.url || callbackUrl;
       }
     } catch {
       setError(
@@ -123,8 +131,12 @@ export default function SignupPage() {
         {success && (
           <Alert className="mt-5" variant="success">
             {t(
-              "Account created. Redirecting you to checkout.",
-              "Compte cree. Redirection vers le paiement."
+              joinedWorkspace
+                ? "Account created. Redirecting you to your workspace."
+                : "Account created. Redirecting you to checkout.",
+              joinedWorkspace
+                ? "Compte cree. Redirection vers votre espace de travail."
+                : "Compte cree. Redirection vers le paiement."
             )}
             {userId ? ` Your user ID: ${userId}.` : ""}
           </Alert>
@@ -137,17 +149,29 @@ export default function SignupPage() {
         {success && (
           <div className="mt-4 rounded-xl border border-border bg-background/70 p-4">
             <p className="text-sm font-semibold text-foreground">
-              {t("Continue to checkout", "Continuer vers le paiement")}
+              {t(
+                joinedWorkspace ? "Continue to workspace" : "Continue to checkout",
+                joinedWorkspace ? "Continuer vers l espace" : "Continuer vers le paiement"
+              )}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               {t(
-                "If you are not redirected automatically, continue to payment to activate your subscription.",
-                "Si vous n etes pas redirige, poursuivez le paiement pour activer votre abonnement."
+                joinedWorkspace
+                  ? "If you are not redirected automatically, continue to your workspace."
+                  : "If you are not redirected automatically, continue to payment to activate your subscription.",
+                joinedWorkspace
+                  ? "Si vous n etes pas redirige, poursuivez vers votre espace de travail."
+                  : "Si vous n etes pas redirige, poursuivez le paiement pour activer votre abonnement."
               )}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Link href="/checkout">
-                <Button size="sm">{t("Go to checkout", "Aller au paiement")}</Button>
+              <Link href={redirectTarget}>
+                <Button size="sm">
+                  {t(
+                    joinedWorkspace ? "Go to workspace" : "Go to checkout",
+                    joinedWorkspace ? "Aller a l espace" : "Aller au paiement"
+                  )}
+                </Button>
               </Link>
               <Link href="/login">
                 <Button size="sm" variant="secondary">
@@ -159,81 +183,95 @@ export default function SignupPage() {
         )}
 
         <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
-          <div className="space-y-2">
-            <p className="text-sm font-semibold text-foreground">{t("Choose how to start", "Choisissez comment demarrer")}</p>
-            <div className="grid gap-2">
-              <label
-                className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 transition ${form.planIntent === "starter" ? selectedPlanClass : planClass}`}
-              >
-                <input
-                  type="radio"
-                  name="planIntent"
-                  value="starter"
-                  checked={form.planIntent === "starter"}
-                  onChange={() => setForm({ ...form, planIntent: "starter" })}
-                  className="mt-1 accent-indigo-600"
-                />
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{t("Starter", "Starter")}</p>
-                  <p className="text-xs text-muted-foreground">{t("Best for getting started.", "Ideal pour bien demarrer.")}</p>
-                </div>
-              </label>
-              <label
-                className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 transition ${form.planIntent === "pro" ? selectedPlanClass : planClass}`}
-              >
-                <input
-                  type="radio"
-                  name="planIntent"
-                  value="pro"
-                  checked={form.planIntent === "pro"}
-                  onChange={() => setForm({ ...form, planIntent: "pro" })}
-                  className="mt-1 accent-indigo-600"
-                />
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{t("Pro", "Pro")}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {t("Built for professionals automating at scale.", "Concu pour les pros qui automatisent a l echelle.")}
-                  </p>
-                </div>
-              </label>
-              <label
-                className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 transition ${form.planIntent === "growth" ? selectedPlanClass : planClass}`}
-              >
-                <input
-                  type="radio"
-                  name="planIntent"
-                  value="growth"
-                  checked={form.planIntent === "growth"}
-                  onChange={() => setForm({ ...form, planIntent: "growth" })}
-                  className="mt-1 accent-indigo-600"
-                />
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{t("Growth", "Growth")}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {t("For growing teams with higher volume.", "Pour equipes en croissance avec plus de volume.")}
-                  </p>
-                </div>
-              </label>
-              <label
-                className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 transition ${form.planIntent === "business" ? selectedPlanClass : planClass}`}
-              >
-                <input
-                  type="radio"
-                  name="planIntent"
-                  value="business"
-                  checked={form.planIntent === "business"}
-                  onChange={() => setForm({ ...form, planIntent: "business" })}
-                  className="mt-1 accent-indigo-600"
-                />
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{t("Business", "Business")}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {t("For teams running high-volume operations.", "Pour equipes qui gerent un fort volume operationnel.")}
-                  </p>
-                </div>
-              </label>
+          {!inviteToken ? (
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-foreground">{t("Choose how to start", "Choisissez comment demarrer")}</p>
+              <div className="grid gap-2">
+                <label
+                  className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 transition ${form.planIntent === "starter" ? selectedPlanClass : planClass}`}
+                >
+                  <input
+                    type="radio"
+                    name="planIntent"
+                    value="starter"
+                    checked={form.planIntent === "starter"}
+                    onChange={() => setForm({ ...form, planIntent: "starter" })}
+                    className="mt-1 accent-indigo-600"
+                  />
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{t("Starter", "Starter")}</p>
+                    <p className="text-xs text-muted-foreground">{t("Best for getting started.", "Ideal pour bien demarrer.")}</p>
+                  </div>
+                </label>
+                <label
+                  className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 transition ${form.planIntent === "pro" ? selectedPlanClass : planClass}`}
+                >
+                  <input
+                    type="radio"
+                    name="planIntent"
+                    value="pro"
+                    checked={form.planIntent === "pro"}
+                    onChange={() => setForm({ ...form, planIntent: "pro" })}
+                    className="mt-1 accent-indigo-600"
+                  />
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{t("Pro", "Pro")}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t("Built for professionals automating at scale.", "Concu pour les pros qui automatisent a l echelle.")}
+                    </p>
+                  </div>
+                </label>
+                <label
+                  className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 transition ${form.planIntent === "growth" ? selectedPlanClass : planClass}`}
+                >
+                  <input
+                    type="radio"
+                    name="planIntent"
+                    value="growth"
+                    checked={form.planIntent === "growth"}
+                    onChange={() => setForm({ ...form, planIntent: "growth" })}
+                    className="mt-1 accent-indigo-600"
+                  />
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{t("Growth", "Growth")}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t("For growing teams with higher volume.", "Pour equipes en croissance avec plus de volume.")}
+                    </p>
+                  </div>
+                </label>
+                <label
+                  className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 transition ${form.planIntent === "business" ? selectedPlanClass : planClass}`}
+                >
+                  <input
+                    type="radio"
+                    name="planIntent"
+                    value="business"
+                    checked={form.planIntent === "business"}
+                    onChange={() => setForm({ ...form, planIntent: "business" })}
+                    className="mt-1 accent-indigo-600"
+                  />
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{t("Business", "Business")}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t("For teams running high-volume operations.", "Pour equipes qui gerent un fort volume operationnel.")}
+                    </p>
+                  </div>
+                </label>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="rounded-xl border border-border bg-background/70 p-4">
+              <p className="text-sm font-semibold text-foreground">
+                {t("Workspace invitation", "Invitation a l espace de travail")}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t(
+                  "You are joining an existing workspace. No subscription checkout is required for this invite.",
+                  "Vous rejoignez un espace existant. Aucun paiement d abonnement n est requis pour cette invitation."
+                )}
+              </p>
+            </div>
+          )}
 
           <label className="grid gap-2 text-sm font-medium text-foreground">
             {t("Name", "Nom")}

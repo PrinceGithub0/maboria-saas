@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { log } from "@/lib/logger";
 import { SubscriptionStatus } from "@prisma/client";
 import { PLAN_LIMITS, UNLIMITED } from "@/lib/planLimits";
+import { isPlatformRole } from "@/lib/global-role";
 
 export type UserPlan = "free" | "starter" | "pro" | "growth" | "business" | "enterprise";
 export type EntitlementStatus = SubscriptionStatus | "INACTIVE";
@@ -73,7 +74,7 @@ export async function syncBusinessPlanForUser(userId: string, plan: UserPlan) {
   if (plan === "free") return;
   try {
     const member = await prisma.businessMember.findFirst({
-      where: { userId },
+      where: { userId, status: "active" },
       select: { businessId: true, business: { select: { plan: true } } },
     });
     if (member?.business && member.business.plan?.toLowerCase() !== plan) {
@@ -94,7 +95,7 @@ export async function syncBusinessPlanForUser(userId: string, plan: UserPlan) {
 
 export async function getUserPlan(userId: string): Promise<UserPlan> {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
-  if (user?.role === "ADMIN") {
+  if (isPlatformRole(user?.role)) {
     log("info", "plan_resolved", { userId, plan: "enterprise", reason: "admin_override" });
     return "enterprise";
   }
@@ -125,7 +126,7 @@ export async function getUserPlan(userId: string): Promise<UserPlan> {
 
 export async function getEntitlementForUser(userId: string): Promise<UserEntitlement> {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
-  if (user?.role === "ADMIN") {
+  if (isPlatformRole(user?.role)) {
     return {
       plan: "enterprise",
       status: "ACTIVE",
@@ -293,7 +294,7 @@ async function resolveUsageScope(userId: string) {
     return { business: owned };
   }
   const member = await prisma.businessMember.findFirst({
-    where: { userId },
+    where: { userId, status: "active" },
     select: {
       business: {
         select: {
@@ -360,7 +361,7 @@ async function ensureUsageWindow(userId: string) {
   }
 
   const members = await prisma.businessMember.findMany({
-    where: { businessId: business.id },
+    where: { businessId: business.id, status: "active" },
     select: { userId: true },
   });
   const userIds = Array.from(new Set([business.ownerId, ...members.map((m) => m.userId)]));

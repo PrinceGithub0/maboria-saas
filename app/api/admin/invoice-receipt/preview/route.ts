@@ -5,13 +5,31 @@ import { buildInvoiceReceiptPdfBuffer } from "@/lib/invoice-receipt";
 import { prisma } from "@/lib/prisma";
 import { calculateTotalsFromAmounts, getBusinessLogoBuffer } from "@/lib/invoice";
 import { normalizeVatSettings } from "@/lib/vat";
+import { getActorSystemFlagRole } from "@/lib/system-flags";
+import { requireNoImpersonationMode } from "@/lib/admin/admin-rbac";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Forbidden", code: "FORBIDDEN" }, { status: 403 });
+  }
+
+  const role = await getActorSystemFlagRole(session.user.id);
+  if (role !== "SUPER_ADMIN") {
+    return NextResponse.json(
+      { error: "Only SUPER_ADMIN can access receipt preview.", code: "FORBIDDEN" },
+      { status: 403 }
+    );
+  }
+
+  const impersonationBlocked = await requireNoImpersonationMode({
+    actorUserId: session.user.id,
+    cookieHeader: req.headers.get("cookie"),
+  });
+  if (impersonationBlocked) {
+    return impersonationBlocked;
   }
 
   const url = new URL(req.url);
@@ -30,7 +48,7 @@ export async function GET(req: Request) {
       vatPricingMode: true,
     },
   });
-  const logoBuffer = profile?.userId ? getBusinessLogoBuffer(profile.userId) : null;
+  const logoBuffer = profile?.userId ? await getBusinessLogoBuffer(profile.userId) : null;
 
   const items = [
     { name: "Automation Service", quantity: 1, price: 650 },

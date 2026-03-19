@@ -78,7 +78,7 @@ export function RunsTable({
         return "bg-amber-100/40 text-amber-900 border-amber-200/60";
       case "QUEUED":
         return "bg-slate-100/60 text-slate-700 border-slate-200/60";
-      case "CANCELLED":
+      case "CANCELED":
       case "SKIPPED":
         return "bg-slate-100/60 text-slate-600 border-slate-200/60";
       default:

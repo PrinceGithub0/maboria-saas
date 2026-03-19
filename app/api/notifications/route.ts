@@ -30,9 +30,25 @@ export const POST = withErrorHandling(async (req: Request) => {
 export const PUT = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const { id } = await req.json();
+  const { id } = await req.json().catch(() => ({}));
+  const notificationId = String(id || "").trim();
+  if (!notificationId) {
+    return NextResponse.json({ error: "Notification id is required." }, { status: 422 });
+  }
+
+  const ownedNotification = await prisma.notification.findFirst({
+    where: {
+      id: notificationId,
+      userId: session.user.id,
+    },
+    select: { id: true },
+  });
+  if (!ownedNotification) {
+    return NextResponse.json({ error: "Notification not found." }, { status: 404 });
+  }
+
   const notification = await prisma.notification.update({
-    where: { id },
+    where: { id: ownedNotification.id },
     data: { read: true },
   });
   return NextResponse.json(notification);

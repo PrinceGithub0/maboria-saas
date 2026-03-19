@@ -1,11 +1,11 @@
-import { allowedCurrencies, normalizeCurrency } from "./payments/currency-allowlist";
+import { BUSINESS_CURRENCIES, isSupportedBusinessCurrency as isKnownBusinessCurrency } from "./business-currencies";
+import { normalizeCurrency } from "./payments/currency-allowlist";
 import { countryCodes } from "./countries";
 
-export const SUPPORTED_BUSINESS_CURRENCIES = allowedCurrencies;
+export const SUPPORTED_BUSINESS_CURRENCIES = BUSINESS_CURRENCIES;
 
 export function isSupportedBusinessCurrency(value: string) {
-  const normalized = normalizeCurrency(value);
-  return allowedCurrencies.includes(normalized as (typeof allowedCurrencies)[number]);
+  return isKnownBusinessCurrency(normalizeCurrency(value));
 }
 
 export function normalizeCountryCode(value: string) {
@@ -19,4 +19,19 @@ export function normalizeCurrencyCode(value: string) {
 export function isSupportedCountry(value: string) {
   const normalized = normalizeCountryCode(value);
   return countryCodes.includes(normalized);
+}
+
+export function requiresBusinessTaxId(vatEnabled?: boolean | null) {
+  return Boolean(vatEnabled);
+}
+
+export function hasRequiredBusinessTaxId(input: { vatEnabled?: boolean | null; taxId?: string | null }) {
+  if (!requiresBusinessTaxId(input.vatEnabled)) return true;
+  return Boolean(String(input.taxId || "").trim());
+}
+
+export function normalizeBusinessTaxId(input: { vatEnabled?: boolean | null; taxId?: string | null }) {
+  if (!requiresBusinessTaxId(input.vatEnabled)) return null;
+  const trimmed = String(input.taxId || "").trim();
+  return trimmed || null;
 }

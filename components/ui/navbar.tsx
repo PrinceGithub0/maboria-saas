@@ -3,22 +3,27 @@
 import { signOut, useSession } from "next-auth/react";
 import clsx from "clsx";
 import {
-  Activity,
+  AlertTriangle,
+  BarChart3,
   Bell,
-  Bot,
+  ClipboardList,
   CreditCard,
-  FileText,
-  Gauge,
-  Home,
+  Flag,
+  Globe2,
+  Inbox,
   LayoutDashboard,
+  LifeBuoy,
   LogOut,
   Menu,
-  MessageSquare,
+  Receipt,
+  Rocket,
   Search,
   Settings,
   Shield,
   Sparkles,
+  UserRound,
   Users,
+  Workflow,
   X,
 } from "lucide-react";
 import { Button } from "./button";
@@ -35,27 +40,62 @@ import { CommandPalette, CommandItem } from "@/components/ui/command-palette";
 import { translateNotificationMessage } from "@/lib/notifications/translate";
 import { formatDateTimeDMY } from "@/lib/date";
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+const fetcher = async (url: string) => {
+  try {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+};
 
-export function Navbar() {
+export function Navbar({ role }: { role?: string }) {
   const { data } = useSession();
+  const pathname = usePathname();
+  const resolvedRole = String(role || data?.user?.role || "").toUpperCase();
+  const isAdminSession = pathname.startsWith("/admin") && ["OPS_ADMIN", "SUPER_ADMIN"].includes(resolvedRole);
   const { data: me } = useSWR(data ? "/api/user/me" : null, fetcher, {
     shouldRetryOnError: false,
   });
-  const { data: notifications, mutate: mutateNotifications } = useSWR("/api/notifications", fetcher, {
-    shouldRetryOnError: false,
-    fallbackData: [],
-  });
-  const unread = Array.isArray(notifications)
-    ? notifications.filter((n: any) => !n.read).length
-    : 0;
+  const { data: subscriberNotifications, mutate: mutateSubscriberNotifications } = useSWR(
+    !isAdminSession ? "/api/notifications" : null,
+    fetcher,
+    {
+      shouldRetryOnError: false,
+      fallbackData: [],
+    }
+  );
+  const { data: adminNotifications, mutate: mutateAdminNotifications } = useSWR(
+    isAdminSession ? "/api/admin/notifications?page=1&pageSize=15" : null,
+    fetcher,
+    {
+      shouldRetryOnError: false,
+    }
+  );
+  const { data: adminUnread } = useSWR(
+    isAdminSession ? "/api/admin/notifications/unread-count" : null,
+    fetcher,
+    {
+      shouldRetryOnError: false,
+    }
+  );
+  const notifications = isAdminSession
+    ? (Array.isArray((adminNotifications as any)?.items) ? (adminNotifications as any).items : [])
+    : Array.isArray(subscriberNotifications)
+      ? subscriberNotifications
+      : [];
+  const unread = isAdminSession
+    ? Number((adminUnread as any)?.unreadCount || 0)
+    : Array.isArray(subscriberNotifications)
+      ? subscriberNotifications.filter((n: any) => !n.read).length
+      : 0;
   const [menuOpen, setMenuOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const { language, setLanguage } = useLanguage();
   const notificationsRef = useRef<HTMLDivElement | null>(null);
-  const pathname = usePathname();
   const displayName = me?.name ?? data?.user?.name ?? "User";
   const displayEmail = me?.email ?? data?.user?.email ?? "";
   const logoSrc = "/branding/Maboria%20Company%20logo.png";
@@ -65,16 +105,18 @@ export function Navbar() {
       Dashboard: language === "fr" ? "Tableau" : "Dashboard",
       Website: language === "fr" ? "Site" : "Website",
       Automations: language === "fr" ? "Automatisations" : "Automations",
-      Runs: language === "fr" ? "Operations automatisation" : "Automation Operations",
+      AutomationOperations: language === "fr" ? "Operations automatisation" : "Automation Operations",
       "AI Assistant": language === "fr" ? "Assistant IA" : "AI Assistant",
       Inbox: language === "fr" ? "Boite de reception" : "Inbox",
       Team: language === "fr" ? "Equipe" : "Team",
       Invoices: language === "fr" ? "Factures" : "Invoices",
+      Customers: language === "fr" ? "Clients" : "Customers",
       Subscription: language === "fr" ? "Abonnement" : "Subscription",
       Reports: language === "fr" ? "Rapports" : "Reports",
       Support: language === "fr" ? "Support" : "Support",
       Settings: language === "fr" ? "Parametres" : "Settings",
-      Admin: language === "fr" ? "Administration" : "Admin",
+      Admin: language === "fr" ? "Tableau admin" : "Admin Dashboard",
+      AdminDashboard: language === "fr" ? "Tableau admin" : "Admin Dashboard",
       "Admin Metrics": language === "fr" ? "Mesures admin" : "Admin Metrics",
       "System Logs": language === "fr" ? "Journaux systeme" : "System Logs",
       Users: language === "fr" ? "Utilisateurs" : "Users",
@@ -89,33 +131,34 @@ export function Navbar() {
   const navItems = useMemo(
     () => [
       { label: labelMap.Dashboard, href: "/dashboard", icon: LayoutDashboard },
-      { label: labelMap.Website, href: "/", icon: Home },
-      { label: labelMap.Automations, href: "/dashboard/automations", icon: Bot },
-      { label: labelMap.Runs, href: "/dashboard/runs", icon: Activity },
+      { label: labelMap.Website, href: "/", icon: Globe2 },
+      { label: labelMap.Automations, href: "/dashboard/automations", icon: Workflow },
+      { label: labelMap.AutomationOperations, href: "/dashboard/automation-operations", icon: ClipboardList },
       { label: labelMap["AI Assistant"], href: "/dashboard/assistant", icon: Sparkles },
-      { label: labelMap.Inbox, href: "/dashboard/inbox", icon: MessageSquare },
+      { label: labelMap.Inbox, href: "/dashboard/inbox", icon: Inbox },
       { label: labelMap.Team, href: "/dashboard/team", icon: Users },
-      { label: labelMap.Invoices, href: "/dashboard/invoices", icon: FileText },
+      { label: labelMap.Invoices, href: "/dashboard/invoices", icon: Receipt },
+      { label: labelMap.Customers, href: "/dashboard/customers", icon: UserRound },
       { label: labelMap.Subscription, href: "/dashboard/subscription", icon: CreditCard },
-      { label: labelMap.Reports, href: "/dashboard/usage", icon: Gauge },
-      { label: labelMap.Support, href: "/dashboard/support", icon: Activity },
+      { label: labelMap.Reports, href: "/dashboard/report", icon: BarChart3 },
+      { label: labelMap.Support, href: "/dashboard/support", icon: LifeBuoy },
       { label: labelMap.Settings, href: "/dashboard/settings", icon: Settings },
-      ...(data?.user?.role === "ADMIN"
+      ...(["OPS_ADMIN", "SUPER_ADMIN"].includes(resolvedRole)
         ? [
-            { label: labelMap.Admin, href: "/admin", icon: Users },
-            { label: labelMap["Admin Metrics"], href: "/admin/metrics", icon: Activity },
-            { label: labelMap["System Logs"], href: "/admin/logs", icon: LayoutDashboard },
+            { label: labelMap.AdminDashboard, href: "/admin", icon: Shield },
+            { label: labelMap["Admin Metrics"], href: "/admin/metrics", icon: BarChart3 },
+            { label: labelMap["System Logs"], href: "/admin/logs", icon: ClipboardList },
             { label: labelMap.Users, href: "/admin/users", icon: Shield },
-            { label: labelMap.Support, href: "/admin/support", icon: MessageSquare },
+            { label: labelMap.Support, href: "/admin/support", icon: LifeBuoy },
             { label: labelMap.Notifications, href: "/admin/notifications", icon: Bell },
-            { label: labelMap["Automation Errors"], href: "/admin/automation/errors", icon: Bot },
-            { label: labelMap.Prelaunch, href: "/admin/prelaunch", icon: Gauge },
-            { label: labelMap["System Flags"], href: "/admin/system-flags", icon: Settings },
-            { label: labelMap["Receipt Preview"], href: "/admin/receipt-preview", icon: FileText },
+            { label: labelMap["Automation Errors"], href: "/admin/automation/errors", icon: AlertTriangle },
+            { label: labelMap.Prelaunch, href: "/admin/prelaunch", icon: Rocket },
+            { label: labelMap["System Flags"], href: "/admin/system-flags", icon: Flag },
+            { label: labelMap["Receipt Preview"], href: "/admin/receipt-preview", icon: Receipt },
           ]
         : []),
     ],
-    [data?.user?.role, labelMap]
+    [resolvedRole, labelMap]
   );
   const commandItems: CommandItem[] = useMemo(() => {
     const nav = navItems.map((item) => ({
@@ -134,7 +177,7 @@ export function Navbar() {
         label: t("Create automation", "Creer une automatisation"),
         description: t("Build a new flow", "Creer un nouveau flux"),
         href: "/dashboard/automations/new",
-        icon: Bot,
+        icon: Workflow,
         group: t("Create", "Creer"),
         keywords: ["automation", "flow", "new"],
       },
@@ -143,9 +186,18 @@ export function Navbar() {
         label: t("Create invoice", "Creer une facture"),
         description: t("Generate a new invoice", "Generer une nouvelle facture"),
         href: "/dashboard/invoices",
-        icon: FileText,
+        icon: Receipt,
         group: t("Create", "Creer"),
         keywords: ["invoice", "billing"],
+      },
+      {
+        id: "open-customers",
+        label: t("Open customers", "Ouvrir les clients"),
+        description: t("Manage business clients", "Gerer les clients"),
+        href: "/dashboard/customers",
+        icon: Users,
+        group: t("Navigate", "Naviguer"),
+        keywords: ["customer", "clients", "crm"],
       },
       {
         id: "open-ai",
@@ -161,7 +213,7 @@ export function Navbar() {
         label: t("Contact support", "Contacter le support"),
         description: t("Submit a ticket", "Soumettre un ticket"),
         href: "/dashboard/support",
-        icon: Activity,
+        icon: LifeBuoy,
         group: t("Help", "Aide"),
         keywords: ["support", "help", "ticket"],
       },
@@ -207,12 +259,21 @@ export function Navbar() {
   }, [notificationsOpen]);
 
   const markNotificationRead = async (id: string) => {
+    if (isAdminSession) {
+      await fetch(`/api/admin/notifications/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "MARK_READ" }),
+      });
+      mutateAdminNotifications();
+      return;
+    }
     await fetch("/api/notifications", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
     });
-    mutateNotifications();
+    mutateSubscriberNotifications();
   };
 
   const handleCommandOpenChange = (open: boolean) => {
@@ -222,8 +283,20 @@ export function Navbar() {
 
   const markAllRead = async () => {
     const items = Array.isArray(notifications) ? notifications : [];
-    const unreadItems = items.filter((item: any) => !item.read);
+    const unreadItems = isAdminSession ? items.filter((item: any) => item.status === "UNREAD") : items.filter((item: any) => !item.read);
     if (!unreadItems.length) return;
+    if (isAdminSession) {
+      await fetch("/api/admin/notifications/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "MARK_READ",
+          ids: unreadItems.map((item: any) => item.id),
+        }),
+      });
+      mutateAdminNotifications();
+      return;
+    }
     await Promise.all(unreadItems.map((item: any) => markNotificationRead(item.id)));
   };
 
@@ -329,14 +402,19 @@ export function Navbar() {
                         onClick={() => markNotificationRead(item.id)}
                         className={clsx(
                           "flex w-full flex-col gap-1 px-4 py-3 text-left text-sm transition",
-                          item.read ? "bg-background" : "bg-indigo-500/10"
+                          isAdminSession ? (item.status === "UNREAD" ? "bg-indigo-500/10" : "bg-background") : item.read ? "bg-background" : "bg-indigo-500/10"
                         )}
                       >
                         <span className="text-sm font-semibold text-foreground">
-                          {translateNotificationMessage({ message: item.message, language })}
+                          {isAdminSession
+                            ? String(item.title || item.message || "Notification")
+                            : translateNotificationMessage({ message: item.message, language })}
                         </span>
+                        {isAdminSession ? (
+                          <span className="line-clamp-1 text-xs text-muted-foreground">{String(item.message || "")}</span>
+                        ) : null}
                         <span className="text-xs text-muted-foreground">
-                          {formatDateTimeDMY(new Date(item.createdAt))}
+                          {formatDateTimeDMY(new Date(item.lastSeenAt || item.createdAt))}
                         </span>
                       </button>
                     ))
@@ -412,12 +490,20 @@ export function Navbar() {
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={`flex items-center gap-3 rounded-xl px-3 py-2 transition ${
+                      className={`group flex items-center gap-3 rounded-xl px-3 py-2 transition-all duration-200 ${
                         active ? "bg-indigo-500/15 text-foreground" : "text-muted-foreground hover:bg-muted"
                       }`}
                       onClick={() => setMenuOpen(false)}
                     >
-                      <Icon className="h-4 w-4" />
+                      <span
+                        className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border ${
+                          active
+                            ? "border-indigo-300/60 bg-indigo-500/15 text-indigo-700 dark:text-indigo-300"
+                            : "border-border bg-card text-slate-600 group-hover:text-slate-900 dark:text-slate-300"
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </span>
                       {item.label}
                     </Link>
                   );

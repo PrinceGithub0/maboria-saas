@@ -17,6 +17,17 @@ export const allowedCurrencies = [
   "EGP",
 ] as const;
 
+const stripeSupportedCurrencies =
+  typeof Intl.supportedValuesOf === "function"
+    ? Array.from(
+        new Set(
+          Intl.supportedValuesOf("currency").map((code) =>
+            String(code || "").trim().toUpperCase()
+          )
+        )
+      ).sort()
+    : [...allowedCurrencies];
+
 const currencyFlagMap = {
   USD: getCountryFlag("US"),
   EUR: getCountryFlag("EU"),
@@ -34,26 +45,47 @@ const currencyFlagMap = {
   EGP: getCountryFlag("EG"),
 } as const;
 
-export const providerSupport = {
+export const providerSupport: Record<"PAYSTACK" | "FLUTTERWAVE" | "STRIPE", string[]> = {
   PAYSTACK: ["NGN", "GHS", "KES", "ZAR", "XOF"],
   FLUTTERWAVE: ["NGN", "USD", "GHS", "KES", "ZAR", "XOF", "UGX", "TZS", "RWF", "ZMW", "MZN", "EGP", "GBP", "EUR"],
-} as const;
+  STRIPE: stripeSupportedCurrencies,
+};
 
 export const currencyMinorUnits = {
+  BHD: 3,
+  BIF: 0,
+  CLP: 0,
+  DJF: 0,
+  GNF: 0,
   NGN: 2,
   USD: 2,
   GHS: 2,
+  IQD: 3,
+  JOD: 3,
+  JPY: 0,
   KES: 2,
-  ZAR: 2,
-  XOF: 0,
-  UGX: 0,
-  TZS: 0,
+  KMF: 0,
+  KRW: 0,
+  KWD: 3,
+  LYD: 3,
+  MGA: 0,
+  OMR: 3,
+  PYG: 0,
   RWF: 0,
+  TND: 3,
+  ZAR: 2,
+  UGX: 0,
+  VND: 0,
+  VUV: 0,
+  XOF: 0,
+  TZS: 0,
   ZMW: 2,
   MZN: 2,
   EGP: 2,
   GBP: 2,
   EUR: 2,
+  XAF: 0,
+  XPF: 0,
 } as const;
 
 export function normalizeCurrency(value: string) {
@@ -69,6 +101,15 @@ export function formatCurrencyOption(code: string) {
 export function isAllowedCurrency(value: string) {
   const normalized = normalizeCurrency(value);
   return allowedCurrencies.includes(normalized as (typeof allowedCurrencies)[number]);
+}
+
+export function getStripeSupportedCurrencies() {
+  return [...stripeSupportedCurrencies];
+}
+
+export function isStripeSupportedCurrency(value: string) {
+  const normalized = normalizeCurrency(value);
+  return stripeSupportedCurrencies.includes(normalized);
 }
 
 export function isProviderCurrency(provider: keyof typeof providerSupport, currency: string) {

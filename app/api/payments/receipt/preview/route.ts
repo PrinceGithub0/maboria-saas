@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildSubscriptionReceiptPdfBuffer } from "@/lib/subscription-receipt";
+import { isPlatformRole } from "@/lib/global-role";
 
 function mapPlanLabel(plan?: string | null) {
   if (!plan) return "Subscription";
@@ -27,7 +28,7 @@ export const GET = async (req: Request) => {
         receiptNumber: "MBR-SAMPLE-0001",
         paidAt: now,
         plan: "Pro",
-        amount: 39,
+        amount: 59,
         currency: "USD",
         customerName: "Sample Subscriber",
         customerEmail: "subscriber@example.com",
@@ -53,7 +54,7 @@ export const GET = async (req: Request) => {
   }
 
   const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!session?.user || !isPlatformRole(session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

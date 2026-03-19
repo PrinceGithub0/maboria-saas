@@ -19,15 +19,7 @@ import {
 } from "@/lib/webhook-events";
 import { fromMinorUnits, normalizeCurrency } from "@/lib/payments/currency-allowlist";
 import type { BillingInterval } from "@/lib/pricing";
-
-function buildPeriodWindow(interval: BillingInterval) {
-  const currentPeriodStart = new Date();
-  const currentPeriodEnd =
-    interval === "yearly"
-      ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
-      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-  return { currentPeriodStart, currentPeriodEnd };
-}
+import { buildBillingPeriodWindow as buildPeriodWindow } from "@/lib/payments/subscription-change";
 
 export const POST = withErrorHandling(async (req: Request) => {
   const signature = req.headers.get("x-paystack-signature") || undefined;
@@ -145,7 +137,6 @@ export const POST = withErrorHandling(async (req: Request) => {
       await createAdminNotification("Paystack payment failed");
     }
 
-    // If payment was for a plan purchase, sync/extend subscription (simplified monthly renewal).
     if (
       subscriptionPayload.status === "success" &&
       userIdFromMeta &&
@@ -154,74 +145,10 @@ export const POST = withErrorHandling(async (req: Request) => {
         normalizedPlan === "GROWTH" ||
         normalizedPlan === "BUSINESS")
     ) {
-      const existing = await prisma.subscription.findFirst({
-        where: { userId: userIdFromMeta, status: { in: ["ACTIVE", "PAST_DUE", "CANCELED", "INACTIVE"] } },
-        orderBy: { createdAt: "desc" },
-      });
-      const oldPlan = existing ? subscriptionPlanToUserPlan(existing.plan) : "free";
-      const { currentPeriodStart, currentPeriodEnd } = buildPeriodWindow(interval);
-      const renewalDate = currentPeriodEnd;
-      const currency = normalizeCurrency(subscriptionPayload?.currency || "NGN");
-      let subscriptionId: string | null = null;
-      await prisma.$transaction(async (tx) => {
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userIdFromMeta}))`;
-        const existingForPlan = await tx.subscription.findFirst({
-          where: { userId: userIdFromMeta, plan: normalizedPlan },
-          orderBy: { createdAt: "desc" },
-        });
-        if (existingForPlan) {
-          await tx.subscription.update({
-            where: { id: existingForPlan.id },
-            data: {
-              status: "ACTIVE",
-              renewalDate,
-              currency,
-              interval,
-              plan: normalizedPlan,
-              currentPeriodStart,
-              currentPeriodEnd,
-            },
-          });
-          subscriptionId = existingForPlan.id;
-        } else {
-          const created = await tx.subscription.create({
-            data: {
-              userId: userIdFromMeta,
-              plan: normalizedPlan,
-              status: "ACTIVE",
-              renewalDate,
-              currency,
-              interval,
-              currentPeriodStart,
-              currentPeriodEnd,
-            },
-          });
-          subscriptionId = created.id;
-        }
-      });
       log("info", "paystack_subscription_synced", {
         userId: userIdFromMeta,
         plan: normalizedPlan,
         status: "ACTIVE",
-      });
-      const newPlan = subscriptionPlanToUserPlan(normalizedPlan);
-      if (subscriptionId) {
-        await prisma.activityLog.create({
-          data: {
-            userId: userIdFromMeta,
-            action: "SUBSCRIPTION_UPDATED",
-            resourceType: "subscription",
-            resourceId: subscriptionId,
-            metadata: { status: "ACTIVE", plan: normalizedPlan },
-          },
-        });
-      }
-      log("info", "billing_plan_transition", {
-        provider: "paystack",
-        event: event || "charge.success",
-        userId: userIdFromMeta,
-        oldPlan,
-        newPlan,
       });
     }
 

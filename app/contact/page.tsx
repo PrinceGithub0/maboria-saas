@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert } from "@/components/ui/alert";
+import { TransientAlert } from "@/components/ui/transient-alert";
 import { useState } from "react";
 import { useLanguage } from "@/components/providers/language-provider";
 
@@ -57,7 +58,11 @@ export default function ContactPage() {
         </div>
         <Card>
           <form className="space-y-4" onSubmit={handleSubmit}>
-            {status && <Alert variant="success">{status}</Alert>}
+            {status ? (
+              <TransientAlert variant="success" onDismiss={() => setStatus(null)}>
+                {status}
+              </TransientAlert>
+            ) : null}
             {error && <Alert variant="error">{error}</Alert>}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Input

@@ -1,36 +1,83 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { withErrorHandling } from "@/lib/api-handler";
+import { requireVerifiedPlatformAdminAccess } from "@/lib/admin/admin-rbac";
+import {
+  listSupportTicketsForAdminPaged,
+  toApiSupportPriority,
+  toApiSupportStatus,
+  updateSupportTicket,
+} from "@/lib/support/threading";
 
-export const GET = withErrorHandling(async () => {
+export const GET = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+  }
+  const access = await requireVerifiedPlatformAdminAccess({
+    actorUserId: session.user.id,
+    cookieHeader: req.headers.get("cookie"),
+  });
+  if (!access.ok) {
+    return access.response;
   }
 
-  const tickets = await prisma.supportTicket.findMany({
-    orderBy: { createdAt: "desc" },
-    include: { user: { select: { email: true, name: true } } },
+  const url = new URL(req.url);
+  const status = url.searchParams.get("status");
+  const priority = url.searchParams.get("priority");
+  const assigned = url.searchParams.get("assignee") || url.searchParams.get("assigned");
+  const search = url.searchParams.get("search");
+  const sort = url.searchParams.get("sort");
+  const page = Number(url.searchParams.get("page") || "1");
+  const pageSize = Number(url.searchParams.get("pageSize") || "20");
+  const result = await listSupportTicketsForAdminPaged({
+    status,
+    priority,
+    assigned,
+    search,
+    sort,
+    page,
+    pageSize,
+    adminUserId: session.user.id,
+    workspaceId: null,
   });
 
-  return NextResponse.json(tickets);
+  return NextResponse.json({
+    items: result.items.map((ticket) => ({
+      ...ticket,
+      status: toApiSupportStatus(ticket.status),
+      priority: toApiSupportPriority(ticket.priority),
+    })),
+    pagination: result.pagination,
+  });
 });
 
 export const PUT = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
+  const access = await requireVerifiedPlatformAdminAccess({
+    actorUserId: session.user.id,
+    cookieHeader: req.headers.get("cookie"),
+  });
+  if (!access.ok) {
+    return access.response;
+  }
+  const body = await req.json().catch(() => ({}));
+  const id = String(body?.id || "").trim();
+  if (!id) return NextResponse.json({ error: "id is required" }, { status: 422 });
 
-  const { id, status } = await req.json();
-  const ticket = await prisma.supportTicket.update({
-    where: { id },
-    data: { status },
+  const updated = await updateSupportTicket({
+    ticketId: id,
+    actorUserId: session.user.id,
+    workspaceId: null,
+    status: body?.status,
+    priority: body?.priority,
+    assignedAdminId:
+      body?.assignedAdminId === undefined ? undefined : String(body?.assignedAdminId || "").trim() || null,
   });
-  await prisma.activityLog.create({
-    data: { userId: session.user.id, action: "SUPPORT_STATUS", metadata: { id, status } },
-  });
-  return NextResponse.json(ticket);
+  if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  return NextResponse.json(updated);
 });

@@ -1,5 +1,6 @@
 "use client";
 
+import clsx from "clsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Search } from "lucide-react";
 import { COUNTRY_DIAL_CODES, getCountryFlag, getCountryName } from "@/lib/countries";
@@ -11,6 +12,7 @@ type CountrySelectProps = {
   locale?: "en" | "fr";
   required?: boolean;
   placeholder?: string;
+  triggerClassName?: string;
 };
 
 const normalizeCode = (value: string) => String(value || "").toUpperCase();
@@ -22,23 +24,29 @@ export function CountrySelect({
   locale = "en",
   required,
   placeholder = "Select country",
+  triggerClassName,
 }: CountrySelectProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [placement, setPlacement] = useState<"top" | "bottom">("bottom");
 
   const options = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return COUNTRY_DIAL_CODES.map((entry) => {
       const name = getCountryName(entry.code, locale);
       return { code: entry.code, name, flag: getCountryFlag(entry.code) };
-    }).filter((item) => {
-      if (!normalizedQuery) return true;
-      return (
-        item.code.toLowerCase().includes(normalizedQuery) ||
-        item.name.toLowerCase().includes(normalizedQuery)
-      );
-    });
+    })
+      .filter((item) => {
+        if (!normalizedQuery) return true;
+        return (
+          item.code.toLowerCase().includes(normalizedQuery) ||
+          item.name.toLowerCase().includes(normalizedQuery)
+        );
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, locale));
   }, [query, locale]);
 
   const selectedCode = normalizeCode(value);
@@ -57,6 +65,26 @@ export function CountrySelect({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    triggerRef.current?.scrollIntoView({ block: "nearest" });
+    searchInputRef.current?.focus();
+  }, [open]);
+
+  const openMenu = () => {
+    const triggerRect = triggerRef.current?.getBoundingClientRect();
+    if (triggerRect) {
+      const estimatedMenuHeight = 320;
+      const spaceBelow = window.innerHeight - triggerRect.bottom;
+      const spaceAbove = triggerRect.top;
+      setPlacement(spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow ? "top" : "bottom");
+    } else {
+      setPlacement("bottom");
+    }
+    setQuery("");
+    setOpen(true);
+  };
+
   return (
     <div ref={containerRef} className="relative flex flex-col gap-1 text-sm text-foreground">
       <label className="text-sm text-foreground">
@@ -64,12 +92,20 @@ export function CountrySelect({
         {required ? " *" : ""}
       </label>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => {
-          setOpen((prev) => !prev);
-          setQuery("");
+          if (open) {
+            setOpen(false);
+            setQuery("");
+            return;
+          }
+          openMenu();
         }}
-        className="flex items-center justify-between rounded-lg border border-input bg-background px-3 py-2 text-left text-foreground focus:border-indigo-400 focus:outline-none"
+        className={clsx(
+          "flex items-center justify-between rounded-lg border border-input bg-background px-3 py-2 text-left text-foreground focus:border-indigo-400 focus:outline-none",
+          triggerClassName
+        )}
       >
         <span className="flex items-center gap-2">
           <span className="text-base">{selectedFlag}</span>
@@ -81,10 +117,15 @@ export function CountrySelect({
         <ChevronDown className="h-4 w-4 text-muted-foreground" />
       </button>
       {open ? (
-        <div className="absolute top-[68px] z-50 w-full rounded-xl border border-border bg-card p-2 shadow-xl">
+        <div
+          className={`absolute z-50 w-full rounded-xl border border-border bg-card p-2 shadow-xl ${
+            placement === "top" ? "bottom-[calc(100%+8px)]" : "top-[calc(100%+8px)]"
+          }`}
+        >
           <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-2 py-1">
             <Search className="h-4 w-4 text-muted-foreground" />
             <input
+              ref={searchInputRef}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={locale === "fr" ? "Rechercher un pays" : "Search country"}

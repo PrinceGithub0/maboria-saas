@@ -5,9 +5,11 @@ import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
 import { listPaystackBanks } from "@/lib/payments/paystack";
 import { listFlutterwaveBanks } from "@/lib/payments/flutterwave";
-import { isProviderCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
 import { normalizeCountryCode } from "@/lib/business-profile";
+import { isPayoutProvider } from "@/lib/payments/payment-providers";
+import { resolvePayoutRequirements } from "@/lib/payments/payout-requirements";
 import { requireBillingAccess } from "@/lib/permissions";
+import { requireSystemFlag } from "@/lib/system-flags-guard";
 
 export const GET = withRequestLogging(
   withErrorHandling(async (req: Request) => {
@@ -15,29 +17,33 @@ export const GET = withRequestLogging(
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const paymentsDisabled = await requireSystemFlag("payments_enabled", "Payments are currently disabled.");
+    if (paymentsDisabled) return paymentsDisabled;
+
     const access = await requireBillingAccess(session.user.id);
-    if (!access.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!access.ok) return NextResponse.json({ error: access.message }, { status: 403 });
 
     const { searchParams } = new URL(req.url);
     const provider = (searchParams.get("provider") || "").toUpperCase();
     const country = normalizeCountryCode(searchParams.get("country") || "NG");
-    const currency = normalizeCurrency(searchParams.get("currency") || "NGN");
+    const currency = searchParams.get("currency") || "NGN";
 
-    if (provider !== "PAYSTACK" && provider !== "FLUTTERWAVE") {
+    if (!isPayoutProvider(provider)) {
       return NextResponse.json({ error: "Invalid provider" }, { status: 400 });
     }
 
-    if (provider === "PAYSTACK" && !isProviderCurrency("PAYSTACK", currency)) {
-      return NextResponse.json(
-        {
-          error: "Unsupported currency for Paystack.",
-        },
-        { status: 400 }
-      );
+    const requirements = resolvePayoutRequirements({ provider, country, currency });
+    if (!requirements.supported) {
+      return NextResponse.json({ error: "Payout setup is not supported for this provider." }, { status: 400 });
+    }
+
+    if (!requirements.bankListRequired) {
+      return NextResponse.json({ banks: [] });
     }
 
     if (provider === "PAYSTACK") {
-      const response = await listPaystackBanks(currency);
+      const response = await listPaystackBanks(requirements.currency);
       const banks = (response?.data || []).map((bank: any) => ({
         name: bank.name,
         code: bank.code,
@@ -49,6 +55,7 @@ export const GET = withRequestLogging(
     const banks = (response?.data || []).map((bank: any) => ({
       name: bank.name,
       code: bank.code,
+      id: bank.id ?? null,
     }));
     return NextResponse.json({ banks });
   })

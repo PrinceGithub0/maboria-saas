@@ -23,7 +23,7 @@ const steps = [
       en: "Monitor automation health and investigate failed steps.",
       fr: "Surveiller la sante des automatisations et investiguer les echecs.",
     },
-    href: "/dashboard/runs",
+    href: "/dashboard/automation-operations",
   },
   {
     title: { en: "AI Assistant", fr: "Assistant IA" },
@@ -43,7 +43,7 @@ const steps = [
   {
     title: { en: "Analytics", fr: "Analyses" },
     desc: { en: "Review usage, automation runs, and quotas.", fr: "Voir l usage, executions et quotas." },
-    href: "/dashboard/usage",
+    href: "/dashboard/report",
   },
   {
     title: { en: "Settings", fr: "Parametres" },

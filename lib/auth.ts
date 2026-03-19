@@ -5,6 +5,9 @@ import { prisma } from "./prisma";
 import { verifyTotp } from "./totp";
 import { assertRateLimit } from "./rate-limit";
 import { safeDecryptSecret } from "./crypto";
+import { isPlatformRole } from "./global-role";
+import { logUserActivity } from "./user-activity";
+import { emitSystemEvent } from "./system-events";
 
 type StoredBackupCode = { hash: string; usedAt: string | null };
 
@@ -22,6 +25,38 @@ function normalizeBackupCodes(value: unknown): StoredBackupCode[] {
     .filter(Boolean) as StoredBackupCode[];
 }
 
+function orgRoleRank(value?: string | null) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "owner") return 3;
+  if (normalized === "admin") return 2;
+  return 1;
+}
+
+async function getPrimaryBusinessAccessStatus(userId: string) {
+  const memberships = await prisma.businessMember.findMany({
+    where: { userId, status: "active" },
+    include: {
+      business: {
+        select: {
+          accessStatus: true,
+        },
+      },
+    },
+  });
+
+  if (!memberships.length) return null;
+
+  const primary = memberships
+    .slice()
+    .sort((a, b) => {
+      const roleDelta = orgRoleRank(b.role) - orgRoleRank(a.role);
+      if (roleDelta !== 0) return roleDelta;
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    })[0];
+
+  return primary?.business?.accessStatus ?? null;
+}
+
 export async function hashPassword(password: string) {
   const salt = await genSalt(10);
   return hash(password, salt);
@@ -33,7 +68,7 @@ export async function verifyPassword(password: string, passwordHash: string) {
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV !== "production",
+  debug: process.env.NEXTAUTH_DEBUG === "true",
   session: {
     strategy: "jwt",
   },
@@ -54,6 +89,22 @@ export const authOptions: NextAuthOptions = {
         }
 
         const email = credentials.email.toLowerCase().trim();
+        const recordLoginFailure = async (reason: string, userId?: string | null) => {
+          await emitSystemEvent({
+            userId: userId || null,
+            actorId: userId || null,
+            eventType: "user_login_failed",
+            severity: "WARNING",
+            source: "AUTH",
+            entityType: "user",
+            entityId: userId || null,
+            message: "User login failed.",
+            metadata: {
+              email,
+              reason,
+            },
+          });
+        };
         const rawForwardedFor =
           // NextRequest (App Router)
           (req as any)?.headers?.get?.("x-forwarded-for") ||
@@ -68,6 +119,7 @@ export const authOptions: NextAuthOptions = {
           assertRateLimit(`auth:login:ip:${ip}`, 30, 60_000);
           assertRateLimit(`auth:login:email:${email}`, 10, 60_000);
         } catch {
+          await recordLoginFailure("rate_limited");
           return null;
         }
 
@@ -76,6 +128,7 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (!user) {
+          await recordLoginFailure("user_not_found");
           return null;
         }
 
@@ -85,6 +138,11 @@ export const authOptions: NextAuthOptions = {
         );
 
         if (!valid) {
+          await recordLoginFailure("invalid_password", user.id);
+          return null;
+        }
+        if (String((user as any).status || "ACTIVE").toUpperCase() !== "ACTIVE") {
+          await recordLoginFailure("inactive_user", user.id);
           return null;
         }
 
@@ -93,10 +151,14 @@ export const authOptions: NextAuthOptions = {
           try {
             assertRateLimit(`auth:2fa:email:${email}`, 5, 60_000);
           } catch {
+            await recordLoginFailure("2fa_rate_limited", user.id);
             return null;
           }
           const otp = (credentials as any)?.otp as string | undefined;
-          if (!otp) return null;
+          if (!otp) {
+            await recordLoginFailure("2fa_missing", user.id);
+            return null;
+          }
 
           const trimmed = otp.trim();
           let verified = false;
@@ -124,7 +186,18 @@ export const authOptions: NextAuthOptions = {
             }
           }
 
-          if (!verified) return null;
+          if (!verified) {
+            await recordLoginFailure("2fa_invalid", user.id);
+            return null;
+          }
+        }
+
+        if (!isPlatformRole(user.role)) {
+          const accessStatus = await getPrimaryBusinessAccessStatus(user.id);
+          if (accessStatus && accessStatus !== "ACTIVE") {
+            await recordLoginFailure("tenant_access_inactive", user.id);
+            return null;
+          }
         }
 
         return {
@@ -154,13 +227,54 @@ export const authOptions: NextAuthOptions = {
   },
   events: {
     async signIn(message) {
+      const userId = (message.user as any)?.id as string | undefined;
+      if (!userId) return;
+
+      const provider = String(message.account?.provider || "credentials").toLowerCase();
+      const authProvider =
+        provider === "google"
+          ? "GOOGLE"
+          : provider === "credentials"
+            ? "PASSWORD"
+            : "SSO";
+
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          lastLoginAt: new Date(),
+          authProvider: authProvider as any,
+        },
+      });
+
       await prisma.activityLog.create({
         data: {
-          userId: (message.user as any)?.id,
+          userId,
           action: "USER_SIGNIN",
           metadata: {
             provider: message.account?.provider,
           },
+        },
+      });
+
+      await logUserActivity({
+        userId,
+        actorId: userId,
+        eventType: "login",
+        metadata: {
+          provider: message.account?.provider || "credentials",
+        },
+      });
+      await emitSystemEvent({
+        userId,
+        actorId: userId,
+        eventType: "user_login_success",
+        severity: "INFO",
+        source: "AUTH",
+        entityType: "user",
+        entityId: userId,
+        message: "User login succeeded.",
+        metadata: {
+          provider: message.account?.provider || "credentials",
         },
       });
     },
@@ -174,6 +288,12 @@ export const authOptions: NextAuthOptions = {
           userId,
           action: "USER_SIGNOUT",
         },
+      });
+
+      await logUserActivity({
+        userId,
+        actorId: userId,
+        eventType: "logout",
       });
     },
   },

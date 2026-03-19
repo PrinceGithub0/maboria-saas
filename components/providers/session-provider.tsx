@@ -9,7 +9,7 @@ export function SessionProviderWrapper({
   children: React.ReactNode;
 }) {
   return (
-    <SessionProvider>
+    <SessionProvider basePath="/api/auth" refetchInterval={0} refetchOnWindowFocus={false}>
       <SWRConfig
         value={{
           dedupingInterval: 10_000,

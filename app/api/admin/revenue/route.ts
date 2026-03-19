@@ -1,38 +1,22 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { withErrorHandling } from "@/lib/api-handler";
+import { requireNoImpersonationMode, requirePlatformAdmin } from "@/lib/admin/admin-rbac";
+import { getAdminEngineMetrics, parseEngineRange } from "@/lib/admin/engine-metrics";
 
-export const GET = withErrorHandling(async () => {
+export const GET = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const [mrrUsd, mrrNgn, activeSubs, failed] = await Promise.all([
-    prisma.subscription.aggregate({
-      where: { status: "ACTIVE", currency: "USD" },
-      _count: { _all: true },
-    }),
-    prisma.subscription.aggregate({
-      where: { status: "ACTIVE", currency: "NGN" },
-      _count: { _all: true },
-    }),
-    prisma.subscription.count({ where: { status: "ACTIVE" } }),
-    prisma.payment.count({ where: { status: "FAILED" } }),
-  ]);
-
-  const revenueByCurrency = await prisma.payment.groupBy({
-    by: ["currency"],
-    _sum: { amount: true },
+  const denied = requirePlatformAdmin(session?.user);
+  if (denied) return denied;
+  const impersonationBlocked = await requireNoImpersonationMode({
+    actorUserId: session!.user.id,
+    cookieHeader: req.headers.get("cookie"),
   });
+  if (impersonationBlocked) return impersonationBlocked;
 
-  return NextResponse.json({
-    mrrUsd: mrrUsd._count._all,
-    mrrNgn: mrrNgn._count._all,
-    activeSubs,
-    failedPayments: failed,
-    revenueByCurrency: revenueByCurrency.map((r) => ({ currency: r.currency, amount: Number(r._sum.amount) })),
-  });
+  const { searchParams } = new URL(req.url);
+  const range = parseEngineRange(searchParams.get("range"));
+  const data = await getAdminEngineMetrics(range);
+  return NextResponse.json(data);
 });

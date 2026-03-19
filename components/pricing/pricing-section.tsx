@@ -106,7 +106,7 @@ const accents: Record<string, { button: string; title?: string }> = {
   GROWTH: {
     button:
       "!bg-emerald-600 !text-white !hover:bg-emerald-700 !shadow-emerald-600/20",
-    title: "text-emerald-700",
+    title: "text-emerald-700 dark:text-emerald-400",
   },
   BUSINESS: { button: "bg-blue-600 text-white hover:bg-blue-700" },
   PREMIUM: { button: "bg-blue-600 text-white hover:bg-blue-700" },
@@ -136,18 +136,20 @@ export function PricingSection({ plans }: { plans: PlanRecord[] }) {
   return (
     <section className="relative z-10 pointer-events-auto space-y-10 px-6 py-16 max-md:px-4 max-md:py-12">
       <div className="mx-auto flex max-w-5xl flex-col items-center gap-3 text-center">
-        <h2 className="text-4xl font-semibold text-slate-900 max-md:text-3xl">
+        <h2 className="text-4xl font-semibold text-slate-900 max-md:text-3xl dark:text-slate-50">
           {t("Pricing", "Tarifs")}
         </h2>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-500 dark:text-slate-300">
           {t("Choose how much of your operations you want to automate.", "Choisissez le niveau d automatisation souhaite.")}
         </p>
-        <div className="inline-flex items-center rounded-full border border-slate-200/80 bg-white/90 p-1 shadow-[0_6px_16px_rgba(15,23,42,0.06)]">
+        <div className="inline-flex items-center rounded-full border border-slate-200/80 bg-white/90 p-1 shadow-[0_6px_16px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900/90 dark:shadow-[0_10px_28px_rgba(2,6,23,0.45)]">
           <button
             type="button"
             onClick={() => setBilling("monthly")}
             className={`rounded-full px-6 py-2 text-sm font-semibold transition ${
-              billing === "monthly" ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
+              billing === "monthly"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
             }`}
           >
             {t("Monthly", "Mensuel")}
@@ -156,13 +158,15 @@ export function PricingSection({ plans }: { plans: PlanRecord[] }) {
             type="button"
             onClick={() => setBilling("yearly")}
             className={`rounded-full px-6 py-2 text-sm font-semibold transition ${
-              billing === "yearly" ? "bg-blue-600 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
+              billing === "yearly"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
             }`}
           >
             {t("Yearly (Save 10%)", "Annuel (Economisez 10%)")}
           </button>
         </div>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-500 dark:text-slate-400">
           {t(
             "Prices shown in USD. You'll be charged in your local currency where supported. VAT included where applicable.",
             "Prix en USD. Facturation en devise locale si disponible. TVA incluse si applicable."
@@ -182,33 +186,33 @@ export function PricingSection({ plans }: { plans: PlanRecord[] }) {
           return (
             <div
               key={plan.plan}
-              className={`relative flex h-full min-h-[520px] flex-col rounded-2xl border border-slate-200/80 bg-white/90 px-6 pb-6 pt-7 shadow-[0_6px_16px_rgba(15,23,42,0.06)] transition hover:shadow-[0_10px_24px_rgba(15,23,42,0.12)] ${
+              className={`relative flex h-full min-h-[520px] flex-col rounded-2xl border border-slate-200/80 bg-white/90 px-6 pb-6 pt-7 shadow-[0_6px_16px_rgba(15,23,42,0.06)] transition hover:shadow-[0_10px_24px_rgba(15,23,42,0.12)] dark:border-slate-700 dark:bg-slate-900/88 dark:shadow-[0_18px_36px_rgba(2,6,23,0.42)] dark:hover:shadow-[0_22px_44px_rgba(2,6,23,0.55)] ${
                 isPopular ? "ring-1 ring-indigo-500/20" : ""
               }`}
             >
               {isPopular && (
-                <span className="absolute right-4 top-4 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                <span className="absolute right-4 top-4 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300">
                   {t("Most Popular", "Plus populaire")}
                 </span>
               )}
               <div className="space-y-3">
                 <h3 className={`text-2xl font-semibold ${accent.title ?? "text-slate-900"}`}>{plan.label}</h3>
-                <div className="text-4xl font-semibold leading-tight text-slate-900">
+                <div className="text-4xl font-semibold leading-tight text-slate-900 dark:text-slate-50">
                   {plan.usd == null ? (
                     t("Custom pricing", "Tarif sur mesure")
                   ) : (
                     <div className="space-y-1">
                       <div>
-                        {formatUsd(price || 0)} <span className="text-base text-slate-500">{cadence}</span>
+                        {formatUsd(price || 0)} <span className="text-base text-slate-500 dark:text-slate-400">{cadence}</span>
                       </div>
                       {billing === "monthly" && yearly != null && (
-                        <div className="text-base text-slate-600">
+                        <div className="text-base text-slate-600 dark:text-slate-300">
                           {formatUsd(yearly)} {t("/ year", "/ an")}{" "}
-                          <span className="text-slate-400">{t("(save 10%)", "(economisez 10%)")}</span>
+                          <span className="text-slate-400 dark:text-slate-500">{t("(save 10%)", "(economisez 10%)")}</span>
                         </div>
                       )}
                       {billing === "yearly" && monthly != null && (
-                        <div className="text-base text-slate-600">
+                        <div className="text-base text-slate-600 dark:text-slate-300">
                           {formatUsd(monthly)} {t("/ month", "/ mois")}
                         </div>
                       )}
@@ -216,13 +220,13 @@ export function PricingSection({ plans }: { plans: PlanRecord[] }) {
                   )}
                 </div>
                 {detail && (
-                  <p className="text-sm font-medium text-slate-600">{t(detail.tagline.en, detail.tagline.fr)}</p>
+                  <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{t(detail.tagline.en, detail.tagline.fr)}</p>
                 )}
               </div>
               {detail && (
                 <div className="mt-4 space-y-3">
-                  <div className="h-px w-full bg-slate-200/80" />
-                  <ul className="space-y-2 text-sm text-slate-700">
+                  <div className="h-px w-full bg-slate-200/80 dark:bg-slate-800" />
+                  <ul className="space-y-2 text-sm text-slate-700 dark:text-slate-200">
                     {detail.includes.map((item) => (
                       <li key={item.en} className="flex items-start gap-2">
                         <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" />
@@ -247,17 +251,17 @@ export function PricingSection({ plans }: { plans: PlanRecord[] }) {
       {enterprise && (
         <div className="mx-auto max-w-6xl">
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-            <div className="relative flex h-full min-h-[520px] flex-col rounded-2xl border border-slate-200/80 bg-white/90 px-6 pb-6 pt-7 shadow-[0_6px_16px_rgba(15,23,42,0.06)]">
+            <div className="relative flex h-full min-h-[520px] flex-col rounded-2xl border border-slate-200/80 bg-white/90 px-6 pb-6 pt-7 shadow-[0_6px_16px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900/88 dark:shadow-[0_18px_36px_rgba(2,6,23,0.42)]">
               <div className="space-y-2">
-                <h3 className="text-3xl font-semibold text-slate-950">{enterprise.label}</h3>
-                <p className="text-sm font-semibold text-slate-700">
+                <h3 className="text-3xl font-semibold text-slate-950 dark:text-slate-50">{enterprise.label}</h3>
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                   {t("Built for organisation at scale.", "Built for organisation at scale.")}
                 </p>
                 <div className="h-1" />
               </div>
               <div className="mt-1 space-y-2">
-                <div className="h-px w-full bg-slate-200/80" />
-                <ul className="space-y-2 text-sm text-slate-700">
+                <div className="h-px w-full bg-slate-200/80 dark:bg-slate-800" />
+                <ul className="space-y-2 text-sm text-slate-700 dark:text-slate-200">
                   {planDetails.ENTERPRISE.includes.map((item) => (
                     <li key={item.en} className="flex items-start gap-2">
                       <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" />

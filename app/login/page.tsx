@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -19,12 +19,21 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const params = useSearchParams();
   const resetSuccess = params.get("reset") === "success";
+  const inviteToken = params.get("invite") || undefined;
+  const inviteEmail = params.get("email") || "";
   const logoSrc = "/branding/Maboria%20Company%20logo.png";
   const { language } = useLanguage();
   const t = (en: string, fr: string) => (language === "fr" ? fr : en);
 
+  useEffect(() => {
+    if (inviteEmail && !email) {
+      setEmail(inviteEmail);
+    }
+  }, [email, inviteEmail]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     setLoading(true);
     try {
       const res = await signIn("credentials", {
@@ -65,6 +74,30 @@ export default function LoginPage() {
         );
         return;
       }
+      if (inviteToken) {
+        const inviteAcceptance = await fetch("/api/team/invite/accept", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ inviteToken }),
+          credentials: "include",
+        });
+        const invitePayload = await inviteAcceptance.json().catch(() => ({}));
+        if (!inviteAcceptance.ok) {
+          setError(
+            invitePayload?.error ||
+              t(
+                "Signed in, but the workspace invitation could not be accepted.",
+                "Connexion reussie, mais l invitation a l espace n a pas pu etre acceptee."
+              )
+          );
+          return;
+        }
+        window.location.href =
+          typeof invitePayload?.redirectTo === "string" && invitePayload.redirectTo
+            ? invitePayload.redirectTo
+            : "/dashboard";
+        return;
+      }
       window.location.href = "/dashboard";
     } catch {
       setError(t("Sign in failed. Please try again.", "Connexion echouee. Reessayez."));
@@ -97,6 +130,14 @@ export default function LoginPage() {
             {t(
               "Your password has been updated successfully. You can now sign in.",
               "Votre mot de passe a ete mis a jour avec succes. Vous pouvez maintenant vous connecter."
+            )}
+          </Alert>
+        )}
+        {inviteToken && (
+          <Alert className="mt-5" variant="info">
+            {t(
+              "Sign in to accept your workspace invitation.",
+              "Connectez-vous pour accepter votre invitation a l espace de travail."
             )}
           </Alert>
         )}

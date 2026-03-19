@@ -1,5 +1,9 @@
 import {
   PrismaClient,
+  AdminNotificationDedupeStrategy,
+  AdminNotificationRecipientStrategy,
+  AdminNotificationSeverity,
+  AdminNotificationType,
   Role,
   SubscriptionPlan,
   SubscriptionStatus,
@@ -37,9 +41,85 @@ async function main() {
       name: "Maboria Admin",
       email: "admin@maboria.com",
       passwordHash: adminPassword,
-      role: Role.ADMIN,
+      role: Role.OPS_ADMIN,
     },
   });
+
+  const adminNotificationRules = [
+    {
+      eventType: "AUTOMATION_RUN_FAILED",
+      defaultSeverity: AdminNotificationSeverity.WARNING,
+      defaultType: AdminNotificationType.AUTOMATION,
+      recipientStrategy: AdminNotificationRecipientStrategy.ALL_ADMINS,
+      dedupeStrategy: AdminNotificationDedupeStrategy.BY_TENANT_AND_EVENT,
+      dedupeWindowSeconds: 300,
+      templateTitle: "Automation run failed",
+      templateMessage: "Automation failure detected for {{tenantName}}.",
+      metadataTemplate: {},
+    },
+    {
+      eventType: "SUPPORT_TICKET_ASSIGNED",
+      defaultSeverity: AdminNotificationSeverity.INFO,
+      defaultType: AdminNotificationType.SUPPORT,
+      recipientStrategy: AdminNotificationRecipientStrategy.ASSIGNEE_ONLY,
+      dedupeStrategy: AdminNotificationDedupeStrategy.CUSTOM_KEY,
+      dedupeWindowSeconds: 60,
+      templateTitle: "Ticket assigned to you",
+      templateMessage: "Ticket {{ticketId}} has been assigned to you.",
+      metadataTemplate: {},
+    },
+    {
+      eventType: "SLA_BREACH",
+      defaultSeverity: AdminNotificationSeverity.WARNING,
+      defaultType: AdminNotificationType.SLA,
+      recipientStrategy: AdminNotificationRecipientStrategy.ASSIGNEE_ONLY,
+      dedupeStrategy: AdminNotificationDedupeStrategy.CUSTOM_KEY,
+      dedupeWindowSeconds: 300,
+      templateTitle: "SLA breach detected",
+      templateMessage: "Ticket {{ticketId}} has breached SLA thresholds.",
+      metadataTemplate: {},
+    },
+    {
+      eventType: "SYSTEM_OUTAGE",
+      defaultSeverity: AdminNotificationSeverity.WARNING,
+      defaultType: AdminNotificationType.SYSTEM,
+      recipientStrategy: AdminNotificationRecipientStrategy.ALL_ADMINS,
+      dedupeStrategy: AdminNotificationDedupeStrategy.BY_EVENT,
+      dedupeWindowSeconds: 300,
+      templateTitle: "System incident detected",
+      templateMessage: "{{summary}}",
+      metadataTemplate: {},
+    },
+  ] as const;
+
+  for (const rule of adminNotificationRules) {
+    await prisma.adminNotificationRule.upsert({
+      where: { eventType: rule.eventType },
+      update: {
+        defaultSeverity: rule.defaultSeverity,
+        defaultType: rule.defaultType,
+        enabled: true,
+        recipientStrategy: rule.recipientStrategy,
+        dedupeStrategy: rule.dedupeStrategy,
+        dedupeWindowSeconds: rule.dedupeWindowSeconds,
+        templateTitle: rule.templateTitle,
+        templateMessage: rule.templateMessage,
+        metadataTemplate: rule.metadataTemplate as any,
+      },
+      create: {
+        eventType: rule.eventType,
+        defaultSeverity: rule.defaultSeverity,
+        defaultType: rule.defaultType,
+        enabled: true,
+        recipientStrategy: rule.recipientStrategy,
+        dedupeStrategy: rule.dedupeStrategy,
+        dedupeWindowSeconds: rule.dedupeWindowSeconds,
+        templateTitle: rule.templateTitle,
+        templateMessage: rule.templateMessage,
+        metadataTemplate: rule.metadataTemplate as any,
+      },
+    });
+  }
 
   const business = await prisma.business.create({
     data: {
@@ -125,15 +205,49 @@ async function main() {
     },
   });
 
+  const customer = await prisma.customer.upsert({
+    where: {
+      userId_email: {
+        userId: user.id,
+        email: "customer@example.com",
+      },
+    },
+    update: {
+      name: "Seed Customer",
+      deletedAt: null,
+    },
+    create: {
+      userId: user.id,
+      name: "Seed Customer",
+      email: "customer@example.com",
+      deliveryPreference: "EMAIL",
+    },
+  });
+
   await prisma.invoice.create({
     data: {
       userId: user.id,
+      customerId: customer.id,
       invoiceNumber: "INV-1001",
       currency: "USD",
       status: InvoiceStatus.PAID,
       total: 19900,
       tax: 1200,
       discount: 0,
+      invoiceCustomerSnapshot: {
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone,
+        address: {
+          addressLine1: customer.addressLine1,
+          addressLine2: customer.addressLine2,
+          city: customer.city,
+          state: customer.state,
+          postalCode: customer.postalCode,
+          country: customer.country,
+        },
+        deliveryPreference: customer.deliveryPreference,
+      } as any,
       items: [
         { name: "Automation credits", qty: 1, price: 19900 },
         { name: "Onboarding", qty: 1, price: 0 },

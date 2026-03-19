@@ -1,245 +1,554 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
+
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getOrCreateBusinessForUser } from "@/lib/business";
-import { enforceEntitlement, getTeamSeatUsageThisMonth } from "@/lib/entitlements";
-import { sendTemplateEmail } from "@/lib/email";
-import crypto from "crypto";
+import {
+  buildInviteToken,
+  canAssignBillingAdmin,
+  canActorChangeTargetRole,
+  countActiveOrgSeats,
+  getSeatLimitForPlan,
+  hasOrgPermission,
+  normalizeOrgRole,
+  requireOrgPermission,
+  writeOrgAuditLog,
+} from "@/lib/org-auth";
+import { sendPlatformMail } from "@/lib/email";
+import { isPlatformRole } from "@/lib/global-role";
+import { buildTeamActivityMessage, TEAM_ACTIVITY_ACTION_TYPES } from "@/lib/team-activity";
 
 const inviteSchema = z.object({
   email: z.string().email(),
-  role: z.enum(["agent", "admin"]).default("agent"),
+  role: z.enum(["member", "admin", "billing_admin"]).default("member"),
+});
+
+const resendInviteSchema = z.object({
+  action: z.literal("resend_invite"),
+  inviteId: z.string().min(1),
 });
 
 const removeSchema = z.object({
   memberId: z.string().min(1),
 });
 
-async function requireTeamAccess(userId: string) {
-  const entitlement = await enforceEntitlement(userId, {
-    feature: "dashboard",
-    requiredPlan: "starter",
-    allowTrial: false,
-  });
-  if (!entitlement.ok) {
-    return {
-      ok: false as const,
-      response: NextResponse.json(
-        {
-          error: entitlement.reason,
-          type: entitlement.type,
-          requiredPlan: entitlement.requiredPlan || "starter",
-        },
-        { status: 403 }
-      ),
-    };
-  }
-  return { ok: true as const };
+const cancelInviteSchema = z.object({
+  action: z.literal("cancel_invite"),
+  inviteId: z.string().min(1),
+});
+
+const roleUpdateSchema = z.object({
+  memberId: z.string().min(1),
+  role: z.enum(["member", "admin", "billing_admin"]),
+});
+
+function toPlanLabel(plan?: string | null) {
+  const normalized = String(plan || "STARTER").toUpperCase();
+  if (normalized === "PRO") return "pro";
+  if (normalized === "GROWTH") return "growth";
+  if (normalized === "BUSINESS" || normalized === "PREMIUM") return "business";
+  if (normalized === "ENTERPRISE") return "enterprise";
+  return "starter";
 }
 
-function isAdminRole(role?: string | null) {
-  return role === "owner" || role === "admin";
-}
-
-async function resolveSeatLimit(userId: string) {
-  const sub = await prisma.subscription.findFirst({
-    where: { userId, status: { in: ["ACTIVE"] } },
-    orderBy: { createdAt: "desc" },
-  });
-  switch (sub?.plan) {
-    case "STARTER":
-      return { seatLimit: 1, planLabel: "starter" };
-    case "PRO":
-      return { seatLimit: 3, planLabel: "pro" };
-    case "BUSINESS":
-      return { seatLimit: 10, planLabel: "business" };
-    case "PREMIUM":
-      return { seatLimit: 10, planLabel: "business" };
-    case "ENTERPRISE":
-      return { seatLimit: null, planLabel: "enterprise" };
-    case "GROWTH":
-      return { seatLimit: 5, planLabel: "growth" };
-    default:
-      return { seatLimit: 1, planLabel: "starter" };
-  }
-}
-
-function buildInviteLink(token: string, email: string) {
-  const baseUrl =
-    process.env.APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
-  const url = new URL("/signup", baseUrl);
+function buildInviteLink(token: string, email: string, mode: "signup" | "login" = "signup") {
+  const baseUrl = process.env.APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
+  const url = new URL(mode === "login" ? "/login" : "/signup", baseUrl);
   url.searchParams.set("invite", token);
   url.searchParams.set("email", email);
   return url.toString();
 }
 
+function jsonError(status: number, error: string, extras?: Record<string, unknown>) {
+  return NextResponse.json({ error, ...(extras || {}) }, { status });
+}
+
+const MEMBER_ROLE_RANK: Record<string, number> = {
+  owner: 4,
+  admin: 3,
+  billing_admin: 2,
+  member: 1,
+};
+
+async function sendWorkspaceInviteEmail(input: {
+  orgId: string;
+  email: string;
+  rawToken: string;
+  mode?: "signup" | "login";
+}) {
+  const business = await prisma.business.findUnique({
+    where: { id: input.orgId },
+    select: { name: true },
+  });
+
+  await sendPlatformMail({
+    to: input.email,
+    subject: "You are invited to Maboria",
+    html: `<p>You have been invited to join <strong>${business?.name || "your organization"}</strong> on Maboria.</p>
+         <p><a href=\"${buildInviteLink(input.rawToken, input.email, input.mode || "signup")}\">Accept invitation</a></p>
+         <p>This invitation expires in 7 days and can be used once.</p>`,
+  });
+}
+
 export async function GET() {
   const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.id) return jsonError(401, "Unauthorized");
 
-  const access = await requireTeamAccess(session.user.id);
-  if (!access.ok) return access.response;
-
-  const { seatLimit, planLabel } = await resolveSeatLimit(session.user.id);
-  const { business } = await getOrCreateBusinessForUser(session.user.id);
-  const members = await prisma.businessMember.findMany({
-    where: { businessId: business.id },
-    include: {
-      user: { select: { id: true, name: true, email: true, publicId: true, role: true } },
-    },
-    orderBy: { createdAt: "asc" },
+  const access = await requireOrgPermission(session.user.id, {
+    permission: "team:read",
+    requireActiveSubscription: true,
   });
-  return NextResponse.json({ business, members, seatLimit, planLabel });
+  if (!access.ok) return jsonError(access.status, access.message, { code: access.code });
+
+  const { context } = access;
+  const seatLimit = getSeatLimitForPlan(context.orgPlan);
+  const [members, pendingInvites, seatsUsed, auditLogs] = await Promise.all([
+    prisma.businessMember.findMany({
+      where: {
+        businessId: context.orgId,
+        status: "active",
+      },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, publicId: true, role: true },
+        },
+      },
+      orderBy: [{ role: "asc" }, { createdAt: "asc" }],
+    }),
+    prisma.businessInvite.findMany({
+      where: {
+        businessId: context.orgId,
+        status: "PENDING",
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+    countActiveOrgSeats(context.orgId),
+    prisma.auditLog.findMany({
+      where: {
+        orgId: context.orgId,
+        actionType: {
+          in: [...TEAM_ACTIVITY_ACTION_TYPES],
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 6,
+      include: {
+        user: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    }),
+  ]);
+
+  const targetUserIds = Array.from(
+    new Set(auditLogs.map((entry) => entry.targetUserId).filter((value): value is string => Boolean(value)))
+  );
+  const targetUsers = targetUserIds.length
+    ? await prisma.user.findMany({
+        where: { id: { in: targetUserIds } },
+        select: { id: true, name: true, email: true },
+      })
+    : [];
+  const targetUserMap = new Map(targetUsers.map((user) => [user.id, user]));
+
+  return NextResponse.json({
+    members: members.slice().sort((a, b) => {
+      const roleDelta =
+        (MEMBER_ROLE_RANK[String(b.role || "").toLowerCase()] || 0) -
+        (MEMBER_ROLE_RANK[String(a.role || "").toLowerCase()] || 0);
+      if (roleDelta !== 0) return roleDelta;
+      const aJoined = a.joinedAt?.getTime?.() || a.createdAt?.getTime?.() || 0;
+      const bJoined = b.joinedAt?.getTime?.() || b.createdAt?.getTime?.() || 0;
+      return aJoined - bJoined;
+    }),
+    pendingInvites: pendingInvites.map((invite) => ({
+      id: invite.id,
+      email: invite.email,
+      role: invite.role,
+      createdAt: invite.createdAt,
+      expiresAt: invite.expiresAt,
+    })),
+    recentActivity: auditLogs.map((entry) => {
+      const metadata =
+        entry.metadata && typeof entry.metadata === "object" && !Array.isArray(entry.metadata)
+          ? (entry.metadata as Record<string, unknown>)
+          : null;
+      const targetUser = entry.targetUserId ? targetUserMap.get(entry.targetUserId) : null;
+      return {
+        id: entry.id,
+        actionType: entry.actionType || entry.action,
+        createdAt: entry.createdAt,
+        actor: {
+          id: entry.user?.id || null,
+          name: entry.user?.name || null,
+          email: entry.user?.email || null,
+        },
+        target: {
+          id: targetUser?.id || null,
+          name: targetUser?.name || null,
+          email: targetUser?.email || null,
+        },
+        message: buildTeamActivityMessage({
+          actionType: entry.actionType || entry.action,
+          actorName: entry.user?.name,
+          actorEmail: entry.user?.email,
+          targetName: targetUser?.name || null,
+          targetEmail: targetUser?.email || null,
+          metadata,
+        }),
+      };
+    }),
+    seatLimit,
+    seatsUsed,
+    planLabel: toPlanLabel(context.orgPlan),
+    currentRole: context.role,
+    permissions: {
+      canInvite: hasOrgPermission(context.role, "team:invite"),
+      canRemoveMember: hasOrgPermission(context.role, "team:remove_member"),
+      canPromoteMember: hasOrgPermission(context.role, "team:promote_member"),
+      canDemoteAdmin: hasOrgPermission(context.role, "team:demote_admin"),
+      canManageSubscription: hasOrgPermission(context.role, "subscription:manage"),
+    },
+  });
 }
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.id) return jsonError(401, "Unauthorized");
 
-  const access = await requireTeamAccess(session.user.id);
-  if (!access.ok) return access.response;
+  const access = await requireOrgPermission(session.user.id, {
+    permission: "team:invite",
+    requireActiveSubscription: true,
+  });
+  if (!access.ok) return jsonError(access.status, access.message, { code: access.code });
 
-  const { business, role } = await getOrCreateBusinessForUser(session.user.id);
-  if (!isAdminRole(role)) {
-    return NextResponse.json({ error: "Only owners can add team members." }, { status: 403 });
+  try {
+    const parsed = inviteSchema.parse(await req.json());
+    const normalizedEmail = parsed.email.trim().toLowerCase();
+    const { context } = access;
+
+    if (parsed.role === "billing_admin" && !canAssignBillingAdmin(context.role)) {
+      return jsonError(403, "Only owners can assign Billing Admin.", { code: "FORBIDDEN" });
+    }
+
+    if (context.role === "admin" && parsed.role !== "member") {
+      return jsonError(403, "Admins can invite members only.", { code: "FORBIDDEN" });
+    }
+
+    const seatLimit = getSeatLimitForPlan(context.orgPlan);
+    const activeSeats = await countActiveOrgSeats(context.orgId);
+    if (seatLimit !== null && activeSeats >= seatLimit) {
+      return jsonError(409, "Team seat limit reached.", {
+        code: "SEAT_LIMIT_REACHED",
+        seatLimit,
+        seatsUsed: activeSeats,
+      });
+    }
+
+    const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+
+    if (existingUser) {
+      const existingIsPlatformRole = isPlatformRole(existingUser.role);
+      if (existingIsPlatformRole) {
+        return jsonError(403, "Platform roles cannot be attached to a tenant.", { code: "FORBIDDEN" });
+      }
+
+      const member = await prisma.businessMember.findUnique({
+        where: {
+          businessId_userId: {
+            businessId: context.orgId,
+            userId: existingUser.id,
+          },
+        },
+      });
+
+      if (member?.status === "active") {
+        return NextResponse.json({ alreadyMember: true, member });
+      }
+    }
+
+    const token = buildInviteToken();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    const invite = await prisma.businessInvite.upsert({
+      where: { businessId_email: { businessId: context.orgId, email: normalizedEmail } },
+      update: {
+        role: parsed.role,
+        status: "PENDING",
+        token: token.tokenHash,
+        tokenHash: token.tokenHash,
+        expiresAt,
+        acceptedAt: null,
+        usedAt: null,
+        invitedById: session.user.id,
+        invitedByUserId: session.user.id,
+      },
+      create: {
+        businessId: context.orgId,
+        email: normalizedEmail,
+        role: parsed.role,
+        status: "PENDING",
+        token: token.tokenHash,
+        tokenHash: token.tokenHash,
+        expiresAt,
+        invitedById: session.user.id,
+        invitedByUserId: session.user.id,
+      },
+    });
+
+    await sendWorkspaceInviteEmail({
+      orgId: context.orgId,
+      email: normalizedEmail,
+      rawToken: token.rawToken,
+      mode: existingUser ? "login" : "signup",
+    });
+
+    await writeOrgAuditLog({
+      orgId: context.orgId,
+      actorUserId: session.user.id,
+      actionType: "INVITE_CREATED",
+      metadata: {
+        email: normalizedEmail,
+        role: parsed.role,
+        inviteId: invite.id,
+      },
+    });
+
+    return NextResponse.json({ invited: true }, { status: 202 });
+  } catch (error: any) {
+    if (error?.name === "ZodError") {
+      return jsonError(422, "Invalid request payload.");
+    }
+    return jsonError(400, error?.message || "Invite failed.");
   }
+}
+
+export async function PATCH(req: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) return jsonError(401, "Unauthorized");
+
+  const contextResult = await requireOrgPermission(session.user.id, {
+    permission: "team:read",
+    requireActiveSubscription: true,
+  });
+  if (!contextResult.ok) return jsonError(contextResult.status, contextResult.message, { code: contextResult.code });
+
+  const { context } = contextResult;
 
   try {
     const body = await req.json();
-    const parsed = inviteSchema.parse(body);
-    const normalizedEmail = parsed.email.toLowerCase().trim();
-    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
-    const { seatLimit } = await resolveSeatLimit(session.user.id);
-    const memberCount = await prisma.businessMember.count({ where: { businessId: business.id } });
-    const pendingInvites = await prisma.businessInvite.count({
-      where: { businessId: business.id, status: "PENDING" },
-    });
-    const seatUsage = await getTeamSeatUsageThisMonth(session.user.id);
-    const seatsUsed = Math.max(seatUsage, memberCount + pendingInvites);
-    if (seatLimit !== null && seatsUsed >= seatLimit) {
-      const requiredPlan =
-        seatLimit === 1 ? "pro" : seatLimit === 3 ? "growth" : seatLimit === 5 ? "business" : "enterprise";
-      return NextResponse.json(
-        {
-          error: "Team limit reached.",
-          type: "limit_reached",
-          requiredPlan,
-        },
-        { status: 403 }
-      );
-    }
 
-    if (!user) {
-      const token = crypto.randomUUID().replace(/-/g, "");
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      const existingInvite = await prisma.businessInvite.findFirst({
-        where: { businessId: business.id, email: normalizedEmail },
-      });
-      const shouldCountSeat = seatLimit !== null && (!existingInvite || existingInvite.status !== "PENDING");
-      const invite = await prisma.businessInvite.upsert({
-        where: { businessId_email: { businessId: business.id, email: normalizedEmail } },
-        update: { token, role: parsed.role, status: "PENDING", expiresAt, invitedById: session.user.id },
-        create: {
-          businessId: business.id,
-          email: normalizedEmail,
-          role: parsed.role,
-          token,
+    if (body?.action === "resend_invite") {
+      if (!hasOrgPermission(context.role, "team:invite")) {
+        return jsonError(403, "You do not have permission to resend invites.", { code: "FORBIDDEN" });
+      }
+
+      const parsed = resendInviteSchema.parse(body);
+      const invite = await prisma.businessInvite.findFirst({
+        where: {
+          id: parsed.inviteId,
+          businessId: context.orgId,
           status: "PENDING",
+        },
+      });
+
+      if (!invite) return jsonError(404, "Pending invite not found.");
+
+      const token = buildInviteToken();
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      await prisma.businessInvite.update({
+        where: { id: invite.id },
+        data: {
+          token: token.tokenHash,
+          tokenHash: token.tokenHash,
           expiresAt,
           invitedById: session.user.id,
+          invitedByUserId: session.user.id,
         },
       });
-      if (shouldCountSeat) {
-        await prisma.usageRecord.create({
-          data: { userId: business.ownerId, category: "team_seat", amount: 1, period: "monthly" },
-        });
-      }
-      const inviteLink = buildInviteLink(invite.token, normalizedEmail);
-      await sendTemplateEmail(
-        normalizedEmail,
-        "You are invited to Maboria",
-        `<p>You have been invited to join <strong>${business.name}</strong> on Maboria.</p>
-         <p><a href="${inviteLink}">Accept invitation</a></p>
-         <p>If you do not have an account yet, the link will guide you to sign up.</p>`
-      );
-      await prisma.activityLog.create({
-        data: {
-          userId: session.user.id,
-          action: "TEAM_INVITE_SENT",
-          resourceType: "business",
-          resourceId: business.id,
-          metadata: { email: normalizedEmail, role: parsed.role },
+
+      await sendWorkspaceInviteEmail({
+        orgId: context.orgId,
+        email: invite.email,
+        rawToken: token.rawToken,
+        mode: (await prisma.user.findUnique({
+          where: { email: invite.email },
+          select: { id: true },
+        }))
+          ? "login"
+          : "signup",
+      });
+
+      await writeOrgAuditLog({
+        orgId: context.orgId,
+        actorUserId: session.user.id,
+        actionType: "INVITE_CREATED",
+        metadata: {
+          email: invite.email,
+          role: invite.role,
+          inviteId: invite.id,
+          resent: true,
         },
       });
-      return NextResponse.json({ invited: true }, { status: 202 });
+
+      return NextResponse.json({ resent: true });
     }
 
-    const existing = await prisma.businessMember.findFirst({
-      where: { businessId: business.id, userId: user.id },
-      include: { user: true },
-    });
-    if (existing) {
-      return NextResponse.json({ member: existing, alreadyMember: true });
-    }
-
-    if (seatLimit !== null && seatsUsed >= seatLimit) {
-      const requiredPlan =
-        seatLimit === 1 ? "pro" : seatLimit === 3 ? "growth" : seatLimit === 5 ? "business" : "enterprise";
-      return NextResponse.json(
-        { error: "Team limit reached.", type: "limit_reached", requiredPlan },
-        { status: 403 }
-      );
-    }
-
-    const member = await prisma.businessMember.create({
-      data: {
-        userId: user.id,
-        businessId: business.id,
-        role: parsed.role,
+    const parsed = roleUpdateSchema.parse(body);
+    const targetMember = await prisma.businessMember.findFirst({
+      where: {
+        id: parsed.memberId,
+        businessId: context.orgId,
+        status: "active",
       },
-      include: { user: true },
+      include: { user: { select: { id: true, name: true, email: true, publicId: true, role: true } } },
     });
-    if (seatLimit !== null) {
-      await prisma.usageRecord.create({
-        data: { userId: business.ownerId, category: "team_seat", amount: 1, period: "monthly" },
-      });
+
+    if (!targetMember) return jsonError(404, "Member not found.");
+
+    const actorRole = context.role;
+    const currentRole = normalizeOrgRole(targetMember.role);
+    const nextRole = normalizeOrgRole(parsed.role);
+
+    if (currentRole === nextRole) {
+      return NextResponse.json({ member: targetMember });
     }
-    return NextResponse.json({ member }, { status: 201 });
+
+    if (nextRole === "billing_admin" && !canAssignBillingAdmin(actorRole)) {
+      return jsonError(403, "Only owners can assign Billing Admin.", { code: "FORBIDDEN" });
+    }
+
+    if (!canActorChangeTargetRole(actorRole, currentRole, nextRole)) {
+      return jsonError(403, "You do not have permission for this role change.", { code: "FORBIDDEN" });
+    }
+
+    const updated = await prisma.businessMember.update({
+      where: { id: targetMember.id },
+      data: { role: nextRole },
+      include: { user: { select: { id: true, name: true, email: true, publicId: true, role: true } } },
+    });
+
+    const actionType =
+      currentRole === "member" && nextRole === "admin"
+        ? "MEMBER_PROMOTED_TO_ADMIN"
+        : currentRole === "admin" && nextRole === "member"
+          ? "ADMIN_DEMOTED_TO_MEMBER"
+          : nextRole === "billing_admin"
+            ? "MEMBER_PROMOTED_TO_BILLING_ADMIN"
+            : currentRole === "billing_admin"
+              ? "BILLING_ADMIN_CHANGED"
+              : "MEMBER_ROLE_CHANGED";
+
+    await writeOrgAuditLog({
+      orgId: context.orgId,
+      actorUserId: session.user.id,
+      targetUserId: targetMember.userId,
+      actionType,
+      metadata: { fromRole: currentRole, toRole: nextRole },
+    });
+
+    return NextResponse.json({ member: updated });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    if (error?.name === "ZodError") {
+      return jsonError(422, "Invalid request payload.");
+    }
+    return jsonError(400, error?.message || "Update failed.");
   }
 }
 
 export async function DELETE(req: Request) {
   const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const access = await requireTeamAccess(session.user.id);
-  if (!access.ok) return access.response;
-
-  const { business, role } = await getOrCreateBusinessForUser(session.user.id);
-  if (!isAdminRole(role)) {
-    return NextResponse.json({ error: "Only owners can remove team members." }, { status: 403 });
-  }
+  if (!session?.user?.id) return jsonError(401, "Unauthorized");
 
   try {
     const body = await req.json();
-    const parsed = removeSchema.parse(body);
-    const member = await prisma.businessMember.findFirst({
-      where: { id: parsed.memberId, businessId: business.id },
-    });
-    if (!member) {
-      return NextResponse.json({ error: "Member not found." }, { status: 404 });
-    }
-    if (member.userId === business.ownerId) {
-      return NextResponse.json({ error: "Owner cannot be removed." }, { status: 400 });
+
+    if (body?.action === "cancel_invite") {
+      const access = await requireOrgPermission(session.user.id, {
+        permission: "team:invite",
+        requireActiveSubscription: true,
+      });
+      if (!access.ok) return jsonError(access.status, access.message, { code: access.code });
+
+      const { context } = access;
+      const parsed = cancelInviteSchema.parse(body);
+      const invite = await prisma.businessInvite.findFirst({
+        where: {
+          id: parsed.inviteId,
+          businessId: context.orgId,
+          status: "PENDING",
+        },
+      });
+      if (!invite) return jsonError(404, "Pending invite not found.");
+
+      await prisma.businessInvite.update({
+        where: { id: invite.id },
+        data: { status: "CANCELED" },
+      });
+
+      await writeOrgAuditLog({
+        orgId: context.orgId,
+        actorUserId: session.user.id,
+        actionType: "INVITE_CANCELED",
+        metadata: {
+          email: invite.email,
+          role: invite.role,
+          inviteId: invite.id,
+        },
+      });
+
+      return NextResponse.json({ ok: true });
     }
 
-    await prisma.businessMember.delete({ where: { id: member.id } });
+    const access = await requireOrgPermission(session.user.id, {
+      permission: "team:remove_member",
+      requireActiveSubscription: true,
+    });
+    if (!access.ok) return jsonError(access.status, access.message, { code: access.code });
+
+    const parsed = removeSchema.parse(body);
+    const { context } = access;
+
+    const member = await prisma.businessMember.findFirst({
+      where: {
+        id: parsed.memberId,
+        businessId: context.orgId,
+      },
+    });
+    if (!member) return jsonError(404, "Member not found.");
+
+    const targetRole = normalizeOrgRole(member.role);
+    if (targetRole === "owner") {
+      return jsonError(403, "Owner cannot be removed.", { code: "FORBIDDEN" });
+    }
+
+    if (context.role === "admin" && targetRole !== "member") {
+      return jsonError(403, "Admins can remove members only.", { code: "FORBIDDEN" });
+    }
+
+    await prisma.businessMember.update({
+      where: { id: member.id },
+      data: {
+        status: "removed",
+      },
+    });
+
+    await writeOrgAuditLog({
+      orgId: context.orgId,
+      actorUserId: session.user.id,
+      targetUserId: member.userId,
+      actionType: "MEMBER_REMOVED",
+      metadata: { role: targetRole },
+    });
+
     return NextResponse.json({ ok: true });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    if (error?.name === "ZodError") {
+      return jsonError(422, "Invalid request payload.");
+    }
+    return jsonError(400, error?.message || "Remove failed.");
   }
 }

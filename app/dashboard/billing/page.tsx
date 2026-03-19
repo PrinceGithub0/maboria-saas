@@ -168,6 +168,14 @@ export default function BillingPage() {
           />
         )}
       </Card>
+
+      <p className="text-sm text-muted-foreground">
+        {t("Billing questions? Email ", "Questions de facturation ? Ecrivez a ")}
+        <a href="mailto:billing@maboria.com" className="font-medium text-foreground hover:underline">
+          billing@maboria.com
+        </a>
+        .
+      </p>
     </div>
   );
 }

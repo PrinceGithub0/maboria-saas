@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { countryCodes } from "./countries";
+import { CHECKOUT_PROVIDER_VALUES, PAYOUT_PROVIDER_VALUES } from "./payments/payment-providers";
 import { MIN_PASSWORD_LENGTH, PASSWORD_MIN_LENGTH_ERROR } from "./password-policy";
 
 export const signupSchema = z.object({
@@ -101,10 +102,19 @@ const countryCodeSchema = z.string().length(2).refine((value) => {
 
 export const invoiceSchema = z.object({
   invoiceNumber: z.string().min(3),
+  poNumber: z.preprocess(
+    (value) => {
+      if (typeof value !== "string") return value;
+      const trimmed = value.trim();
+      return trimmed.length ? trimmed : undefined;
+    },
+    z.string().max(120).optional()
+  ),
   currency: z.string().length(3),
   status: z.enum(["DRAFT", "SENT", "PAID", "FAILED", "OVERDUE", "CANCELED"]).default("DRAFT"),
   items: z.array(invoiceItemSchema),
   discount: z.number().nonnegative().optional(),
+  customerId: z.string().min(1),
   customerName: optionalString,
   customerEmail: optionalEmail,
   customerAddress: optionalString,
@@ -118,19 +128,42 @@ export const invoiceSchema = z.object({
   note: optionalString,
   issueDate: z.string().optional(),
   dueDate: z.string().optional(),
+  attachments: z
+    .array(
+      z.object({
+        filename: z.string().min(1).max(255),
+        contentType: z.enum(["image/jpeg", "image/png", "application/pdf"]),
+        base64: z.string().min(1),
+        sizeBytes: z.number().int().positive().max(5 * 1024 * 1024),
+      })
+    )
+    .max(5)
+    .optional(),
 });
 
 export const paymentSchema = z.object({
   amount: z.number().positive(),
   currency: z.string().length(3),
-  provider: z.enum(["PAYSTACK", "FLUTTERWAVE"]),
+  provider: z.enum(CHECKOUT_PROVIDER_VALUES),
+});
+
+const supportAttachmentSchema = z.object({
+  filename: z.string().min(1).max(255),
+  contentType: z.enum(["image/jpeg", "image/png", "application/pdf"]),
+  base64: z.string().min(1),
+  sizeBytes: z.number().int().positive().max(5 * 1024 * 1024),
 });
 
 export const supportTicketSchema = z.object({
-  title: z.string().min(5),
-  message: z.string().min(10),
-  priority: z.enum(["low", "normal", "high"]).default("normal"),
-  attachments: z.array(z.string()).optional(),
+  title: z.string().trim().min(5),
+  message: z.string().trim().min(10),
+  priority: z.enum(["low", "medium", "normal", "high", "urgent", "critical"]).default("medium"),
+  attachments: z.array(supportAttachmentSchema).max(3).optional(),
+});
+
+export const supportReplySchema = z.object({
+  message: z.string().trim().min(1),
+  attachments: z.array(supportAttachmentSchema).max(3).optional(),
 });
 
 export const contactSalesSchema = z.object({
@@ -146,6 +179,7 @@ export const profileUpdateSchema = z.object({
 });
 
 export const passwordUpdateSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
   password: z.string().min(MIN_PASSWORD_LENGTH, PASSWORD_MIN_LENGTH_ERROR),
   confirm: z.string().min(MIN_PASSWORD_LENGTH, PASSWORD_MIN_LENGTH_ERROR),
 });
@@ -166,6 +200,7 @@ export const businessProfileCreateSchema = z.object({
   businessPhone: requiredE164,
   vatEnabled: z.boolean().optional(),
   vatRate: z.number().min(0).max(30).optional(),
+  vatRateDisplay: optionalString,
   vatPricingMode: z.enum(["exclusive", "inclusive"]).optional(),
   taxId: z.preprocess(
     (value) => {
@@ -173,7 +208,7 @@ export const businessProfileCreateSchema = z.object({
       const trimmed = value.trim();
       return trimmed.length ? trimmed : undefined;
     },
-    z.string().min(2).max(64)
+    z.string().min(2).max(64).optional()
   ),
 });
 
@@ -186,6 +221,7 @@ export const businessProfileUpdateSchema = z.object({
   businessPhone: optionalE164,
   vatEnabled: z.boolean().optional(),
   vatRate: z.number().min(0).max(30).optional(),
+  vatRateDisplay: optionalString,
   vatPricingMode: z.enum(["exclusive", "inclusive"]).optional(),
   taxId: z.preprocess(
     (value) => {
@@ -203,18 +239,21 @@ export const merchantAccountSchema = z.object({
 });
 
 export const merchantAccountCreateSchema = z.object({
-  provider: z.enum(["PAYSTACK", "FLUTTERWAVE"]),
-  businessName: z.string().min(2),
-  businessEmail: z.string().email(),
-  accountName: z.string().min(2),
+  provider: z.enum(PAYOUT_PROVIDER_VALUES),
+  businessName: z.string().trim().min(2),
+  businessEmail: z.string().trim().email(),
+  accountName: z.string().trim().min(2),
   accountNumber: optionalString,
   bankCode: optionalString,
   iban: optionalString,
   bicSwift: optionalString,
+  branchCode: optionalString,
+  routingNumber: optionalString,
+  sortCode: optionalString,
   payoutType: z.enum(["local", "sepa"]).optional(),
-  country: z.string().length(2),
-  currency: z.string().length(3),
-  phone: z.string().min(6),
+  country: z.string().trim().length(2),
+  currency: z.string().trim().length(3),
+  phone: z.string().trim().min(6),
 });
 
 export const triggerSchema = z.object({
@@ -235,6 +274,62 @@ export const workflowSchema = z.object({
   triggers: z.array(triggerSchema),
   actions: z.array(actionSchema),
   status: z.enum(["DRAFT", "ACTIVE", "PAUSED", "ARCHIVED"]).default("DRAFT"),
+});
+
+export const customerCreateSchema = z
+  .object({
+    name: z.string().min(1, "Name is required"),
+    email: z.string().email("Invalid email address"),
+    phone: optionalString,
+    taxId: optionalString,
+    addressLine1: z.string().trim().min(1, "Address is required"),
+    addressLine2: optionalString,
+    city: z.string().trim().min(1, "City is required"),
+    state: z.string().trim().min(1, "State is required"),
+    postalCode: optionalString,
+    country: z.string().trim().length(2, "Country is required"),
+    deliveryPreference: z.enum(["EMAIL", "WHATSAPP", "BOTH"]),
+  })
+  .superRefine((data, ctx) => {
+    if (
+      (data.deliveryPreference === "WHATSAPP" || data.deliveryPreference === "BOTH") &&
+      !String(data.phone || "").trim()
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["phone"],
+        message: "Phone is required for WhatsApp delivery",
+      });
+    }
+  });
+
+export const customerQuerySchema = z.object({
+  q: optionalString,
+  take: z
+    .string()
+    .regex(/^\d+$/)
+    .optional(),
+  skip: z
+    .string()
+    .regex(/^\d+$/)
+    .optional(),
+});
+
+export const lateFeeSettingsSchema = z.object({
+  lateFeeEnabled: z.boolean(),
+  lateFeeType: z.enum(["FIXED", "PERCENTAGE"]),
+  lateFeeValue: z.number().min(0),
+  gracePeriodDays: z.number().int().min(0).optional(),
+  lateFeeMode: z.enum(["ONE_TIME", "RECURRING"]).optional(),
+  lateFeeIntervalDays: z.number().int().min(1).nullable().optional(),
+  allowAutomationLateFee: z.boolean().optional(),
+  maxLateFeeApplications: z.number().int().min(1).nullable().optional(),
+  lateFeeGraceDays: z.number().int().min(0).optional(),
+  lateFeeCap: z.number().min(0).nullable().optional(),
+  lateFeeRecurring: z.boolean().optional(),
+  lateFeeRecurringIntervalDays: z.number().int().min(1).nullable().optional(),
+  lateFeePolicyText: z.string().trim().min(10).max(1000).nullable().optional(),
+  reminderCooldownMinutes: z.number().int().min(1).max(240).optional(),
 });
 
 export const subscriptionSchema = z.object({

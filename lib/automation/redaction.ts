@@ -1,5 +1,5 @@
 const SENSITIVE_KEY_PATTERN =
-  /(password|passcode|secret|token|api[_-]?key|authorization|cookie|session|private[_-]?key|access[_-]?key|cvv|iban|account[_-]?number|routing[_-]?number|tax[_-]?id)/i;
+  /(password|passcode|secret|token|api[_-]?key|authorization|cookie|session|private[_-]?key|access[_-]?key|cvv|iban|account[_-]?number|routing[_-]?number|tax[_-]?id|otp|ssn|card|pin|bearer)/i;
 const EMAIL_KEY_PATTERN = /email/i;
 const PHONE_KEY_PATTERN = /(phone|mobile|whatsapp)/i;
 

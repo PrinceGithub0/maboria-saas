@@ -1,576 +1,1324 @@
-"use client";
+﻿"use client";
 
+import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
-import { Card } from "@/components/ui/card";
-import { Table } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  ChevronLeft,
+  ChevronRight,
+  MoreHorizontal,
+  Search,
+  UserCog,
+  UserMinus,
+  UserPlus,
+} from "lucide-react";
+import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert } from "@/components/ui/alert";
+import { Card } from "@/components/ui/card";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
-import { useLanguage } from "@/components/providers/language-provider";
+import { Skeleton } from "@/components/ui/skeleton";
+import type {
+  IdentityAccessRole,
+  IdentityAccessStatus,
+  IdentityFilter,
+  IdentityListItem,
+  IdentityListResponse,
+  IdentitySummary,
+  IdentityUserDetailResponse,
+} from "@/lib/admin/users-types";
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+const FILTERS: Array<{ key: IdentityFilter; label: string }> = [
+  { key: "all", label: "All" },
+  { key: "super_admins", label: "Super Admins" },
+  { key: "admins", label: "Admins" },
+  { key: "subscribers", label: "Subscribers" },
+  { key: "no_plan", label: "No Plan" },
+  { key: "disabled", label: "Disabled" },
+];
 
-export default function AdminUsersPage() {
-  const { language } = useLanguage();
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
-  const [query, setQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "disabled" | "active">("all");
-  const [cancelForm, setCancelForm] = useState({ publicUserId: "", lastName: "" });
-  const [cancelStatus, setCancelStatus] = useState<{ message: string; variant: "success" | "error" | "info" } | null>(
-    null
+const ROLE_OPTIONS: IdentityAccessRole[] = ["SUPER_ADMIN", "OPS_ADMIN", "USER"];
+const STATUS_OPTIONS: IdentityAccessStatus[] = ["ACTIVE", "PENDING", "SUSPENDED", "DISABLED"];
+
+const fetcher = async <T,>(url: string): Promise<T> => {
+  const response = await fetch(url, { cache: "no-store" });
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(String((json as { error?: string })?.error || `Request failed (${response.status})`));
+  }
+  return json as T;
+};
+
+function formatRole(role: IdentityAccessRole) {
+  if (role === "SUPER_ADMIN") return "SUPER_ADMIN";
+  if (role === "OPS_ADMIN") return "OPS_ADMIN";
+  return "USER";
+}
+
+function roleBadgeVariant(role: IdentityAccessRole) {
+  if (role === "SUPER_ADMIN") return "roleSuperAdmin" as const;
+  if (role === "OPS_ADMIN") return "roleAdmin" as const;
+  return "roleUser" as const;
+}
+
+function formatSubscriptionState(state: IdentityListItem["subscriptionState"]) {
+  if (state === "PAST_DUE") return "Past Due";
+  if (state === "CANCELED") return "Canceled";
+  if (state === "TRIAL") return "Trial";
+  if (state === "ACTIVE") return "Active";
+  return "None";
+}
+
+function subscriptionBadgeVariant(state: IdentityListItem["subscriptionState"]) {
+  if (state === "ACTIVE") return "success" as const;
+  if (state === "CANCELED") return "danger" as const;
+  if (state === "PAST_DUE" || state === "TRIAL") return "warning" as const;
+  return "default" as const;
+}
+
+function subscriptionBadgeClass(state: IdentityListItem["subscriptionState"]) {
+  if (state === "CANCELED") {
+    return "text-white";
+  }
+  return undefined;
+}
+
+function subscriptionBadgeStyle(state: IdentityListItem["subscriptionState"]) {
+  if (state === "CANCELED") {
+    return {
+      backgroundColor: "#dc2626",
+      borderColor: "#b91c1c",
+      color: "#ffffff",
+    };
+  }
+  return undefined;
+}
+
+function statusBadgeVariant(status: IdentityAccessStatus) {
+  if (status === "ACTIVE") return "success" as const;
+  if (status === "PENDING") return "warning" as const;
+  if (status === "SUSPENDED") return "warning" as const;
+  return "danger" as const;
+}
+
+function getAllowedRoleOptions(params: {
+  actorRole: IdentityAccessRole;
+  actorId: string | null;
+  target: IdentityListItem;
+  isRootSuperAdmin?: boolean;
+}): IdentityAccessRole[] {
+  const { actorRole, actorId, target, isRootSuperAdmin } = params;
+  const isSelf = Boolean(actorId && actorId === target.id);
+
+  if (actorRole === "SUPER_ADMIN") {
+    if (target.role === "SUPER_ADMIN" && (isRootSuperAdmin || isSelf)) {
+      return ["SUPER_ADMIN"] as IdentityAccessRole[];
+    }
+    return ROLE_OPTIONS;
+  }
+
+  return [] as IdentityAccessRole[];
+}
+
+function getUserActionPolicy(params: {
+  actorRole: IdentityAccessRole;
+  actorId: string | null;
+  target: IdentityListItem;
+}) {
+  const { actorRole, actorId, target } = params;
+  const isSelf = Boolean(actorId && actorId === target.id);
+  const isTargetSuperAdmin = target.role === "SUPER_ADMIN";
+  const canManageAdminLevel = actorRole === "SUPER_ADMIN";
+
+  const canChangeRole = canManageAdminLevel && !isTargetSuperAdmin && !isSelf;
+
+  const canChangeStatus =
+    !isSelf &&
+    !isTargetSuperAdmin &&
+    (canManageAdminLevel || target.role === "USER");
+
+  const canResetPassword = canManageAdminLevel || target.role === "USER";
+
+  const canCancelSubscription = true;
+
+  return {
+    isSelf,
+    canChangeRole,
+    canChangeStatus,
+    canResetPassword,
+    canCancelSubscription,
+  };
+}
+
+function formatAbsoluteTime(value?: string | null) {
+  if (!value) return "Never";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Never";
+  return date.toLocaleString();
+}
+
+function formatRelativeTime(value?: string | null) {
+  if (!value) return "Never";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Never";
+  const now = Date.now();
+  const diffMs = date.getTime() - now;
+  const diffMinutes = Math.round(diffMs / 60000);
+  const absMinutes = Math.abs(diffMinutes);
+  if (absMinutes < 1) return "just now";
+  if (absMinutes < 60) return `${Math.abs(diffMinutes)} minute${Math.abs(diffMinutes) === 1 ? "" : "s"} ago`;
+  const diffHours = Math.round(diffMinutes / 60);
+  const absHours = Math.abs(diffHours);
+  if (absHours < 24) return `${absHours} hour${absHours === 1 ? "" : "s"} ago`;
+  const diffDays = Math.round(diffHours / 24);
+  const absDays = Math.abs(diffDays);
+  return `${absDays} day${absDays === 1 ? "" : "s"} ago`;
+}
+
+function formatAuditActionLabel(value?: string | null) {
+  const normalized = String(value || "").trim();
+  if (!normalized || normalized === "AUDIT_EVENT" || normalized === "UNKNOWN_ACTION") {
+    return "Audit event";
+  }
+
+  return normalized
+    .replace(/[._]+/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function toCsv(rows: IdentityListItem[]) {
+  const header = [
+    "id",
+    "name",
+    "email",
+    "userId",
+    "role",
+    "status",
+    "subscriptionPlan",
+    "subscriptionState",
+    "lastLoginAt",
+    "createdAt",
+  ];
+  const body = rows.map((row) =>
+    [
+      row.id,
+      row.fullName,
+      row.email,
+      row.userId || "",
+      row.role,
+      row.status,
+      row.subscriptionPlan || "",
+      row.subscriptionState,
+      row.lastLoginAt || "",
+      row.createdAt,
+    ]
+      .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
+      .join(",")
   );
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<any | null>(null);
-  const [actionStatus, setActionStatus] = useState<{ message: string; variant: "success" | "error" | "info" } | null>(
-    null
-  );
-  const [actionLoading, setActionLoading] = useState(false);
-  const [passwordReset, setPasswordReset] = useState("");
-  const [subForm, setSubForm] = useState({
-    plan: "",
-    status: "",
-    currency: "",
-    renewalDate: "",
-  });
-  const { data, mutate, isLoading } = useSWR("/api/admin/users", fetcher);
-  const usersData = useMemo(() => (Array.isArray(data) ? data : []), [data]);
-  const totalUsers = usersData.length;
-  const adminUsers = usersData.filter((u: any) => u.role === "ADMIN").length;
-  const disabledUsers = usersData.filter((u: any) => u.role === "DISABLED").length;
-  const activeSubs = usersData.filter((u: any) => u.subscriptions?.some((s: any) => s.status === "ACTIVE")).length;
-  const users = useMemo(() => { 
-    const normalized = query.trim().toLowerCase();
-    return usersData
-      .filter((u: any) => {
-        if (roleFilter === "admin") return u.role === "ADMIN";
-        if (roleFilter === "disabled") return u.role === "DISABLED";
-        if (roleFilter === "active") return u.subscriptions?.some((s: any) => s.status === "ACTIVE");
-        return true; 
-      }) 
-      .filter((u: any) => {
-        const email = String(u.email || "").toLowerCase();
-        const name = String(u.name || "").toLowerCase();
-        const publicId = String(u.publicId || "").toLowerCase();
-        if (!normalized) return true;
-        return email.includes(normalized) || name.includes(normalized) || publicId.includes(normalized);
-      });
-  }, [usersData, query, roleFilter]);
+  return [header.join(","), ...body].join("\n");
+}
 
-  const formatPlan = (plan: string) => {
-    switch ((plan || "").toUpperCase()) {
-      case "STARTER":
-        return t("Starter", "Starter");
-      case "PRO":
-        return t("Pro", "Pro");
-      case "GROWTH":
-        return t("Growth", "Growth");
-      case "BUSINESS":
-        return t("Business", "Business");
-      case "PREMIUM":
-        return t("Business", "Business");
-      case "ENTERPRISE":
-        return t("Enterprise", "Entreprise");
-      default:
-        return plan || t("None", "Aucun");
-    }
-  };
-  const formatRole = (role: string) => {
-    switch ((role || "").toUpperCase()) {
-      case "ADMIN":
-        return t("ADMIN", "ADMIN");
-      case "DISABLED":
-        return t("DISABLED", "DESACTIVE");
-      case "USER":
-      default:
-        return t("USER", "UTILISATEUR");
-    }
-  };
-  const formatStatus = (status: string) => {
-    switch ((status || "").toUpperCase()) {
-      case "ACTIVE":
-        return t("ACTIVE", "ACTIVE");
-      case "PAST_DUE":
-        return t("PAST_DUE", "EN_RETARD");
-      case "CANCELED":
-      case "CANCELLED":
-        return t("CANCELLED", "ANNULE");
-      case "INACTIVE":
-      default:
-        return t("INACTIVE", "INACTIF");
-    }
-  };
+function triggerCsvDownload(fileName: string, content: string) {
+  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", fileName);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
 
-  const pickPrimarySubscription = (user: any) =>
-    user?.subscriptions?.find((s: any) => s.status === "ACTIVE") || user?.subscriptions?.[0];
-
-  const updateUserOptimistic = async (id: string, updater: (user: any) => any) => {
-    await mutate(
-      (current: any[] = []) => current.map((user) => (user.id === id ? updater(user) : user)),
-      { revalidate: false }
-    );
-  };
-
-  const updateSelectedUser = (id: string, updater: (user: any) => any) => {
-    if (!selectedUser || selectedUser.id !== id) return;
-    setSelectedUser(updater(selectedUser));
-  };
-
-  const formatDateInput = (value?: string | Date | null) => {
-    if (!value) return "";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "";
-    return date.toISOString().slice(0, 10);
-  };
-
-  const openManage = (user: any) => {
-    const primarySub = pickPrimarySubscription(user);
-    setSelectedUser({ ...user, primarySub });
-    const normalizedPlan = primarySub?.plan === "PREMIUM" ? "BUSINESS" : primarySub?.plan || "";
-    setSubForm({
-      plan: normalizedPlan,
-      status: primarySub?.status || "",
-      currency: primarySub?.currency || "",
-      renewalDate: formatDateInput(primarySub?.renewalDate),
-    });
-    setPasswordReset("");
-    setActionStatus(null);
-    setModalOpen(true);
-  };
-
-  const closeManage = () => {
-    setModalOpen(false);
-    setSelectedUser(null);
-    setActionStatus(null);
-  };
-
-  const toggleAdmin = async (id: string, role: string) => {
-    setActionLoading(true);
-    setActionStatus(null);
-    const nextRole = role === "ADMIN" ? "USER" : "ADMIN";
-    await updateUserOptimistic(id, (user) => ({ ...user, role: nextRole }));
-    updateSelectedUser(id, (user) => ({ ...user, role: nextRole }));
-    const res = await fetch(`/api/admin/users/${id}/role`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: nextRole }),
-    });
-    const payload = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setActionStatus({ message: payload.error || t("Role update failed.", "Echec de mise a jour du role."), variant: "error" });
-      await mutate();
-    } else {
-      setActionStatus({
-        message: t(
-          `Role updated to ${payload.role || nextRole}.`,
-          `Role mis a jour vers ${formatRole(payload.role || nextRole)}.`
-        ),
-        variant: "success",
-      });
-      await updateUserOptimistic(id, (user) => ({ ...user, role: payload.role || nextRole }));
-      updateSelectedUser(id, (user) => ({ ...user, role: payload.role || nextRole }));
-    }
-    setActionLoading(false);
-  };
-
-  const toggleUserStatus = async (id: string) => {
-    setActionLoading(true);
-    setActionStatus(null);
-    await updateUserOptimistic(id, (user) => ({
-      ...user,
-      role: user.role === "DISABLED" ? "USER" : "DISABLED",
-    }));
-    updateSelectedUser(id, (user) => ({
-      ...user,
-      role: user.role === "DISABLED" ? "USER" : "DISABLED",
-    }));
-    const res = await fetch(`/api/admin/users/${id}/toggle`, { method: "POST" });
-    const payload = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setActionStatus({
-        message: payload.error || t("Unable to update user status.", "Impossible de mettre a jour le statut."),
-        variant: "error",
-      });
-      await mutate();
-    } else {
-      setActionStatus({
-        message:
-          payload.role === "DISABLED"
-            ? t("User disabled.", "Utilisateur desactive.")
-            : t("User enabled.", "Utilisateur active."),
-        variant: "success",
-      });
-      await updateUserOptimistic(id, (user) => ({ ...user, role: payload.role || user.role }));
-      updateSelectedUser(id, (user) => ({ ...user, role: payload.role || user.role }));
-    }
-    setActionLoading(false);
-  };
-
-  const impersonateUser = async (id: string) => {
-    setActionLoading(true);
-    setActionStatus(null);
-    const res = await fetch(`/api/admin/users/impersonate/${id}`, { method: "POST" });
-    const payload = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setActionStatus({ message: payload.error || t("Impersonation failed.", "Impersonation echouee."), variant: "error" });
-      setActionLoading(false);
-      return;
-    }
-    window.location.href = "/dashboard";
-  };
-
-  const resetPassword = async () => {
-    if (!selectedUser) return;
-    if (!passwordReset.trim()) {
-      setActionStatus({ message: t("Enter a temporary password first.", "Saisissez un mot de passe temporaire."), variant: "error" });
-      return;
-    }
-    setActionLoading(true);
-    setActionStatus(null);
-    const res = await fetch(`/api/admin/users/${selectedUser.id}/password`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: passwordReset }),
-    });
-    const payload = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setActionStatus({ message: payload.error || t("Password reset failed.", "Reinitialisation du mot de passe echouee."), variant: "error" });
-    } else {
-      setActionStatus({ message: t("Temporary password saved.", "Mot de passe temporaire enregistre."), variant: "success" });
-      setPasswordReset("");
-    }
-    await mutate();
-    setActionLoading(false);
-  };
-
-  const updateSubscription = async () => {
-    if (!selectedUser?.primarySub?.id) {
-      setActionStatus({ message: t("No subscription found for this user.", "Aucun abonnement trouve pour cet utilisateur."), variant: "error" });
-      return;
-    }
-    const payload: Record<string, string> = {};
-    if (subForm.plan) payload.plan = subForm.plan;
-    if (subForm.status) payload.status = subForm.status;
-    if (subForm.currency) payload.currency = subForm.currency;
-    if (subForm.renewalDate) payload.renewalDate = new Date(subForm.renewalDate).toISOString();
-    if (!Object.keys(payload).length) {
-      setActionStatus({ message: t("No subscription changes to apply.", "Aucune modification d'abonnement."), variant: "info" });
-      return;
-    }
-    setActionLoading(true);
-    setActionStatus(null);
-    await updateUserOptimistic(selectedUser.id, (user) => {
-      const subscriptions = (user.subscriptions || []).map((sub: any) =>
-        sub.id === selectedUser.primarySub.id ? { ...sub, ...payload } : sub
-      );
-      return { ...user, subscriptions };
-    });
-    updateSelectedUser(selectedUser.id, (user) => ({
-      ...user,
-      primarySub: { ...user.primarySub, ...payload },
-    }));
-    const res = await fetch(`/api/admin/subscriptions/${selectedUser.primarySub.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setActionStatus({ message: data.error || t("Subscription update failed.", "Mise a jour abonnement echouee."), variant: "error" });
-      await mutate();
-    } else {
-      setActionStatus({ message: t("Subscription updated.", "Abonnement mis a jour."), variant: "success" });
-      await updateUserOptimistic(selectedUser.id, (user) => {
-        const subscriptions = (user.subscriptions || []).map((sub: any) =>
-          sub.id === selectedUser.primarySub.id ? { ...sub, ...data } : sub
-        );
-        return { ...user, subscriptions };
-      });
-      updateSelectedUser(selectedUser.id, (user) => ({
-        ...user,
-        primarySub: { ...user.primarySub, ...data },
-      }));
-    }
-    setActionLoading(false);
-  };
-
-  const cancelSubscription = async () => {
-    setCancelStatus(null);
-    const res = await fetch("/api/admin/subscriptions/cancel", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(cancelForm),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setCancelStatus({ message: data.error || t("Cancellation failed.", "Annulation echouee."), variant: "error" });
-      return;
-    }
-    setCancelStatus({
-      message: t(
-        `Canceled ${data.count ?? 0} active subscription(s) for user ${cancelForm.publicUserId}.`,
-        `Annule ${data.count ?? 0} abonnement(s) actifs pour l'utilisateur ${cancelForm.publicUserId}.`
-      ),
-      variant: "success",
-    });
-    setCancelForm({ publicUserId: "", lastName: "" });
-    mutate();
-  };
-
+function KpiItem({
+  label,
+  value,
+  subtext,
+}: {
+  label: string;
+  value: string;
+  subtext: string;
+}) {
   return (
-    <div className="space-y-4 px-6 py-6 max-md:px-4 max-md:py-4 max-md:space-y-6">
-      <div className="md:contents max-md:rounded-[28px] max-md:border max-md:border-border/60 max-md:bg-card max-md:p-4 max-md:shadow-[0_16px_36px_rgba(15,23,42,0.18)]">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">{t("Admin", "Admin")}</p>
-            <h1 className="text-3xl font-semibold text-foreground">{t("User management", "Gestion utilisateurs")}</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {t("Identity, access control, and subscription oversight.", "Identite, controle d'acces et abonnements.")}
-            </p>
-          </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[320px]">
-            <Input
-              placeholder={t("Search by name, email, or user ID", "Rechercher par nom, email ou ID")}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="w-full"
-            />
-            <div className="flex flex-wrap gap-2">
-              {[
-                { key: "all", label: t("All", "Tous") },
-                { key: "admin", label: t("Admins", "Admins") },
-                { key: "disabled", label: t("Disabled", "Desactives") },
-                { key: "active", label: t("Active subs", "Abos actifs") },
-              ].map((filter) => (
-                <Button
-                  key={filter.key}
-                  size="sm"
-                  variant={roleFilter === filter.key ? "primary" : "secondary"}
-                  onClick={() => setRoleFilter(filter.key as typeof roleFilter)}
-                  className="h-8"
-                >
-                  {filter.label}
-                </Button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="grid gap-4 md:grid-cols-4 max-md:grid-cols-1 max-md:gap-5">
-        {isLoading ? (
-          <>
-            <Skeleton className="h-20" />
-            <Skeleton className="h-20" />
-            <Skeleton className="h-20" />
-            <Skeleton className="h-20" />
-          </>
-        ) : (
-          <>
-            <Card title={t("Total users", "Total utilisateurs")}>
-              <p className="text-2xl font-semibold text-foreground">{totalUsers}</p>
-            </Card>
-            <Card title={t("Admins", "Admins")}>
-              <p className="text-2xl font-semibold text-foreground">{adminUsers}</p>
-            </Card>
-            <Card title={t("Disabled", "Desactives")}>
-              <p className="text-2xl font-semibold text-foreground">{disabledUsers}</p>
-            </Card>
-            <Card title={t("Active subs", "Abos actifs")}>
-              <p className="text-2xl font-semibold text-foreground">{activeSubs}</p>
-            </Card>
-          </>
-        )}
-      </div>
-      <Card title={t("Cancel a user subscription", "Annuler un abonnement")}>
-        {cancelStatus && <Alert variant={cancelStatus.variant}>{cancelStatus.message}</Alert>}
-        <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto] max-md:grid-cols-1">
-          <Input
-            label={t("User ID", "ID utilisateur")}
-            placeholder={t("Numeric user ID", "ID utilisateur numerique")}
-            value={cancelForm.publicUserId}
-            onChange={(e) => setCancelForm({ ...cancelForm, publicUserId: e.target.value })}
-          />
-          <Input
-            label={t("Last name", "Nom de famille")}
-            placeholder={t("Last name on account", "Nom de famille du compte")}
-            value={cancelForm.lastName}
-            onChange={(e) => setCancelForm({ ...cancelForm, lastName: e.target.value })}
-          />
-          <div className="flex items-end max-md:items-stretch">
-            <Button className="max-md:w-full" onClick={cancelSubscription}>
-              {t("Cancel subscription", "Annuler abonnement")}
-            </Button>
-          </div>
-        </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          {t(
-            "Cancellation is restricted to admins. Active subscriptions are set to cancelled immediately.",
-            "Annulation reservee aux admins. Les abonnements actifs sont annules immediatement."
-          )}
-        </p>
-      </Card>
-      <Card title={t("Users", "Utilisateurs")}>
-        {isLoading ? (
-          <Skeleton className="h-24" />
-        ) : (
-          <Table
-            data={users}
-            keyExtractor={(row: any) => row.id}
-            columns={[
-              { key: "email", label: t("Email", "Email") },
-              { key: "name", label: t("Name", "Nom") },
-              { key: "publicId", label: t("User ID", "ID utilisateur"), render: (row: any) => row.publicId || "-" },
-              { key: "role", label: t("Role", "Role"), render: (row: any) => <Badge>{formatRole(row.role)}</Badge> },
-              {
-                key: "plan",
-                label: t("Plan", "Plan"),
-                render: (row: any) => formatPlan(pickPrimarySubscription(row)?.plan),
-              },
-              {
-                key: "status",
-                label: t("Status", "Statut"),
-                render: (row: any) => {
-                  const status = pickPrimarySubscription(row)?.status || "INACTIVE";
-                  const isCancelled = status === "CANCELED" || status === "CANCELLED";
-                  const badgeClass = isCancelled
-                    ? "!bg-red-600 !text-white !border-red-700 dark:bg-rose-500/20 dark:text-rose-200 dark:border-rose-500/40"
-                    : status === "ACTIVE"
-                    ? "!bg-emerald-200 !text-emerald-900 !border-emerald-400 dark:bg-emerald-500/20 dark:text-emerald-200 dark:border-emerald-500/40"
-                    : "!bg-slate-200 !text-slate-900 !border-slate-400 dark:bg-slate-700 dark:text-slate-100 dark:border-slate-500";
-                  return (
-                    <Badge variant="default" className={badgeClass}>
-                      {formatStatus(status)}
-                    </Badge>
-                  );
-                },
-              },
-              {
-                key: "actions",
-                label: t("Actions", "Actions"),
-                render: (row: any) => (
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="secondary" onClick={() => openManage(row)}>
-                      {t("Manage", "Gerer")}
-                    </Button>
-                  </div>
-                ),
-              },
-            ]}
-          />
-        )}
-      </Card>
-      <Modal open={modalOpen} onClose={closeManage} title={t("Manage user", "Gerer utilisateur")}>
-        {selectedUser && (
-          <div className="space-y-4">
-            {actionStatus && <Alert variant={actionStatus.variant}>{actionStatus.message}</Alert>}
-            <div className="rounded-xl border border-border/70 bg-muted/30 px-4 py-3">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("Identity", "Identite")}</p>
-              <div className="mt-2 grid gap-1 text-sm text-foreground">
-                <span>{selectedUser.name || t("Unnamed user", "Utilisateur sans nom")}</span>
-                <span className="text-muted-foreground">{selectedUser.email}</span>
-                <span className="text-xs text-muted-foreground">
-                  {t("User ID", "ID utilisateur")}: {selectedUser.publicId || t("N/A", "N/A")}
-                </span>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="secondary" loading={actionLoading} onClick={() => toggleAdmin(selectedUser.id, selectedUser.role)}>
-                {selectedUser.role === "ADMIN" ? t("Remove admin", "Retirer admin") : t("Make admin", "Rendre admin")}
-              </Button>
-              <Button size="sm" variant="secondary" loading={actionLoading} onClick={() => toggleUserStatus(selectedUser.id)}>
-                {selectedUser.role === "DISABLED" ? t("Enable user", "Activer utilisateur") : t("Disable user", "Desactiver utilisateur")}
-              </Button>
-              <Button size="sm" variant="ghost" loading={actionLoading} onClick={() => impersonateUser(selectedUser.id)}>
-                {t("Impersonate", "Impersoner")}
-              </Button>
-            </div>
-            <div className="rounded-xl border border-border/70 bg-muted/30 px-4 py-3">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("Subscription", "Abonnement")}</p>
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
-                <label className="text-xs text-muted-foreground">
-                  {t("Plan", "Plan")}
-                  <select
-                    value={subForm.plan}
-                    onChange={(event) => setSubForm((prev) => ({ ...prev, plan: event.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-border bg-background px-2 py-2 text-sm text-foreground"
-                  >
-                    <option value="">{t("Select plan", "Choisir un plan")}</option>
-                    <option value="STARTER">Starter</option>
-                    <option value="PRO">Pro</option>
-                    <option value="GROWTH">Growth</option>
-                    <option value="BUSINESS">Business</option>
-                    <option value="ENTERPRISE">Enterprise</option>
-                  </select>
-                </label>
-                <label className="text-xs text-muted-foreground">
-                  {t("Status", "Statut")}
-                  <select
-                    value={subForm.status}
-                    onChange={(event) => setSubForm((prev) => ({ ...prev, status: event.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-border bg-background px-2 py-2 text-sm text-foreground"
-                  >
-                    <option value="">{t("Select status", "Choisir un statut")}</option>
-                    <option value="ACTIVE">ACTIVE</option>
-                    <option value="PAST_DUE">PAST_DUE</option>
-                    <option value="CANCELED">CANCELED</option>
-                    <option value="INACTIVE">INACTIVE</option>
-                  </select>
-                </label>
-                <label className="text-xs text-muted-foreground">
-                  {t("Currency", "Devise")}
-                  <select
-                    value={subForm.currency}
-                    onChange={(event) => setSubForm((prev) => ({ ...prev, currency: event.target.value }))}
-                    className="mt-1 w-full rounded-lg border border-border bg-background px-2 py-2 text-sm text-foreground"
-                  >
-                    <option value="">{t("Select currency", "Choisir devise")}</option>
-                    <option value="NGN">NGN</option>
-                    <option value="USD">USD</option>
-                  </select>
-                </label>
-                <label className="text-xs text-muted-foreground">
-                  {t("Renewal date", "Date de renouvellement")}
-                  <Input
-                    type="date"
-                    value={subForm.renewalDate}
-                    onChange={(event) => setSubForm((prev) => ({ ...prev, renewalDate: event.target.value }))}
-                    className="mt-1"
-                  />
-                </label>
-              </div>
-              <div className="mt-3 flex items-center gap-2">
-                <Button size="sm" loading={actionLoading} onClick={updateSubscription}>
-                  {t("Save subscription changes", "Enregistrer les changements")}
-                </Button>
-              </div>
-            </div>
-            <div className="rounded-xl border border-border/70 bg-muted/30 px-4 py-3">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">{t("Reset password", "Reinitialiser mot de passe")}</p>
-              <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end">
-                <Input
-                  label={t("Temporary password", "Mot de passe temporaire")}
-                  type="password"
-                  value={passwordReset}
-                  onChange={(event) => setPasswordReset(event.target.value)}
-                  className="w-full"
-                />
-                <Button size="sm" loading={actionLoading} onClick={resetPassword}>
-                  {t("Save password", "Enregistrer mot de passe")}
-                </Button>
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {t(
-                  "Provide a temporary password and notify the user to change it on next login.",
-                  "Fournissez un mot de passe temporaire et demandez le changement a la prochaine connexion."
-                )}
-              </p>
-            </div>
-          </div>
-        )}
-      </Modal>
+    <div className="space-y-1.5 px-4 py-3">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
+      <p className="text-2xl font-semibold text-foreground">{value}</p>
+      <p className="text-xs text-muted-foreground">{subtext}</p>
     </div>
   );
 }
+
+export default function AdminUsersPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const deepLinkSearch = searchParams.get("search")?.trim() || "";
+  const deepLinkOpenEmail = searchParams.get("openEmail")?.trim().toLowerCase() || "";
+  const deepLinkHandledRef = useRef(false);
+  const [searchDraft, setSearchDraft] = useState(deepLinkSearch);
+  const [query, setQuery] = useState(deepLinkSearch);
+  const [filter, setFilter] = useState<IdentityFilter>("all");
+  const [cursorStack, setCursorStack] = useState<string[]>([]);
+  const [pageSize] = useState(20);
+  const [activeMenuUserId, setActiveMenuUserId] = useState<string | null>(null);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [statusConfirm, setStatusConfirm] = useState<{
+    user: IdentityListItem;
+    nextStatus: IdentityAccessStatus;
+  } | null>(null);
+  const [subscriptionCancelConfirm, setSubscriptionCancelConfirm] = useState<IdentityListItem | null>(null);
+  const [roleModal, setRoleModal] = useState<{ user: IdentityListItem; nextRole: IdentityAccessRole } | null>(null);
+  const [bulkRoleModal, setBulkRoleModal] = useState<IdentityAccessRole>("USER");
+  const [bulkRoleOpen, setBulkRoleOpen] = useState(false);
+  const [feedback, setFeedback] = useState<{ variant: "success" | "error" | "info"; message: string } | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [passwordDraft, setPasswordDraft] = useState("");
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setQuery(searchDraft.trim());
+      setCursorStack([]);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [searchDraft]);
+
+  useEffect(() => {
+    setCursorStack([]);
+  }, [filter]);
+
+  const currentCursor = cursorStack[cursorStack.length - 1] || null;
+  const currentPage = cursorStack.length + 1;
+
+  const requestKey = useMemo(() => {
+    const params = new URLSearchParams();
+    if (query) params.set("query", query);
+    params.set("filter", filter);
+    params.set("cursorMode", "1");
+    if (currentCursor) params.set("cursor", currentCursor);
+    params.set("pageSize", String(pageSize));
+    return `/api/admin/users?${params.toString()}`;
+  }, [currentCursor, filter, pageSize, query]);
+
+  const { data, error, isLoading, mutate } = useSWR<IdentityListResponse>(requestKey, fetcher);
+
+  const detailKey = selectedUserId ? `/api/admin/users/${selectedUserId}` : null;
+  const {
+    data: selectedUserDetail,
+    error: detailError,
+    isLoading: detailLoading,
+    mutate: mutateDetail,
+  } = useSWR<IdentityUserDetailResponse>(detailKey, fetcher);
+
+  const users = useMemo(() => data?.items ?? [], [data?.items]);
+  const summary = data?.summary;
+  const pagination = data?.pagination;
+  const actorId = data?.actor?.id || null;
+  const actorRole: IdentityAccessRole = data?.actor?.role || "OPS_ADMIN";
+
+  useEffect(() => {
+    deepLinkHandledRef.current = false;
+  }, [deepLinkOpenEmail]);
+
+  useEffect(() => {
+    if (!deepLinkSearch) return;
+    setSearchDraft((prev) => (prev === deepLinkSearch ? prev : deepLinkSearch));
+    setQuery((prev) => (prev === deepLinkSearch ? prev : deepLinkSearch));
+    setCursorStack([]);
+  }, [deepLinkSearch]);
+
+  useEffect(() => {
+    if (!deepLinkOpenEmail || deepLinkHandledRef.current || users.length === 0) return;
+    const matchedUser = users.find((user) => user.email.toLowerCase() === deepLinkOpenEmail);
+    if (!matchedUser) return;
+
+    setSelectedUserId(matchedUser.id);
+    deepLinkHandledRef.current = true;
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("openEmail");
+    const nextQuery = params.toString();
+    router.replace(nextQuery ? `/admin/users?${nextQuery}` : "/admin/users", { scroll: false });
+  }, [deepLinkOpenEmail, router, searchParams, users]);
+
+  useEffect(() => {
+    setSelectedUserIds((prev) => {
+      if (!users.length) {
+        return prev.length ? [] : prev;
+      }
+
+      const next = prev.filter((id) => users.some((user) => user.id === id));
+      if (next.length === prev.length && next.every((id, index) => id === prev[index])) {
+        return prev;
+      }
+      return next;
+    });
+  }, [users]);
+
+  const selectedUserDetailId = selectedUserDetail?.user.id ?? null;
+
+  useEffect(() => {
+    if (!selectedUserDetailId) return;
+    setPasswordDraft("");
+  }, [selectedUserDetailId]);
+
+  const summaryView: IdentitySummary = summary || {
+    totalUsers: 0,
+    totalUsersDelta: 0,
+    adminCount: 0,
+    activeSubscribers: 0,
+    disabledAccounts: 0,
+    usersWithoutActivePlan: 0,
+  };
+
+  const selectedRows = useMemo(
+    () => users.filter((user) => selectedUserIds.includes(user.id)),
+    [selectedUserIds, users]
+  );
+
+  const allVisibleSelected = users.length > 0 && users.every((user) => selectedUserIds.includes(user.id));
+  const adminRatioPercent = summaryView.totalUsers
+    ? Math.round((summaryView.adminCount / summaryView.totalUsers) * 100)
+    : 0;
+  const drawerPolicy = selectedUserDetail
+    ? getUserActionPolicy({ actorRole, actorId, target: selectedUserDetail.user })
+    : null;
+  const drawerRoleOptions = selectedUserDetail
+    ? getAllowedRoleOptions({
+        actorRole,
+        actorId,
+        target: selectedUserDetail.user,
+        isRootSuperAdmin: selectedUserDetail.user.isRootSuperAdmin,
+      })
+    : [];
+  const roleOptionsForDrawer: IdentityAccessRole[] = selectedUserDetail
+    ? drawerRoleOptions.length > 0
+      ? drawerRoleOptions
+      : [selectedUserDetail.user.role as IdentityAccessRole]
+    : [];
+  const canBulkDisable = selectedRows.every((row) =>
+    getUserActionPolicy({ actorRole, actorId, target: row }).canChangeStatus
+  );
+  const canBulkRoleChange = selectedRows.every((row) =>
+    getUserActionPolicy({ actorRole, actorId, target: row }).canChangeRole
+  );
+
+  const runAction = async (executor: () => Promise<void>) => {
+    setActionLoading(true);
+    setFeedback(null);
+    try {
+      await executor();
+      await mutate();
+      if (selectedUserId) {
+        await mutateDetail();
+      }
+    } catch (actionError) {
+      setFeedback({
+        variant: "error",
+        message: actionError instanceof Error ? actionError.message : "Action failed.",
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const submitRoleChange = async (userId: string, role: IdentityAccessRole) => {
+    await runAction(async () => {
+      const response = await fetch(`/api/admin/users/${userId}/role`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(String((payload as { error?: string }).error || "Unable to update role."));
+      }
+      setFeedback({
+        variant: "success",
+        message: "Role updated successfully.",
+      });
+      setRoleModal(null);
+      setActiveMenuUserId(null);
+    });
+  };
+
+  const submitStatusChange = async (userId: string, status: IdentityAccessStatus) => {
+    await runAction(async () => {
+      const response = await fetch(`/api/admin/users/${userId}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(String((payload as { error?: string }).error || "Unable to update status."));
+      }
+      setFeedback({
+        variant: "success",
+        message: "Status updated successfully.",
+      });
+      setStatusConfirm(null);
+      setActiveMenuUserId(null);
+    });
+  };
+
+  const submitPasswordReset = async () => {
+    if (!selectedUserDetail) return;
+    if (!passwordDraft.trim()) {
+      setFeedback({ variant: "error", message: "Enter a temporary password first." });
+      return;
+    }
+    await runAction(async () => {
+      const response = await fetch(`/api/admin/users/${selectedUserDetail.user.id}/password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: passwordDraft.trim() }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(String((payload as { error?: string }).error || "Unable to reset password."));
+      }
+      setFeedback({
+        variant: "success",
+        message: "Temporary password saved.",
+      });
+      setPasswordDraft("");
+    });
+  };
+
+  const submitSubscriptionCancel = async (user: IdentityListItem) => {
+    await runAction(async () => {
+      const response = await fetch(`/api/admin/users/${user.id}/subscription/cancel`, {
+        method: "POST",
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(String((payload as { error?: string }).error || "Unable to cancel subscription."));
+      }
+      const count = Number((payload as { count?: number }).count || 0);
+      setFeedback({
+        variant: "success",
+        message: count > 0 ? `${count} subscription(s) canceled.` : "No active subscription found.",
+      });
+      setSubscriptionCancelConfirm(null);
+      setActiveMenuUserId(null);
+    });
+  };
+
+  const submitResendSetupEmail = async (user: IdentityListItem) => {
+    await runAction(async () => {
+      const response = await fetch(`/api/admin/users/${user.id}/resend-setup`, {
+        method: "POST",
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(String((payload as { error?: string }).error || "Unable to resend setup email."));
+      }
+      setFeedback({
+        variant: "success",
+        message: "Setup email resent.",
+      });
+      setActiveMenuUserId(null);
+    });
+  };
+
+  const runBulkAction = async (
+    action: "disable" | "change_role" | "delete",
+    role?: IdentityAccessRole
+  ) => {
+    await runAction(async () => {
+      const response = await fetch("/api/admin/users/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userIds: selectedUserIds,
+          action,
+          role,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(String((payload as { error?: string }).error || "Bulk action failed."));
+      }
+      const changed = Number((payload as { changed?: number }).changed || 0);
+      const skipped = Number((payload as { skipped?: number }).skipped || 0);
+      setFeedback({
+        variant: changed > 0 ? "success" : "info",
+        message: `Bulk action completed. Changed: ${changed}. Skipped: ${skipped}.`,
+      });
+      setSelectedUserIds([]);
+      setBulkRoleOpen(false);
+      setActiveMenuUserId(null);
+    });
+  };
+
+  const exportSelected = () => {
+    if (!selectedRows.length) {
+      setFeedback({ variant: "info", message: "Select at least one user to export." });
+      return;
+    }
+    triggerCsvDownload("identity-access-users.csv", toCsv(selectedRows));
+    setFeedback({ variant: "success", message: "CSV exported." });
+  };
+
+  const scrollDrawerSection = (sectionId: "profile" | "billing") => {
+    const element = document.getElementById(`user-profile-${sectionId}`);
+    if (!element) return;
+    element.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  return (
+    <div className="space-y-4 px-6 py-6 max-md:space-y-6 max-md:px-4 max-md:py-4">
+      <section className="rounded-2xl border border-border/60 bg-card p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Admin</p>
+            <h1 className="text-3xl font-semibold text-foreground">Identity &amp; Access</h1>
+            <p className="text-sm text-muted-foreground">
+              Manage platform users, roles, and subscription authority.
+            </p>
+          </div>
+          <Button
+            onClick={() => router.push("/admin/users/create")}
+            className="h-10"
+          >
+            <UserPlus className="h-4 w-4" />
+            Create / Invite User
+          </Button>
+        </div>
+      </section>
+
+      {feedback ? <Alert variant={feedback.variant}>{feedback.message}</Alert> : null}
+      {error ? <Alert variant="error">{error.message}</Alert> : null}
+
+      <section className="rounded-2xl border border-border/60 bg-card">
+        {isLoading ? (
+          <div className="grid gap-2 p-4 md:grid-cols-5">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <Skeleton key={index} className="h-24 w-full rounded-xl" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid gap-0 md:grid-cols-5">
+            <div className="border-b border-border/60 border-r-border/60 md:border-b-0 md:border-r">
+              <KpiItem
+                label="Total Users"
+                value={String(summaryView.totalUsers)}
+                subtext={`+${summaryView.totalUsersDelta} this month`}
+              />
+            </div>
+            <div className="border-b border-border/60 border-r-border/60 md:border-b-0 md:border-r">
+              <KpiItem
+                label="Admin Ratio"
+                value={`${summaryView.adminCount} / ${summaryView.totalUsers}`}
+                subtext={`${adminRatioPercent}% access exposure level`}
+              />
+            </div>
+            <div className="border-b border-border/60 border-r-border/60 md:border-b-0 md:border-r">
+              <KpiItem
+                label="Active Subscribers"
+                value={String(summaryView.activeSubscribers)}
+                subtext="Revenue generating accounts"
+              />
+            </div>
+            <div className="border-b border-border/60 border-r-border/60 md:border-b-0 md:border-r">
+              <KpiItem
+                label="Disabled Accounts"
+                value={String(summaryView.disabledAccounts)}
+                subtext="Requires manual review"
+              />
+            </div>
+            <KpiItem
+              label="Users Without Active Plan"
+              value={String(summaryView.usersWithoutActivePlan)}
+              subtext="No active subscription"
+            />
+          </div>
+        )}
+      </section>
+
+      <Card>
+        <div className="space-y-3">
+          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchDraft}
+                onChange={(event) => setSearchDraft(event.target.value)}
+                className="pl-9"
+                placeholder="Search by name, email, or user ID"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {FILTERS.map((tab) => (
+              <Button
+                key={tab.key}
+                variant={filter === tab.key ? "primary" : "secondary"}
+                size="sm"
+                onClick={() => setFilter(tab.key)}
+              >
+                {tab.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </Card>
+
+      <Card title="Platform users">
+        {isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 10 }).map((_, index) => (
+              <Skeleton key={index} className="h-12 rounded-lg" />
+            ))}
+          </div>
+        ) : users.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
+            No users matched your current filters.
+          </p>
+        ) : (
+          <div className="overflow-x-hidden rounded-xl border border-border/60">
+            <table className="w-full table-fixed border-collapse">
+              <colgroup>
+                <col className="w-[4%]" />
+                <col className="w-[32%]" />
+                <col className="w-[14%]" />
+                <col className="w-[10%]" />
+                <col className="w-[12%]" />
+                <col className="w-[12%]" />
+                <col className="w-[8%]" />
+                <col className="w-[8%]" />
+              </colgroup>
+              <thead>
+                <tr className="bg-muted/25 text-center text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                  <th className="px-4 py-3 text-center">
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      onChange={(event) => {
+                        if (event.target.checked) {
+                          setSelectedUserIds(users.map((user) => user.id));
+                        } else {
+                          setSelectedUserIds([]);
+                        }
+                      }}
+                    />
+                  </th>
+                  <th className="px-4 py-3 text-left font-semibold">User</th>
+                  <th className="px-4 py-3 text-center font-semibold">Role</th>
+                  <th className="px-4 py-3 text-center font-semibold">Plan</th>
+                  <th className="px-4 py-3 text-center font-semibold">Subscription</th>
+                  <th className="px-4 py-3 text-center font-semibold">Last Login</th>
+                  <th className="px-4 py-3 text-center font-semibold">Status</th>
+                  <th className="px-4 py-3 text-center font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((user) => {
+                  const policy = getUserActionPolicy({ actorRole, actorId, target: user });
+                  const canShowMenu =
+                    policy.canChangeRole ||
+                    policy.canChangeStatus ||
+                    policy.canResetPassword ||
+                    policy.canCancelSubscription;
+                  return (
+                  <tr key={user.id} className="border-t border-border/50 align-middle">
+                    <td className="px-4 py-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedUserIds.includes(user.id)}
+                        onChange={(event) => {
+                          if (event.target.checked) {
+                            setSelectedUserIds((prev) => Array.from(new Set([...prev, user.id])));
+                          } else {
+                            setSelectedUserIds((prev) => prev.filter((id) => id !== user.id));
+                          }
+                        }}
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <button type="button" className="flex w-full items-start gap-3 text-left" onClick={() => setSelectedUserId(user.id)}>
+                        <span className="flex h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-muted/40 text-xs font-semibold text-foreground">
+                          {user.fullName
+                            .split(" ")
+                            .map((part) => part[0] || "")
+                            .join("")
+                            .slice(0, 2)
+                            .toUpperCase()}
+                        </span>
+                        <span className="min-w-0 space-y-0.5">
+                          <span className="block truncate font-semibold text-foreground">{user.fullName}</span>
+                          <span className="block truncate text-xs text-muted-foreground">{user.email}</span>
+                          <span className="block truncate font-mono text-[11px] text-muted-foreground">
+                            {user.userId || user.id}
+                          </span>
+                        </span>
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <Badge variant={roleBadgeVariant(user.role)}>
+                        {formatRole(user.role)}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-center text-sm text-foreground">{user.subscriptionPlan || "None"}</td>
+                    <td className="px-4 py-3 text-center">
+                      <Badge
+                        variant={subscriptionBadgeVariant(user.subscriptionState)}
+                        className={subscriptionBadgeClass(user.subscriptionState)}
+                        style={subscriptionBadgeStyle(user.subscriptionState)}
+                      >
+                        {formatSubscriptionState(user.subscriptionState)}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-center text-sm text-foreground">
+                      <span title={formatAbsoluteTime(user.lastLoginAt)}>{formatRelativeTime(user.lastLoginAt)}</span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <Badge variant={statusBadgeVariant(user.status)}>{user.status}</Badge>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="relative inline-flex justify-center">
+                        {canShowMenu ? (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => setActiveMenuUserId((prev) => (prev === user.id ? null : user.id))}
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => setSelectedUserId(user.id)}
+                          >
+                            View
+                          </Button>
+                        )}
+                        {activeMenuUserId === user.id ? (
+                          <div className="absolute right-0 top-10 z-20 w-52 rounded-xl border border-border bg-card p-1 shadow-xl">
+                            <button
+                              type="button"
+                              className="w-full rounded-lg px-3 py-2 text-left text-sm text-foreground hover:bg-muted"
+                              onClick={() => {
+                                setSelectedUserId(user.id);
+                                setActiveMenuUserId(null);
+                              }}
+                            >
+                              View Profile
+                            </button>
+                            <button
+                              type="button"
+                              className="w-full rounded-lg px-3 py-2 text-left text-sm text-foreground hover:bg-muted"
+                              onClick={() => {
+                                router.push(`/admin/users/${encodeURIComponent(user.id)}/activity`);
+                                setActiveMenuUserId(null);
+                              }}
+                            >
+                              Activity Timeline
+                            </button>
+                            {policy.canChangeRole ? (
+                              <button
+                                type="button"
+                                className="w-full rounded-lg px-3 py-2 text-left text-sm text-foreground hover:bg-muted"
+                                onClick={() => {
+                                  setRoleModal({ user, nextRole: user.role });
+                                  setActiveMenuUserId(null);
+                                }}
+                              >
+                                Change Role
+                              </button>
+                            ) : null}
+                            {policy.canChangeStatus ? (
+                              <button
+                                type="button"
+                                className="w-full rounded-lg px-3 py-2 text-left text-sm text-foreground hover:bg-muted"
+                                onClick={() =>
+                                  {
+                                    setStatusConfirm({
+                                      user,
+                                      nextStatus: user.status === "ACTIVE" ? "DISABLED" : "ACTIVE",
+                                    });
+                                    setActiveMenuUserId(null);
+                                  }
+                                }
+                              >
+                                {user.status === "ACTIVE" ? "Disable" : "Enable"}
+                              </button>
+                            ) : null}
+                            {policy.canResetPassword ? (
+                              <button
+                                type="button"
+                                className="w-full rounded-lg px-3 py-2 text-left text-sm text-foreground hover:bg-muted"
+                                onClick={() => {
+                                  setSelectedUserId(user.id);
+                                  setActiveMenuUserId(null);
+                                }}
+                              >
+                                Reset Password
+                              </button>
+                            ) : null}
+                            {user.status === "PENDING" ? (
+                              <button
+                                type="button"
+                                className="w-full rounded-lg px-3 py-2 text-left text-sm text-foreground hover:bg-muted"
+                                onClick={() => {
+                                  void submitResendSetupEmail(user);
+                                }}
+                              >
+                                Resend Setup Email
+                              </button>
+                            ) : null}
+                            {policy.canCancelSubscription ? (
+                              <button
+                                type="button"
+                                className="w-full rounded-lg px-3 py-2 text-left text-sm text-rose-700 hover:bg-rose-50"
+                                onClick={() => {
+                                  setSubscriptionCancelConfirm(user);
+                                  setActiveMenuUserId(null);
+                                }}
+                              >
+                                Cancel Subscription
+                              </button>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                )})}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground">
+            Page {currentPage}
+            {pagination?.mode === "offset" && pagination?.totalPages ? ` of ${pagination.totalPages}` : ""}
+            {" • "}
+            {pagination?.totalItems ?? users.length} users
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={cursorStack.length === 0}
+              onClick={() =>
+                setCursorStack((prev) => {
+                  if (!prev.length) return prev;
+                  return prev.slice(0, -1);
+                })
+              }
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={!pagination?.hasMore || !pagination?.nextCursor}
+              onClick={() => {
+                if (!pagination?.nextCursor) return;
+                setCursorStack((prev) => [...prev, pagination.nextCursor as string]);
+              }}
+            >
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {selectedUserIds.length > 0 ? (
+        <section className="sticky bottom-4 z-20 rounded-2xl border border-border bg-card px-4 py-3 shadow-xl">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-foreground">{selectedUserIds.length} selected</p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => runBulkAction("disable")}
+                disabled={!canBulkDisable}
+              >
+                <UserMinus className="h-4 w-4" />
+                Disable
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setBulkRoleOpen(true)}
+                disabled={!canBulkRoleChange}
+              >
+                <UserCog className="h-4 w-4" />
+                Change Role
+              </Button>
+              <Button size="sm" variant="secondary" onClick={exportSelected}>
+                Export
+              </Button>
+              {actorRole === "SUPER_ADMIN" ? (
+                <Button size="sm" variant="danger" onClick={() => runBulkAction("delete")}>
+                  Delete
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {selectedUserId ? (
+        <div className="fixed inset-0 z-40 flex">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/35"
+            onClick={() => setSelectedUserId(null)}
+            aria-label="Close profile drawer"
+          />
+          <aside className="relative ml-auto flex h-full w-full max-w-2xl flex-col border-l border-border bg-background shadow-2xl">
+            <div className="border-b border-border p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Identity &amp; Access</p>
+                  <h2 className="mt-1 text-xl font-semibold text-foreground">User Profile</h2>
+                </div>
+                <Button size="sm" variant="secondary" onClick={() => setSelectedUserId(null)}>
+                  Close
+                </Button>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="secondary" onClick={() => scrollDrawerSection("profile")}>
+                  Profile
+                </Button>
+                <Button size="sm" variant="secondary" onClick={() => scrollDrawerSection("billing")}>
+                  Billing
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    if (!selectedUserId) return;
+                    router.push(`/admin/users/${encodeURIComponent(selectedUserId)}/activity`);
+                  }}
+                >
+                  Activity Timeline
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex-1 space-y-4 overflow-y-auto p-5">
+              {detailError ? <Alert variant="error">{detailError.message}</Alert> : null}
+              {detailLoading || !selectedUserDetail ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-28 rounded-xl" />
+                  <Skeleton className="h-28 rounded-xl" />
+                  <Skeleton className="h-28 rounded-xl" />
+                </div>
+              ) : (
+                <>
+                  <div id="user-profile-profile">
+                  <Card title="Profile">
+                    <div className="grid gap-3 text-sm text-foreground md:grid-cols-2">
+                      <p>
+                        <span className="text-xs uppercase tracking-wide text-muted-foreground">Name</span>
+                        <span className="mt-1 block font-semibold">{selectedUserDetail.user.fullName}</span>
+                      </p>
+                      <p>
+                        <span className="text-xs uppercase tracking-wide text-muted-foreground">Email</span>
+                        <span className="mt-1 block">{selectedUserDetail.user.email}</span>
+                      </p>
+                      <p>
+                        <span className="text-xs uppercase tracking-wide text-muted-foreground">User ID</span>
+                        <span className="mt-1 block font-mono text-xs">
+                          {selectedUserDetail.user.userId || selectedUserDetail.user.id}
+                        </span>
+                      </p>
+                      <p>
+                        <span className="text-xs uppercase tracking-wide text-muted-foreground">Created</span>
+                        <span className="mt-1 block">{formatAbsoluteTime(selectedUserDetail.user.createdAt)}</span>
+                      </p>
+                    </div>
+                  </Card>
+                  </div>
+
+                  <Card title="Authority">
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <label className="text-xs text-muted-foreground">
+                        Role
+                        <select
+                          value={selectedUserDetail.user.role}
+                          disabled={!drawerPolicy?.canChangeRole || drawerRoleOptions.length === 0}
+                          onChange={(event) =>
+                            setRoleModal({
+                              user: selectedUserDetail.user,
+                              nextRole: event.target.value as IdentityAccessRole,
+                            })
+                          }
+                          className="mt-1 h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+                        >
+                          {roleOptionsForDrawer.map((role) => (
+                            <option key={role} value={role}>
+                              {formatRole(role)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="text-xs text-muted-foreground">
+                        Status
+                        <select
+                          value={selectedUserDetail.user.status}
+                          disabled={!drawerPolicy?.canChangeStatus}
+                          onChange={(event) =>
+                            setStatusConfirm({
+                              user: selectedUserDetail.user,
+                              nextStatus: event.target.value as IdentityAccessStatus,
+                            })
+                          }
+                          className="mt-1 h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+                        >
+                          {STATUS_OPTIONS.map((status) => (
+                            <option key={status} value={status}>
+                              {status}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <p className="text-sm text-foreground">
+                        <span className="text-xs uppercase tracking-wide text-muted-foreground">Auth Provider</span>
+                        <span className="mt-1 block">{selectedUserDetail.user.authProvider}</span>
+                      </p>
+                      <p className="text-sm text-foreground">
+                        <span className="text-xs uppercase tracking-wide text-muted-foreground">2FA</span>
+                        <span className="mt-1 block">
+                          {selectedUserDetail.user.twoFactorEnabled ? "Enabled" : "Disabled"}
+                        </span>
+                      </p>
+                      <p className="text-sm text-foreground">
+                        <span className="text-xs uppercase tracking-wide text-muted-foreground">Last Login</span>
+                        <span className="mt-1 block">
+                          {formatRelativeTime(selectedUserDetail.user.lastLoginAt)}
+                        </span>
+                      </p>
+                      <p className="text-sm text-foreground">
+                        <span className="text-xs uppercase tracking-wide text-muted-foreground">Associations</span>
+                        <span className="mt-1 block">{selectedUserDetail.user.tenantAssociationsCount}</span>
+                      </p>
+                    </div>
+                  </Card>
+
+                  <div id="user-profile-billing">
+                  <Card title="Subscription">
+                    <div className="grid gap-3 text-sm text-foreground md:grid-cols-2">
+                      <p>
+                        <span className="text-xs uppercase tracking-wide text-muted-foreground">Plan</span>
+                        <span className="mt-1 block">{selectedUserDetail.subscription.plan || "None"}</span>
+                      </p>
+                      <p>
+                        <span className="text-xs uppercase tracking-wide text-muted-foreground">State</span>
+                        <span className="mt-1 block">{formatSubscriptionState(selectedUserDetail.subscription.state)}</span>
+                      </p>
+                      <p>
+                        <span className="text-xs uppercase tracking-wide text-muted-foreground">Started At</span>
+                        <span className="mt-1 block">{formatAbsoluteTime(selectedUserDetail.subscription.startedAt)}</span>
+                      </p>
+                      <p>
+                        <span className="text-xs uppercase tracking-wide text-muted-foreground">Renewal Date</span>
+                        <span className="mt-1 block">{formatAbsoluteTime(selectedUserDetail.subscription.renewalDate)}</span>
+                      </p>
+                      <p>
+                        <span className="text-xs uppercase tracking-wide text-muted-foreground">Seat Usage</span>
+                        <span className="mt-1 block">
+                          {selectedUserDetail.subscription.seatUsage.used ?? "â€”"} /{" "}
+                          {selectedUserDetail.subscription.seatUsage.limit ?? "Unlimited"}
+                        </span>
+                      </p>
+                    </div>
+                  </Card>
+                  </div>
+
+                  <Card title="Danger Zone">
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap gap-2">
+                        {drawerPolicy?.canChangeStatus ? (
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={() =>
+                              setStatusConfirm({
+                                user: selectedUserDetail.user,
+                                nextStatus:
+                                  selectedUserDetail.user.status === "ACTIVE" ? "DISABLED" : "ACTIVE",
+                              })
+                            }
+                          >
+                            {selectedUserDetail.user.status === "ACTIVE" ? "Disable user" : "Enable user"}
+                          </Button>
+                        ) : null}
+                        {drawerPolicy?.canCancelSubscription ? (
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={() => setSubscriptionCancelConfirm(selectedUserDetail.user)}
+                          >
+                            Cancel subscription
+                          </Button>
+                        ) : null}
+                      </div>
+                      <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+                        <Input
+                          label="Temporary password"
+                          type="password"
+                          value={passwordDraft}
+                          onChange={(event) => setPasswordDraft(event.target.value)}
+                          placeholder="Set a temporary password"
+                        />
+                        <div className="flex items-end">
+                          <Button
+                            size="sm"
+                            onClick={submitPasswordReset}
+                            loading={actionLoading}
+                            disabled={!drawerPolicy?.canResetPassword}
+                          >
+                            Save password
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+
+                  <Card title="Recent Audit Events">
+                    {selectedUserDetail.recentAuditEvents.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No audit events for this user yet.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {selectedUserDetail.recentAuditEvents.map((event) => (
+                          <div key={event.id} className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
+                            <p className="text-sm font-semibold text-foreground">{formatAuditActionLabel(event.actionType)}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatAbsoluteTime(event.createdAt)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </Card>
+                </>
+              )}
+            </div>
+          </aside>
+        </div>
+      ) : null}
+
+      <Modal open={Boolean(roleModal)} onClose={() => setRoleModal(null)} title="Change role">
+        {roleModal ? (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Update role for <span className="font-semibold text-foreground">{roleModal.user.fullName}</span>.
+            </p>
+            <label className="text-sm text-muted-foreground">
+              Role
+              <select
+                value={roleModal.nextRole}
+                onChange={(event) =>
+                  setRoleModal((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          nextRole: event.target.value as IdentityAccessRole,
+                        }
+                      : prev
+                  )
+                }
+                className="mt-1 h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+              >
+                {ROLE_OPTIONS.map((role) => (
+                  <option key={role} value={role}>
+                    {formatRole(role)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setRoleModal(null)}>
+                Cancel
+              </Button>
+              <Button loading={actionLoading} onClick={() => submitRoleChange(roleModal.user.id, roleModal.nextRole)}>
+                Save role
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
+
+      <Modal open={bulkRoleOpen} onClose={() => setBulkRoleOpen(false)} title="Bulk role update">
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Update role for {selectedUserIds.length} selected user(s).
+          </p>
+          <label className="text-sm text-muted-foreground">
+            Role
+            <select
+              value={bulkRoleModal}
+              onChange={(event) => setBulkRoleModal(event.target.value as IdentityAccessRole)}
+              className="mt-1 h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground"
+            >
+              {(actorRole === "SUPER_ADMIN" ? ROLE_OPTIONS : (["USER"] as IdentityAccessRole[])).map((role) => (
+                <option key={role} value={role}>
+                  {formatRole(role)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setBulkRoleOpen(false)}>
+              Cancel
+            </Button>
+            <Button loading={actionLoading} onClick={() => runBulkAction("change_role", bulkRoleModal)}>
+              Apply
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <ConfirmationModal
+        open={Boolean(statusConfirm)}
+        variant={statusConfirm?.nextStatus === "ACTIVE" ? "primary" : "danger"}
+        title={statusConfirm?.nextStatus === "ACTIVE" ? "Enable account" : "Update account status"}
+        description={
+          statusConfirm
+            ? statusConfirm.nextStatus === "ACTIVE"
+              ? `Enable ${statusConfirm.user.fullName}?`
+              : `Set ${statusConfirm.user.fullName} to ${statusConfirm.nextStatus.toLowerCase()}?`
+            : ""
+        }
+        confirmLabel={statusConfirm?.nextStatus === "ACTIVE" ? "Enable user" : "Confirm"}
+        onConfirm={() => {
+          if (!statusConfirm) return;
+          submitStatusChange(statusConfirm.user.id, statusConfirm.nextStatus);
+        }}
+        onCancel={() => setStatusConfirm(null)}
+      />
+
+      <ConfirmationModal
+        open={Boolean(subscriptionCancelConfirm)}
+        variant="danger"
+        title="Cancel subscription"
+        description={
+          subscriptionCancelConfirm
+            ? `Cancel active subscription for ${subscriptionCancelConfirm.fullName}?`
+            : ""
+        }
+        confirmLabel="Cancel subscription"
+        onConfirm={() => {
+          if (!subscriptionCancelConfirm) return;
+          submitSubscriptionCancel(subscriptionCancelConfirm);
+        }}
+        onCancel={() => setSubscriptionCancelConfirm(null)}
+      />
+    </div>
+  );
+}
+
+

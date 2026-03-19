@@ -30,11 +30,11 @@ export default async function RootLayout({
       ? themePref
       : "light";
   const initialResolvedTheme =
-    resolvedPref === "light" || resolvedPref === "dark"
-      ? resolvedPref
-      : initialTheme === "system"
-        ? "light"
-        : initialTheme;
+    initialTheme === "system"
+      ? resolvedPref === "light" || resolvedPref === "dark"
+        ? resolvedPref
+        : "light"
+      : initialTheme;
 
   const htmlClass = initialResolvedTheme === "dark" ? "dark" : "";
   const languageCookie = cookieStore.get("maboria_language")?.value;

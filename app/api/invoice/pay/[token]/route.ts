@@ -9,31 +9,46 @@ export const runtime = "nodejs";
 
 const isPayableStatus = (status: string) => ["SENT", "OVERDUE", "FAILED"].includes(status);
 const isFinalStatus = (status: string) => ["PAID", "CANCELED", "EXPIRED"].includes(status);
+const redirectToErrorPage = (reason: string) =>
+  NextResponse.redirect(new URL(`/pay/invoice/error?reason=${encodeURIComponent(reason)}`, env.appUrl));
+const redirectToInvoicePage = (token: string, reason: string) =>
+  NextResponse.redirect(
+    new URL(`/pay/invoice/${encodeURIComponent(token)}?status=failed&reason=${encodeURIComponent(reason)}`, env.appUrl)
+  );
 
 export const GET = async (_req: Request, context: { params: Promise<{ token: string }> }) => {
   const { token } = await context.params;
-  if (!token) return NextResponse.json({ error: "Invalid token" }, { status: 400 });
+  if (!token) return redirectToErrorPage("invalid_token");
 
   const link = await resolveInvoicePublicLink(token);
-  if (!link?.invoice) return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+  if (!link?.invoice) return redirectToErrorPage("invoice_not_found");
 
   const invoice = link.invoice;
   if (link.usedAt || isFinalStatus(invoice.status) || !isPayableStatus(invoice.status)) {
-    return NextResponse.json({ error: "Invoice not payable" }, { status: 400 });
+    return redirectToInvoicePage(token, "invoice_not_payable");
   }
 
-  const customer = resolveInvoiceCustomer(invoice.metadata as any);
-  const payment = await ensureInvoicePaymentLink({
-    invoice,
-    customerName: customer?.name || null,
-    returnUrl: `${env.appUrl}/api/invoice/confirm/${encodeURIComponent(token)}`,
-  });
+  try {
+    const customer = resolveInvoiceCustomer(invoice.metadata as any);
+    const payment = await ensureInvoicePaymentLink({
+      invoice,
+      customerName: customer?.name || null,
+      returnUrl: `${env.appUrl}/api/invoice/confirm/${encodeURIComponent(token)}`,
+    });
 
-  log("info", "invoice_payment_redirect", {
-    invoiceId: invoice.id,
-    reference: payment.reference,
-    provider: payment.provider,
-  });
+    log("info", "invoice_payment_redirect", {
+      invoiceId: invoice.id,
+      reference: payment.reference,
+      provider: payment.provider,
+    });
 
-  return NextResponse.redirect(payment.paymentUrl);
+    return NextResponse.redirect(payment.paymentUrl);
+  } catch (error) {
+    log("warn", "invoice_payment_redirect_failed", {
+      invoiceId: invoice.id,
+      token,
+      error,
+    });
+    return redirectToInvoicePage(token, "payment_link_unavailable");
+  }
 };

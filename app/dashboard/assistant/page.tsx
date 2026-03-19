@@ -8,6 +8,7 @@ import { UpgradeModal } from "@/components/ui/upgrade-modal";
 import { Badge } from "@/components/ui/badge";
 import { useSession } from "next-auth/react";
 import { useLanguage } from "@/components/providers/language-provider";
+import { isPlatformRole } from "@/lib/global-role";
 
 export default function AssistantPage() {
   const { language } = useLanguage();
@@ -15,7 +16,7 @@ export default function AssistantPage() {
   const { user, isLoading } = useUser();
   const { data: session } = useSession();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
-  const isAdmin = user?.role === "ADMIN" || session?.user?.role === "ADMIN";
+  const isAdmin = isPlatformRole(user?.role) || isPlatformRole(session?.user?.role);
   const canUseAI =
     isAdmin ||
     user?.plan === "starter" ||

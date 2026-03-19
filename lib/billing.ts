@@ -1,6 +1,8 @@
 import { prisma } from "./prisma";
 import { createInvoiceRecord } from "./invoice";
+import { buildInvoiceIssuerCode, buildInvoiceNumberDraft } from "./invoice-number";
 import { log } from "./logger";
+import { createOrGetCustomer } from "./customers";
 
 export async function meterUsage(userId: string, category: string, amount: number, period: string) {
   await prisma.usageRecord.create({
@@ -15,9 +17,19 @@ export async function autoInvoiceFromUsage(userId: string, currency = "USD") {
   });
   if (!usage.length) return null;
   const totalAmount = usage.reduce((sum, u) => sum + u.amount, 0);
-  const invoiceNumber = `INV-${Date.now()}`;
+  const invoiceNumber = buildInvoiceNumberDraft(new Date(), buildInvoiceIssuerCode(userId, userId));
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true, name: true },
+  });
+  const customer = await createOrGetCustomer({
+    userId,
+    name: user?.name || "Unknown Customer",
+    email: user?.email || `unknown+${userId}@placeholder.local`,
+  });
   const invoice = await createInvoiceRecord({
     userId,
+    customerId: customer.id,
     invoiceNumber,
     currency,
     items: usage.map((u) => ({ name: `${u.category} (${u.period})`, quantity: 1, price: u.amount })),
@@ -25,7 +37,7 @@ export async function autoInvoiceFromUsage(userId: string, currency = "USD") {
     discount: 0,
   });
   await prisma.usageRecord.deleteMany({ where: { userId } });
-  log("info", "Auto invoice generated", { userId, invoiceNumber, totalAmount });
+  log("info", "Auto invoice generated", { userId, invoiceNumber: invoice.invoiceNumber, totalAmount });
   return invoice;
 }
 

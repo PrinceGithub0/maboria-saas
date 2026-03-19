@@ -1,20 +1,39 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { hashPassword } from "@/lib/auth";
 import { withErrorHandling } from "@/lib/api-handler";
+import { requireNoImpersonationMode } from "@/lib/admin/admin-rbac";
+import { resetAdminUserPassword, toHttpError } from "@/lib/admin/users";
 
 export const POST = withErrorHandling(async (req: Request, { params }: { params: { id: string } }) => {
   const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== "ADMIN") {
+  const normalizedRole = String(session?.user?.role || "").toUpperCase();
+  if (
+    !session?.user?.id ||
+    (normalizedRole !== "OPS_ADMIN" && normalizedRole !== "SUPER_ADMIN")
+  ) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const { password } = await req.json();
-  const passwordHash = await hashPassword(password);
-  await prisma.user.update({ where: { id: params.id }, data: { passwordHash } });
-  await prisma.activityLog.create({
-    data: { userId: session.user.id, action: "ADMIN_RESET_PASSWORD", metadata: { target: params.id } },
+  const impersonationBlocked = await requireNoImpersonationMode({
+    actorUserId: session.user.id,
+    cookieHeader: req.headers.get("cookie"),
   });
-  return NextResponse.json({ success: true });
+  if (impersonationBlocked) {
+    return impersonationBlocked;
+  }
+
+  const body = await req.json().catch(() => ({}));
+  const password = String((body as { password?: string }).password || "");
+
+  try {
+    await resetAdminUserPassword({
+      actorId: session.user.id,
+      userId: params.id,
+      password,
+    });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    const httpError = toHttpError(error);
+    return NextResponse.json({ error: httpError.message }, { status: httpError.status });
+  }
 });

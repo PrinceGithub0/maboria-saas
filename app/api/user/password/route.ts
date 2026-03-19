@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
 import { passwordUpdateSchema } from "@/lib/validators";
-import { hashPassword } from "@/lib/auth";
+import { hashPassword, verifyPassword } from "@/lib/auth";
 import { PASSWORD_MIN_LENGTH_ERROR } from "@/lib/password-policy";
 
 export const PUT = withRequestLogging(withErrorHandling(async (req: Request) => {
@@ -29,6 +29,19 @@ export const PUT = withRequestLogging(withErrorHandling(async (req: Request) => 
   const parsed = parsedResult.data;
   if (parsed.password !== parsed.confirm) {
     return NextResponse.json({ error: "Passwords do not match" }, { status: 400 });
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { passwordHash: true },
+  });
+  if (!user) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
+  const currentPasswordValid = await verifyPassword(parsed.currentPassword, user.passwordHash);
+  if (!currentPasswordValid) {
+    return NextResponse.json({ error: "Current password is incorrect" }, { status: 400 });
   }
 
   const passwordHash = await hashPassword(parsed.password);

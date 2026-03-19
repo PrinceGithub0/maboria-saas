@@ -1,13 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import { formatDistanceToNow } from "date-fns";
 import { useLanguage } from "@/components/providers/language-provider";
 import { useTheme } from "@/components/providers/theme-provider";
 import { Card } from "@/components/ui/card";
-import { MessageSquare } from "lucide-react";
+import { supportEmail, supportMailto } from "@/lib/support/contact";
+import { ChevronLeft, ChevronRight, MessageSquare } from "lucide-react";
 
 type Ticket = {
   id: string;
@@ -16,6 +17,11 @@ type Ticket = {
   status: string;
   priority?: string;
   createdAt: string;
+};
+
+type TicketPage = {
+  items: Ticket[];
+  nextCursor: string | null;
 };
 
 const parseTicketTitle = (rawTitle: string) => {
@@ -38,12 +44,40 @@ export default function SupportTicketsPage() {
   const { theme, resolvedTheme } = useTheme();
   const forceLight = theme === "light" || resolvedTheme === "light";
   const t = (en: string, fr: string) => (language === "fr" ? fr : en);
-  const { data: tickets, isLoading } = useSWR<Ticket[]>("/api/support", fetcher, {
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [cursorStack, setCursorStack] = useState<string[]>([]);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "OPEN" | "PENDING" | "CLOSED">("ALL");
+  const [sortBy, setSortBy] = useState<"NEWEST" | "OLDEST">("NEWEST");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedQuery(query.trim());
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
+  useEffect(() => {
+    setCursor(null);
+    setCursorStack([]);
+  }, [debouncedQuery, statusFilter, sortBy]);
+
+  const supportUrl = useMemo(() => {
+    const params = new URLSearchParams({
+      paged: "1",
+      limit: "20",
+      status: statusFilter,
+      sort: sortBy,
+    });
+    if (debouncedQuery) params.set("q", debouncedQuery);
+    if (cursor) params.set("cursor", cursor);
+    return `/api/support?${params.toString()}`;
+  }, [cursor, debouncedQuery, sortBy, statusFilter]);
+
+  const { data: ticketPage, isLoading, error } = useSWR<TicketPage>(supportUrl, fetcher, {
     shouldRetryOnError: false,
   });
-  const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "OPEN" | "PENDING" | "RESOLVED" | "CLOSED">("ALL");
-  const [sortBy, setSortBy] = useState<"NEWEST" | "OLDEST">("NEWEST");
 
   const getTicketStatusPill = (ticketStatus: string) => {
     const normalized = String(ticketStatus || "").toUpperCase();
@@ -58,7 +92,7 @@ export default function SupportTicketsPage() {
       return {
         label: t("Closed", "Ferme"),
         className:
-          "bg-slate-100 text-slate-700 border-slate-300 font-bold dark:bg-slate-600/20 dark:text-slate-200 dark:border-slate-500/40",
+          "bg-emerald-100 text-emerald-700 border-emerald-200 font-bold dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/40",
       };
     }
     if (normalized === "IN_PROGRESS" || normalized === "PENDING") {
@@ -75,31 +109,24 @@ export default function SupportTicketsPage() {
     };
   };
 
-  const filteredItems = useMemo(() => {
-    const items = Array.isArray(tickets) ? tickets : [];
-    const normalizedQuery = query.trim().toLowerCase();
-    const byStatus = (ticket: Ticket) => {
-      const current = String(ticket.status || "").toUpperCase();
-      if (statusFilter === "ALL") return true;
-      if (statusFilter === "PENDING") return current === "IN_PROGRESS" || current === "PENDING";
-      if (statusFilter === "RESOLVED") return current === "RESOLVED";
-      if (statusFilter === "CLOSED") return current === "CLOSED";
-      if (statusFilter === "OPEN") return current === "OPEN";
-      return true;
-    };
-    const byQuery = (ticket: Ticket) => {
-      if (!normalizedQuery) return true;
-      const parsed = parseTicketTitle(ticket.title);
-      const haystack = `${parsed.category} ${parsed.subject} ${ticket.message || ""}`.toLowerCase();
-      return haystack.includes(normalizedQuery);
-    };
-    const list = items.filter((ticket) => byStatus(ticket) && byQuery(ticket));
-    list.sort((a, b) => {
-      const diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-      return sortBy === "NEWEST" ? -diff : diff;
-    });
-    return list;
-  }, [tickets, query, sortBy, statusFilter]);
+  const filteredItems = Array.isArray(ticketPage?.items) ? ticketPage.items : [];
+  const ticketsCardClass = forceLight
+    ? "rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-[0_18px_40px_rgba(15,23,42,0.08)]"
+    : "rounded-2xl border border-slate-800 bg-[linear-gradient(180deg,rgba(15,23,42,0.97),rgba(17,24,39,0.95))] p-6 shadow-[0_20px_46px_rgba(2,6,23,0.38)]";
+  const ticketItemClass = forceLight
+    ? "!border-[#E2E8F0] !bg-white hover:!bg-[#F8FAFC]"
+    : "dark:border-slate-800 dark:bg-slate-950/45 dark:hover:bg-slate-900/70";
+  const emptyStateClass = forceLight
+    ? "!border-[#E2E8F0] !bg-white"
+    : "dark:border-slate-800 dark:bg-slate-950/50";
+  const paginationButtonClass =
+    "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-all";
+  const paginationEnabledClass = forceLight
+    ? "border-slate-200 bg-white text-slate-700 shadow-[0_6px_18px_rgba(15,23,42,0.06)] hover:border-indigo-200 hover:bg-[linear-gradient(180deg,#FFFFFF,#F8FAFC)] hover:text-indigo-700"
+    : "border-slate-700 bg-slate-950/70 text-slate-200 hover:border-slate-500 hover:bg-slate-900";
+  const paginationDisabledClass = forceLight
+    ? "cursor-not-allowed border-slate-200 bg-white/75 text-slate-300 shadow-none"
+    : "cursor-not-allowed border-slate-800 bg-slate-900/60 text-slate-500 shadow-none";
 
   return (
     <div className="mx-auto w-full max-w-[1150px] space-y-6">
@@ -114,17 +141,19 @@ export default function SupportTicketsPage() {
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
             {t("Full history of your support requests.", "Historique complet de vos demandes support.")}
           </p>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            {t("Our team replies from ", "Notre equipe repond depuis ")}
+            <a href={supportMailto} className="font-medium hover:text-slate-800 dark:hover:text-slate-200">
+              {supportEmail}
+            </a>
+          </p>
         </div>
         <Link href="/dashboard/support" className="text-sm font-semibold text-[#2563EB] hover:underline dark:text-[#3B82F6]">
           {t("Back to support", "Retour au support")}
         </Link>
       </section>
 
-      <Card
-        className={`rounded-2xl border-[#E5E7EB] bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.06)] dark:border-[#334155] dark:bg-[#1E293B] ${
-          forceLight ? "!border-[#E5E7EB] !bg-white" : ""
-        }`}
-      >
+      <Card className={ticketsCardClass}>
         <div className="mb-4 grid gap-3 md:grid-cols-3">
           <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
             {t("Search", "Recherche")}
@@ -132,8 +161,8 @@ export default function SupportTicketsPage() {
               placeholder={t("Search tickets", "Rechercher des tickets")}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              className={`rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 placeholder:normal-case dark:border-[#334155] dark:bg-slate-900 dark:text-slate-100 ${
-                forceLight ? "!border-[#CBD5E1] !bg-white !text-[#0F172A]" : ""
+              className={`rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 placeholder:normal-case dark:border-slate-700 dark:bg-slate-950/90 dark:text-slate-100 ${
+                forceLight ? "!border-[#CBD5E1] !bg-[#FFFFFF] !text-[#0F172A]" : ""
               }`}
             />
           </label>
@@ -141,16 +170,15 @@ export default function SupportTicketsPage() {
             {t("Status", "Statut")}
             <select
               value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value as "ALL" | "OPEN" | "PENDING" | "RESOLVED" | "CLOSED")}
+              onChange={(event) => setStatusFilter(event.target.value as "ALL" | "OPEN" | "PENDING" | "CLOSED")}
               style={forceLight ? { colorScheme: "light" } : undefined}
-              className={`rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 dark:border-[#334155] dark:bg-slate-900 dark:text-slate-100 ${
-                forceLight ? "!border-[#CBD5E1] !bg-white !text-[#0F172A]" : ""
+              className={`rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 dark:border-slate-700 dark:bg-slate-950/90 dark:text-slate-100 ${
+                forceLight ? "!border-[#CBD5E1] !bg-[#FFFFFF] !text-[#0F172A]" : ""
               }`}
             >
               <option value="ALL" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("All", "Tous")}</option>
               <option value="OPEN" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Open", "Ouvert")}</option>
               <option value="PENDING" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Pending", "En attente")}</option>
-              <option value="RESOLVED" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Resolved", "Resolue")}</option>
               <option value="CLOSED" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Closed", "Ferme")}</option>
             </select>
           </label>
@@ -160,8 +188,8 @@ export default function SupportTicketsPage() {
               value={sortBy}
               onChange={(event) => setSortBy(event.target.value as "NEWEST" | "OLDEST")}
               style={forceLight ? { colorScheme: "light" } : undefined}
-              className={`rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 dark:border-[#334155] dark:bg-slate-900 dark:text-slate-100 ${
-                forceLight ? "!border-[#CBD5E1] !bg-white !text-[#0F172A]" : ""
+              className={`rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 dark:border-slate-700 dark:bg-slate-950/90 dark:text-slate-100 ${
+                forceLight ? "!border-[#CBD5E1] !bg-[#FFFFFF] !text-[#0F172A]" : ""
               }`}
             >
               <option value="NEWEST" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Newest", "Plus recent")}</option>
@@ -171,31 +199,57 @@ export default function SupportTicketsPage() {
         </div>
         {isLoading ? (
           <p className="text-sm text-slate-500 dark:text-slate-300">{t("Loading tickets...", "Chargement des tickets...")}</p>
+        ) : error ? (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-200">
+            {t(
+              "We could not load your support tickets right now. Please refresh and try again.",
+              "Nous n avons pas pu charger vos tickets support pour le moment. Veuillez actualiser et reessayer."
+            )}
+          </div>
         ) : filteredItems.length === 0 ? (
           <div
-            className={`mx-auto max-w-lg rounded-2xl border border-slate-200 bg-white px-6 py-10 text-center dark:border-[#334155] dark:bg-slate-800/50 ${
-              forceLight ? "!border-[#E5E7EB] !bg-white" : ""
-            }`}
+            className={`mx-auto max-w-lg rounded-2xl border border-slate-200 bg-white px-6 py-10 text-center ${emptyStateClass}`}
           >
-            <div className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 dark:border-[#334155]">
+            <div className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 dark:border-slate-700">
               <MessageSquare className="h-5 w-5" />
             </div>
             <p className="text-base font-semibold text-slate-900 dark:text-slate-100">
-              {t("No support tickets yet", "Aucun ticket support pour le moment")}
+              {debouncedQuery || statusFilter !== "ALL"
+                ? t("No tickets match your filters", "Aucun ticket ne correspond a vos filtres")
+                : t("No support tickets yet", "Aucun ticket support pour le moment")}
             </p>
             <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-              {t(
-                "You haven't submitted any support requests. When you create a ticket, it will appear here.",
-                "Vous n avez pas encore soumis de demande support. Quand vous creez un ticket, il apparaitra ici."
-              )}
+              {debouncedQuery || statusFilter !== "ALL"
+                ? t(
+                    "Try clearing your search or changing the selected status.",
+                    "Essayez d effacer votre recherche ou de changer le statut selectionne."
+                  )
+                : t(
+                    "You haven't submitted any support requests. When you create a ticket, it will appear here.",
+                    "Vous n avez pas encore soumis de demande support. Quand vous creez un ticket, il apparaitra ici."
+                  )}
             </p>
             <div className="mt-5 flex items-center justify-center gap-3">
-              <Link
-                href="/dashboard/support#submit-ticket"
-                className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
-              >
-                {t("Create a Support Ticket", "Creer un ticket support")}
-              </Link>
+              {debouncedQuery || statusFilter !== "ALL" ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuery("");
+                    setStatusFilter("ALL");
+                    setSortBy("NEWEST");
+                  }}
+                  className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
+                >
+                  {t("Clear filters", "Effacer les filtres")}
+                </button>
+              ) : (
+                <Link
+                  href="/dashboard/support#submit-ticket"
+                  className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
+                >
+                  {t("Create a Support Ticket", "Creer un ticket support")}
+                </Link>
+              )}
               <Link href="/dashboard/support" className="text-sm font-semibold text-[#2563EB] hover:underline dark:text-[#3B82F6]">
                 {t("Back to Support", "Retour au support")}
               </Link>
@@ -210,9 +264,7 @@ export default function SupportTicketsPage() {
                 <Link
                   key={ticket.id}
                   href={`/dashboard/support/tickets/${ticket.id}`}
-                  className={`block rounded-xl border border-slate-200 bg-white px-4 py-3 transition-colors hover:bg-slate-50 dark:border-[#334155] dark:bg-slate-800/50 dark:hover:bg-slate-800/80 ${
-                    forceLight ? "!border-[#E5E7EB] !bg-white hover:!bg-slate-50" : ""
-                  }`}
+                  className={`block rounded-xl border border-slate-200 bg-white px-4 py-3 transition-colors hover:bg-slate-50 ${ticketItemClass}`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -236,6 +288,43 @@ export default function SupportTicketsPage() {
                 </Link>
               );
             })}
+            <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {t("Showing 20 tickets per page.", "Affichage de 20 tickets par page.")}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const previousCursor = cursorStack[cursorStack.length - 1] ?? null;
+                    setCursorStack((prev) => prev.slice(0, -1));
+                    setCursor(previousCursor);
+                  }}
+                  disabled={cursorStack.length === 0}
+                  className={`${paginationButtonClass} ${
+                    cursorStack.length === 0 ? paginationDisabledClass : paginationEnabledClass
+                  }`}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  {t("Previous", "Precedent")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!ticketPage?.nextCursor) return;
+                    setCursorStack((prev) => [...prev, cursor ?? ""]);
+                    setCursor(ticketPage.nextCursor);
+                  }}
+                  disabled={!ticketPage?.nextCursor}
+                  className={`${paginationButtonClass} ${
+                    !ticketPage?.nextCursor ? paginationDisabledClass : paginationEnabledClass
+                  }`}
+                >
+                  {t("Next", "Suivant")}
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </Card>

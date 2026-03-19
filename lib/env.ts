@@ -10,11 +10,6 @@ const requiredVars = [
   "FLUTTERWAVE_SECRET_KEY",
   "FLUTTERWAVE_PUBLIC_KEY",
   "OPENAI_API_KEY",
-  "EMAIL_SERVER_USER",
-  "EMAIL_SERVER_PASSWORD",
-  "EMAIL_SERVER_HOST",
-  "EMAIL_SERVER_PORT",
-  "EMAIL_FROM",
 ];
 
 requiredVars.forEach((key) => {
@@ -22,6 +17,14 @@ requiredVars.forEach((key) => {
     throw new Error(`Missing required environment variable: ${key}`);
   }
 });
+
+const resendApiKey = process.env.RESEND_API_KEY || "";
+const emailFrom =
+  process.env.PLATFORM_EMAIL_FROM ||
+  process.env.EMAIL_INFO_FROM ||
+  process.env.EMAIL_FROM ||
+  process.env.EMAIL_SUPPORT_FROM ||
+  "info@maboria.com";
 
 export const env = {
   databaseUrl: process.env.DATABASE_URL!,
@@ -34,11 +37,8 @@ export const env = {
   flutterwavePublic: process.env.FLUTTERWAVE_PUBLIC_KEY!,
   flutterwaveWebhookSecret: process.env.FLUTTERWAVE_WEBHOOK_SECRET || "",
   openaiKey: process.env.OPENAI_API_KEY!,
-  emailUser: process.env.EMAIL_SERVER_USER!,
-  emailPass: process.env.EMAIL_SERVER_PASSWORD!,
-  emailHost: process.env.EMAIL_SERVER_HOST!,
-  emailPort: Number(process.env.EMAIL_SERVER_PORT!),
-  emailFrom: process.env.EMAIL_FROM!,
+  resendApiKey,
+  emailFrom,
   appUrl: process.env.APP_URL || process.env.NEXTAUTH_URL!,
   sentryDsn: process.env.SENTRY_DSN || "",
   logtail: process.env.LOGTAIL_SOURCE_TOKEN || "",

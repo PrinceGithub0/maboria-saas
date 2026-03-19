@@ -8,16 +8,30 @@ import { parseDateInput } from "@/lib/date";
 import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { enforceEntitlement, enforceUsageLimit, nextPlanAfter } from "@/lib/entitlements";
-import { isAllowedCurrency, isProviderCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
+import { isSupportedBusinessCurrency } from "@/lib/business-currencies";
+import { isProviderCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
 import { requireBillingAccess } from "@/lib/permissions";
+import { assertOwnedActiveCustomer } from "@/lib/customers";
+import { withFormattedInvoiceTotals } from "@/lib/invoice-totals";
+import { deriveInvoiceDisplayStatus } from "@/lib/invoice-refund-status";
+import { logUserActivity } from "@/lib/user-activity";
+import {
+  buildInvoiceIssuerCode,
+  formatSequentialInvoiceNumber,
+  getInvoiceNumberYear,
+} from "@/lib/invoice-number";
 
 export const runtime = "nodejs";
 
-export const GET = withErrorHandling(async () => {
+export const GET = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const entitlement = await enforceEntitlement(session.user.id, {
+  const access = await requireBillingAccess(session.user.id);
+  if (!access.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const targetUserId = access.ownerUserId;
+
+  const entitlement = await enforceEntitlement(targetUserId, {
     feature: "invoices",
     requiredPlan: "starter",
     allowTrial: false,
@@ -33,22 +47,149 @@ export const GET = withErrorHandling(async () => {
       { status: 403 }
     );
   }
-  const access = await requireBillingAccess(session.user.id);
-  if (!access.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const invoices = await prisma.invoice.findMany({
-    where: { userId: session.user.id },
-    orderBy: { generatedAt: "desc" },
+  const url = new URL(req.url);
+  const query = String(url.searchParams.get("q") || "").trim();
+  const normalizedQuery = query.toLowerCase();
+  const rawTake = Number(url.searchParams.get("take") || 20);
+  const rawSkip = Number(url.searchParams.get("skip") || 0);
+  const take = Number.isFinite(rawTake) ? Math.max(1, Math.min(50, Math.trunc(rawTake))) : 20;
+  const skip = Number.isFinite(rawSkip) ? Math.max(0, Math.trunc(rawSkip)) : 0;
+
+  const statusSearchMap: Record<string, string[]> = {
+    draft: ["DRAFT"],
+    sent: ["SENT"],
+    unpaid: ["SENT", "OVERDUE"],
+    overdue: ["OVERDUE"],
+    paid: ["PAID"],
+    failed: ["FAILED"],
+    canceled: ["CANCELED"],
+    cancelled: ["CANCELED"],
+    expired: ["EXPIRED"],
+  };
+  const statusMatches = statusSearchMap[normalizedQuery] || [];
+  const searchWhere = normalizedQuery
+    ? {
+        OR: [
+          { invoiceNumber: { contains: query, mode: "insensitive" as const } },
+          { poNumber: { contains: query, mode: "insensitive" as const } },
+          { currency: { contains: query, mode: "insensitive" as const } },
+          { customer: { is: { name: { contains: query, mode: "insensitive" as const } } } },
+          { customer: { is: { email: { contains: query, mode: "insensitive" as const } } } },
+          ...(statusMatches.length > 0 ? [{ status: { in: statusMatches as any } }] : []),
+        ],
+      }
+    : {};
+  const where = {
+    userId: targetUserId,
+    ...searchWhere,
+  };
+
+  const customerSelect = {
+    id: true,
+    name: true,
+    email: true,
+    taxId: true,
+    addressLine1: true,
+    addressLine2: true,
+    city: true,
+    state: true,
+    postalCode: true,
+    country: true,
+    deliveryPreference: true,
+  } as const;
+
+  const currentYear = getInvoiceNumberYear();
+  const startOfYear = new Date(Date.UTC(currentYear, 0, 1));
+  const startOfNextYear = new Date(Date.UTC(currentYear + 1, 0, 1));
+
+  const [
+    invoices,
+    total,
+    totalInvoices,
+    draftCount,
+    unpaidCount,
+    overdueCount,
+    paidCount,
+    businessProfile,
+    invoiceCountThisYear,
+  ] = await Promise.all([
+    prisma.invoice.findMany({
+      where,
+      orderBy: { generatedAt: "desc" },
+      skip,
+      take,
+      include: {
+        customer: {
+          select: customerSelect,
+        },
+        invoicePayments: {
+          select: {
+            status: true,
+            refundOfId: true,
+            amount: true,
+            amountOriginal: true,
+          },
+        },
+      },
+    }),
+    prisma.invoice.count({ where }),
+    prisma.invoice.count({ where: { userId: targetUserId } }),
+    prisma.invoice.count({ where: { userId: targetUserId, status: "DRAFT" } }),
+    prisma.invoice.count({ where: { userId: targetUserId, status: { in: ["SENT", "OVERDUE"] } } }),
+    prisma.invoice.count({ where: { userId: targetUserId, status: "OVERDUE" } }),
+    prisma.invoice.count({ where: { userId: targetUserId, status: "PAID" } }),
+    prisma.businessProfile.findUnique({
+      where: { userId: targetUserId },
+      select: { businessName: true },
+    }),
+    prisma.invoice.count({
+      where: {
+        userId: targetUserId,
+        generatedAt: {
+          gte: startOfYear,
+          lt: startOfNextYear,
+        },
+      },
+    }),
+  ]);
+
+  const issuerCode = buildInvoiceIssuerCode(businessProfile?.businessName || null, targetUserId);
+  const suggestedInvoiceNumber = formatSequentialInvoiceNumber(
+    currentYear,
+    invoiceCountThisYear + 1,
+    issuerCode
+  );
+
+  return NextResponse.json({
+    items: invoices.map((invoice) => ({
+      ...withFormattedInvoiceTotals(invoice),
+      displayStatus: deriveInvoiceDisplayStatus(invoice),
+    })),
+    total,
+    skip,
+    take,
+    hasMore: skip + invoices.length < total,
+    summary: {
+      total: totalInvoices,
+      drafts: draftCount,
+      unpaid: unpaidCount,
+      overdue: overdueCount,
+      paid: paidCount,
+    },
+    suggestedInvoiceNumber,
   });
-
-  return NextResponse.json(invoices);
 });
 
 export const POST = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const entitlement = await enforceEntitlement(session.user.id, {
+  const access = await requireBillingAccess(session.user.id);
+  if (!access.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const targetUserId = access.ownerUserId;
+
+  const entitlement = await enforceEntitlement(targetUserId, {
     feature: "invoices",
     requiredPlan: "starter",
     allowTrial: false,
@@ -64,10 +205,7 @@ export const POST = withErrorHandling(async (req: Request) => {
       { status: 403 }
     );
   }
-  const access = await requireBillingAccess(session.user.id);
-  if (!access.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-
-  const usage = await enforceUsageLimit(session.user.id, "invoices");
+  const usage = await enforceUsageLimit(targetUserId, "invoices");
   if (!usage.ok) {
     if (usage.code === "payment_required") {
       return NextResponse.json(
@@ -97,41 +235,16 @@ export const POST = withErrorHandling(async (req: Request) => {
   const body = await req.json();
   const parsed = invoiceSchema.parse(body);
   const normalizedCurrency = normalizeCurrency(parsed.currency);
-  if (!isAllowedCurrency(normalizedCurrency)) {
+  if (!isSupportedBusinessCurrency(normalizedCurrency)) {
     return NextResponse.json({ error: "Unsupported currency" }, { status: 400 });
   }
-  const addressParts = [
-    parsed.customerStreet,
-    parsed.customerCity,
-    parsed.customerPostalCode,
-    parsed.customerCountry,
-  ]
-    .map((value) => String(value || "").trim())
-    .filter(Boolean);
-  const composedAddress = addressParts.length ? addressParts.join("\n") : undefined;
-  const customer =
-    parsed.customerEmail ||
-    parsed.customerName ||
-    parsed.customerAddress ||
-    parsed.customerStreet ||
-    parsed.customerCity ||
-    parsed.customerPostalCode ||
-    parsed.customerCountry ||
-    parsed.customerCompany ||
-    parsed.customerTaxId
-      ? {
-          name: parsed.customerName,
-          email: parsed.customerEmail,
-          address: composedAddress || parsed.customerAddress,
-          streetAddress: parsed.customerStreet,
-          city: parsed.customerCity,
-          postalCode: parsed.customerPostalCode,
-          country: parsed.customerCountry,
-          type: parsed.customerType,
-          companyName: parsed.customerCompany,
-          taxId: parsed.customerTaxId,
-        }
-      : null;
+  const customer = await assertOwnedActiveCustomer({
+    userId: targetUserId,
+    customerId: parsed.customerId,
+  });
+  if (!customer) {
+    return NextResponse.json({ error: "Customer is required." }, { status: 400 });
+  }
   const issueDate = parsed.issueDate ? parseDateInput(parsed.issueDate) : undefined;
   if (issueDate === null) {
     return NextResponse.json({ error: "Invalid issue date" }, { status: 400 });
@@ -141,8 +254,11 @@ export const POST = withErrorHandling(async (req: Request) => {
     return NextResponse.json({ error: "Invalid due date" }, { status: 400 });
   }
   if (parsed.status === "SENT") {
+    if (!customer.email) {
+      return NextResponse.json({ error: "Customer is required." }, { status: 400 });
+    }
     const merchant = await prisma.merchantAccount.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: targetUserId },
     });
     if (!merchant) {
       return NextResponse.json(
@@ -176,24 +292,50 @@ export const POST = withErrorHandling(async (req: Request) => {
       );
     }
   }
-  assertRateLimit(`invoice:${session.user.id}`, 50, 60_000);
+  assertRateLimit(`invoice:${targetUserId}`, 50, 60_000);
   const invoice = await createInvoiceRecord({
-    userId: session.user.id,
+    userId: targetUserId,
+    customerId: customer.id,
     invoiceNumber: parsed.invoiceNumber,
+    poNumber: parsed.poNumber,
+    attachments: parsed.attachments,
     currency: normalizedCurrency,
     items: parsed.items,
     status: parsed.status,
     discount: parsed.discount,
-    customer,
+    customer: {
+      name: customer.name,
+      email: customer.email,
+      taxId: customer.taxId,
+      address: [customer.addressLine1, customer.addressLine2, customer.city, customer.state, customer.postalCode, customer.country]
+        .map((value) => String(value || "").trim())
+        .filter(Boolean)
+        .join("\n"),
+      streetAddress: customer.addressLine1,
+      city: customer.city,
+      postalCode: customer.postalCode,
+      country: customer.country,
+    },
     issueDate,
     dueDate,
     note: parsed.note,
   });
   await prisma.activityLog.create({
     data: {
-      userId: session.user.id,
+      userId: targetUserId,
       action: "INVOICE_CREATED",
-      metadata: { invoiceNumber: parsed.invoiceNumber },
+      metadata: { invoiceNumber: invoice.invoiceNumber, actorUserId: session.user.id },
+    },
+  });
+
+  await logUserActivity({
+    userId: targetUserId,
+    actorId: session.user.id,
+    eventType: "invoice_created",
+    metadata: {
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      status: invoice.status,
     },
   });
   return NextResponse.json(invoice, { status: 201 });

@@ -8,16 +8,22 @@ import { parseDateInput } from "@/lib/date";
 import { enforceEntitlement, getWorkspaceScope } from "@/lib/entitlements";
 import {
   calculateTotalsFromAmounts,
+  deliverInvoiceToCustomer,
   generateAndStoreInvoicePdf,
   normalizeInvoiceItems,
   resolveInvoiceCustomer,
-  sendInvoiceEmailToCustomer,
 } from "@/lib/invoice";
-import { isAllowedCurrency, isProviderCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
+import { isSupportedBusinessCurrency } from "@/lib/business-currencies";
+import { isProviderCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
 import { triggerInvoiceStatusAutomations } from "@/lib/automation/events";
 import { normalizeVatSettings } from "@/lib/vat";
 import { recordAnalyticsEvent } from "@/lib/analytics";
 import { requireBillingAccess } from "@/lib/permissions";
+import { assertOwnedActiveCustomer } from "@/lib/customers";
+import { withFormattedInvoiceTotals } from "@/lib/invoice-totals";
+import { deriveInvoiceDisplayStatus } from "@/lib/invoice-refund-status";
+import { appendInvoiceNumberAlias } from "@/lib/invoice-number";
+import { logUserActivity } from "@/lib/user-activity";
 
 type Params = { params: { id: string } };
 
@@ -27,7 +33,11 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const entitlement = await enforceEntitlement(session.user.id, {
+  const access = await requireBillingAccess(session.user.id);
+  if (!access.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const targetUserId = access.ownerUserId;
+
+  const entitlement = await enforceEntitlement(targetUserId, {
     feature: "invoices",
     requiredPlan: "starter",
     allowTrial: false,
@@ -43,21 +53,50 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
       { status: 403 }
     );
   }
-  const access = await requireBillingAccess(session.user.id);
-  if (!access.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-
   const invoice = await prisma.invoice.findFirst({
-    where: { id: params.id, userId: session.user.id },
+    where: { id: params.id, userId: targetUserId },
+    include: {
+      customer: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          taxId: true,
+          addressLine1: true,
+          addressLine2: true,
+          city: true,
+          state: true,
+          postalCode: true,
+          country: true,
+          deliveryPreference: true,
+        },
+      },
+      invoicePayments: {
+        select: {
+          status: true,
+          refundOfId: true,
+          amount: true,
+          amountOriginal: true,
+        },
+      },
+    },
   });
   if (!invoice) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json(invoice);
+  return NextResponse.json({
+    ...withFormattedInvoiceTotals(invoice),
+    displayStatus: deriveInvoiceDisplayStatus(invoice),
+  });
 });
 
 export const PUT = withErrorHandling(async (req: Request, { params }: Params) => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const entitlement = await enforceEntitlement(session.user.id, {
+  const access = await requireBillingAccess(session.user.id);
+  if (!access.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const targetUserId = access.ownerUserId;
+
+  const entitlement = await enforceEntitlement(targetUserId, {
     feature: "invoices",
     requiredPlan: "starter",
     allowTrial: false,
@@ -73,15 +112,12 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
       { status: 403 }
     );
   }
-  const access = await requireBillingAccess(session.user.id);
-  if (!access.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-
   const body = await req.json();
   const parsed = invoiceSchema.partial().parse(body);
   let nextCurrency: string | undefined;
   if (parsed.currency) {
     const normalized = normalizeCurrency(parsed.currency);
-    if (!isAllowedCurrency(normalized)) {
+    if (!isSupportedBusinessCurrency(normalized)) {
       return NextResponse.json({ error: "Unsupported currency" }, { status: 400 });
     }
     nextCurrency = normalized;
@@ -99,16 +135,42 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
   const lookupNumber = parsed.invoiceNumber?.trim();
   const existing = await prisma.invoice.findFirst({
     where: {
-      userId: session.user.id,
+      userId: targetUserId,
       OR: [
         rawId ? { id: rawId } : undefined,
         rawId ? { invoiceNumber: rawId } : undefined,
+        rawId
+          ? { metadata: { path: ["invoiceNumberAliases"], array_contains: [rawId] } }
+          : undefined,
         lookupNumber ? { invoiceNumber: lookupNumber } : undefined,
+        lookupNumber
+          ? { metadata: { path: ["invoiceNumberAliases"], array_contains: [lookupNumber] } }
+          : undefined,
       ].filter(Boolean) as any,
     },
-    select: { id: true, status: true, invoiceNumber: true, metadata: true },
+    select: {
+      id: true,
+      status: true,
+      invoiceNumber: true,
+      currency: true,
+      total: true,
+      lateFeeAmount: true,
+      lateFeeTotalAccumulated: true,
+      customerId: true,
+      metadata: true,
+      invoiceCustomerSnapshot: true,
+    },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const nextCustomerId = parsed.customerId ?? existing.customerId;
+  const nextCustomer = await assertOwnedActiveCustomer({
+    userId: targetUserId,
+    customerId: nextCustomerId,
+  });
+  if (!nextCustomer) {
+    return NextResponse.json({ error: "Customer is required." }, { status: 400 });
+  }
 
   if (nextCurrency && existing.status !== "DRAFT") {
     return NextResponse.json(
@@ -132,16 +194,15 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
   }
 
   if (parsed.status === "SENT") {
-    const existingCustomerEmail = (existing.metadata as any)?.customer?.email;
-    if (!parsed.customerEmail && !existingCustomerEmail) {
+    if (!nextCustomer.email) {
       return NextResponse.json(
-        { error: "Customer email is required to send an invoice." },
+        { error: "Customer is required." },
         { status: 400 }
       );
     }
-    const invoiceCurrency = nextCurrency || normalizeCurrency((existing as any)?.currency || "USD");
+    const invoiceCurrency = nextCurrency || normalizeCurrency(existing.currency || "USD");
     const merchant = await prisma.merchantAccount.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: targetUserId },
     });
     if (!merchant) {
       return NextResponse.json(
@@ -180,25 +241,56 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
   }
 
   const existingMeta = (existing.metadata as any) || {};
-  const existingCustomer = resolveInvoiceCustomer(existingMeta) || {};
-  const shouldUpdateCustomer =
-    parsed.customerEmail !== undefined ||
-    parsed.customerName !== undefined ||
-    parsed.customerAddress !== undefined ||
-    parsed.customerStreet !== undefined ||
-    parsed.customerCity !== undefined ||
-    parsed.customerPostalCode !== undefined ||
-    parsed.customerCountry !== undefined ||
-    parsed.customerType !== undefined ||
-    parsed.customerCompany !== undefined ||
-    parsed.customerTaxId !== undefined;
+  const nextInvoiceNumber = parsed.invoiceNumber?.trim();
+  const invoiceNumberChanged =
+    typeof nextInvoiceNumber === "string" &&
+    nextInvoiceNumber.length > 0 &&
+    nextInvoiceNumber.toLowerCase() !== String(existing.invoiceNumber || "").toLowerCase();
   const shouldUpdateDates = parsed.issueDate !== undefined || parsed.dueDate !== undefined;
   const shouldUpdateNote = parsed.note !== undefined;
+  const shouldUpdatePoNumber = parsed.poNumber !== undefined;
+  const liveCustomer = {
+    name: nextCustomer.name,
+    email: nextCustomer.email,
+    phone: nextCustomer.phone,
+    taxId: nextCustomer.taxId,
+    address: [
+      nextCustomer.addressLine1,
+      nextCustomer.addressLine2,
+      nextCustomer.city,
+      nextCustomer.state,
+      nextCustomer.postalCode,
+      nextCustomer.country,
+    ]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean)
+      .join("\n"),
+    streetAddress: nextCustomer.addressLine1,
+    city: nextCustomer.city,
+    postalCode: nextCustomer.postalCode,
+    country: nextCustomer.country,
+    deliveryPreference: nextCustomer.deliveryPreference,
+  };
+  const immutableCustomerSnapshot = {
+    name: nextCustomer.name,
+    email: nextCustomer.email,
+    phone: nextCustomer.phone,
+    taxId: nextCustomer.taxId,
+    address: {
+      addressLine1: nextCustomer.addressLine1,
+      addressLine2: nextCustomer.addressLine2,
+      city: nextCustomer.city,
+      state: nextCustomer.state,
+      postalCode: nextCustomer.postalCode,
+      country: nextCustomer.country,
+    },
+    deliveryPreference: nextCustomer.deliveryPreference,
+  };
   const nextItems = normalizeInvoiceItems(parsed.items ?? (existing as any).items);
   const discountAmount =
     typeof parsed.discount === "number" ? parsed.discount : Number((existing as any).discount || 0);
   const businessProfile = await prisma.businessProfile.findUnique({
-    where: { userId: session.user.id },
+    where: { userId: targetUserId },
     select: { vatEnabled: true, vatRate: true, vatPricingMode: true },
   });
   const vatSettings = normalizeVatSettings({
@@ -210,55 +302,36 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
         : "exclusive",
   });
   const totals = calculateTotalsFromAmounts(nextItems, vatSettings, discountAmount);
-
-  const addressParts = [
-    parsed.customerStreet ?? (existingCustomer as any).streetAddress,
-    parsed.customerCity ?? (existingCustomer as any).city,
-    parsed.customerPostalCode ?? (existingCustomer as any).postalCode,
-    parsed.customerCountry ?? (existingCustomer as any).country,
-  ]
-    .map((value) => String(value || "").trim())
-    .filter(Boolean);
-  const composedAddress = addressParts.length ? addressParts.join("\n") : undefined;
+  const lateFeeAccumulated = Number(existing.lateFeeTotalAccumulated || existing.lateFeeAmount || 0);
+  const nextTotalDue = totals.total + lateFeeAccumulated;
 
   const updated = await prisma.invoice.update({
     where: { id: existing.id },
     data: {
-      invoiceNumber: parsed.invoiceNumber ?? undefined,
+      customerId: nextCustomer.id,
+      invoiceNumber: nextInvoiceNumber ?? undefined,
+      poNumber: shouldUpdatePoNumber ? parsed.poNumber ?? null : undefined,
       items: parsed.items ?? undefined,
       currency: nextCurrency,
       status: parsed.status as any,
       generatedAt: issueDate ?? undefined,
       tax: totals.taxAmount,
       discount: discountAmount,
-      total: totals.total,
-      metadata: shouldUpdateCustomer || shouldUpdateDates || shouldUpdateNote
+      total: nextTotalDue,
+      invoiceCustomerSnapshot:
+        parsed.status === "SENT"
+          ? (existing.invoiceCustomerSnapshot as any) || (immutableCustomerSnapshot as any)
+          : undefined,
+      metadata:
+        shouldUpdateDates ||
+        shouldUpdateNote ||
+        shouldUpdatePoNumber ||
+        parsed.customerId !== undefined ||
+        invoiceNumberChanged
         ? {
-            ...existingMeta,
-            customer: shouldUpdateCustomer
-              ? {
-                  name: parsed.customerName ?? existingCustomer.name ?? undefined,
-                  email: parsed.customerEmail ?? existingCustomer.email ?? undefined,
-                  address:
-                    composedAddress ??
-                    parsed.customerAddress ??
-                    existingCustomer.address ??
-                    undefined,
-                  streetAddress:
-                    parsed.customerStreet ?? (existingCustomer as any).streetAddress ?? undefined,
-                  city: parsed.customerCity ?? (existingCustomer as any).city ?? undefined,
-                  postalCode:
-                    parsed.customerPostalCode ??
-                    (existingCustomer as any).postalCode ??
-                    undefined,
-                  country:
-                    parsed.customerCountry ?? (existingCustomer as any).country ?? undefined,
-                  type: (parsed.customerType as any) ?? (existingCustomer as any).type ?? undefined,
-                  companyName:
-                    parsed.customerCompany ?? (existingCustomer as any).companyName ?? undefined,
-                  taxId: parsed.customerTaxId ?? (existingCustomer as any).taxId ?? undefined,
-                }
-              : existingMeta?.customer,
+            ...(invoiceNumberChanged ? appendInvoiceNumberAlias(existingMeta, existing.invoiceNumber) : existingMeta),
+            customer: liveCustomer,
+            poNumber: shouldUpdatePoNumber ? parsed.poNumber ?? null : existingMeta?.poNumber,
             dueDate: parsed.dueDate ? dueDate?.toISOString() : existingMeta?.dueDate,
             note: shouldUpdateNote ? parsed.note ?? null : existingMeta?.note,
             vatRate: totals.vatRate,
@@ -270,11 +343,15 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
   });
   await prisma.activityLog.create({
     data: {
-      userId: session.user.id,
+      userId: targetUserId,
       action: "INVOICE_UPDATED",
       resourceType: "invoice",
       resourceId: updated.id,
-      metadata: { invoiceNumber: updated.invoiceNumber, status: updated.status },
+      metadata: {
+        invoiceNumber: updated.invoiceNumber,
+        status: updated.status,
+        actorUserId: session.user.id,
+      },
     },
   });
   if (existing.status !== updated.status && updated.status === "SENT") {
@@ -283,7 +360,11 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
       const customer = resolveInvoiceCustomer(updated.metadata as any);
       try {
         const { pdfBuffer } = await generateAndStoreInvoicePdf(updated as any, businessProfile, customer);
-        await sendInvoiceEmailToCustomer(updated as any, businessProfile, customer, pdfBuffer);
+        await deliverInvoiceToCustomer(updated as any, businessProfile, {
+          ...customer,
+          phone: nextCustomer.phone,
+          deliveryPreference: nextCustomer.deliveryPreference,
+        }, pdfBuffer);
       } catch (error: any) {
         await prisma.invoice.update({
           where: { id: updated.id },
@@ -297,24 +378,35 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
     }
     try {
       const usageScope = await getWorkspaceScope(session.user.id);
-      const workspaceId = usageScope.businessId ?? session.user.id;
+      const workspaceId = usageScope.businessId ?? targetUserId;
       await recordAnalyticsEvent({
-        userId: session.user.id,
+        userId: targetUserId,
         workspaceId,
-        orgId: usageScope.businessId ?? session.user.id,
+        orgId: usageScope.businessId ?? targetUserId,
         type: "INVOICE_SENT",
         count: 1,
+        idempotencyKey: `invoice:${updated.id}`,
       });
     } catch (error) {
       console.error("invoice_sent_analytics_failed", error);
     }
     await prisma.activityLog.create({
       data: {
-        userId: session.user.id,
+        userId: targetUserId,
         action: "INVOICE_SENT",
         resourceType: "invoice",
         resourceId: updated.id,
-        metadata: { invoiceNumber: updated.invoiceNumber },
+        metadata: { invoiceNumber: updated.invoiceNumber, actorUserId: session.user.id },
+      },
+    });
+
+    await logUserActivity({
+      userId: targetUserId,
+      actorId: session.user.id,
+      eventType: "invoice_sent",
+      metadata: {
+        invoiceId: updated.id,
+        invoiceNumber: updated.invoiceNumber,
       },
     });
   }
@@ -322,7 +414,7 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
     const eventOccurredAt = new Date();
     const eventOccurredAtIso = eventOccurredAt.toISOString();
     triggerInvoiceStatusAutomations({
-      userId: session.user.id,
+      userId: targetUserId,
       invoiceId: updated.id,
       invoiceNumber: updated.invoiceNumber,
       status: updated.status,
@@ -333,14 +425,18 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
       console.error("invoice_status_trigger_failed", error);
     });
   }
-  return NextResponse.json(updated);
+  return NextResponse.json(withFormattedInvoiceTotals(updated));
 });
 
 export const DELETE = withErrorHandling(async (_req: Request, { params }: Params) => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const entitlement = await enforceEntitlement(session.user.id, {
+  const access = await requireBillingAccess(session.user.id);
+  if (!access.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const targetUserId = access.ownerUserId;
+
+  const entitlement = await enforceEntitlement(targetUserId, {
     feature: "invoices",
     requiredPlan: "starter",
     allowTrial: false,
@@ -357,15 +453,27 @@ export const DELETE = withErrorHandling(async (_req: Request, { params }: Params
     );
   }
 
+  const existing = await prisma.invoice.findFirst({
+    where: { id: params.id, userId: targetUserId },
+    select: { id: true, status: true, invoiceNumber: true },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (String(existing.status || "").toUpperCase() !== "DRAFT") {
+    return NextResponse.json({ error: "Only draft invoices can be deleted." }, { status: 400 });
+  }
+
   await prisma.invoice.delete({
-    where: { id: params.id, userId: session.user.id },
+    where: { id: existing.id },
   });
   await prisma.activityLog.create({
     data: {
-      userId: session.user.id,
+      userId: targetUserId,
       action: "INVOICE_DELETED",
       resourceType: "invoice",
-      resourceId: params.id,
+      resourceId: existing.id,
+      metadata: { actorUserId: session.user.id, invoiceNumber: existing.invoiceNumber },
     },
   });
   return NextResponse.json({ success: true });

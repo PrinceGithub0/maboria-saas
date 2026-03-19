@@ -6,12 +6,17 @@ import {
   archiveOldAutomationRunLogs,
   getAutomationRetentionOverview,
 } from "@/lib/automation/retention";
+import { requireNoImpersonationMode, requirePlatformAdmin } from "@/lib/admin/admin-rbac";
 
-export const GET = withErrorHandling(async () => {
+export const GET = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const denied = requirePlatformAdmin(session?.user);
+  if (denied) return denied;
+  const impersonationBlocked = await requireNoImpersonationMode({
+    actorUserId: session!.user.id,
+    cookieHeader: req.headers.get("cookie"),
+  });
+  if (impersonationBlocked) return impersonationBlocked;
 
   const overview = await getAutomationRetentionOverview();
   return NextResponse.json(overview);
@@ -19,9 +24,13 @@ export const GET = withErrorHandling(async () => {
 
 export const POST = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const denied = requirePlatformAdmin(session?.user);
+  if (denied) return denied;
+  const impersonationBlocked = await requireNoImpersonationMode({
+    actorUserId: session!.user.id,
+    cookieHeader: req.headers.get("cookie"),
+  });
+  if (impersonationBlocked) return impersonationBlocked;
 
   let body: Record<string, unknown> = {};
   try {

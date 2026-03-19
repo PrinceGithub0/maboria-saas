@@ -9,9 +9,22 @@ datasource db {
 
 enum Role {
   USER
-  ADMIN
+  OPS_ADMIN
   STAFF
   DISABLED
+}
+
+enum UserStatus {
+  ACTIVE
+  PENDING
+  DISABLED
+  SUSPENDED
+}
+
+enum AuthProvider {
+  PASSWORD
+  GOOGLE
+  SSO
 }
 
 enum SubscriptionPlan {
@@ -41,6 +54,7 @@ enum VatPricingMode {
 enum PaymentProvider {
   PAYSTACK
   FLUTTERWAVE
+  STRIPE
 }
 
 enum PaymentStatus {
@@ -77,6 +91,27 @@ enum AutomationRunStatus {
   FAILED
 }
 
+enum AutomationRecoveryStatus {
+  FAILED
+  RETRYING
+  RESOLVED
+  REPLAYED
+}
+
+enum AutomationStepStatus {
+  STARTED
+  SUCCESS
+  FAILED
+  SKIPPED
+}
+
+enum AutomationReplayAttemptStatus {
+  STARTED
+  BLOCKED
+  SUCCEEDED
+  FAILED
+}
+
 enum InvoiceStatus {
   DRAFT
   SENT
@@ -87,11 +122,163 @@ enum InvoiceStatus {
   EXPIRED
 }
 
+enum DeliveryPreference {
+  EMAIL
+  WHATSAPP
+  BOTH
+}
+
+enum CustomerStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum LateFeeType {
+  FIXED
+  PERCENTAGE
+}
+
+enum LateFeeMode {
+  ONE_TIME
+  RECURRING
+}
+
 enum SupportStatus {
   OPEN
   IN_PROGRESS
   RESOLVED
   CLOSED
+}
+
+enum SupportThreadStatus {
+  OPEN
+  PENDING
+  CLOSED
+}
+
+enum SupportThreadPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum SupportSlaMetricStatus {
+  RUNNING
+  PAUSED
+  MET
+  BREACHED
+  STOPPED
+}
+
+enum SupportSenderType {
+  SUBSCRIBER
+  ADMIN
+  SYSTEM
+}
+
+enum SupportDeliveryStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum SupportMessageChannel {
+  APP
+  EMAIL
+  SYSTEM
+}
+
+enum ConnectedMailboxProvider {
+  GMAIL
+  OUTLOOK
+  IMAP
+  SMTP
+}
+
+enum ConnectedMailboxStatus {
+  PENDING
+  ACTIVE
+  DISCONNECTED
+  ERROR
+}
+
+enum CustomerMailboxConversationStatus {
+  OPEN
+  PENDING
+  CLOSED
+}
+
+enum CustomerMailboxChannelType {
+  EMAIL
+  WHATSAPP
+  SMS
+}
+
+enum CustomerMailboxSenderType {
+  SUBSCRIBER
+  CUSTOMER
+  SYSTEM
+}
+
+enum AdminNotificationType {
+  SYSTEM
+  AUTOMATION
+  SLA
+  SUPPORT
+  SECURITY
+  BILLING
+  INCIDENT
+}
+
+enum AdminNotificationSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum AdminNotificationStatus {
+  UNREAD
+  READ
+  ACKNOWLEDGED
+  RESOLVED
+  SNOOZED
+}
+
+enum AdminNotificationRecipientStrategy {
+  ALL_ADMINS
+  SUPER_ADMINS
+  ASSIGNEE_ONLY
+  ROLE
+  CUSTOM_QUERY
+}
+
+enum AdminNotificationDedupeStrategy {
+  BY_EVENT
+  BY_TENANT
+  BY_TENANT_AND_EVENT
+  CUSTOM_KEY
+}
+
+enum AdminIncidentStatus {
+  ACTIVE
+  RESOLVED
+}
+
+enum SystemEventSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum SystemEventSource {
+  BILLING
+  AUTH
+  AUTOMATION
+  INBOX
+  SUPPORT
+  SYSTEM
 }
 
 enum AnalyticsCategory {
@@ -107,6 +294,39 @@ enum AnalyticsEventType {
   AUTOMATION_RUN
   WHATSAPP_MESSAGE
   WHATSAPP_MESSAGE_SENT
+}
+
+enum UsageFeatureKey {
+  AI_REQUESTS
+  INVOICES
+  WHATSAPP_MESSAGES
+  AUTOMATIONS_RUNS
+  TEAM_MEMBERS_SEATS
+}
+
+enum UsageEventSource {
+  APP
+  SYSTEM
+  WEBHOOK
+  BACKFILL
+}
+
+enum OrgSubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  TRIALING
+}
+
+enum BusinessAccessStatus {
+  ACTIVE
+  SUSPENDED
+  DISABLED
+}
+
+enum OrgBillingInterval {
+  MONTHLY
+  YEARLY
 }
 
 enum ConversationStatus {
@@ -131,6 +351,44 @@ enum MessageStatus {
   FAILED
 }
 
+enum UnifiedInboxType {
+  EMAIL
+  WHATSAPP
+}
+
+enum UnifiedInboxStatus {
+  ACTIVE
+  DISCONNECTED
+  ERROR
+  DISABLED
+}
+
+enum UnifiedConversationStatus {
+  OPEN
+  PENDING
+  CLOSED
+}
+
+enum UnifiedMessageDirection {
+  INBOUND
+  OUTBOUND
+  INTERNAL
+  SYSTEM
+}
+
+enum UnifiedMessageChannel {
+  EMAIL
+  WHATSAPP
+}
+
+enum UnifiedDeliveryStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
 model User {
   id             String             @id @default(cuid())
   name           String
@@ -139,6 +397,10 @@ model User {
   emailVerified  DateTime?
   passwordHash   String
   role           Role               @default(USER)
+  status         UserStatus         @default(ACTIVE)
+  authProvider   AuthProvider       @default(PASSWORD)
+  isPlatformUser Boolean            @default(false)
+  lastLoginAt    DateTime?
   createdAt      DateTime           @default(now())
   onboardingComplete Boolean        @default(false)
   tourComplete   Boolean            @default(false)
@@ -148,24 +410,45 @@ model User {
   twoFactorEnabled Boolean          @default(false)
   twoFactorSecret  String?
   twoFactorBackupCodes Json?
+  requirePasswordReset Boolean      @default(false)
+  archivedAt      DateTime?
     subscriptions  Subscription[]
     checkoutSessions CheckoutSession[]
   payments       Payment[]
   invoicePayments InvoicePayment[]
+  reminderDispatches ReminderDispatch[]
+  subscriberSetting SubscriberSetting?
   receipts      Receipt[]
   automationFlows AutomationFlow[]
   automationRuns AutomationRun[]    @relation("UserAutomationRuns")
+  automationReplayAttempts AutomationReplayAttempt[]
   invoices       Invoice[]
+  customers      Customer[]
     activityLogs   ActivityLog[]
     auditLogs      AuditLog[]
   supportTickets SupportTicket[]
+  supportThreadTicketsAsSubscriber SupportThreadTicket[] @relation("SupportThreadSubscriber")
+  supportThreadTicketsAsAssignee SupportThreadTicket[] @relation("SupportThreadAssignee")
+  supportThreadMessages SupportThreadMessage[] @relation("SupportThreadMessageSender")
+  supportThreadNotes SupportThreadInternalNote[] @relation("SupportThreadNoteAuthor")
+  connectedMailboxes ConnectedMailbox[]
+  customerMailboxConversations CustomerMailboxConversation[] @relation("CustomerMailboxConversationSubscriber")
+  customerMailboxMessages CustomerMailboxMessage[] @relation("CustomerMailboxMessageSubscriber")
   sessions       Session[]
   accounts       Account[]
   resetTokens    PasswordResetToken[]
+  adminStepUpTokens AdminStepUpToken[]
+  actorImpersonationSessions ImpersonationSession[] @relation("ImpersonationActor")
+  targetImpersonationSessions ImpersonationSession[] @relation("ImpersonationTarget")
   businesses     BusinessMember[]
   businessProfile BusinessProfile?
   merchantAccount MerchantAccount?
   notifications  Notification[]
+  adminNotificationsReceived AdminNotification[] @relation("AdminNotificationRecipient")
+  adminNotificationsAcknowledged AdminNotification[] @relation("AdminNotificationAcknowledgedBy")
+  adminNotificationsResolved AdminNotification[] @relation("AdminNotificationResolvedBy")
+  adminNotificationAudits AdminNotificationAudit[] @relation("AdminNotificationAuditActor")
+  adminIncidentsCreated AdminIncident[] @relation("AdminIncidentCreator")
   aiMemories     AiMemory[]
   aiConversations AiConversation[]
   aiMessages     AiMessage[]
@@ -176,11 +459,24 @@ model User {
   usageRecords   UsageRecord[]
   transactions   Transaction[]
   analyticsEvents AnalyticsEvent[]
-    assignedConversations Conversation[] @relation("AssignedConversations")
-    cannedReplies  CannedReply[]
-    conversationNotes ConversationNote[]
-    messageAudits  MessageAudit[]
-  }
+  usageEvents   UsageEvent[]
+  assignedConversations Conversation[] @relation("AssignedConversations")
+  assignedUnifiedConversations UnifiedConversation[] @relation("UnifiedAssignedConversations")
+  cannedReplies  CannedReply[]
+  conversationNotes ConversationNote[]
+  messageAudits  MessageAudit[]
+  unifiedNotes   UnifiedNote[] @relation("UnifiedNoteAuthor")
+  unifiedAuditEvents UnifiedAuditEvent[] @relation("UnifiedAuditActor")
+  userActivityLogs UserActivityLog[] @relation("UserActivityTimelineUser")
+  userActivityLogsAsActor UserActivityLog[] @relation("UserActivityTimelineActor")
+  systemEventsAsUser SystemEvent[] @relation("SystemEventUser")
+  systemEventsAsActor SystemEvent[] @relation("SystemEventActor")
+
+  @@index([role])
+  @@index([status])
+  @@index([lastLoginAt])
+  @@index([createdAt, id])
+}
 
 model Subscription {
   id          String             @id @default(cuid())
@@ -277,7 +573,11 @@ model AutomationRun {
   id         String              @id @default(cuid())
   flow       AutomationFlow      @relation(fields: [flowId], references: [id])
   flowId     String
+  originalRun   AutomationRun?   @relation("AutomationRunReplay", fields: [originalRunId], references: [id])
+  replayRuns    AutomationRun[]  @relation("AutomationRunReplay")
+  originalRunId String?          @map("original_run_id")
   runStatus  AutomationRunStatus @default(PENDING)
+  recoveryStatus AutomationRecoveryStatus?
   logs       Json
   output     Json?
   createdAt  DateTime            @default(now())
@@ -285,7 +585,79 @@ model AutomationRun {
   userId     String
   startedAt  DateTime?           @default(now())
   completedAt DateTime?
+  lastRetryAt DateTime?          @map("last_retry_at")
   retryCount Int                 @default(0)
+  errors     AutomationRunError[]
+  stepExecutions AutomationStepExecution[]
+  replayAttempts AutomationReplayAttempt[]
+  replayedFromAttempts AutomationReplayAttempt[] @relation("AutomationReplayAttemptNewRun")
+
+  @@index([createdAt])
+  @@index([flowId, createdAt])
+  @@index([userId, createdAt])
+  @@index([runStatus, createdAt])
+  @@index([recoveryStatus, createdAt])
+  @@index([originalRunId, createdAt])
+}
+
+model AutomationRunError {
+  id         String   @id @default(cuid())
+  run        AutomationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  runId      String
+  flowId     String
+  userId     String
+  stepId     String?
+  stepIndex  Int?
+  errorType  String
+  message    String
+  stackTrace String?
+  transient  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([runId, createdAt])
+  @@index([flowId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model AutomationStepExecution {
+  id             String   @id @default(cuid())
+  run            AutomationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  runId          String
+  executionKey   String   @unique
+  originalRunId  String?
+  stepId         String
+  stepIndex      Int
+  stepType       String
+  status         AutomationStepStatus @default(STARTED)
+  startedAt      DateTime? @default(now())
+  finishedAt     DateTime?
+  durationMs     Int?
+  errorMessage   String?
+  errorCode      String?
+  safeOutput     Json?
+  createdAt      DateTime @default(now())
+
+  @@index([runId, createdAt])
+  @@index([runId, stepIndex])
+  @@index([originalRunId, stepId, stepIndex])
+}
+
+model AutomationReplayAttempt {
+  id           String                       @id @default(cuid())
+  run          AutomationRun                @relation(fields: [runId], references: [id], onDelete: Cascade)
+  runId        String
+  newRun       AutomationRun?               @relation("AutomationReplayAttemptNewRun", fields: [newRunId], references: [id], onDelete: SetNull)
+  newRunId     String?
+  actorAdmin   User                         @relation(fields: [actorAdminId], references: [id], onDelete: Cascade)
+  actorAdminId String
+  actorIp      String?
+  createdAt    DateTime                     @default(now())
+  resultStatus AutomationReplayAttemptStatus
+  blockReason  String?
+  reason       String?
+
+  @@index([runId, createdAt])
+  @@index([actorAdminId, createdAt])
 }
 
 model Invoice {
@@ -293,8 +665,15 @@ model Invoice {
   user          User          @relation(fields: [userId], references: [id])
   userId        String
   invoiceNumber String        @unique
+  poNumber      String?
   items         Json
   total         Decimal       @db.Decimal(14, 2)
+  lateFeeAmount Decimal       @default(0) @db.Decimal(14, 2)
+  lateFeeTotalAccumulated Decimal @default(0) @db.Decimal(14, 2)
+  lateFeeCount Int           @default(0)
+  lateFeeAppliedAt DateTime?
+  lastLateFeeAppliedAt DateTime?
+  lateFeeLocked Boolean       @default(false)
   currency      String
   status        InvoiceStatus
   generatedAt   DateTime      @default(now())
@@ -303,13 +682,99 @@ model Invoice {
   metadata      Json?
   pdfUrl        String?
   invoicePayments InvoicePayment[]
+  supportingFiles InvoiceSupportingFile[]
   publicLinks   InvoicePublicLink[]
   receipts      Receipt[]
+  reminderDispatches ReminderDispatch[]
   subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
   subscriptionId String?
-  customerId    String?
+  customerId    String
+  customer      Customer      @relation(fields: [customerId], references: [id])
+  invoiceCustomerSnapshot Json?
   plan          SubscriptionPlan?
   conversations Conversation[] @relation("InvoiceConversations")
+
+  @@index([userId])
+  @@index([customerId])
+}
+
+model InvoiceSupportingFile {
+  id          String  @id
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId   String
+  filename    String
+  contentType String
+  sizeBytes   Int
+  storageKey  String  @unique
+  content     Bytes
+  createdAt   DateTime @default(now())
+
+  @@index([invoiceId, createdAt])
+}
+
+model Customer {
+  id                 String             @id @default(cuid())
+  user               User               @relation(fields: [userId], references: [id])
+  userId             String
+  name               String
+  email              String
+  phone              String?
+  taxId              String?
+  addressLine1       String?
+  addressLine2       String?
+  city               String?
+  state              String?
+  postalCode         String?
+  country            String?
+  deliveryPreference DeliveryPreference @default(EMAIL)
+  status             CustomerStatus     @default(ACTIVE)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  deletedAt          DateTime?
+  invoices           Invoice[]
+  reminderDispatches ReminderDispatch[]
+  unifiedConversations UnifiedConversation[]
+  customerMailboxConversations CustomerMailboxConversation[]
+
+  @@index([userId])
+  @@unique([userId, email])
+}
+
+model SubscriberSetting {
+  id                           String      @id @default(cuid())
+  user                         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId                       String      @unique
+  lateFeeEnabled               Boolean     @default(false)
+  lateFeeType                  LateFeeType @default(FIXED)
+  lateFeeValue                 Decimal     @default(0) @db.Decimal(14, 2)
+  gracePeriodDays              Int         @default(0)
+  lateFeeMode                  LateFeeMode @default(ONE_TIME)
+  lateFeeIntervalDays          Int?
+  allowAutomationLateFee       Boolean     @default(false)
+  maxLateFeeApplications       Int?
+  lateFeeGraceDays             Int         @default(0)
+  lateFeeCap                   Decimal?    @db.Decimal(14, 2)
+  lateFeeRecurring             Boolean     @default(false)
+  lateFeeRecurringIntervalDays Int?
+  lateFeePolicyText            String?
+  reminderCooldownMinutes      Int         @default(10)
+  createdAt                    DateTime    @default(now())
+  updatedAt                    DateTime    @updatedAt
+}
+
+model ReminderDispatch {
+  id         String   @id @default(cuid())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId String
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId  String
+  channel    String
+  dedupeKey  String   @unique
+  createdAt  DateTime @default(now())
+
+  @@index([userId, invoiceId, createdAt])
 }
 
 model InvoicePayment {
@@ -322,6 +787,17 @@ model InvoicePayment {
   status    PaymentStatus
   amount    Decimal        @db.Decimal(14, 2)
   currency  String
+  amountOriginal  Decimal? @db.Decimal(14, 2)
+  currencyOriginal String?
+  fxRateUsed      Decimal? @db.Decimal(18, 8)
+  amountConverted Decimal? @db.Decimal(14, 2)
+  currencyDefault String?
+  confirmedAt     DateTime?
+  viaSubaccount   Boolean  @default(true)
+  isManual        Boolean  @default(false)
+  refundOfId      String?
+  refundOf        InvoicePayment?  @relation("InvoicePaymentRefundChain", fields: [refundOfId], references: [id], onDelete: SetNull)
+  refundEntries   InvoicePayment[] @relation("InvoicePaymentRefundChain")
   reference String
   metadata  Json?
   createdAt DateTime       @default(now())
@@ -330,6 +806,8 @@ model InvoicePayment {
 
   @@index([invoiceId])
   @@index([userId])
+  @@index([userId, confirmedAt])
+  @@index([refundOfId])
   @@unique([provider, reference])
 }
 
@@ -379,15 +857,72 @@ model ActivityLog {
   resourceId String?
   ip        String?
   userAgent String?
+
+  @@index([timestamp])
+  @@index([userId, timestamp])
+}
+
+model SystemEvent {
+  id         String              @id @default(cuid())
+  tenant     Business?           @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  tenantId   String?             @map("tenant_id")
+  user       User?               @relation("SystemEventUser", fields: [userId], references: [id], onDelete: SetNull)
+  userId     String?             @map("user_id")
+  actor      User?               @relation("SystemEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorId    String?             @map("actor_id")
+  eventType  String              @map("event_type")
+  severity   SystemEventSeverity @default(INFO)
+  source     SystemEventSource
+  entityType String?             @map("entity_type")
+  entityId   String?             @map("entity_id")
+  message    String
+  metadata   Json?               @default("{}")
+  requestId  String?             @map("request_id")
+  createdAt  DateTime            @default(now()) @map("created_at")
+
+  @@index([createdAt, id], map: "index_system_events_created")
+  @@index([tenantId, createdAt, id], map: "index_system_events_tenant_created")
+  @@index([eventType, createdAt, id], map: "index_system_events_event_type_created")
+  @@index([severity, createdAt, id], map: "index_system_events_severity_created")
+  @@index([entityId], map: "index_system_events_entity_id")
+  @@index([requestId], map: "index_system_events_request_id")
+  @@map("system_events")
+}
+
+model UserActivityLog {
+  id        String   @id @default(cuid())
+  tenant    Business @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId  String   @map("tenant_id")
+  user      User     @relation("UserActivityTimelineUser", fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id")
+  eventType String   @map("event_type")
+  actor     User?    @relation("UserActivityTimelineActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorId   String?  @map("actor_id")
+  metadata  Json?    @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId], map: "index_user_activity_user")
+  @@index([tenantId], map: "index_user_activity_tenant")
+  @@index([createdAt], map: "index_user_activity_created")
+  @@index([userId, createdAt])
+  @@index([userId, createdAt, id])
+  @@map("user_activity_logs")
 }
 
 model AuditLog {
-  id        String   @id @default(cuid())
-  user      User?    @relation(fields: [userId], references: [id])
-  userId    String?
-  action    String
-  metadata  Json?
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  user         User?    @relation(fields: [userId], references: [id])
+  userId       String?
+  orgId        String?
+  action       String
+  actionType   String?
+  targetUserId String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  @@index([orgId, createdAt])
+  @@index([createdAt])
+  @@index([userId, createdAt])
 }
 
 model AiUsageLog {
@@ -420,11 +955,28 @@ model WebhookEvent {
   error      String?
 
   @@unique([provider, eventId])
+  @@index([receivedAt])
+  @@index([status, receivedAt])
+  @@index([eventId])
 }
 
 model Setting {
   key   String @id
   value String
+}
+
+model SystemFlagAuditLog {
+  id             String   @id @default(cuid())
+  flagKey        String
+  oldValue       Boolean
+  newValue       Boolean
+  actorUserId    String
+  actorIp        String?
+  actorUserAgent String?
+  createdAt      DateTime @default(now())
+
+  @@index([flagKey, createdAt])
+  @@index([actorUserId, createdAt])
 }
 
 model SupportTicket {
@@ -461,6 +1013,41 @@ model PasswordResetToken {
   createdAt DateTime @default(now())
 }
 
+model AdminStepUpToken {
+  id         String   @id @default(cuid())
+  actor      User     @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
+  actorUserId String
+  actionHash String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorUserId, expiresAt])
+}
+
+model ImpersonationSession {
+  id             String   @id @default(uuid())
+  actor          User     @relation("ImpersonationActor", fields: [actorUserId], references: [id], onDelete: Cascade)
+  actorUserId    String
+  target         User     @relation("ImpersonationTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  targetUserId   String
+  tenant         Business @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId       String
+  reason         String
+  createdAt      DateTime @default(now())
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  actorIp        String?
+  actorUserAgent String?
+
+  @@index([actorUserId, expiresAt, revokedAt])
+  @@index([targetUserId, tenantId])
+  @@map("impersonation_sessions")
+}
+
 model TwoFactorToken {
   id        String   @id @default(cuid())
   user      User     @relation(fields: [userId], references: [id])
@@ -477,6 +1064,9 @@ model Business {
   domain      String?
   whatsappPhoneNumberId String?  @unique
   plan        SubscriptionPlan   @default(STARTER)
+  accessStatus BusinessAccessStatus @default(ACTIVE)
+  suspendedAt DateTime?
+  suspendedReason String?
   owner       User               @relation("OwnedBusinesses", fields: [ownerId], references: [id])
   ownerId     String
   billingCycleStartAt DateTime?
@@ -489,6 +1079,364 @@ model Business {
   workflows   AutomationFlow[]
   conversations Conversation[]
   cannedReplies CannedReply[]
+  usageEvents UsageEvent[]
+  usageDailyRollups UsageDailyRollup[]
+  usageCycleTotals UsageCycleTotal[]
+  orgSubscription OrgSubscription?
+  unifiedInboxes  UnifiedInbox[]
+  unifiedConversations UnifiedConversation[]
+  unifiedMessages UnifiedMessage[]
+  unifiedNotes    UnifiedNote[]
+  unifiedTags     UnifiedTag[]
+  unifiedConversationTags UnifiedConversationTag[]
+  unifiedAuditEvents UnifiedAuditEvent[]
+  unifiedUsageCounters UnifiedUsageCounter[]
+  supportThreadTickets SupportThreadTicket[]
+  connectedMailboxes ConnectedMailbox[]
+  customerMailboxConversations CustomerMailboxConversation[]
+  customerMailboxMessages CustomerMailboxMessage[]
+  impersonationSessions ImpersonationSession[]
+  adminNotifications AdminNotification[]
+  userActivityLogs UserActivityLog[]
+  systemEvents SystemEvent[]
+
+  @@index([accessStatus, createdAt])
+}
+
+model SupportThreadTicket {
+  id                    String                @id @default(cuid())
+  subscriber            User                  @relation("SupportThreadSubscriber", fields: [subscriberId], references: [id], onDelete: Cascade)
+  subscriberId          String                @map("subscriber_id")
+  workspace             Business              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId           String                @map("workspace_id")
+  subject               String
+  status                SupportThreadStatus   @default(OPEN)
+  priority              SupportThreadPriority @default(NORMAL)
+  assignedAdmin         User?                 @relation("SupportThreadAssignee", fields: [assignedAdminId], references: [id], onDelete: SetNull)
+  assignedAdminId       String?               @map("assigned_admin_id")
+  archived              Boolean               @default(false)
+  version               Int                   @default(1)
+  firstResponseAt       DateTime?             @map("first_response_at")
+  lastActivityAt        DateTime              @default(now()) @map("last_activity_at")
+  subscriberUnreadCount Int                   @default(0) @map("subscriber_unread_count")
+  adminUnreadCount      Int                   @default(0) @map("admin_unread_count")
+  createdAt             DateTime              @default(now()) @map("created_at")
+  updatedAt             DateTime              @updatedAt @map("updated_at")
+  messages              SupportThreadMessage[]
+  notes                 SupportThreadInternalNote[]
+  events                SupportThreadEvent[]
+  slaState              SupportThreadSlaState?
+
+  @@index([workspaceId, status, lastActivityAt])
+  @@index([assignedAdminId, status, lastActivityAt])
+  @@index([subscriberId, lastActivityAt])
+  @@map("support_tickets")
+}
+
+model SupportThreadMessage {
+  id              String                @id @default(cuid())
+  ticket          SupportThreadTicket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  ticketId        String                @map("ticket_id")
+  senderType      SupportSenderType     @map("sender_type")
+  sender          User?                 @relation("SupportThreadMessageSender", fields: [senderId], references: [id], onDelete: SetNull)
+  senderId        String?               @map("sender_id")
+  channel         SupportMessageChannel @default(APP)
+  content         String
+  attachments     Json?
+  messageIdHeader String?               @map("message_id_header")
+  inReplyToHeader String?               @map("in_reply_to_header")
+  referencesHeader String?              @map("references_header")
+  deliveryStatus  SupportDeliveryStatus @default(QUEUED) @map("delivery_status")
+  errorMessage    String?               @map("error_message")
+  createdAt       DateTime              @default(now()) @map("created_at")
+
+  @@index([ticketId, createdAt])
+  @@index([messageIdHeader])
+  @@map("support_messages")
+}
+
+model ConnectedMailbox {
+  id                   String                 @id @default(cuid())
+  subscriber           User                   @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+  subscriberId         String                 @map("subscriber_id")
+  workspace            Business               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId          String                 @map("workspace_id")
+  provider             ConnectedMailboxProvider
+  status               ConnectedMailboxStatus @default(PENDING)
+  emailAddress         String                 @map("email_address")
+  displayName          String?                @map("display_name")
+  providerAccountId    String?                @map("provider_account_id")
+  credentialsEncrypted String?                @map("credentials_encrypted")
+  accessTokenEncrypted String?                @map("access_token_encrypted")
+  refreshTokenEncrypted String?               @map("refresh_token_encrypted")
+  metadata             Json?
+  createdAt            DateTime               @default(now()) @map("created_at")
+  updatedAt            DateTime               @updatedAt @map("updated_at")
+  conversations        CustomerMailboxConversation[]
+  messages             CustomerMailboxMessage[]
+
+  @@unique([workspaceId, emailAddress])
+  @@index([subscriberId, status, createdAt])
+  @@index([workspaceId, provider, status])
+  @@map("connected_mailboxes")
+}
+
+model CustomerMailboxConversation {
+  id                 String                            @id @default(cuid())
+  subscriber         User                              @relation("CustomerMailboxConversationSubscriber", fields: [subscriberId], references: [id], onDelete: Cascade)
+  subscriberId       String                            @map("subscriber_id")
+  workspace          Business                          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId        String                            @map("workspace_id")
+  connectedMailbox   ConnectedMailbox?                 @relation(fields: [connectedMailboxId], references: [id], onDelete: SetNull)
+  connectedMailboxId String?                           @map("connected_mailbox_id")
+  customer           Customer?                         @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customerId         String?                           @map("customer_id")
+  customerEmail      String                            @map("customer_email")
+  subject            String
+  channelType        CustomerMailboxChannelType        @default(EMAIL) @map("channel_type")
+  status             CustomerMailboxConversationStatus @default(OPEN)
+  externalThreadId   String?                           @map("external_thread_id")
+  lastMessageAt      DateTime?                         @map("last_message_at")
+  createdAt          DateTime                          @default(now()) @map("created_at")
+  updatedAt          DateTime                          @updatedAt @map("updated_at")
+  messages           CustomerMailboxMessage[]
+
+  @@index([subscriberId, status, lastMessageAt])
+  @@index([workspaceId, channelType, status])
+  @@index([connectedMailboxId, lastMessageAt])
+  @@index([customerId])
+  @@map("customer_conversations")
+}
+
+model CustomerMailboxMessage {
+  id                 String                     @id @default(cuid())
+  conversation       CustomerMailboxConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId     String                     @map("conversation_id")
+  subscriber         User?                      @relation("CustomerMailboxMessageSubscriber", fields: [subscriberId], references: [id], onDelete: SetNull)
+  subscriberId       String?                    @map("subscriber_id")
+  workspace          Business                   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId        String                     @map("workspace_id")
+  connectedMailbox   ConnectedMailbox?          @relation(fields: [connectedMailboxId], references: [id], onDelete: SetNull)
+  connectedMailboxId String?                    @map("connected_mailbox_id")
+  senderType         CustomerMailboxSenderType  @map("sender_type")
+  senderEmail        String?                    @map("sender_email")
+  channel            CustomerMailboxChannelType @default(EMAIL)
+  subject            String?
+  textBody           String                     @map("text_body")
+  htmlBody           String?                    @map("html_body")
+  attachments        Json?                      @map("attachments_json")
+  externalMessageId  String?                    @map("external_message_id")
+  createdAt          DateTime                   @default(now()) @map("created_at")
+
+  @@index([conversationId, createdAt])
+  @@index([workspaceId, channel, createdAt])
+  @@index([connectedMailboxId, createdAt])
+  @@unique([connectedMailboxId, externalMessageId])
+  @@map("customer_messages")
+}
+
+model SupportThreadInternalNote {
+  id        String              @id @default(cuid())
+  ticket    SupportThreadTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  ticketId  String              @map("ticket_id")
+  tenantId  String              @map("tenant_id")
+  admin     User                @relation("SupportThreadNoteAuthor", fields: [adminId], references: [id], onDelete: Cascade)
+  adminId   String              @map("admin_id")
+  content   String
+  attachments Json?
+  createdAt DateTime            @default(now()) @map("created_at")
+
+  @@index([tenantId, createdAt])
+  @@index([ticketId, createdAt])
+  @@map("support_internal_notes")
+}
+
+model SupportThreadEvent {
+  id           String              @id @default(cuid())
+  ticket       SupportThreadTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  ticketId     String              @map("ticket_id")
+  tenantId     String              @map("tenant_id")
+  actorAdminId String?             @map("actor_admin_id")
+  eventType    String              @map("event_type")
+  metadata     Json?
+  createdAt    DateTime            @default(now()) @map("created_at")
+
+  @@index([ticketId, createdAt])
+  @@index([tenantId, createdAt])
+  @@index([eventType, createdAt])
+  @@map("ticket_events")
+}
+
+model SupportThreadSlaState {
+  id                                 String                 @id @default(cuid())
+  ticket                             SupportThreadTicket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  ticketId                           String                 @unique @map("ticket_id")
+  tenantId                           String                 @map("tenant_id")
+  firstResponseDueAt                 DateTime?              @map("first_response_due_at")
+  firstResponseMetAt                 DateTime?              @map("first_response_met_at")
+  firstResponseBreachedAt            DateTime?              @map("first_response_breached_at")
+  firstResponseStatus                SupportSlaMetricStatus @default(RUNNING) @map("first_response_status")
+  nextResponseDueAt                  DateTime?              @map("next_response_due_at")
+  nextResponseBaselineCustomerMessageAt DateTime?           @map("next_response_baseline_customer_message_at")
+  nextResponseMetAt                  DateTime?              @map("next_response_met_at")
+  nextResponseBreachedAt             DateTime?              @map("next_response_breached_at")
+  nextResponseStatus                 SupportSlaMetricStatus @default(RUNNING) @map("next_response_status")
+  resolutionDueAt                    DateTime?              @map("resolution_due_at")
+  resolutionMetAt                    DateTime?              @map("resolution_met_at")
+  resolutionBreachedAt               DateTime?              @map("resolution_breached_at")
+  resolutionStatus                   SupportSlaMetricStatus @default(RUNNING) @map("resolution_status")
+  nextResponsePausedAt               DateTime?              @map("next_response_paused_at")
+  resolutionPausedAt                 DateTime?              @map("resolution_paused_at")
+  totalPausedSeconds                 Int                    @default(0) @map("total_paused_seconds")
+  createdAt                          DateTime               @default(now()) @map("created_at")
+  updatedAt                          DateTime               @updatedAt @map("updated_at")
+
+  @@index([tenantId, updatedAt])
+  @@map("support_ticket_sla")
+}
+
+model UnifiedInbox {
+  id                   String            @id @default(cuid())
+  tenant               Business          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId             String
+  type                 UnifiedInboxType
+  name                 String
+  status               UnifiedInboxStatus @default(ACTIVE)
+  credentialsEncrypted String?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  conversations        UnifiedConversation[]
+  messages             UnifiedMessage[]
+
+  @@unique([tenantId, type])
+  @@index([tenantId, status])
+  @@map("inboxes")
+}
+
+model UnifiedConversation {
+  id             String                    @id @default(cuid())
+  tenant         Business                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId       String
+  inbox          UnifiedInbox              @relation(fields: [inboxId], references: [id], onDelete: Cascade)
+  inboxId        String
+  contact        Customer                  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId      String
+  status         UnifiedConversationStatus @default(OPEN)
+  assignedUser   User?                     @relation("UnifiedAssignedConversations", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  assignedUserId String?
+  lastMessageAt  DateTime?
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+  messages       UnifiedMessage[]
+  notes          UnifiedNote[]
+  tags           UnifiedConversationTag[]
+
+  @@index([tenantId, status, lastMessageAt])
+  @@index([assignedUserId])
+  @@index([contactId])
+  @@map("conversations")
+}
+
+model UnifiedMessage {
+  id               String                  @id @default(cuid())
+  tenant           Business                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId         String
+  conversation     UnifiedConversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId   String
+  inbox            UnifiedInbox            @relation(fields: [inboxId], references: [id], onDelete: Cascade)
+  inboxId          String
+  direction        UnifiedMessageDirection
+  channel          UnifiedMessageChannel
+  externalId       String?
+  senderIdentifier String?
+  content          String
+  attachments      Json?
+  deliveryStatus   UnifiedDeliveryStatus   @default(QUEUED)
+  errorCode        String?
+  errorMessage     String?
+  createdAt        DateTime                @default(now())
+
+  @@unique([externalId, inboxId])
+  @@index([tenantId, createdAt])
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
+
+model UnifiedNote {
+  id             String              @id @default(cuid())
+  tenant         Business            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId       String
+  conversation   UnifiedConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  author         User                @relation("UnifiedNoteAuthor", fields: [authorUserId], references: [id], onDelete: Cascade)
+  authorUserId   String
+  content        String
+  createdAt      DateTime            @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([conversationId, createdAt])
+  @@map("notes")
+}
+
+model UnifiedTag {
+  id            String                   @id @default(cuid())
+  tenant        Business                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId      String
+  label         String
+  createdAt     DateTime                 @default(now())
+  conversations UnifiedConversationTag[]
+
+  @@unique([tenantId, label])
+  @@index([tenantId])
+  @@map("tags")
+}
+
+model UnifiedConversationTag {
+  id             String              @id @default(cuid())
+  tenant         Business            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId       String
+  conversation   UnifiedConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  tag            UnifiedTag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagId          String
+  createdAt      DateTime            @default(now())
+
+  @@unique([conversationId, tagId])
+  @@index([tenantId, createdAt])
+  @@map("conversation_tags")
+}
+
+model UnifiedAuditEvent {
+  id            String   @id @default(cuid())
+  tenant        Business @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId      String
+  actor         User?    @relation("UnifiedAuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorUserId   String?
+  actionType    String
+  conversationId String?
+  messageId     String?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([conversationId, createdAt])
+  @@map("audit_events")
+}
+
+model UnifiedUsageCounter {
+  id                    String   @id @default(cuid())
+  tenant                Business @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId              String
+  billingPeriod         String
+  emailMessagesSent     Int      @default(0)
+  whatsappMessagesSent  Int      @default(0)
+  totalMessagesSent     Int      @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([tenantId, billingPeriod])
+  @@index([tenantId, updatedAt])
+  @@map("usage_counters")
 }
 
 model BusinessMember {
@@ -497,23 +1445,32 @@ model BusinessMember {
   userId     String
   business   Business @relation(fields: [businessId], references: [id])
   businessId String
-  role       String   @default("agent")
+  role       String   @default("member")
+  status     String   @default("active")
+  invitedBy  String?
+  joinedAt   DateTime?
   createdAt  DateTime @default(now())
+
+  @@unique([businessId, userId])
+  @@index([businessId, role, status])
 }
 
 model BusinessInvite {
-  id          String   @id @default(cuid())
-  business    Business @relation(fields: [businessId], references: [id])
-  businessId  String
-  email       String
-  role        String   @default("agent")
-  token       String   @unique
-  status      String   @default("PENDING")
-  expiresAt   DateTime?
-  acceptedAt  DateTime?
-  invitedById String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String   @id @default(cuid())
+  business        Business @relation(fields: [businessId], references: [id])
+  businessId      String
+  email           String
+  role            String   @default("member")
+  token           String   @unique
+  tokenHash       String?  @unique
+  status          String   @default("PENDING")
+  expiresAt       DateTime?
+  acceptedAt      DateTime?
+  usedAt          DateTime?
+  invitedById     String?
+  invitedByUserId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@unique([businessId, email])
   @@index([email])
@@ -530,8 +1487,11 @@ model BusinessProfile {
   businessEmail    String?
   businessPhone    String?
   taxId            String?
+  logoData         Bytes?
+  logoMimeType     String?
   vatEnabled       Boolean  @default(false)
   vatRate          Decimal? @db.Decimal(5, 2)
+  vatRateDisplay   String?
   vatPricingMode   VatPricingMode @default(EXCLUSIVE)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -549,6 +1509,7 @@ model MerchantAccount {
   accountNumber          String?
   iban                   String?
   bicSwift               String?
+  payoutDetails          Json?
   currency               String?
   country                String?
   createdAt              DateTime @default(now())
@@ -677,6 +1638,97 @@ model Notification {
   createdAt DateTime @default(now())
 }
 
+model AdminNotification {
+  id                    String                            @id @default(uuid())
+  tenant                Business?                         @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  tenantId              String?                           @map("tenant_id")
+  recipientAdmin        User                              @relation("AdminNotificationRecipient", fields: [recipientAdminId], references: [id], onDelete: Cascade)
+  recipientAdminId      String                            @map("recipient_admin_id")
+  title                 String
+  message               String
+  type                  AdminNotificationType
+  severity              AdminNotificationSeverity
+  sourceEventType       String                            @map("source_event_type")
+  sourceEventId         String?                           @map("source_event_id")
+  dedupeKey             String                            @map("dedupe_key")
+  occurrences           Int                               @default(1)
+  firstSeenAt           DateTime                          @default(now()) @map("first_seen_at")
+  lastSeenAt            DateTime                          @default(now()) @map("last_seen_at")
+  status                AdminNotificationStatus           @default(UNREAD)
+  snoozedUntil          DateTime?                         @map("snoozed_until")
+  acknowledgedAt        DateTime?                         @map("acknowledged_at")
+  acknowledgedByAdmin   User?                             @relation("AdminNotificationAcknowledgedBy", fields: [acknowledgedByAdminId], references: [id], onDelete: SetNull)
+  acknowledgedByAdminId String?                           @map("acknowledged_by_admin_id")
+  resolvedAt            DateTime?                         @map("resolved_at")
+  resolvedByAdmin       User?                             @relation("AdminNotificationResolvedBy", fields: [resolvedByAdminId], references: [id], onDelete: SetNull)
+  resolvedByAdminId     String?                           @map("resolved_by_admin_id")
+  metadata              Json                              @default("{}")
+  audits                AdminNotificationAudit[]
+  createdAt             DateTime                          @default(now()) @map("created_at")
+  updatedAt             DateTime                          @updatedAt @map("updated_at")
+
+  @@index([recipientAdminId, status, createdAt])
+  @@index([recipientAdminId, severity, createdAt])
+  @@index([dedupeKey])
+  @@index([lastSeenAt])
+  @@index([status, snoozedUntil])
+  @@index([tenantId])
+  @@map("admin_notifications")
+}
+
+model AdminNotificationAudit {
+  id             String                    @id @default(uuid())
+  notification   AdminNotification         @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  notificationId String                    @map("notification_id")
+  actorAdmin     User                      @relation("AdminNotificationAuditActor", fields: [actorAdminId], references: [id], onDelete: Cascade)
+  actorAdminId   String                    @map("actor_admin_id")
+  action         String
+  fromStatus     AdminNotificationStatus?  @map("from_status")
+  toStatus       AdminNotificationStatus?  @map("to_status")
+  details        Json                      @default("{}")
+  createdAt      DateTime                  @default(now()) @map("created_at")
+
+  @@index([notificationId, createdAt])
+  @@map("admin_notification_audits")
+}
+
+model AdminNotificationRule {
+  id                  String                            @id @default(uuid())
+  eventType           String                            @unique @map("event_type")
+  defaultSeverity     AdminNotificationSeverity         @map("default_severity")
+  defaultType         AdminNotificationType             @map("default_type")
+  enabled             Boolean                           @default(true)
+  recipientStrategy   AdminNotificationRecipientStrategy @map("recipient_strategy")
+  roleKey             String?                           @map("role_key")
+  dedupeStrategy      AdminNotificationDedupeStrategy   @map("dedupe_strategy")
+  dedupeWindowSeconds Int                               @default(300) @map("dedupe_window_seconds")
+  templateTitle       String                            @map("template_title")
+  templateMessage     String                            @map("template_message")
+  metadataTemplate    Json                              @default("{}") @map("metadata_template")
+  createdAt           DateTime                          @default(now()) @map("created_at")
+  updatedAt           DateTime                          @updatedAt @map("updated_at")
+
+  @@index([eventType, enabled])
+  @@map("admin_notification_rules")
+}
+
+model AdminIncident {
+  id               String                  @id @default(uuid())
+  title            String
+  status           AdminIncidentStatus     @default(ACTIVE)
+  severity         AdminNotificationSeverity
+  startedAt        DateTime                @default(now()) @map("started_at")
+  resolvedAt       DateTime?               @map("resolved_at")
+  summary          String?
+  createdByAdmin   User?                   @relation("AdminIncidentCreator", fields: [createdByAdminId], references: [id], onDelete: SetNull)
+  createdByAdminId String?                 @map("created_by_admin_id")
+  createdAt        DateTime                @default(now()) @map("created_at")
+  updatedAt        DateTime                @updatedAt @map("updated_at")
+
+  @@index([status, startedAt])
+  @@map("admin_incidents")
+}
+
 model AiConversation {
   id            String   @id @default(cuid())
   user          User     @relation(fields: [userId], references: [id])
@@ -740,6 +1792,77 @@ model AnalyticsEvent {
   @@index([userId, createdAt])
   @@index([workspaceId, type, day])
   @@index([orgId])
+}
+
+model UsageEvent {
+  id             String           @id @default(uuid())
+  org            Business         @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId          String
+  user           User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId         String?
+  featureKey     UsageFeatureKey
+  quantity       Int
+  occurredAt     DateTime
+  cycleKey       String
+  idempotencyKey String
+  source         UsageEventSource @default(APP)
+  metadata       Json?
+  createdAt      DateTime         @default(now())
+
+  @@unique([orgId, idempotencyKey])
+  @@index([orgId, occurredAt])
+  @@index([orgId, cycleKey])
+  @@index([orgId, featureKey])
+}
+
+model UsageDailyRollup {
+  id            String          @id @default(uuid())
+  org           Business        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId         String
+  featureKey    UsageFeatureKey
+  day           DateTime
+  cycleKey      String
+  totalQuantity Int
+  updatedAt     DateTime        @updatedAt
+
+  @@unique([orgId, featureKey, day, cycleKey])
+  @@index([orgId, cycleKey, day])
+}
+
+model UsageCycleTotal {
+  id           String          @id @default(uuid())
+  org          Business        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId        String
+  featureKey   UsageFeatureKey
+  cycleKey     String
+  usedQuantity Int             @default(0)
+  updatedAt    DateTime        @updatedAt
+
+  @@unique([orgId, featureKey, cycleKey])
+  @@index([orgId, cycleKey])
+}
+
+model OrgSubscription {
+  id                    String                @id @default(uuid())
+  org                   Business              @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId                 String                @unique
+  planId                SubscriptionPlan
+  status                OrgSubscriptionStatus @default(ACTIVE)
+  billingInterval       OrgBillingInterval    @default(MONTHLY)
+  provider              PaymentProvider?
+  providerCustomerId    String?
+  providerSubscriptionId String?
+  paidThroughAt         DateTime?
+  usageCycleAnchorDay   Int
+  activationTimestamp   DateTime
+  currentCycleStartAt   DateTime
+  currentCycleEndAt     DateTime
+  apiAccessEnabled      Boolean               @default(false)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@index([status])
+  @@index([currentCycleEndAt])
 }
 
 model Transaction {

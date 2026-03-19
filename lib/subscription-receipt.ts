@@ -3,7 +3,7 @@ import path from "path";
 import { existsSync, readFileSync } from "fs";
 import fs from "fs/promises";
 import { prisma } from "./prisma";
-import { sendEmail } from "./email";
+import { sendBillingMail } from "./email";
 import { log } from "./logger";
 import { formatCurrency } from "./currency";
 import { formatDateDMY } from "./date";
@@ -400,7 +400,7 @@ export async function maybeSendSubscriptionReceipt({
     </div>
   `;
 
-  await sendEmail({
+  await sendBillingMail({
     to: user.email,
     subject,
     html,

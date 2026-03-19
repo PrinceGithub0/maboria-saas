@@ -1,61 +1,62 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import path from "path";
-import fs from "fs/promises";
+import { requireOrgPermission } from "@/lib/org-auth";
+import {
+  canFallbackBusinessLogoStorage,
+  deleteLegacyBusinessLogoFiles,
+  readBusinessLogoInfo,
+  writeLegacyBusinessLogoFile,
+} from "@/lib/business-logo";
+import { prisma } from "@/lib/prisma";
 
-const LOGO_DIR = path.join(process.cwd(), "uploads", "business-logos");
 const MAX_LOGO_SIZE = 2 * 1024 * 1024;
-const ALLOWED_TYPES: Record<string, string> = {
-  "image/png": "png",
-  "image/jpeg": "jpg",
-  "image/svg+xml": "svg",
-};
+const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/svg+xml"]);
 
-const findLogoFile = async (userId: string) => {
-  try {
-    const files = await fs.readdir(LOGO_DIR);
-    const match = files.find((file) => file.startsWith(`${userId}.`));
-    return match ? path.join(LOGO_DIR, match) : null;
-  } catch {
-    return null;
+async function requireSessionAndOrg(permission: "settings:business:read" | "settings:business:write") {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
   }
-};
 
-const getContentType = (filePath: string) => {
-  const ext = path.extname(filePath).toLowerCase();
-  if (ext === ".png") return "image/png";
-  if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
-  if (ext === ".svg") return "image/svg+xml";
-  return "application/octet-stream";
-};
+  const access = await requireOrgPermission(session.user.id, {
+    permission,
+    requireActiveSubscription: true,
+  });
+
+  if (!access.ok) {
+    return {
+      error: NextResponse.json({ error: access.message, code: access.code }, { status: access.status }),
+    };
+  }
+
+  return {
+    userId: access.context.ownerUserId,
+    actorUserId: session.user.id,
+  };
+}
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const access = await requireSessionAndOrg("settings:business:read");
+  if (access.error) return access.error;
 
-  const filePath = await findLogoFile(session.user.id);
-  if (!filePath) {
+  const info = await readBusinessLogoInfo(access.userId);
+  if (!info) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const buffer = await fs.readFile(filePath);
-  return new NextResponse(buffer, {
+  return new NextResponse(new Uint8Array(info.buffer), {
     status: 200,
     headers: {
-      "Content-Type": getContentType(filePath),
+      "Content-Type": info.mime,
       "Cache-Control": "private, max-age=0, must-revalidate",
     },
   });
 }
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const access = await requireSessionAndOrg("settings:business:write");
+  if (access.error) return access.error;
 
   const formData = await req.formData();
   const file = formData.get("logo");
@@ -63,8 +64,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Logo file missing" }, { status: 400 });
   }
 
-  const extension = ALLOWED_TYPES[file.type];
-  if (!extension) {
+  if (!ALLOWED_TYPES.has(file.type)) {
     return NextResponse.json({ error: "Unsupported file type" }, { status: 400 });
   }
   if (file.size > MAX_LOGO_SIZE) {
@@ -74,39 +74,54 @@ export async function POST(req: Request) {
     );
   }
 
-  await fs.mkdir(LOGO_DIR, { recursive: true });
-  const existing = await fs.readdir(LOGO_DIR).catch(() => []);
-  await Promise.all(
-    existing
-      .filter((name) => name.startsWith(`${session.user.id}.`))
-      .map((name) => fs.unlink(path.join(LOGO_DIR, name)).catch(() => undefined))
-  );
+  const profile = await prisma.businessProfile.findUnique({
+    where: { userId: access.userId },
+    select: { id: true, updatedAt: true },
+  });
+  if (!profile) {
+    return NextResponse.json({ error: "Business profile not found" }, { status: 404 });
+  }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const filename = `${session.user.id}.${extension}`;
-  const filePath = path.join(LOGO_DIR, filename);
-  await fs.writeFile(filePath, buffer);
+  let url: string;
+  try {
+    const updated = await prisma.businessProfile.update({
+      where: { userId: access.userId },
+      data: {
+        logoData: buffer,
+        logoMimeType: file.type,
+      },
+      select: { updatedAt: true },
+    });
+    await deleteLegacyBusinessLogoFiles(access.userId);
+    url = `/api/business-profile/logo?v=${updated.updatedAt.getTime()}`;
+  } catch (error) {
+    if (!canFallbackBusinessLogoStorage(error)) throw error;
+    url = await writeLegacyBusinessLogoFile(access.userId, file.type, buffer);
+  }
 
-  const stat = await fs.stat(filePath);
   return NextResponse.json({
     success: true,
-    url: `/api/business-profile/logo?v=${stat.mtimeMs}`,
+    url,
   });
 }
 
 export async function DELETE() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const access = await requireSessionAndOrg("settings:business:write");
+  if (access.error) return access.error;
 
-  await fs.mkdir(LOGO_DIR, { recursive: true });
-  const existing = await fs.readdir(LOGO_DIR).catch(() => []);
-  await Promise.all(
-    existing
-      .filter((name) => name.startsWith(`${session.user.id}.`))
-      .map((name) => fs.unlink(path.join(LOGO_DIR, name)).catch(() => undefined))
-  );
+  try {
+    await prisma.businessProfile.updateMany({
+      where: { userId: access.userId },
+      data: {
+        logoData: null,
+        logoMimeType: null,
+      },
+    });
+  } catch (error) {
+    if (!canFallbackBusinessLogoStorage(error)) throw error;
+  }
+  await deleteLegacyBusinessLogoFiles(access.userId);
 
   return NextResponse.json({ success: true });
 }

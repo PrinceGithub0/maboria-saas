@@ -16,6 +16,16 @@ function normalizeVerifyStatus(status: unknown): ViewState {
   return "failed";
 }
 
+type CheckoutStatusPayload = {
+  checkout?: {
+    status?: string | null;
+    provider?: string | null;
+    plan?: string | null;
+    billingCycle?: string | null;
+    currency?: string | null;
+  } | null;
+};
+
 export default function CheckoutReturnPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -56,8 +66,13 @@ export default function CheckoutReturnPage() {
       return "failed";
     }
 
-    const checkoutStatus = await checkoutStatusRes.json().catch(() => ({}));
+    const checkoutStatus = (await checkoutStatusRes.json().catch(() => ({}))) as CheckoutStatusPayload;
     const provider = String(checkoutStatus?.checkout?.provider || "").toLowerCase();
+    const checkoutState = String(checkoutStatus?.checkout?.status || "").toUpperCase();
+
+    if (provider === "stripe") {
+      return normalizeVerifyStatus(checkoutState === "SUCCESS" ? "success" : checkoutState === "FAILED" || checkoutState === "ABANDONED" ? "failed" : "pending");
+    }
 
     if (provider === "paystack") {
       verification = await verifyViaApi({ provider: "paystack", reference });
@@ -93,27 +108,53 @@ export default function CheckoutReturnPage() {
   const handleRetryPayment = useCallback(async () => {
     try {
       setRetrying(true);
-      const endpoints = ["/api/billing/create-session", "/api/checkout"];
-      for (const endpoint of endpoints) {
-        const res = await fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
-        });
-        const data = await res.json().catch(() => ({}));
-        const checkoutUrl = data?.checkoutUrl || data?.redirectUrl;
-        if (res.ok && checkoutUrl) {
-          window.location.href = checkoutUrl;
-          return;
-        }
+      if (!reference) {
+        setMessage("Missing payment reference.");
+        return;
       }
-      setMessage("Unable to start a secure retry right now.");
+
+      const statusRes = await fetch(`/api/checkout/status?reference=${encodeURIComponent(reference)}`, {
+        cache: "no-store",
+      });
+      const statusData = (await statusRes.json().catch(() => ({}))) as CheckoutStatusPayload;
+
+      if (!statusRes.ok || !statusData?.checkout?.plan || !statusData?.checkout?.billingCycle) {
+        setMessage("Unable to restore your checkout details for retry.");
+        return;
+      }
+
+      const provider = String(statusData.checkout.provider || "").toUpperCase();
+      const payload = {
+        selectedPlan: statusData.checkout.plan,
+        billingCycle: statusData.checkout.billingCycle,
+        currency: statusData.checkout.currency || undefined,
+        provider:
+          provider === "PAYSTACK" || provider === "FLUTTERWAVE" || provider === "STRIPE"
+            ? provider
+            : undefined,
+      };
+
+      const res = await fetch("/api/checkout/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      const checkoutUrl = data?.checkoutUrl || data?.redirectUrl;
+      if (res.ok && checkoutUrl) {
+        window.location.href = checkoutUrl;
+        return;
+      }
+
+      setMessage(
+        typeof data?.error === "string" ? data.error : "Unable to start a secure retry right now."
+      );
     } catch {
       setMessage("Unable to start a secure retry right now.");
     } finally {
       setRetrying(false);
     }
-  }, []);
+  }, [reference]);
 
   useEffect(() => {
     runVerification();

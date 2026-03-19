@@ -2,19 +2,35 @@ export function Table<T>({
   columns,
   data,
   keyExtractor,
+  align = "left",
 }: {
-  columns: { key: keyof T; label: string; render?: (row: T) => React.ReactNode }[];
+  columns: {
+    key: keyof T;
+    label: string;
+    render?: (row: T) => React.ReactNode;
+    align?: "left" | "center" | "right";
+  }[];
   data: T[];
   keyExtractor: (row: T) => string;
+  align?: "left" | "center" | "right";
 }) {
+  const getAlignmentClass = (columnAlign?: "left" | "center" | "right") => {
+    const resolvedAlign = columnAlign ?? align;
+    return resolvedAlign === "center"
+      ? "text-center"
+      : resolvedAlign === "right"
+        ? "text-right"
+        : "text-left";
+  };
+
   return (
-    <div className="overflow-hidden rounded-[18px] border border-border/30 bg-transparent max-md:border-transparent max-md:bg-transparent dark:max-md:bg-transparent">
+    <div className="overflow-visible rounded-[18px] border border-border/30 bg-transparent max-md:border-transparent max-md:bg-transparent dark:max-md:bg-transparent">
       <div className="hidden md:block">
         <table className="w-full border-collapse bg-card text-sm text-foreground">
           <thead>
-            <tr className="bg-transparent text-left text-[11px] uppercase tracking-[0.24em] text-muted-foreground">
+            <tr className="bg-muted/35 text-[11px] uppercase tracking-[0.2em] text-slate-700 dark:bg-white/[0.03] dark:text-slate-300">
               {columns.map((col) => (
-                <th key={String(col.key)} className="px-6 py-3 font-bold">
+                <th key={String(col.key)} className={`px-6 py-3 font-semibold ${getAlignmentClass(col.align)}`}>
                   {col.label}
                 </th>
               ))}
@@ -24,10 +40,10 @@ export function Table<T>({
             {data.map((row) => (
               <tr
                 key={keyExtractor(row)}
-                className="border-t border-border/30 transition-colors hover:bg-muted/20"
+                className="border-t border-border/30 transition-colors hover:bg-muted/35"
               >
                 {columns.map((col) => (
-                  <td key={String(col.key)} className="px-6 py-4">
+                  <td key={String(col.key)} className={`px-6 py-4 ${getAlignmentClass(col.align)}`}>
                     {col.render ? col.render(row) : (row[col.key] as any)}
                   </td>
                 ))}

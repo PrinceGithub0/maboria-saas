@@ -9,8 +9,8 @@ type PricingMeta = { usd?: number; ngn?: number; displayName: string; features: 
 // Pricing is intentionally kept as a small, hardcoded table so UI can render without a DB dependency.
 // "BUSINESS" is the canonical plan name; "PREMIUM" is kept as a legacy alias for older data.
 const businessMeta: PricingMeta = {
-  ngn: 187050,
-  usd: 129,
+  ngn: 361050,
+  usd: 249,
   displayName: "Business",
   features: [
     "Invoices: 3,000 / month",
@@ -25,8 +25,8 @@ const businessMeta: PricingMeta = {
 
 const pricingTable: Record<Plan, PricingMeta> = {
   STARTER: {
-    ngn: 24650,
-    usd: 17,
+    ngn: 42050,
+    usd: 29,
     displayName: "Starter",
     features: [
       "Invoices: 50 / month",
@@ -38,8 +38,8 @@ const pricingTable: Record<Plan, PricingMeta> = {
     ],
   },
   PRO: {
-    ngn: 56550,
-    usd: 39,
+    ngn: 85550,
+    usd: 59,
     displayName: "Pro",
     features: [
       "Invoices: 300 / month",
@@ -50,8 +50,8 @@ const pricingTable: Record<Plan, PricingMeta> = {
     ],
   },
   GROWTH: {
-    ngn: 100050,
-    usd: 69,
+    ngn: 172550,
+    usd: 119,
     displayName: "Growth",
     features: [
       "Invoices: 1,000 / month",

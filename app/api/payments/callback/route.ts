@@ -4,7 +4,6 @@ import { withRequestLogging } from "@/lib/request-logger";
 import { getPlanFromAmountWithInterval, type BillingInterval } from "@/lib/pricing";
 import { fromMinorUnits } from "@/lib/payments/currency-allowlist";
 import { log } from "@/lib/logger";
-import { prisma } from "@/lib/prisma";
 import { subscriptionPlanToUserPlan } from "@/lib/entitlements";
 import {
   recordPaystackPayment,
@@ -17,15 +16,6 @@ import {
   verifyFlutterwaveTransactionByReference,
   normalizeFlutterwavePaymentMethod,
 } from "@/lib/payments/flutterwave";
-
-function buildPeriodWindow(interval: BillingInterval) {
-  const currentPeriodStart = new Date();
-  const currentPeriodEnd =
-    interval === "yearly"
-      ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
-      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-  return { currentPeriodStart, currentPeriodEnd };
-}
 
 function redirectWithStatus(origin: string, provider: string, status: string, params?: Record<string, string>) {
   const url = new URL("/dashboard", origin);
@@ -81,39 +71,6 @@ export const GET = withRequestLogging(withErrorHandling(async (req: Request) => 
     await recordPaystackPayment(data);
 
     if (userId && (normalizedPlan === "STARTER" || normalizedPlan === "PRO" || normalizedPlan === "GROWTH" || normalizedPlan === "BUSINESS")) {
-      const { currentPeriodStart, currentPeriodEnd } = buildPeriodWindow(interval);
-      const renewalDate = currentPeriodEnd;
-      const existingForPlan = await prisma.subscription.findFirst({
-        where: { userId, plan: normalizedPlan },
-        orderBy: { createdAt: "desc" },
-      });
-      if (existingForPlan) {
-        await prisma.subscription.update({
-          where: { id: existingForPlan.id },
-          data: {
-            status: "ACTIVE",
-            renewalDate,
-            currency,
-            interval,
-            plan: normalizedPlan,
-            currentPeriodStart,
-            currentPeriodEnd,
-          },
-        });
-      } else {
-        await prisma.subscription.create({
-          data: {
-            userId,
-            plan: normalizedPlan,
-            status: "ACTIVE",
-            renewalDate,
-            currency,
-            interval,
-            currentPeriodStart,
-            currentPeriodEnd,
-          },
-        });
-      }
       log("info", "paystack_subscription_synced", { userId, plan: normalizedPlan, status: "ACTIVE", source: "callback" });
       const newPlan = subscriptionPlanToUserPlan(normalizedPlan);
       log("info", "billing_plan_transition", {
@@ -170,39 +127,6 @@ export const GET = withRequestLogging(withErrorHandling(async (req: Request) => 
   });
 
   if (userId && (normalizedPlan === "STARTER" || normalizedPlan === "PRO" || normalizedPlan === "GROWTH" || normalizedPlan === "BUSINESS")) {
-    const { currentPeriodStart, currentPeriodEnd } = buildPeriodWindow(interval);
-    const renewalDate = currentPeriodEnd;
-    const existingForPlan = await prisma.subscription.findFirst({
-      where: { userId, plan: normalizedPlan },
-      orderBy: { createdAt: "desc" },
-    });
-    if (existingForPlan) {
-      await prisma.subscription.update({
-        where: { id: existingForPlan.id },
-        data: {
-          status: "ACTIVE",
-          renewalDate,
-          currency,
-          interval,
-          plan: normalizedPlan,
-          currentPeriodStart,
-          currentPeriodEnd,
-        },
-      });
-    } else {
-      await prisma.subscription.create({
-        data: {
-          userId,
-          plan: normalizedPlan,
-          status: "ACTIVE",
-          renewalDate,
-          currency,
-          interval,
-          currentPeriodStart,
-          currentPeriodEnd,
-        },
-      });
-    }
     log("info", "flutterwave_subscription_synced", { userId, plan: normalizedPlan, status: "ACTIVE", source: "callback" });
     const newPlan = subscriptionPlanToUserPlan(normalizedPlan);
     log("info", "billing_plan_transition", {

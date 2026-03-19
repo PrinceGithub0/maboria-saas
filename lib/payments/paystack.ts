@@ -7,7 +7,7 @@ import { env } from "../env";
 import { notifyPaymentSucceeded } from "../whatsapp";
 import { maybeSendSubscriptionReceipt } from "../subscription-receipt";
 import { recordInvoicePayment } from "../invoice-payments";
-import { fromMinorUnits } from "./currency-allowlist";
+import { fromMinorUnits, toMinorUnits } from "./currency-allowlist";
 import type { BillingInterval } from "../pricing";
 import { finalizeSubscriptionPayment } from "./subscription";
 
@@ -89,6 +89,48 @@ export async function verifyPaystackTransaction(reference: string) {
     const err = await res.text();
     throw new Error(`Paystack verify failed: ${err}`);
   }
+  return res.json();
+}
+
+export async function createPaystackRefund({
+  transaction,
+  amount,
+  currency,
+  customerNote,
+  merchantNote,
+}: {
+  transaction: string | number;
+  amount?: number | null;
+  currency?: string | null;
+  customerNote?: string | null;
+  merchantNote?: string | null;
+}) {
+  const normalizedCurrency = String(currency || "").toUpperCase() || undefined;
+  const body: Record<string, unknown> = {
+    transaction,
+  };
+
+  if (typeof amount === "number" && Number.isFinite(amount) && amount > 0 && normalizedCurrency) {
+    body.amount = toMinorUnits(amount, normalizedCurrency);
+    body.currency = normalizedCurrency;
+  }
+  if (customerNote) body.customer_note = customerNote;
+  if (merchantNote) body.merchant_note = merchantNote;
+
+  const res = await fetch(`${PAYSTACK_BASE}/refund`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${PAYSTACK_SECRET}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Paystack refund failed: ${err}`);
+  }
+
   return res.json();
 }
 

@@ -8,7 +8,7 @@ import {
   verifyPaystackTransaction,
   recordPaystackPayment,
 } from "@/lib/payments/paystack";
-import { recordInvoicePayment } from "@/lib/invoice-payments";
+import { recordInvoicePayment, recordInvoicePaymentRefund } from "@/lib/invoice-payments";
 import { getPlanFromAmount, getPlanPriceForInterval, type BillingInterval } from "@/lib/pricing";
 import {
   beginWebhookEvent,
@@ -16,22 +16,14 @@ import {
   markWebhookFailed,
   markWebhookProcessed,
 } from "@/lib/webhook-events";
-import { getUserPlan, subscriptionPlanToUserPlan } from "@/lib/entitlements";
+import { emitSystemEvent } from "@/lib/system-events";
 import {
   fromMinorUnits,
   isAllowedCurrency,
   isProviderCurrency,
   normalizeCurrency,
 } from "@/lib/payments/currency-allowlist";
-
-function buildPeriodWindow(interval: BillingInterval) {
-  const currentPeriodStart = new Date();
-  const currentPeriodEnd =
-    interval === "yearly"
-      ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
-      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-  return { currentPeriodStart, currentPeriodEnd };
-}
+import { finalizeSubscriptionPayment } from "@/lib/payments/subscription";
 
 export const POST = withErrorHandling(async (req: Request) => {
   const signature = req.headers.get("x-paystack-signature") || "";
@@ -68,6 +60,19 @@ export const POST = withErrorHandling(async (req: Request) => {
 
   try {
     if (event && /dispute|refund|chargeback|reversal/i.test(event)) {
+      if (reference) {
+        await recordInvoicePaymentRefund({
+          provider: "PAYSTACK",
+          reference,
+          amount:
+            typeof data?.amount === "number"
+              ? fromMinorUnits(Number(data.amount || 0), data?.currency || "NGN")
+              : undefined,
+          currency: data?.currency || "NGN",
+          occurredAt: data?.paid_at || data?.transaction_date || new Date(),
+          rawPayload: data,
+        });
+      }
       const targetCheckout = reference
         ? await prisma.checkoutSession.findUnique({ where: { reference } })
         : null;
@@ -137,6 +142,21 @@ export const POST = withErrorHandling(async (req: Request) => {
               metadata: { provider: "PAYSTACK", event, reference },
             },
           });
+          await emitSystemEvent({
+            userId,
+            actorId: userId,
+            eventType: "subscription_failed",
+            severity: "WARNING",
+            source: "BILLING",
+            entityType: "subscription",
+            entityId: sub.id,
+            message: "Subscription payment failed.",
+            metadata: {
+              provider: "PAYSTACK",
+              event,
+              reference,
+            },
+          });
         }
       }
       await markWebhookProcessed(webhookEvent.id);
@@ -190,77 +210,17 @@ export const POST = withErrorHandling(async (req: Request) => {
       ? await prisma.checkoutSession.findUnique({ where: { reference } })
       : null;
     if (checkout) {
-      const interval: BillingInterval =
-        checkout.billingCycle === "yearly" ? "yearly" : "monthly";
-      const now = new Date();
-      const periodEnd =
-        interval === "yearly"
-          ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
-          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-      await prisma.$transaction(async (tx) => {
-        await tx.checkoutSession.update({
-          where: { id: checkout.id },
-          data: { status: "SUCCESS" },
-        });
-        await tx.subscription.update({
-          where: { id: checkout.subscriptionId },
-          data: {
-            status: "ACTIVE",
-            plan: checkout.plan,
-            provider: "PAYSTACK",
-            currentPeriodStart: now,
-            currentPeriodEnd: periodEnd,
-            autoRenew: true,
-            cancelAtPeriodEnd: false,
-            interval: checkout.billingCycle,
-            currency: checkout.currency,
-            renewalDate: periodEnd,
-          },
-        });
-        await tx.payment.create({
-          data: {
-            userId: checkout.userId,
-            amount: checkout.amount,
-            currency: checkout.currency,
-            provider: "PAYSTACK",
-            status: "SUCCEEDED",
-            reference,
-            metadata: {
-              type: "checkout_session",
-              checkoutSessionId: checkout.id,
-              subscriptionId: checkout.subscriptionId,
-            },
-          },
-        });
-        const invoiceNumber = `INV-${Date.now()}`;
-        await tx.invoice.create({
-          data: {
-            userId: checkout.userId,
-            subscriptionId: checkout.subscriptionId,
-            invoiceNumber,
-            items: [
-              {
-                name: `${checkout.plan} subscription (${checkout.billingCycle})`,
-                quantity: 1,
-                price: Number(checkout.amount),
-              },
-            ],
-            total: checkout.amount,
-            currency: checkout.currency,
-            status: "PAID",
-            plan: checkout.plan,
-            metadata: { checkoutSessionId: checkout.id },
-          },
-        });
-        await tx.activityLog.create({
-          data: {
-            userId: checkout.userId,
-            action: "PAYMENT_SUCCESS",
-            resourceType: "checkout_session",
-            resourceId: checkout.id,
-            metadata: { provider: "PAYSTACK", plan: checkout.plan },
-          },
-        });
+      await finalizeSubscriptionPayment({
+        provider: "PAYSTACK",
+        reference: reference!,
+        amount: Number(checkout.amount),
+        currency: checkout.currency,
+        userId: checkout.userId,
+        plan: checkout.plan,
+        interval: checkout.billingCycle,
+        paymentMethod: "Card",
+        verifiedAt: data?.paid_at || data?.paidAt || data?.transaction_date || new Date(),
+        rawPayload: data,
       });
       await markWebhookProcessed(webhookEvent.id);
       return NextResponse.json({ received: true, checkout: true });
@@ -339,67 +299,7 @@ export const POST = withErrorHandling(async (req: Request) => {
       return NextResponse.json({ error: "Amount verification failed" }, { status: 400 });
     }
 
-    const oldPlan = await getUserPlan(resolvedUserId);
     await recordPaystackPayment(data);
-
-    const { currentPeriodStart, currentPeriodEnd } = buildPeriodWindow(interval);
-    const renewalDate = currentPeriodEnd;
-    let subscriptionId: string | null = null;
-    await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${resolvedUserId}))`;
-      const existingForPlan = await tx.subscription.findFirst({
-        where: { userId: resolvedUserId, plan },
-        orderBy: { createdAt: "desc" },
-      });
-      if (existingForPlan) {
-        await tx.subscription.update({
-          where: { id: existingForPlan.id },
-          data: {
-            status: "ACTIVE",
-            renewalDate,
-            currency,
-            interval,
-            currentPeriodStart,
-            currentPeriodEnd,
-          },
-        });
-        subscriptionId = existingForPlan.id;
-      } else {
-        const created = await tx.subscription.create({
-          data: {
-            userId: resolvedUserId,
-            plan,
-            status: "ACTIVE",
-            renewalDate,
-            currency,
-            interval,
-            currentPeriodStart,
-            currentPeriodEnd,
-          },
-        });
-        subscriptionId = created.id;
-      }
-    });
-
-    const newPlan = subscriptionPlanToUserPlan(plan);
-    if (subscriptionId) {
-      await prisma.activityLog.create({
-        data: {
-          userId: resolvedUserId,
-          action: "SUBSCRIPTION_UPDATED",
-          resourceType: "subscription",
-          resourceId: subscriptionId,
-          metadata: { status: "ACTIVE", plan },
-        },
-      });
-    }
-    log("info", "billing_plan_transition", {
-      provider: "paystack",
-      event,
-      userId: resolvedUserId,
-      oldPlan,
-      newPlan,
-    });
     log("info", "paystack_webhook_processed", { reference, userId: resolvedUserId, plan });
     await markWebhookProcessed(webhookEvent.id);
     return NextResponse.json({ received: true });

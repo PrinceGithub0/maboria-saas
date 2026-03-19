@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { withErrorHandling } from "@/lib/api-handler";
 import { verifyAutomationAuditChain } from "@/lib/automation/audit";
+import { requireNoImpersonationMode, requirePlatformAdmin } from "@/lib/admin/admin-rbac";
 
 const readFlowId = (metadata: unknown) => {
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
@@ -14,9 +15,13 @@ const readFlowId = (metadata: unknown) => {
 
 export const GET = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const denied = requirePlatformAdmin(session?.user);
+  if (denied) return denied;
+  const impersonationBlocked = await requireNoImpersonationMode({
+    actorUserId: session!.user.id,
+    cookieHeader: req.headers.get("cookie"),
+  });
+  if (impersonationBlocked) return impersonationBlocked;
 
   const url = new URL(req.url);
   const flowId = String(url.searchParams.get("flowId") || "").trim();

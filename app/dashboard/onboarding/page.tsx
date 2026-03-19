@@ -7,14 +7,16 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CountrySelect } from "@/components/ui/country-select";
 import { PhoneInput } from "@/components/ui/phone-input";
-import { allowedCurrencies, formatCurrencyOption } from "@/lib/payments/currency-allowlist";
+import { BUSINESS_CURRENCIES, formatBusinessCurrencyOption } from "@/lib/business-currencies";
 import { useLanguage } from "@/components/providers/language-provider";
-
-const currencyOptions = allowedCurrencies.map((code) => ({ code, label: formatCurrencyOption(code) }));
 
 export default function OnboardingWizard() {
   const { language } = useLanguage();
   const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const currencyOptions = BUSINESS_CURRENCIES.map((code) => ({
+    code,
+    label: formatBusinessCurrencyOption(code),
+  }));
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
     businessName: "",
@@ -85,7 +87,7 @@ export default function OnboardingWizard() {
               onChange={(value) => setForm({ ...form, country: value })}
             />
             <label className="flex flex-col gap-1 text-sm text-foreground">
-              {t("Preferred currency", "Devise preferee")}
+              {t("Default business currency", "Devise entreprise par defaut")}
               <select
                 value={form.currency}
                 onChange={(e) => setForm({ ...form, currency: e.target.value })}

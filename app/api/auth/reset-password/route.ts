@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
-import { sendEmail } from "@/lib/email";
+import { sendSecurityMail } from "@/lib/email";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
 import { log } from "@/lib/logger";
@@ -75,7 +75,12 @@ export const POST = withRequestLogging(
 
       await tx.user.update({
         where: { id: user.id },
-        data: { passwordHash },
+        data: {
+          passwordHash,
+          requirePasswordReset: false,
+          emailVerified: new Date(),
+          status: "ACTIVE",
+        },
       });
 
       // Invalidate any remaining active reset links for the account.
@@ -99,7 +104,7 @@ export const POST = withRequestLogging(
     const baseUrl = resolveAppBaseUrl(req);
     const logoUrl = `${baseUrl}/branding/Maboria%20Company%20logo.png`;
     try {
-      await sendEmail({
+      await sendSecurityMail({
         to: user.email,
         subject: "Your password was updated",
         html: buildPasswordUpdatedEmailHtml({ logoUrl }),

@@ -1,6 +1,8 @@
 import "server-only";
 
 import { prisma } from "./prisma";
+import { getWorkspaceScope } from "@/lib/entitlements";
+import { recordUsageEvent, UsageFeatureApiKey } from "@/lib/usage/ledger";
 
 export type AnalyticsEventType =
   | "AI_REQUEST"
@@ -19,6 +21,7 @@ type RecordAnalyticsParams = {
   tokenCount?: number;
   createdAt?: Date;
   source?: string;
+  idempotencyKey?: string;
 };
 
 function toUtcDay(value: Date) {
@@ -36,6 +39,7 @@ export async function recordAnalyticsEvent({
   tokenCount,
   createdAt,
   source = "system",
+  idempotencyKey,
 }: RecordAnalyticsParams) {
   const timestamp = createdAt ?? new Date();
   const day = toUtcDay(timestamp);
@@ -67,10 +71,20 @@ export async function recordAnalyticsEvent({
         createdAt: timestamp,
       },
     });
+    await maybeWriteUsageEvent({
+      userId,
+      orgId,
+      workspaceId,
+      type: resolvedType,
+      count: incrementCount || 1,
+      createdAt: timestamp,
+      source,
+      idempotencyKey,
+    });
     return;
   }
 
-  await prisma.analyticsEvent.create({
+  const created = await prisma.analyticsEvent.create({
     data: {
       userId,
       workspaceId: resolvedWorkspaceId,
@@ -82,5 +96,81 @@ export async function recordAnalyticsEvent({
       source,
       createdAt: timestamp,
     },
+  });
+
+  await maybeWriteUsageEvent({
+    userId,
+    orgId,
+    workspaceId,
+    type: resolvedType,
+    count: incrementCount || 1,
+    createdAt: timestamp,
+    source,
+    idempotencyKey: idempotencyKey ?? `analytics:${created.id}`,
+  });
+}
+
+async function resolveOrgId({
+  userId,
+  orgId,
+  workspaceId,
+}: {
+  userId: string;
+  orgId?: string | null;
+  workspaceId?: string | null;
+}) {
+  const directId = orgId || workspaceId;
+  if (directId) {
+    const business = await prisma.business.findUnique({
+      where: { id: directId },
+      select: { id: true },
+    });
+    if (business?.id) return business.id;
+  }
+  const scope = await getWorkspaceScope(userId);
+  return scope.businessId ?? null;
+}
+
+function mapAnalyticsTypeToUsageFeature(type: AnalyticsEventType): UsageFeatureApiKey | null {
+  if (type === "AI_REQUEST") return "ai_requests";
+  if (type === "INVOICE_SENT") return "invoices";
+  if (type === "AUTOMATION_RUN") return "automations_runs";
+  if (type === "WHATSAPP_MESSAGE" || type === "WHATSAPP_MESSAGE_SENT") return "whatsapp_messages";
+  return null;
+}
+
+async function maybeWriteUsageEvent({
+  userId,
+  orgId,
+  workspaceId,
+  type,
+  count,
+  createdAt,
+  source,
+  idempotencyKey,
+}: {
+  userId: string;
+  orgId?: string | null;
+  workspaceId?: string | null;
+  type: AnalyticsEventType;
+  count: number;
+  createdAt: Date;
+  source: string;
+  idempotencyKey?: string;
+}) {
+  const featureKey = mapAnalyticsTypeToUsageFeature(type);
+  if (!featureKey || !idempotencyKey) return;
+
+  const resolvedOrgId = await resolveOrgId({ userId, orgId, workspaceId });
+  if (!resolvedOrgId) return;
+
+  await recordUsageEvent({
+    orgId: resolvedOrgId,
+    userId,
+    featureKey,
+    quantity: count,
+    occurredAt: createdAt,
+    source: source === "webhook" ? "WEBHOOK" : source === "system" ? "SYSTEM" : "APP",
+    idempotencyKey,
   });
 }

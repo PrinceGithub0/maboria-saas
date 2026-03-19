@@ -4,24 +4,29 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { enforceEntitlement } from "@/lib/entitlements";
+import { requireBillingAccess } from "@/lib/permissions";
 import { InvoicePreview } from "@/components/invoices/invoice-preview";
 import { Alert } from "@/components/ui/alert";
 import {
-  calculateTotalsFromAmounts,
   resolveInvoiceCustomer,
   normalizeInvoiceItems,
   getBusinessLogoDataUrl,
+  resolveInvoiceBusinessSnapshot,
+  resolveStoredInvoiceTotals,
 } from "@/lib/invoice";
 import { isAllowedCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
 import { LangText } from "@/components/ui/lang-text";
 import { getOrCreateInvoicePublicLink } from "@/lib/invoice-public-link";
-import { normalizeVatSettings } from "@/lib/vat";
+import { deriveInvoiceDisplayStatus } from "@/lib/invoice-refund-status";
 
 type PageProps = {
   searchParams?: Record<string, string | string[] | undefined>;
 };
 
 export const dynamic = "force-dynamic";
+
+const isPayableStatus = (status: string) => ["SENT", "OVERDUE", "FAILED"].includes(String(status || "").toUpperCase());
+const isFinalStatus = (status: string) => ["PAID", "CANCELED", "EXPIRED"].includes(String(status || "").toUpperCase());
 
 export default async function InvoiceDetailPage({ searchParams }: PageProps) {
   const t = (en: string, fr: string) => <LangText en={en} fr={fr} />;
@@ -34,6 +39,15 @@ export default async function InvoiceDetailPage({ searchParams }: PageProps) {
   if (!userId) {
     redirect("/login");
   }
+  const access = await requireBillingAccess(userId);
+  if (!access.ok) {
+    return (
+      <div className="space-y-6">
+        <Alert variant="error">{t("Access denied.", "Acces refuse.")}</Alert>
+      </div>
+    );
+  }
+  const targetUserId = access.ownerUserId;
 
   const resolvedSearchParams = await Promise.resolve(searchParams);
   const readParam = (value?: string | string[]) =>
@@ -68,7 +82,7 @@ export default async function InvoiceDetailPage({ searchParams }: PageProps) {
     );
   }
 
-  const entitlement = await enforceEntitlement(userId, {
+  const entitlement = await enforceEntitlement(targetUserId, {
     feature: "invoices",
     requiredPlan: "starter",
     allowTrial: false,
@@ -86,12 +100,23 @@ export default async function InvoiceDetailPage({ searchParams }: PageProps) {
 
   const invoice = await prisma.invoice.findFirst({
     where: {
-      userId,
+      userId: targetUserId,
       OR: candidates.flatMap((value) => [
         { id: value },
         { invoiceNumber: value },
         { invoiceNumber: { equals: value, mode: "insensitive" } },
+        { metadata: { path: ["invoiceNumberAliases"], array_contains: [value] } },
       ]),
+    },
+    include: {
+      invoicePayments: {
+        select: {
+          status: true,
+          refundOfId: true,
+          amount: true,
+          amountOriginal: true,
+        },
+      },
     },
   });
 
@@ -117,57 +142,57 @@ export default async function InvoiceDetailPage({ searchParams }: PageProps) {
   const normalizedCurrency = normalizeCurrency(invoice.currency || "USD");
   const currencyAllowed = isAllowedCurrency(normalizedCurrency);
   const metadata = (invoice.metadata as any) || {};
-  let business = metadata.businessProfile;
+  const businessSnapshot = resolveInvoiceBusinessSnapshot(invoice);
   const customer = resolveInvoiceCustomer(metadata);
   const note = typeof metadata?.note === "string" ? metadata.note : null;
+  const poNumber =
+    typeof invoice.poNumber === "string" && invoice.poNumber.trim()
+      ? invoice.poNumber.trim()
+      : typeof metadata?.poNumber === "string" && metadata.poNumber.trim()
+        ? metadata.poNumber.trim()
+        : null;
   const dueDateValue = metadata?.dueDate ? new Date(metadata.dueDate) : undefined;
   const dueDate = dueDateValue && !Number.isNaN(dueDateValue.getTime()) ? dueDateValue : undefined;
-  const profile = await prisma.businessProfile.findUnique({
-    where: { userId },
-    select: {
-      businessName: true,
-      country: true,
-      defaultCurrency: true,
-      businessAddress: true,
-      businessEmail: true,
-      businessPhone: true,
-      taxId: true,
-      vatEnabled: true,
-      vatRate: true,
-      vatPricingMode: true,
-    },
-  });
-  if (profile) {
-    business = profile;
-  }
-  if (business?.businessName && JSON.stringify(metadata.businessProfile || {}) !== JSON.stringify(business)) {
-    await prisma.invoice.update({
-      where: { id: invoice.id },
-      data: {
-        metadata: {
-          ...metadata,
-          businessProfile: business,
+  const profile = businessSnapshot
+    ? null
+    : await prisma.businessProfile.findUnique({
+        where: { userId: targetUserId },
+        select: {
+          businessName: true,
+          country: true,
+          defaultCurrency: true,
+          businessAddress: true,
+          businessEmail: true,
+          businessPhone: true,
+          taxId: true,
+          vatEnabled: true,
+          vatRate: true,
+          vatRateDisplay: true,
+          vatPricingMode: true,
         },
-      },
-    });
-  }
+      });
+  const normalizedProfile = profile
+    ? {
+        ...profile,
+        vatRate: profile.vatRate !== null && profile.vatRate !== undefined ? Number(profile.vatRate) : null,
+      }
+    : null;
+  const business = resolveInvoiceBusinessSnapshot(invoice, normalizedProfile);
   const businessMissing = !business?.businessName;
   const items = normalizeInvoiceItems(invoice.items);
-  const vatSettings = normalizeVatSettings({
-    enabled: business?.vatEnabled ?? false,
-    rate: business?.vatRate ? Number(business.vatRate) : 0,
-    mode:
-      String(business?.vatPricingMode || "EXCLUSIVE").toLowerCase() === "inclusive"
-        ? "inclusive"
-        : "exclusive",
-  });
-  const totals = calculateTotalsFromAmounts(items, vatSettings, Number(invoice.discount || 0));
+  const totals = resolveStoredInvoiceTotals(invoice, business);
+  const lateFeeAmount = Number(invoice.lateFeeTotalAccumulated || invoice.lateFeeAmount || 0);
+  const totalDue = Number(invoice.total || 0);
   const publicLink = await getOrCreateInvoicePublicLink(invoice.id);
-  const paymentLink = `/pay/invoice/${encodeURIComponent(publicLink.token)}`;
-  const logoDataUrl = getBusinessLogoDataUrl(invoice.userId || userId);
+  const paymentLink =
+    isPayableStatus(invoice.status) && !isFinalStatus(invoice.status)
+      ? `/api/invoice/pay/${encodeURIComponent(publicLink.token)}`
+      : null;
+  const logoDataUrl = await getBusinessLogoDataUrl(invoice.userId || targetUserId);
   const downloadUrl = `/api/invoice/${encodeURIComponent(
     String(invoice.id)
   )}/pdf?fresh=1&v=${invoice.generatedAt?.getTime?.() ?? Date.now()}`;
+  const displayStatus = deriveInvoiceDisplayStatus(invoice);
 
   return (
     <div className="space-y-6">
@@ -227,17 +252,21 @@ export default async function InvoiceDetailPage({ searchParams }: PageProps) {
       {currencyAllowed && !businessMissing ? (
         <InvoicePreview
           invoiceNumber={invoice.invoiceNumber}
-          status={invoice.status}
+          poNumber={poNumber}
+          status={displayStatus}
           issuedAt={invoice.generatedAt}
           dueDate={dueDate}
           currency={normalizedCurrency}
           items={items}
           totals={totals}
+          lateFeeAmount={lateFeeAmount}
+          totalDue={totalDue}
           paymentLink={paymentLink}
           logoDataUrl={logoDataUrl}
           business={business}
           billTo={customer}
           note={note}
+          variant="dashboard"
         />
       ) : null}
     </div>

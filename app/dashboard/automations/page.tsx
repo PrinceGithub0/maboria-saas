@@ -128,9 +128,9 @@ export default function AutomationsPage() {
 
   const getStatusClass = (status?: string) => {
     const normalized = normalizeAutomationStatus(status);
-    if (normalized === "ACTIVE") return "bg-emerald-100 text-emerald-700";
-    if (normalized === "PAUSED") return "bg-amber-100 text-amber-700";
-    return "bg-slate-100 text-slate-700";
+    if (normalized === "ACTIVE") return "bg-emerald-100 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300";
+    if (normalized === "PAUSED") return "bg-amber-100 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300";
+    return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200";
   };
 
   const formatRelativeTime = (value?: string) => {
@@ -277,11 +277,11 @@ export default function AutomationsPage() {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-[1220px] space-y-8 bg-slate-50 px-4 py-6 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-[1220px] space-y-8 bg-slate-50 px-4 py-6 dark:bg-transparent sm:px-6 lg:px-8">
       <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">{t("Automation", "Automation")}</h1>
-          <p className="text-sm text-slate-600">
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">{t("Automation", "Automation")}</h1>
+          <p className="text-sm text-slate-600 dark:text-slate-300">
             {t(
               "Create workflows that run your business automatically.",
               "Creez des workflows qui executent votre entreprise automatiquement."
@@ -298,15 +298,15 @@ export default function AutomationsPage() {
       </section>
 
       {statusMessage ? (
-        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">{statusMessage}</div>
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">{statusMessage}</div>
       ) : null}
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat) => (
-          <article key={stat.label} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{stat.label}</p>
-            <p className="mt-3 text-3xl font-semibold text-slate-900">{stat.value}</p>
-            <p className="mt-1 text-xs text-slate-500">{stat.subtext}</p>
+          <article key={stat.label} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">{stat.label}</p>
+            <p className="mt-3 text-3xl font-semibold text-slate-900 dark:text-slate-50">{stat.value}</p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{stat.subtext}</p>
           </article>
         ))}
       </section>
@@ -315,13 +315,13 @@ export default function AutomationsPage() {
         {isLoading ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="h-56 animate-pulse rounded-2xl border border-slate-200 bg-white shadow-sm" />
+              <div key={index} className="h-56 animate-pulse rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900" />
             ))}
           </div>
         ) : null}
 
         {flowsError ? (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-300">
             {resolveAutomationErrorMessage(
               (flowsError as any)?.data,
               t("Unable to load automations.", "Impossible de charger les automatisations."),
@@ -331,12 +331,12 @@ export default function AutomationsPage() {
         ) : null}
 
         {!isLoading && !flowsError && sortedFlows.length === 0 ? (
-          <div className="rounded-xl border border-slate-200 bg-white px-6 py-14 text-center shadow-sm">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500">
+          <div className="rounded-xl border border-slate-200 bg-white px-6 py-14 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
               <GitBranch className="h-5 w-5" />
             </div>
-            <h2 className="mt-4 text-lg font-semibold text-slate-900">{t("No automations yet", "Aucune automation")}</h2>
-            <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
+            <h2 className="mt-4 text-lg font-semibold text-slate-900 dark:text-slate-50">{t("No automations yet", "Aucune automation")}</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm text-slate-600 dark:text-slate-300">
               {t(
                 "Create your first workflow to start automating your business.",
                 "Creez votre premier workflow pour commencer a automatiser votre entreprise."
@@ -364,14 +364,14 @@ export default function AutomationsPage() {
               return (
                 <article
                   key={flowId}
-                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md"
+                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-2">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
                         <GitBranch className="h-4 w-4" />
                       </span>
-                      <h3 className="truncate text-lg font-semibold text-slate-900">
+                      <h3 className="truncate text-lg font-semibold text-slate-900 dark:text-slate-100">
                         {flow?.title || t("Untitled automation", "Automation sans titre")}
                       </h3>
                     </div>
@@ -380,14 +380,14 @@ export default function AutomationsPage() {
                     </span>
                   </div>
 
-                  <p className="mt-3 truncate text-sm text-slate-600">{resolveSummary(flow)}</p>
+                  <p className="mt-3 truncate text-sm text-slate-600 dark:text-slate-300">{resolveSummary(flow)}</p>
 
-                  <div className="mt-4 flex items-center justify-between gap-3 text-xs text-slate-500">
+                  <div className="mt-4 flex items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
                     <span>
-                      {t("Triggers", "Declenchements")}: <span className="font-semibold text-slate-700">{triggeredCount}</span>
+                      {t("Triggers", "Declenchements")}: <span className="font-semibold text-slate-700 dark:text-slate-200">{triggeredCount}</span>
                     </span>
                     <span className="text-right">
-                      {t("Last run", "Dernier run")}: <span className="font-semibold text-slate-700">{formatRelativeTime(lastRun)}</span>
+                      {t("Last run", "Dernier run")}: <span className="font-semibold text-slate-700 dark:text-slate-200">{formatRelativeTime(lastRun)}</span>
                     </span>
                   </div>
 
@@ -396,7 +396,7 @@ export default function AutomationsPage() {
                       <button
                         type="button"
                         onClick={() => router.push(`/dashboard/automations/${encodeURIComponent(flowId)}`)}
-                        className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-transparent bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 sm:w-auto"
+                        className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-transparent bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 sm:w-auto"
                       >
                         <PencilLine className="h-3.5 w-3.5" />
                         {t("Edit", "Modifier")}
@@ -405,7 +405,7 @@ export default function AutomationsPage() {
                         type="button"
                         disabled={isBusy("duplicate", flowId)}
                         onClick={() => duplicateFlow(flow)}
-                        className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-transparent bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 disabled:opacity-60 sm:w-auto"
+                        className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-transparent bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 sm:w-auto"
                       >
                         <Copy className="h-3.5 w-3.5" />
                         {t("Duplicate", "Dupliquer")}
@@ -420,7 +420,7 @@ export default function AutomationsPage() {
                       disabled={isBusy("toggle", flowId)}
                       onClick={() => toggleFlow(flow)}
                       className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition ${
-                        active ? "bg-emerald-500" : "bg-slate-300"
+                        active ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-700"
                       }`}
                     >
                       <span
@@ -439,24 +439,24 @@ export default function AutomationsPage() {
 
       <section className="space-y-4">
         <div>
-          <h2 className="text-xl font-semibold text-slate-900">{t("Templates", "Modeles")}</h2>
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-50">{t("Templates", "Modeles")}</h2>
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {templates.map((template) => (
-            <article key={template.id} className="rounded-xl border border-slate-200 bg-slate-100/80 p-4">
+            <article key={template.id} className="rounded-xl border border-slate-200 bg-slate-100/80 p-4 dark:border-slate-700 dark:bg-slate-900">
               <div className="flex items-start gap-3">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-slate-600 shadow-sm">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-slate-600 shadow-sm dark:bg-slate-800 dark:text-slate-300">
                   <GitBranch className="h-4 w-4" />
                 </span>
                 <div className="space-y-1">
-                  <h3 className="text-sm font-semibold text-slate-900">{template.title}</h3>
-                  <p className="text-xs text-slate-600">{template.description}</p>
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{template.title}</h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-300">{template.description}</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => router.push(`/dashboard/automations/new?template=${encodeURIComponent(template.id)}`)}
-                className="mt-4 inline-flex h-9 items-center justify-center rounded-lg bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                className="mt-4 inline-flex h-9 items-center justify-center rounded-lg bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
               >
                 {t("Use Template", "Utiliser le modele")}
               </button>

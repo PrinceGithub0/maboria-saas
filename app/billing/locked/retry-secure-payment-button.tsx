@@ -3,7 +3,8 @@
 export function RetrySecurePaymentButton() {
   const handleRetry = async () => {
     try {
-      const endpoints = ["/api/billing/create-session", "/api/checkout"];
+      const endpoints = ["/api/billing/create-session", "/api/checkout/session", "/api/checkout"];
+      const errors: string[] = [];
       for (const endpoint of endpoints) {
         const res = await fetch(endpoint, {
           method: "POST",
@@ -16,8 +17,10 @@ export function RetrySecurePaymentButton() {
           window.location.href = checkoutUrl;
           return;
         }
+        const errorText = typeof data?.error === "string" ? data.error : `Request failed (${res.status})`;
+        errors.push(`${endpoint}: ${errorText}`);
       }
-      console.error("Retry payment failed: Missing checkout URL");
+      console.error("Retry payment failed: Missing checkout URL", errors);
     } catch (error) {
       console.error("Retry payment failed:", error);
     }
