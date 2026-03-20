@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { requireOrgPermission } from "@/lib/org-auth";
+import { requireOrgPermission, writeOrgAuditLog } from "@/lib/org-auth";
 import {
   canFallbackBusinessLogoStorage,
   deleteLegacyBusinessLogoFiles,
@@ -33,6 +33,7 @@ async function requireSessionAndOrg(permission: "settings:business:read" | "sett
   return {
     userId: access.context.ownerUserId,
     actorUserId: session.user.id,
+    orgId: access.context.orgId,
   };
 }
 
@@ -100,6 +101,17 @@ export async function POST(req: Request) {
     url = await writeLegacyBusinessLogoFile(access.userId, file.type, buffer);
   }
 
+  await writeOrgAuditLog({
+    orgId: access.orgId,
+    actorUserId: access.actorUserId,
+    targetUserId: access.userId,
+    actionType: "BUSINESS_LOGO_UPDATED",
+    metadata: {
+      mimeType: file.type,
+      size: file.size,
+    },
+  });
+
   return NextResponse.json({
     success: true,
     url,
@@ -122,6 +134,13 @@ export async function DELETE() {
     if (!canFallbackBusinessLogoStorage(error)) throw error;
   }
   await deleteLegacyBusinessLogoFiles(access.userId);
+
+  await writeOrgAuditLog({
+    orgId: access.orgId,
+    actorUserId: access.actorUserId,
+    targetUserId: access.userId,
+    actionType: "BUSINESS_LOGO_DELETED",
+  });
 
   return NextResponse.json({ success: true });
 }

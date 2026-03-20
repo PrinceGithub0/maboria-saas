@@ -218,6 +218,7 @@ export default function SettingsPage() {
   const businessSettingsUnavailable = Boolean(businessProfileReadError || lateFeeReadError);
   const payoutSettingsUnavailable = Boolean(payoutReadError);
   const businessFormDisabled = !canEditBusinessSettings || businessSaving || logoUploading || businessSettingsUnavailable;
+  const payoutFormDisabled = !canEditPayoutSettings || payoutSubmitting || payoutSettingsUnavailable;
 
   const businessCurrencyOptions = BUSINESS_CURRENCIES.map((code) => ({
     code,
@@ -1356,6 +1357,7 @@ export default function SettingsPage() {
             <button
               type="button"
               onClick={resetLateFeeDefaults}
+              disabled={!canEditBusinessSettings || businessSettingsUnavailable}
               className="text-xs text-muted-foreground transition hover:text-foreground"
             >
               {t("Reset to defaults", "Reinitialiser")}
@@ -1551,12 +1553,12 @@ export default function SettingsPage() {
               <div className="rounded-lg bg-muted/40 p-4 text-sm">
                 <p className="mb-2 font-medium text-foreground">{t("Example Preview", "Exemple")}</p>
                 <p className="text-muted-foreground">
-                  {t("Invoice", "Facture")}: {formatCurrency(previewBaseAmount, businessForm.defaultCurrency)} ·{" "}
-                  {t("Due", "Echeance")}: Jan 1 · {t("Unpaid after", "Impayee apres")}{" "}
+                  {t("Invoice", "Facture")}: {formatCurrency(previewBaseAmount, businessForm.defaultCurrency)} |{" "}
+                  {t("Due", "Echeance")}: Jan 1 | {t("Unpaid after", "Impayee apres")}{" "}
                   {Number.isFinite(gracePeriodDaysNumber) && gracePeriodDaysNumber >= 0
                     ? gracePeriodDaysNumber
                     : 0}{" "}
-                  {t("days", "jours")} · {t("Late Fee", "Frais de retard")}:{" "}
+                  {t("days", "jours")} | {t("Late Fee", "Frais de retard")}:{" "}
                   {formatCurrency(previewLateFeeAmount, businessForm.defaultCurrency)}
                 </p>
               </div>
@@ -1673,7 +1675,7 @@ export default function SettingsPage() {
             ? t("Connected payout account", "Compte de paiement connecte")
             : t("Payout account not configured", "Compte de paiement non configure")}
         </div>
-        <div className="mt-6 rounded-2xl border border-border bg-background/60 p-4">
+        <fieldset disabled={payoutFormDisabled} className="mt-6 rounded-2xl border border-border bg-background/60 p-4">
           <p className="text-sm font-semibold text-foreground">
             {t("Create payout account", "Creer un compte de paiement")}
           </p>
@@ -1707,7 +1709,7 @@ export default function SettingsPage() {
                   setPayoutProviderTouched(true);
                   markDirty("payout");
                 }}
-                disabled={payoutRequirements.providerLocked}
+                disabled={payoutFormDisabled || payoutRequirements.providerLocked}
                 className="rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:border-indigo-400 focus:outline-none"
               >
                 {(["PAYSTACK", "FLUTTERWAVE"] as const).map((providerOption) => {
@@ -1799,7 +1801,7 @@ export default function SettingsPage() {
                     setPayoutBranchCode("");
                     markDirty("payout");
                   }}
-                  disabled={!payoutBankList.length}
+                  disabled={payoutFormDisabled || !payoutBankList.length}
                   className="rounded-lg border border-input bg-background px-3 py-2 text-foreground focus:border-indigo-400 focus:outline-none"
                 >
                   {payoutBankList.length === 0 && (
@@ -1908,7 +1910,7 @@ export default function SettingsPage() {
               </Button>
             </div>
           </div>
-        </div>
+        </fieldset>
       </Card>
       )}
       {activeTab === "security" && (

@@ -180,9 +180,10 @@ export async function PUT(request: Request) {
 
     await prisma.activityLog.create({
       data: {
-        userId: permission.context.ownerUserId,
+        userId: session.user.id,
         action: "LATE_FEE_SETTINGS_UPDATED",
         metadata: {
+          ownerUserId: permission.context.ownerUserId,
           lateFeeEnabled: updated.lateFeeEnabled,
           lateFeeType: updated.lateFeeType,
           lateFeeMode: updated.lateFeeMode,

@@ -18,7 +18,7 @@ import {
 } from "@/lib/business-profile";
 import { hasRequiredAddress, parseBusinessAddress } from "@/lib/address";
 import { normalizeVatRateDisplay, normalizeVatSettings } from "@/lib/vat";
-import { requireOrgPermission } from "@/lib/org-auth";
+import { requireOrgPermission, writeOrgAuditLog } from "@/lib/org-auth";
 import { hasBusinessLogo } from "@/lib/business-logo";
 import path from "path";
 import fs from "fs/promises";
@@ -190,12 +190,12 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
       metadata: { fields: Object.keys(parsed) },
     },
   });
-  await prisma.auditLog.create({
-    data: {
-      userId: session.user.id,
-      action: "BUSINESS_PROFILE_CREATED",
-      metadata: { fields: Object.keys(parsed) },
-    },
+  await writeOrgAuditLog({
+    orgId: access.context.orgId,
+    actorUserId: session.user.id,
+    targetUserId: targetUserId,
+    actionType: "BUSINESS_PROFILE_CREATED",
+    metadata: { fields: Object.keys(parsed) },
   });
 
   return NextResponse.json(created, { status: 201 });
@@ -342,12 +342,12 @@ export const PUT = withRequestLogging(withErrorHandling(async (req: Request) => 
       metadata: { fields: changedFields },
     },
   });
-  await prisma.auditLog.create({
-    data: {
-      userId: session.user.id,
-      action: "BUSINESS_PROFILE_UPDATED",
-      metadata: { fields: changedFields },
-    },
+  await writeOrgAuditLog({
+    orgId: access.context.orgId,
+    actorUserId: session.user.id,
+    targetUserId: targetUserId,
+    actionType: "BUSINESS_PROFILE_UPDATED",
+    metadata: { fields: changedFields },
   });
 
   return NextResponse.json(updated);
