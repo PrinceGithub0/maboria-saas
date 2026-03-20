@@ -399,7 +399,7 @@ export default function SupportTicketDetailsPage() {
                         attachment.filename
                       )}
                       {typeof attachment.sizeBytes === "number" && attachment.sizeBytes > 0
-                        ? ` · ${formatFileSize(attachment.sizeBytes)}`
+                        ? ` | ${formatFileSize(attachment.sizeBytes)}`
                         : ""}
                     </li>
                   ))}
@@ -449,7 +449,7 @@ export default function SupportTicketDetailsPage() {
                                   attachment.filename
                                 )}
                                 {typeof attachment.sizeBytes === "number" && attachment.sizeBytes > 0
-                                  ? ` · ${formatFileSize(attachment.sizeBytes)}`
+                                  ? ` | ${formatFileSize(attachment.sizeBytes)}`
                                   : ""}
                               </li>
                             ))}

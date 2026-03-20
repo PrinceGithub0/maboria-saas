@@ -8,6 +8,7 @@ const {
   const cursorDate = new Date("2026-03-09T09:30:00.000Z");
   const where = buildSubscriberSupportTicketWhereInput({
     subscriberId: "sub_123",
+    workspaceId: "org_456",
     cursor: { lastActivityAt: cursorDate, id: "ticket_123" },
     newestFirst: true,
     status: "closed",
@@ -15,6 +16,7 @@ const {
   });
 
   assert.equal(where.subscriberId, "sub_123", "subscriber filter should always be preserved");
+  assert.equal(where.workspaceId, "org_456", "workspace filter should be preserved to stop cross-workspace access");
   assert.ok(Array.isArray(where.AND), "cursor/search filters should be combined under AND");
   assert.equal(where.AND.length, 3, "cursor, status, and search should all coexist");
   assert.ok(!(where as Record<string, unknown>).OR, "top-level OR should not wipe out cursor pagination");

@@ -15,6 +15,7 @@ export function getSubscriberSupportOpenMode(previousStatus: SupportThreadStatus
 
 export function buildSubscriberSupportTicketWhereInput(input: {
   subscriberId: string;
+  workspaceId?: string | null;
   cursor?: { lastActivityAt: Date; id: string } | null;
   newestFirst: boolean;
   status?: string | null;
@@ -68,6 +69,7 @@ export function buildSubscriberSupportTicketWhereInput(input: {
 
   return {
     subscriberId: input.subscriberId,
+    ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
     ...(andConditions.length ? { AND: andConditions } : {}),
   };
 }

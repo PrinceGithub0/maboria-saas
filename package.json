@@ -34,6 +34,7 @@
     "test:global-role-gating": "node -r ts-node/register -r tsconfig-paths/register scripts/test-global-role-gating.js",
     "test:team-invite-platform-guard": "node scripts/test-team-invite-platform-guard.js",
     "test:team-flow": "node -e \"require('ts-node').register({ transpileOnly: true, compilerOptions: { module: 'commonjs', moduleResolution: 'node' } }); require('tsconfig-paths/register'); require('./tests/team-flow-rules.test.ts');\"",
+    "test:inbox-billing-insights": "node -e \"const Module=require('module'); const originalLoad=Module._load; Module._load=function(request,parent,isMain){ if(request==='server-only') return {}; return originalLoad.apply(this, arguments); }; require('ts-node').register({ transpileOnly: true, compilerOptions: { module: 'commonjs', moduleResolution: 'node' } }); require('tsconfig-paths/register'); require('./tests/inbox-billing-insights.test.ts');\"",
     "test:impersonation-support": "node scripts/test-impersonation-support.js",
     "test:support-auto-assign": "node -r ts-node/register scripts/test-support-auto-assign.js",
     "test:support-admin-inbox": "node scripts/test-support-admin-inbox.js",

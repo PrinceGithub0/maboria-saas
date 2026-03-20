@@ -582,7 +582,7 @@ export async function createSupportThreadTicket(input: {
 
 export async function listSupportTicketsForSubscriber(
   subscriberId: string,
-  options?: { take?: number }
+  options?: { take?: number; workspaceId?: string | null }
 ) {
   const take =
     typeof options?.take === "number" && Number.isFinite(options.take)
@@ -590,7 +590,10 @@ export async function listSupportTicketsForSubscriber(
       : undefined;
 
   return prisma.supportThreadTicket.findMany({
-    where: { subscriberId },
+    where: {
+      subscriberId,
+      ...(options?.workspaceId ? { workspaceId: options.workspaceId } : {}),
+    },
     ...(take ? { take } : {}),
     orderBy: { lastActivityAt: "desc" },
     include: {
@@ -603,6 +606,7 @@ export async function listSupportTicketsForSubscriber(
 
 export async function listSupportTicketsForSubscriberPaged(input: {
   subscriberId: string;
+  workspaceId?: string | null;
   take?: number;
   cursor?: { lastActivityAt: Date; id: string } | null;
   status?: string | null;
@@ -618,6 +622,7 @@ export async function listSupportTicketsForSubscriberPaged(input: {
   const newestFirst = sort !== "OLDEST";
   const where = buildSubscriberSupportTicketWhereInput({
     subscriberId: input.subscriberId,
+    workspaceId: input.workspaceId,
     cursor: input.cursor,
     newestFirst,
     status: input.status,
@@ -650,11 +655,16 @@ export async function listSupportTicketsForSubscriberPaged(input: {
   };
 }
 
-export async function findSupportTicketForSubscriber(ticketId: string, subscriberId: string) {
+export async function findSupportTicketForSubscriber(
+  ticketId: string,
+  subscriberId: string,
+  workspaceId?: string | null
+) {
   return prisma.supportThreadTicket.findFirst({
     where: {
       id: ticketId,
       subscriberId,
+      ...(workspaceId ? { workspaceId } : {}),
     },
     include: {
       messages: {

@@ -67,11 +67,12 @@ type ConversationDetail = {
     createdAt: string;
     author: { id: string; name: string | null; email: string };
   }>;
+  canViewBillingInsights: boolean;
   customerInsights: {
     recentInvoices: Array<{ id: string; invoiceNumber: string; total: string; currency: string; status: string; generatedAt: string }>;
     recentPayments: Array<{ id: string; amount: string; currency: string; status: string; reference: string; createdAt: string }>;
     overdueInvoices: Array<{ id: string; invoiceNumber: string; total: string; currency: string; status: string; generatedAt: string }>;
-  };
+  } | null;
 };
 
 type CannedReply = { id: string; title: string; content: string };
@@ -398,7 +399,7 @@ export default function InboxPage() {
           </div>
 
           <div className="mt-4 space-y-2">
-            {listLoading && <p className="rounded-xl border border-slate-200 px-3 py-4 text-sm text-slate-500">Loading conversations…</p>}
+            {listLoading && <p className="rounded-xl border border-slate-200 px-3 py-4 text-sm text-slate-500">Loading conversations...</p>}
             {!listLoading && !conversations.length && (
               <div className="rounded-xl border border-dashed border-slate-300 px-3 py-4 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
                 No conversations found.
@@ -469,7 +470,7 @@ export default function InboxPage() {
           </header>
 
           <div className="max-h-[460px] space-y-3 overflow-y-auto bg-slate-50 px-5 py-5 dark:bg-slate-950/70">
-            {detailLoading && <p className="text-sm text-slate-500">Loading thread…</p>}
+            {detailLoading && <p className="text-sm text-slate-500">Loading thread...</p>}
             {!detailLoading && detail && !detail.messages.length && (
               <p className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
                 No messages yet.
@@ -491,7 +492,7 @@ export default function InboxPage() {
                     </div>
                   )}
                   <div className="mt-2 text-[11px] opacity-75">
-                    {formatDateTimeDMY(new Date(message.createdAt))} · {message.channel} · {message.deliveryStatus.toLowerCase()}
+                    {formatDateTimeDMY(new Date(message.createdAt))} | {message.channel} | {message.deliveryStatus.toLowerCase()}
                   </div>
                 </div>
               </div>
@@ -528,7 +529,7 @@ export default function InboxPage() {
               </select>
               <Button variant="secondary" size="sm" onClick={applyAiReply} disabled={!detail || aiLoading}>
                 <Sparkles className="mr-2 h-4 w-4" />
-                {aiLoading ? "Generating…" : "AI reply"}
+                {aiLoading ? "Generating..." : "AI reply"}
               </Button>
               <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-950">
                 <Paperclip className="h-4 w-4" />
@@ -552,11 +553,11 @@ export default function InboxPage() {
                 className="min-h-[96px] flex-1"
                 value={messageDraft}
                 onChange={(event) => setMessageDraft(event.target.value)}
-                placeholder="Type your reply…"
+                placeholder="Type your reply..."
               />
               <Button onClick={sendMessage} disabled={!detail || sending}>
                 <Send className="mr-2 h-4 w-4" />
-                {sending ? "Sending…" : "Send"}
+                {sending ? "Sending..." : "Send"}
               </Button>
             </div>
           </div>
@@ -599,7 +600,9 @@ export default function InboxPage() {
             <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
               <p className="text-xs uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Recent invoices</p>
               <div className="mt-2 space-y-2 text-xs dark:text-slate-200">
-                {detail?.customerInsights?.recentInvoices?.length ? (
+                {detail && !detail.canViewBillingInsights ? (
+                  <p className="text-slate-500 dark:text-slate-400">Billing insights are limited to billing roles.</p>
+                ) : detail?.customerInsights?.recentInvoices?.length ? (
                   detail.customerInsights.recentInvoices.map((invoice) => (
                     <div key={invoice.id} className="flex items-center justify-between gap-2">
                       <span className="truncate">{invoice.invoiceNumber}</span>
@@ -615,7 +618,9 @@ export default function InboxPage() {
             <div className="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
               <p className="text-xs uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Recent payments</p>
               <div className="mt-2 space-y-2 text-xs dark:text-slate-200">
-                {detail?.customerInsights?.recentPayments?.length ? (
+                {detail && !detail.canViewBillingInsights ? (
+                  <p className="text-slate-500 dark:text-slate-400">Payment history is limited to billing roles.</p>
+                ) : detail?.customerInsights?.recentPayments?.length ? (
                   detail.customerInsights.recentPayments.map((payment) => (
                     <div key={payment.id} className="flex items-center justify-between gap-2">
                       <span className="truncate">{payment.reference}</span>
@@ -646,7 +651,7 @@ export default function InboxPage() {
                 className="mt-3 min-h-[84px]"
                 value={noteDraft}
                 onChange={(event) => setNoteDraft(event.target.value)}
-                placeholder="Add private note…"
+                placeholder="Add private note..."
               />
               <Button className="mt-2 w-full" variant="secondary" onClick={addNote} disabled={!detail}>
                 <Inbox className="mr-2 h-4 w-4" />
@@ -660,7 +665,7 @@ export default function InboxPage() {
                 <Button
                   variant="secondary"
                   size="sm"
-                  disabled={!detail?.customerInsights?.recentInvoices?.length}
+                  disabled={!detail?.canViewBillingInsights || !detail?.customerInsights?.recentInvoices?.length}
                   onClick={() => {
                     const invoice = detail?.customerInsights?.recentInvoices?.[0];
                     if (!invoice) return;
@@ -674,7 +679,7 @@ export default function InboxPage() {
                 <Button
                   variant="secondary"
                   size="sm"
-                  disabled={!detail?.contact?.id}
+                  disabled={!detail?.canViewBillingInsights || !detail?.contact?.id}
                   onClick={() => router.push(`/dashboard/invoices?customerId=${detail?.contact?.id}`)}
                 >
                   Create invoice
@@ -686,9 +691,11 @@ export default function InboxPage() {
             </div>
 
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300">
-              {detail?.customerInsights?.overdueInvoices?.length
-                ? `${detail.customerInsights.overdueInvoices.length} overdue invoice(s) need follow-up.`
-                : "No overdue invoices for this customer."}
+              {!detail?.canViewBillingInsights
+                ? "Billing follow-up insights are limited to billing roles."
+                : detail?.customerInsights?.overdueInvoices?.length
+                  ? `${detail.customerInsights.overdueInvoices.length} overdue invoice(s) need follow-up.`
+                  : "No overdue invoices for this customer."}
             </div>
           </div>
         </section>

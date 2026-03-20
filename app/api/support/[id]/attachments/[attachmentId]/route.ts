@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { withErrorHandling } from "@/lib/api-handler";
 import { readStoredSupportAttachment, readSupportAttachmentsFromMetadata } from "@/lib/support-attachments";
-import { findSupportTicketForSubscriber } from "@/lib/support/threading";
+import { findSupportTicketForSubscriber, resolveWorkspaceForSubscriber } from "@/lib/support/threading";
 
 type Params = { params: { id: string; attachmentId: string } };
 
@@ -12,8 +12,10 @@ export const runtime = "nodejs";
 export const GET = withErrorHandling(async (_req: Request, { params }: Params) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const workspaceId = await resolveWorkspaceForSubscriber(session.user.id);
+  if (!workspaceId) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const ticket = await findSupportTicketForSubscriber(params.id, session.user.id);
+  const ticket = await findSupportTicketForSubscriber(params.id, session.user.id, workspaceId);
   if (!ticket) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const attachmentId = String(params.attachmentId || "").trim();

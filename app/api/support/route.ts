@@ -105,10 +105,15 @@ export async function GET(req: Request) {
   const status = url.searchParams.get("status");
   const search = url.searchParams.get("q");
   const sort = url.searchParams.get("sort");
+  const workspaceId = await resolveWorkspaceForSubscriber(session.user.id);
+  if (!workspaceId) {
+    return NextResponse.json(paged ? pagedResponse([], null) : []);
+  }
 
   if (paged) {
     const result = await listSupportTicketsForSubscriberPaged({
       subscriberId: session.user.id,
+      workspaceId,
       take: limit,
       cursor,
       status,
@@ -121,8 +126,15 @@ export async function GET(req: Request) {
     });
   }
 
-  const tickets = await listSupportTicketsForSubscriber(session.user.id, { take: limit });
+  const tickets = await listSupportTicketsForSubscriber(session.user.id, { take: limit, workspaceId });
   return NextResponse.json(tickets.map((ticket: any) => serializeSupportTicket(ticket)));
+}
+
+function pagedResponse(items: any[], nextCursor: string | null) {
+  return {
+    items,
+    nextCursor,
+  };
 }
 
 export async function POST(req: Request) {

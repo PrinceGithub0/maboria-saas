@@ -11,6 +11,7 @@ import {
   findSupportTicketForSubscriber,
   normalizeSupportVersion,
   reopenSupportTicketForSubscriber,
+  resolveWorkspaceForSubscriber,
   updateSupportMessageDeliveryState,
 } from "@/lib/support/threading";
 import { prisma } from "@/lib/prisma";
@@ -73,8 +74,10 @@ function serializeSupportTicket(ticket: any) {
 export const GET = withErrorHandling(async (_req: Request, { params }: Params) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const workspaceId = await resolveWorkspaceForSubscriber(session.user.id);
+  if (!workspaceId) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const ticket = await findSupportTicketForSubscriber(params.id, session.user.id);
+  const ticket = await findSupportTicketForSubscriber(params.id, session.user.id, workspaceId);
   if (!ticket) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (ticket.subscriberUnreadCount > 0) {
     await prisma.supportThreadTicket.update({
@@ -90,6 +93,8 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
 export const PUT = withErrorHandling(async (req: Request, { params }: Params) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const workspaceId = await resolveWorkspaceForSubscriber(session.user.id);
+  if (!workspaceId) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
   const requestedStatus = String(body?.status || "").trim().toUpperCase();
@@ -97,7 +102,7 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
     return NextResponse.json({ error: "Subscribers can only reopen tickets." }, { status: 422 });
   }
 
-  const ticket = await findSupportTicketForSubscriber(params.id, session.user.id);
+  const ticket = await findSupportTicketForSubscriber(params.id, session.user.id, workspaceId);
   if (!ticket) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (ticket.status !== "CLOSED") {
     return NextResponse.json({ error: "Only closed tickets can be reopened." }, { status: 409 });
@@ -131,8 +136,10 @@ export const POST = withErrorHandling(async (req: Request, { params }: Params) =
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const workspaceId = await resolveWorkspaceForSubscriber(session.user.id);
+  if (!workspaceId) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const ticket = await findSupportTicketForSubscriber(params.id, session.user.id);
+  const ticket = await findSupportTicketForSubscriber(params.id, session.user.id, workspaceId);
   if (!ticket) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
@@ -251,7 +258,7 @@ export const POST = withErrorHandling(async (req: Request, { params }: Params) =
     messageIdHeader,
   });
 
-  const updated = await findSupportTicketForSubscriber(ticket.id, session.user.id);
+  const updated = await findSupportTicketForSubscriber(ticket.id, session.user.id, workspaceId);
   if (!updated) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }

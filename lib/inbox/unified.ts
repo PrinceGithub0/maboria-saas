@@ -34,6 +34,18 @@ export async function requireUnifiedInboxAccess(userId: string) {
   return access.context;
 }
 
+export function canViewUnifiedInboxBillingInsights(input: {
+  billingAccessOk: boolean;
+  billingBusinessId?: string | null;
+  orgId?: string | null;
+}) {
+  if (!input.billingAccessOk) return false;
+  return (
+    String(input.billingBusinessId || "").trim().length > 0 &&
+    String(input.billingBusinessId || "").trim() === String(input.orgId || "").trim()
+  );
+}
+
 export async function ensureDefaultUnifiedInboxes(tenantId: string) {
   const [email, whatsapp] = await prisma.$transaction([
     prisma.unifiedInbox.upsert({

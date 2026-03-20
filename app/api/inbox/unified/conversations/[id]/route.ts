@@ -4,7 +4,13 @@ import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { withErrorHandling } from "@/lib/api-handler";
 import { emitUnifiedInboxEvent } from "@/lib/inbox/events";
-import { isUnifiedConversationStatus, requireUnifiedInboxAccess, writeUnifiedAuditEvent } from "@/lib/inbox/unified";
+import {
+  canViewUnifiedInboxBillingInsights,
+  isUnifiedConversationStatus,
+  requireUnifiedInboxAccess,
+  writeUnifiedAuditEvent,
+} from "@/lib/inbox/unified";
+import { requireBillingAccess } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 
 function sanitizeTagLabels(input: unknown) {
@@ -19,6 +25,7 @@ export const GET = withErrorHandling(async (_req: Request, ctx: { params: { id: 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const context = await requireUnifiedInboxAccess(session.user.id);
+  const billingAccess = await requireBillingAccess(session.user.id);
 
   const conversation = await prisma.unifiedConversation.findFirst({
     where: {
@@ -64,40 +71,50 @@ export const GET = withErrorHandling(async (_req: Request, ctx: { params: { id: 
 
   if (!conversation) return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
 
-  const [recentInvoices, recentPayments] = await Promise.all([
-    prisma.invoice.findMany({
-      where: {
-        customerId: conversation.contactId,
-      },
-      orderBy: { generatedAt: "desc" },
-      take: 5,
-      select: {
-        id: true,
-        invoiceNumber: true,
-        total: true,
-        currency: true,
-        status: true,
-        generatedAt: true,
-      },
-    }),
-    prisma.invoicePayment.findMany({
-      where: {
-        invoice: {
-          customerId: conversation.contactId,
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-      select: {
-        id: true,
-        amount: true,
-        currency: true,
-        status: true,
-        reference: true,
-        createdAt: true,
-      },
-    }),
-  ]);
+  const canViewBillingInsights = canViewUnifiedInboxBillingInsights({
+    billingAccessOk: billingAccess.ok,
+    billingBusinessId: billingAccess.ok ? billingAccess.businessId : null,
+    orgId: context.orgId,
+  });
+  const [recentInvoices, recentPayments] = canViewBillingInsights
+    ? await Promise.all([
+        prisma.invoice.findMany({
+          where: {
+            userId: billingAccess.ownerUserId,
+            customerId: conversation.contactId,
+          },
+          orderBy: { generatedAt: "desc" },
+          take: 5,
+          select: {
+            id: true,
+            invoiceNumber: true,
+            total: true,
+            currency: true,
+            status: true,
+            generatedAt: true,
+          },
+        }),
+        prisma.invoicePayment.findMany({
+          where: {
+            userId: billingAccess.ownerUserId,
+            invoice: {
+              userId: billingAccess.ownerUserId,
+              customerId: conversation.contactId,
+            },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 5,
+          select: {
+            id: true,
+            amount: true,
+            currency: true,
+            status: true,
+            reference: true,
+            createdAt: true,
+          },
+        }),
+      ])
+    : [[], []];
 
   return NextResponse.json({
     id: conversation.id,
@@ -111,11 +128,14 @@ export const GET = withErrorHandling(async (_req: Request, ctx: { params: { id: 
     tags: conversation.tags.map((entry) => entry.tag),
     messages: conversation.messages,
     notes: conversation.notes,
-    customerInsights: {
-      recentInvoices,
-      recentPayments,
-      overdueInvoices: recentInvoices.filter((invoice) => invoice.status === "OVERDUE"),
-    },
+    canViewBillingInsights,
+    customerInsights: canViewBillingInsights
+      ? {
+          recentInvoices,
+          recentPayments,
+          overdueInvoices: recentInvoices.filter((invoice) => invoice.status === "OVERDUE"),
+        }
+      : null,
   });
 });
 
