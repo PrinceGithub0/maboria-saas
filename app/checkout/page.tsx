@@ -6,6 +6,8 @@ import Link from "next/link";
 import { CheckoutPanel } from "@/components/checkout/checkout-panel";
 import { isAllowedCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
 import { getPlanPriceForInterval } from "@/lib/pricing";
+import { requireOrgPermission, resolveOrgContext } from "@/lib/org-auth";
+import { ensureCurrentSubscriptionForOrg } from "@/lib/subscription-downgrade";
 
 export default async function CheckoutPage() {
   const session = await getServerSession(authOptions);
@@ -13,10 +15,27 @@ export default async function CheckoutPage() {
     redirect("/signup");
   }
 
-  const subscription = await prisma.subscription.findFirst({
-    where: { userId: session.user.id },
-    orderBy: { createdAt: "desc" },
-  });
+  const orgContext = await resolveOrgContext(session.user.id);
+  let checkoutUserId = session.user.id;
+  let subscription = null as Awaited<ReturnType<typeof prisma.subscription.findFirst>>;
+
+  if (orgContext) {
+    const access = await requireOrgPermission(session.user.id, {
+      permission: "subscription:manage",
+      requireActiveSubscription: false,
+    });
+    if (!access.ok) {
+      redirect("/dashboard");
+    }
+
+    checkoutUserId = access.context.ownerUserId;
+    subscription = await ensureCurrentSubscriptionForOrg(access.context.ownerUserId, access.context.orgId);
+  } else {
+    subscription = await prisma.subscription.findFirst({
+      where: { userId: session.user.id },
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+    });
+  }
 
   if (!subscription) {
     return (
@@ -48,7 +67,7 @@ export default async function CheckoutPage() {
   }
 
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: checkoutUserId },
     select: { preferredCurrency: true },
   });
   let currency = normalizeCurrency(user?.preferredCurrency || "USD");
@@ -72,7 +91,7 @@ export default async function CheckoutPage() {
           </p>
         </div>
         <CheckoutPanel
-          userId={session.user.id}
+          userId={checkoutUserId}
           plan={subscription.plan}
           interval={subscription.interval === "yearly" ? "yearly" : "monthly"}
           currency={currency}

@@ -25,6 +25,7 @@ import {
   resolvePaymentProvider,
 } from "@/lib/payments/payment-providers";
 import { resolveOrgContext } from "@/lib/org-auth";
+import { ensureCurrentSubscriptionForOrg } from "@/lib/subscription-downgrade";
 import {
   buildSubscriptionCheckoutQuote,
   isDowngradeChange,
@@ -34,6 +35,7 @@ import {
 type StartCheckoutSessionInput = {
   req: Request;
   userId: string;
+  orgId?: string | null;
   selectedPlan?: string | null;
   billingCycle: BillingInterval;
   detectedCountry?: string | null;
@@ -202,6 +204,7 @@ async function initializeProviderCheckout({
 export async function startCheckoutSession({
   req,
   userId,
+  orgId,
   selectedPlan,
   billingCycle,
   detectedCountry,
@@ -222,10 +225,12 @@ export async function startCheckoutSession({
     throw createHttpError("User not found", 404);
   }
 
-  let subscription = await prisma.subscription.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-  });
+  let subscription = orgId
+    ? await ensureCurrentSubscriptionForOrg(userId, orgId)
+    : await prisma.subscription.findFirst({
+        where: { userId },
+        orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+      });
 
   if (!subscription) {
     const orgContext = await resolveOrgContext(userId);

@@ -8,6 +8,8 @@ import Link from "next/link";
 import { HandCoins, LayoutDashboard, Settings, Workflow } from "lucide-react";
 import { useLanguage } from "@/components/providers/language-provider";
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
+import useSWR from "swr";
 
 type AppShellImpersonation = {
   targetEmail?: string | null;
@@ -30,9 +32,21 @@ export function AppShell({
   const [mounted, setMounted] = useState(false);
   const [stoppingImpersonation, setStoppingImpersonation] = useState(false);
   const [impersonationError, setImpersonationError] = useState<string | null>(null);
+  const { data: session } = useSession();
   const { language } = useLanguage();
   const t = (en: string, fr: string) => (language === "fr" ? fr : en);
   const showMobileNav = pathname.startsWith("/dashboard") || pathname.startsWith("/billing");
+  const fetcher = async (url: string) => {
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) return null;
+    return response.json();
+  };
+  const { data: me } = useSWR(session ? "/api/user/me" : null, fetcher, {
+    revalidateOnFocus: false,
+  });
+  const orgRole = String((me as any)?.orgRole || "").toLowerCase();
+  const canAccessBillingWorkspacePages =
+    orgRole === "owner" || orgRole === "admin" || orgRole === "billing_admin";
 
   useEffect(() => {
     setMounted(true);
@@ -101,7 +115,9 @@ export function AppShell({
             {[
               { href: "/dashboard", label: t("Home", "Accueil"), Icon: LayoutDashboard },
               { href: "/dashboard/automations", label: t("Flows", "Flux"), Icon: Workflow },
-              { href: "/billing/payments", label: t("Payments", "Paiements"), Icon: HandCoins },
+              ...(canAccessBillingWorkspacePages
+                ? [{ href: "/billing/payments", label: t("Payments", "Paiements"), Icon: HandCoins }]
+                : []),
               { href: "/dashboard/settings", label: t("Settings", "Parametres"), Icon: Settings },
             ].map(({ href, label, Icon }) => {
               const active = mounted && (pathname === href || pathname.startsWith(href));

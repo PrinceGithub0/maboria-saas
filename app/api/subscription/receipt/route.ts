@@ -122,11 +122,27 @@ export const GET = withErrorHandling(async (req: Request) => {
     return NextResponse.json({ error: access.message, code: access.code }, { status: access.status });
   }
 
-  const subscription = await prisma.subscription.findFirst({
-    where: { userId: access.context.ownerUserId, receiptUrl: { not: null } },
-    orderBy: { receiptIssuedAt: "desc" },
-    select: { receiptUrl: true, receiptNumber: true },
-  });
+  const [orgSub, ownedBusinessCount] = await Promise.all([
+    prisma.orgSubscription.findUnique({
+      where: { orgId: access.context.orgId },
+      select: { providerSubscriptionId: true },
+    }),
+    prisma.business.count({
+      where: { ownerId: access.context.ownerUserId },
+    }),
+  ]);
+  const subscription =
+    ownedBusinessCount > 1 && orgSub?.providerSubscriptionId
+      ? await prisma.subscription.findFirst({
+          where: { id: orgSub.providerSubscriptionId, receiptUrl: { not: null } },
+          orderBy: [{ receiptIssuedAt: "desc" }, { updatedAt: "desc" }, { createdAt: "desc" }],
+          select: { receiptUrl: true, receiptNumber: true },
+        })
+      : await prisma.subscription.findFirst({
+          where: { userId: access.context.ownerUserId, receiptUrl: { not: null } },
+          orderBy: [{ receiptIssuedAt: "desc" }, { updatedAt: "desc" }, { createdAt: "desc" }],
+          select: { receiptUrl: true, receiptNumber: true },
+        });
 
   if (!subscription?.receiptUrl) {
     return NextResponse.json({ error: "No receipt found" }, { status: 404 });

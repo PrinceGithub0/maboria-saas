@@ -18,6 +18,7 @@ import {
   normalizeFlutterwavePaymentMethod,
 } from "@/lib/payments/flutterwave";
 import { subscriptionPlanToUserPlan } from "@/lib/entitlements";
+import { requireOrgPermission } from "@/lib/org-auth";
 import {
   getPlanFromAmountWithInterval,
   getPlanPriceForInterval,
@@ -40,16 +41,28 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
   const parsed = payloadSchema.parse(await req.json());
   assertRateLimit(`payment-verify:${session.user.id}`, 10, 60_000);
 
+  const canActForUser = async (targetUserId: string) => {
+    if (targetUserId === session.user.id) return true;
+    const access = await requireOrgPermission(session.user.id, {
+      permission: "subscription:manage",
+      requireActiveSubscription: false,
+    });
+    return access.ok && access.context.ownerUserId === targetUserId;
+  };
+
   let provider = parsed.provider;
   let checkoutStatus: "CREATED" | "REDIRECTED" | "SUCCESS" | "FAILED" | "ABANDONED" | null = null;
   if (!provider && parsed.reference) {
-    const checkout = await prisma.checkoutSession.findFirst({
-      where: { reference: parsed.reference, userId: session.user.id },
-      select: { provider: true, status: true },
+    const checkout = await prisma.checkoutSession.findUnique({
+      where: { reference: parsed.reference },
+      select: { provider: true, status: true, userId: true },
     });
 
     if (!checkout) {
       return NextResponse.json({ error: "Unknown checkout reference" }, { status: 404 });
+    }
+    if (!(await canActForUser(checkout.userId))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     provider = checkout.provider.toLowerCase() as "paystack" | "flutterwave" | "stripe";
@@ -75,13 +88,16 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
       return NextResponse.json({ error: "Missing reference" }, { status: 400 });
     }
 
-    const checkout = await prisma.checkoutSession.findFirst({
-      where: { reference: parsed.reference, userId: session.user.id },
-      select: { status: true },
+    const checkout = await prisma.checkoutSession.findUnique({
+      where: { reference: parsed.reference },
+      select: { status: true, userId: true },
     });
 
     if (!checkout) {
       return NextResponse.json({ error: "Unknown checkout reference" }, { status: 404 });
+    }
+    if (!(await canActForUser(checkout.userId))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     if (checkout.status === "SUCCESS") {
@@ -110,7 +126,7 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     const rawInterval = String(data?.metadata?.interval || "");
     const interval: BillingInterval =
       rawInterval === "yearly" ? "yearly" : rawInterval === "monthly" ? "monthly" : inferred?.interval || "monthly";
-    if (data?.metadata?.userId && data?.metadata?.userId !== session.user.id) {
+    if (data?.metadata?.userId && !(await canActForUser(data.metadata.userId as string))) {
       return NextResponse.json({ error: "Invalid user for payment" }, { status: 403 });
     }
 
@@ -188,7 +204,7 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
   const rawInterval = String(verified?.meta?.interval || "");
   const interval: BillingInterval =
     rawInterval === "yearly" ? "yearly" : rawInterval === "monthly" ? "monthly" : inferred?.interval || "monthly";
-  if (verified?.meta?.userId && verified?.meta?.userId !== session.user.id) {
+  if (verified?.meta?.userId && !(await canActForUser(verified.meta.userId as string))) {
     return NextResponse.json({ error: "Invalid user for payment" }, { status: 403 });
   }
 

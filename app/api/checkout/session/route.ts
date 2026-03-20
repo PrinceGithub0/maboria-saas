@@ -39,18 +39,22 @@ export const POST = withRequestLogging(
       permission: "subscription:manage",
       requireActiveSubscription: false,
     });
-    if (!access.ok) {
+    if (!access.ok && access.code !== "ORG_ACCESS_DENIED") {
       return NextResponse.json({ error: access.message, code: access.code }, { status: access.status });
     }
 
-    if (parsed.userId && parsed.userId !== access.context.ownerUserId) {
+    const scopedUserId = access.ok ? access.context.ownerUserId : session.user.id;
+    const scopedOrgId = access.ok ? access.context.orgId : null;
+
+    if (parsed.userId && parsed.userId !== scopedUserId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const billingCycle = parsed.billingCycle || parsed.interval || "monthly";
     const result = await startCheckoutSession({
       req,
-      userId: access.context.ownerUserId,
+      userId: scopedUserId,
+      orgId: scopedOrgId,
       selectedPlan: parsed.selectedPlan,
       billingCycle,
       detectedCountry: parsed.detectedCountry,

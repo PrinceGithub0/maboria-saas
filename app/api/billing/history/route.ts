@@ -3,10 +3,16 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { withErrorHandling } from "@/lib/api-handler";
+import { requireBillingAccess } from "@/lib/permissions";
 
 export const GET = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const access = await requireBillingAccess(session.user.id);
+  if (!access.ok) {
+    return NextResponse.json({ error: access.message }, { status: 403 });
+  }
   const url = new URL(req.url);
   const page = Number(url.searchParams.get("page") || 1);
   const pageSize = Number(url.searchParams.get("pageSize") || 20);
@@ -16,13 +22,13 @@ export const GET = withErrorHandling(async (req: Request) => {
 
   const [payments, invoices] = await Promise.all([
     prisma.payment.findMany({
-      where: { userId: session.user.id, status: status ? (status as any) : undefined, currency: currency || undefined },
+      where: { userId: access.ownerUserId, status: status ? (status as any) : undefined, currency: currency || undefined },
       orderBy: { createdAt: "desc" },
       skip,
       take: pageSize,
     }),
     prisma.invoice.findMany({
-      where: { userId: session.user.id, status: status ? (status as any) : undefined, currency: currency || undefined },
+      where: { userId: access.ownerUserId, status: status ? (status as any) : undefined, currency: currency || undefined },
       orderBy: { generatedAt: "desc" },
       skip,
       take: pageSize,

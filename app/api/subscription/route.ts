@@ -156,6 +156,31 @@ function decodeHistoryCursor(value: string | null) {
   }
 }
 
+const subscriptionHistorySelect = {
+  id: true,
+  plan: true,
+  status: true,
+  renewalDate: true,
+  usageLimit: true,
+  usagePeriod: true,
+  currency: true,
+  graceEndsAt: true,
+  cancellationReason: true,
+  overageUsed: true,
+  interval: true,
+  autoRenew: true,
+  cancelAtPeriodEnd: true,
+  createdAt: true,
+  updatedAt: true,
+  receiptUrl: true,
+  receiptNumber: true,
+  receiptIssuedAt: true,
+  lastPaymentReference: true,
+  lastPaymentProvider: true,
+  pendingPlan: true,
+  pendingEffectiveAt: true,
+} as const;
+
 export const GET = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -183,7 +208,7 @@ export const GET = withErrorHandling(async (req: Request) => {
   }
 
   if (scope === "summary") {
-    const [activeSubscription, latestReceipt, orgSub] = await Promise.all([
+    const [activeSubscription, latestReceipt, orgSub, ownedBusinessCount] = await Promise.all([
       ensureCurrentSubscriptionForOrg(access.context.ownerUserId, access.context.orgId),
       prisma.subscription.findFirst({
         where: {
@@ -206,6 +231,9 @@ export const GET = withErrorHandling(async (req: Request) => {
           provider: true,
           providerCustomerId: true,
         },
+      }),
+      prisma.business.count({
+        where: { ownerId: access.context.ownerUserId },
       }),
     ]);
 
@@ -232,17 +260,56 @@ export const GET = withErrorHandling(async (req: Request) => {
 
     return NextResponse.json({
       active,
-      hasReceipt: Boolean(latestReceipt),
+      hasReceipt: ownedBusinessCount > 1 ? Boolean(activeSubscription?.receiptUrl) : Boolean(activeSubscription?.receiptUrl || latestReceipt),
       management,
     });
   }
 
   if (scope === "history") {
-    await ensureCurrentSubscriptionForOrg(access.context.ownerUserId, access.context.orgId);
+    const [currentSubscription, orgSub, ownedBusinessCount] = await Promise.all([
+      ensureCurrentSubscriptionForOrg(access.context.ownerUserId, access.context.orgId),
+      prisma.orgSubscription.findUnique({ where: { orgId: access.context.orgId } }),
+      prisma.business.count({
+        where: { ownerId: access.context.ownerUserId },
+      }),
+    ]);
 
     const searchParams = new URL(req.url).searchParams;
     const limit = normalizeHistoryLimit(searchParams.get("limit"));
     const cursor = decodeHistoryCursor(searchParams.get("cursor"));
+    const useOrgScopedHistoryOnly = ownedBusinessCount > 1 && Boolean(orgSub?.providerSubscriptionId);
+
+    if (useOrgScopedHistoryOnly) {
+      const linkedRow =
+        !cursor && orgSub?.providerSubscriptionId
+          ? await prisma.subscription.findUnique({
+              where: { id: orgSub.providerSubscriptionId },
+              select: subscriptionHistorySelect,
+            })
+          : null;
+
+      const fallbackItem =
+        linkedRow
+          ? mapSubscriptionRowToView(linkedRow)
+          : currentSubscription
+            ? mapSubscriptionRowToView(currentSubscription)
+            : orgSub
+              ? mapOrgSubscriptionToView({
+                  ...orgSub,
+                  ownerUserId: access.context.ownerUserId,
+                })
+              : null;
+
+      return NextResponse.json({
+        items: fallbackItem ? [fallbackItem] : [],
+        pagination: {
+          pageSize: limit,
+          hasMore: false,
+          nextCursor: null,
+        },
+      });
+    }
+
     const cursorWhere = cursor
       ? {
           OR: [
@@ -256,30 +323,7 @@ export const GET = withErrorHandling(async (req: Request) => {
       where: cursorWhere ? { userId: access.context.ownerUserId, AND: [cursorWhere] } : { userId: access.context.ownerUserId },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: limit + 1,
-      select: {
-        id: true,
-        plan: true,
-        status: true,
-        renewalDate: true,
-        usageLimit: true,
-        usagePeriod: true,
-        currency: true,
-        graceEndsAt: true,
-        cancellationReason: true,
-        overageUsed: true,
-        interval: true,
-        autoRenew: true,
-        cancelAtPeriodEnd: true,
-        createdAt: true,
-        updatedAt: true,
-        receiptUrl: true,
-        receiptNumber: true,
-        receiptIssuedAt: true,
-        lastPaymentReference: true,
-        lastPaymentProvider: true,
-        pendingPlan: true,
-        pendingEffectiveAt: true,
-      },
+      select: subscriptionHistorySelect,
     });
 
     const hasMore = rows.length > limit;
@@ -303,7 +347,6 @@ export const GET = withErrorHandling(async (req: Request) => {
     }
 
     if (!cursor) {
-      const orgSub = await prisma.orgSubscription.findUnique({ where: { orgId: access.context.orgId } });
       if (orgSub) {
         return NextResponse.json({
           items: [
@@ -331,41 +374,32 @@ export const GET = withErrorHandling(async (req: Request) => {
     });
   }
 
-  await ensureCurrentSubscriptionForOrg(access.context.ownerUserId, access.context.orgId);
-
-  const subscriptions = await prisma.subscription.findMany({
-    where: { userId: access.context.ownerUserId },
-    orderBy: [{ renewalDate: "desc" }, { updatedAt: "desc" }, { createdAt: "desc" }],
-    select: {
-      id: true,
-      plan: true,
-      status: true,
-      renewalDate: true,
-      usageLimit: true,
-      usagePeriod: true,
-      currency: true,
-      graceEndsAt: true,
-      cancellationReason: true,
-      overageUsed: true,
-      interval: true,
-      autoRenew: true,
-      cancelAtPeriodEnd: true,
-      createdAt: true,
-      updatedAt: true,
-      receiptUrl: true,
-      receiptNumber: true,
-      receiptIssuedAt: true,
-      lastPaymentReference: true,
-      lastPaymentProvider: true,
-      pendingPlan: true,
-      pendingEffectiveAt: true,
-    },
-  });
+  const [currentSubscription, orgSub, ownedBusinessCount] = await Promise.all([
+    ensureCurrentSubscriptionForOrg(access.context.ownerUserId, access.context.orgId),
+    prisma.orgSubscription.findUnique({ where: { orgId: access.context.orgId } }),
+    prisma.business.count({
+      where: { ownerId: access.context.ownerUserId },
+    }),
+  ]);
+  const subscriptions =
+    ownedBusinessCount > 1 && orgSub?.providerSubscriptionId
+      ? await prisma.subscription.findMany({
+          where: { id: orgSub.providerSubscriptionId },
+          orderBy: [{ renewalDate: "desc" }, { updatedAt: "desc" }, { createdAt: "desc" }],
+          select: subscriptionHistorySelect,
+        })
+      : await prisma.subscription.findMany({
+          where: { userId: access.context.ownerUserId },
+          orderBy: [{ renewalDate: "desc" }, { updatedAt: "desc" }, { createdAt: "desc" }],
+          select: subscriptionHistorySelect,
+        });
   if (subscriptions.length > 0) {
     return NextResponse.json(subscriptions.map((sub) => mapSubscriptionRowToView(sub)));
   }
 
-  const orgSub = await prisma.orgSubscription.findUnique({ where: { orgId: access.context.orgId } });
+  if (currentSubscription) {
+    return NextResponse.json([mapSubscriptionRowToView(currentSubscription)]);
+  }
   if (!orgSub) {
     return NextResponse.json([]);
   }

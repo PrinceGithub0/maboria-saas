@@ -64,6 +64,7 @@ type SubscriptionRow = {
 
 type MeResponse = {
   preferredCurrency?: string | null;
+  orgRole?: string | null;
 };
 
 const fetcher = async <T,>(url: string): Promise<T> => {
@@ -112,7 +113,12 @@ export default function PaymentsPage() {
   const router = useRouter();
   const { language } = useLanguage();
   const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const { data: me } = useSWR<MeResponse>("/api/user/me", fetcher, { revalidateOnFocus: false });
+  const orgRole = String(me?.orgRole || "").toLowerCase();
+  const canManageWorkspaceSubscription = orgRole === "owner" || orgRole === "billing_admin";
+  const billingAccessResolved = me !== undefined;
   const getPaymentsKey = (pageIndex: number, previousPageData: PaymentsHistoryResponse | null) => {
+    if (!billingAccessResolved || !canManageWorkspaceSubscription) return null;
     if (pageIndex > 0 && !previousPageData?.pagination?.nextCursor) return null;
     const params = new URLSearchParams();
     params.set("limit", "8");
@@ -135,10 +141,9 @@ export default function PaymentsPage() {
     data: subscriptions,
     error: subscriptionsError,
     mutate: mutateSubscriptions,
-  } = useSWR<SubscriptionRow[]>("/api/subscription", fetcher, {
+  } = useSWR<SubscriptionRow[]>(billingAccessResolved && canManageWorkspaceSubscription ? "/api/subscription" : null, fetcher, {
     revalidateOnFocus: false,
   });
-  const { data: me } = useSWR<MeResponse>("/api/user/me", fetcher, { revalidateOnFocus: false });
   const didInit = useRef(false);
   const didSyncSelectionFromSubscription = useRef(false);
   const previousProviderRef = useRef<CheckoutProvider | null>(null);
@@ -483,6 +488,15 @@ export default function PaymentsPage() {
         )}
       </section>
 
+      {billingAccessResolved && !canManageWorkspaceSubscription ? (
+        <Alert variant="error">
+          {t(
+            "Only the workspace owner or billing admin can manage subscription billing.",
+            "Seul le proprietaire de l espace de travail ou l administrateur de facturation peut gerer l abonnement."
+          )}
+        </Alert>
+      ) : (
+        <>
       <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
         <Card
           title={<span className="text-slate-900 dark:text-slate-100">{t("Select a plan", "Choisir un plan")}</span>}
@@ -776,6 +790,8 @@ export default function PaymentsPage() {
         </a>
         .
       </p>
+        </>
+      )}
     </div>
   );
 }

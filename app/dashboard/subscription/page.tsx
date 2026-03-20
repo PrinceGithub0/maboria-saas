@@ -51,6 +51,10 @@ type SubscriptionHistoryResponse = {
   };
 };
 
+type MeResponse = {
+  orgRole?: string | null;
+};
+
 const fetcher = async <T,>(url: string): Promise<T> => {
   const response = await fetch(url, { cache: "no-store" });
   const payload = await response.json().catch(() => ({}));
@@ -62,15 +66,26 @@ const fetcher = async <T,>(url: string): Promise<T> => {
 
 export default function SubscriptionPage() {
   const router = useRouter();
+  const { data: me } = useSWR<MeResponse>("/api/user/me", fetcher, {
+    revalidateOnFocus: false,
+  });
+  const orgRole = String(me?.orgRole || "").toLowerCase();
+  const canManageWorkspaceSubscription = orgRole === "owner" || orgRole === "billing_admin";
+  const billingAccessResolved = me !== undefined;
   const {
     data: summaryData,
     error: summaryError,
     mutate: mutateSummary,
     isValidating: summaryValidating,
-  } = useSWR<SubscriptionSummaryResponse>("/api/subscription?scope=summary", fetcher, {
+  } = useSWR<SubscriptionSummaryResponse>(
+    billingAccessResolved && canManageWorkspaceSubscription ? "/api/subscription?scope=summary" : null,
+    fetcher,
+    {
     revalidateOnFocus: false,
-  });
+    }
+  );
   const getHistoryKey = (pageIndex: number, previousPageData: SubscriptionHistoryResponse | null) => {
+    if (!billingAccessResolved || !canManageWorkspaceSubscription) return null;
     if (pageIndex > 0 && !previousPageData?.pagination?.nextCursor) return null;
     const params = new URLSearchParams();
     params.set("scope", "history");
@@ -459,7 +474,16 @@ export default function SubscriptionPage() {
           <Alert variant="error">{String(accessError)}</Alert>
         </div>
       ) : null}
-      {isLoading ? (
+      {billingAccessResolved && !canManageWorkspaceSubscription ? (
+        <div>
+          <Alert variant="error">
+            {t(
+              "Only the workspace owner or billing admin can manage the workspace subscription.",
+              "Seul le proprietaire de l espace de travail ou l administrateur de facturation peut gerer l abonnement de l espace de travail."
+            )}
+          </Alert>
+        </div>
+      ) : isLoading ? (
         <div className="space-y-6">
           <div className="grid gap-8 border-b border-border/40 pb-8 lg:grid-cols-[1.6fr_0.4fr]">
             <div className="space-y-3">

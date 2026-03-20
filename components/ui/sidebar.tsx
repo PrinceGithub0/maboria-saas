@@ -60,10 +60,17 @@ export function Sidebar({ role }: Props) {
     }
   };
   const { data: inboxUnread } = useSWR("/api/inbox/unified/unread-count", fetcher);
+  const { data: me } = useSWR(data ? "/api/user/me" : null, fetcher, {
+    revalidateOnFocus: false,
+  });
   const logoSrc = "/branding/Maboria%20Company%20logo.png";
   const inboxUnreadCount = Number((inboxUnread as any)?.unreadCount || 0);
   const unreadBadge =
     inboxUnreadCount > 99 ? "99+" : inboxUnreadCount > 0 ? String(inboxUnreadCount) : undefined;
+  const orgRole = String((me as any)?.orgRole || "").toLowerCase();
+  const canManageWorkspaceSubscription = orgRole === "owner" || orgRole === "billing_admin";
+  const canAccessBillingWorkspacePages =
+    orgRole === "owner" || orgRole === "admin" || orgRole === "billing_admin";
   const labelMap = {
     Dashboard: language === "fr" ? "Tableau" : "Dashboard",
     Website: language === "fr" ? "Site" : "Website",
@@ -116,10 +123,10 @@ export function Sidebar({ role }: Props) {
     { href: "/dashboard/team", label: labelMap.Team, icon: Users },
   ];
   const billingItems: NavItem[] = [
-    { href: "/dashboard/invoices", label: labelMap.Invoices, icon: Receipt },
-    { href: "/dashboard/customers", label: labelMap.Customers, icon: UsersRound },
-    { href: "/dashboard/subscription", label: labelMap.Subscription, icon: Repeat },
-    { href: "/billing/payments", label: labelMap.Payments, icon: CreditCard },
+    ...(canAccessBillingWorkspacePages ? [{ href: "/dashboard/invoices", label: labelMap.Invoices, icon: Receipt } as NavItem] : []),
+    ...(canAccessBillingWorkspacePages ? [{ href: "/dashboard/customers", label: labelMap.Customers, icon: UsersRound } as NavItem] : []),
+    ...(canManageWorkspaceSubscription ? [{ href: "/dashboard/subscription", label: labelMap.Subscription, icon: Repeat } as NavItem] : []),
+    ...(canAccessBillingWorkspacePages ? [{ href: "/billing/payments", label: labelMap.Payments, icon: CreditCard } as NavItem] : []),
     { href: "/dashboard/report", label: labelMap.Reports, icon: BarChart3 },
   ];
   const supportItems: NavItem[] = [

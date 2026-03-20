@@ -49,6 +49,45 @@ function resolveSubscriptionRankDate(subscription: {
   );
 }
 
+function sortSubscriptionsByFreshness<T extends {
+  id: string;
+  currentPeriodEnd: Date | null;
+  renewalDate: Date;
+  updatedAt: Date;
+  createdAt: Date;
+}>(subscriptions: T[]) {
+  return [...subscriptions].sort((left, right) => {
+    const rankDelta =
+      resolveSubscriptionRankDate(right).getTime() - resolveSubscriptionRankDate(left).getTime();
+    if (rankDelta !== 0) return rankDelta;
+    const updatedDelta = right.updatedAt.getTime() - left.updatedAt.getTime();
+    if (updatedDelta !== 0) return updatedDelta;
+    const createdDelta = right.createdAt.getTime() - left.createdAt.getTime();
+    if (createdDelta !== 0) return createdDelta;
+    return right.id.localeCompare(left.id);
+  });
+}
+
+function matchesOrgSubscriptionShape(
+  subscription: {
+    plan: SubscriptionPlan;
+    provider: import("@prisma/client").PaymentProvider | null;
+    interval: string | null;
+  },
+  orgSubscription: {
+    planId: SubscriptionPlan;
+    provider: import("@prisma/client").PaymentProvider | null;
+    billingInterval: OrgBillingInterval;
+  }
+) {
+  const interval = mapOrgBillingIntervalToSubscriptionInterval(orgSubscription.billingInterval);
+  return (
+    subscription.plan === orgSubscription.planId &&
+    subscription.provider === orgSubscription.provider &&
+    subscription.interval === interval
+  );
+}
+
 export async function findCurrentSubscription(userId: string) {
   const subscriptions = await prisma.subscription.findMany({
     where: {
@@ -93,53 +132,23 @@ export async function findCurrentSubscription(userId: string) {
 
 export async function ensureCurrentSubscriptionForOrg(userId: string, orgId: string) {
   return prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`subscription_bridge:${userId}`}))`;
-
-    const subscriptions = await tx.subscription.findMany({
-      where: {
-        userId,
-        status: { in: ACTIVE_SUBSCRIPTION_STATUSES },
-      },
-      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
-    });
-
-    if (subscriptions.length > 0) {
-      const [current, ...stale] = [...subscriptions].sort((left, right) => {
-        const rankDelta =
-          resolveSubscriptionRankDate(right).getTime() - resolveSubscriptionRankDate(left).getTime();
-        if (rankDelta !== 0) return rankDelta;
-        const updatedDelta = right.updatedAt.getTime() - left.updatedAt.getTime();
-        if (updatedDelta !== 0) return updatedDelta;
-        const createdDelta = right.createdAt.getTime() - left.createdAt.getTime();
-        if (createdDelta !== 0) return createdDelta;
-        return right.id.localeCompare(left.id);
-      });
-
-      if (stale.length > 0) {
-        await tx.subscription.updateMany({
-          where: {
-            id: { in: stale.map((subscription) => subscription.id) },
-            status: { in: ACTIVE_SUBSCRIPTION_STATUSES },
-          },
-          data: {
-            status: "CANCELED",
-            autoRenew: false,
-            cancelAtPeriodEnd: false,
-            pendingPlan: null,
-            pendingEffectiveAt: null,
-            cancellationReason: "superseded_by_newer_active_subscription",
-          },
-        });
-      }
-
-      return current;
-    }
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`subscription_bridge:${orgId}`}))`;
 
     const orgSubscription = await tx.orgSubscription.findUnique({
       where: { orgId },
     });
+    const subscriptions = sortSubscriptionsByFreshness(
+      await tx.subscription.findMany({
+        where: {
+          userId,
+          status: { in: ACTIVE_SUBSCRIPTION_STATUSES },
+        },
+        orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+      })
+    );
+
     if (!orgSubscription || !ACTIVE_ORG_SUBSCRIPTION_STATUSES.includes(orgSubscription.status)) {
-      return null;
+      return subscriptions[0] ?? null;
     }
 
     const bridgedInterval = mapOrgBillingIntervalToSubscriptionInterval(orgSubscription.billingInterval);
@@ -155,6 +164,31 @@ export async function ensureCurrentSubscriptionForOrg(userId: string, orgId: str
     if (existingLinkedSubscription?.userId === userId) {
       return tx.subscription.update({
         where: { id: existingLinkedSubscription.id },
+        data: {
+          plan: orgSubscription.planId,
+          status: bridgedStatus,
+          renewalDate: bridgedRenewalDate,
+          interval: bridgedInterval,
+          provider: orgSubscription.provider,
+          currentPeriodStart: orgSubscription.currentCycleStartAt,
+          currentPeriodEnd: orgSubscription.currentCycleEndAt,
+        },
+      });
+    }
+
+    const matchingActiveSubscription = subscriptions.find((subscription) =>
+      matchesOrgSubscriptionShape(subscription, orgSubscription)
+    );
+
+    if (matchingActiveSubscription) {
+      await tx.orgSubscription.update({
+        where: { orgId },
+        data: {
+          providerSubscriptionId: matchingActiveSubscription.id,
+        },
+      });
+      return tx.subscription.update({
+        where: { id: matchingActiveSubscription.id },
         data: {
           plan: orgSubscription.planId,
           status: bridgedStatus,
