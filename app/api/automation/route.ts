@@ -8,12 +8,13 @@ import { assertRateLimit } from "@/lib/rate-limit";
 import {
   enforceEntitlement,
   flowLimits,
-  getWorkspaceScope,
   getUserPlan,
+  getWorkspaceScope,
   isPlanAtLeast,
   nextPlanAfter,
   requiredPlanForSteps,
 } from "@/lib/entitlements";
+import { buildAutomationFlowWhere, resolveAutomationScope } from "@/lib/automation/access";
 import { getAutomationPermissions, hasAutomationPermission } from "@/lib/automation/permissions";
 import { requiresFinancialAutomationPrivilege } from "@/lib/automation/step-policy";
 
@@ -38,8 +39,9 @@ export const GET = withErrorHandling(async () => {
     );
   }
 
+  const automationScope = await resolveAutomationScope(session.user.id);
   const flows = await prisma.automationFlow.findMany({
-    where: { userId: session.user.id },
+    where: buildAutomationFlowWhere(automationScope),
     orderBy: { createdAt: "desc" },
   });
   return NextResponse.json(flows);
@@ -138,7 +140,8 @@ export const POST = withErrorHandling(async (req: Request) => {
     }
     const flow = await tx.automationFlow.create({
       data: {
-        userId: session.user.id,
+        userId: permissions.ownerUserId,
+        businessId: permissions.businessId ?? undefined,
         title: parsed.title,
         description: parsed.description,
         steps: parsed.steps as any,

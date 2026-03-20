@@ -6,6 +6,7 @@ import { withErrorHandling } from "@/lib/api-handler";
 import { aiRouter } from "@/lib/ai/router";
 import { prisma } from "@/lib/prisma";
 import { enforceEntitlement, enforceUsageLimit, nextPlanAfter } from "@/lib/entitlements";
+import { buildAutomationFlowWhere, resolveAutomationScope } from "@/lib/automation/access";
 
 export const POST = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
@@ -50,8 +51,9 @@ export const POST = withErrorHandling(async (req: Request) => {
   const { flowId, goal } = await req.json();
   assertRateLimit(`ai:flow-improve:${session.user.id}`);
 
-  const flow = await prisma.automationFlow.findUnique({
-    where: { id: flowId, userId: session.user.id },
+  const automationScope = await resolveAutomationScope(session.user.id);
+  const flow = await prisma.automationFlow.findFirst({
+    where: buildAutomationFlowWhere(automationScope, { id: flowId }),
     include: { triggers: true, actions: true },
   });
   if (!flow) return NextResponse.json({ error: "Not found" }, { status: 404 });

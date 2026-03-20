@@ -13,6 +13,7 @@ import {
   isPlanAtLeast,
   requiredPlanForSteps,
 } from "@/lib/entitlements";
+import { buildAutomationFlowWhere, resolveAutomationScope } from "@/lib/automation/access";
 
 export const GET = withErrorHandling(async () => {
   const session = await getServerSession(authOptions);
@@ -35,8 +36,9 @@ export const GET = withErrorHandling(async () => {
     );
   }
 
+  const automationScope = await resolveAutomationScope(session.user.id);
   const workflows = await prisma.automationFlow.findMany({
-    where: { userId: session.user.id },
+    where: buildAutomationFlowWhere(automationScope),
     include: { triggers: true, actions: true },
     orderBy: { createdAt: "desc" },
   });
@@ -67,6 +69,7 @@ export const POST = withErrorHandling(async (req: Request) => {
   const body = await req.json();
   const parsed = workflowSchema.parse(body);
   assertRateLimit(`workflow:${session.user.id}`);
+  const automationScope = await resolveAutomationScope(session.user.id);
 
   const plan = await getUserPlan(session.user.id);
   const required = requiredPlanForSteps([...(parsed.triggers as any[]), ...(parsed.actions as any[])]);
@@ -110,7 +113,8 @@ export const POST = withErrorHandling(async (req: Request) => {
 
     const flow = await tx.automationFlow.create({
       data: {
-        userId: session.user.id,
+        userId: automationScope.ownerUserId,
+        businessId: automationScope.businessId ?? undefined,
         title: parsed.title,
         description: parsed.description,
         status: parsed.status as any,

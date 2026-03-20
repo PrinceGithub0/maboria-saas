@@ -1,5 +1,6 @@
 import "server-only";
 
+import { buildAutomationFlowWhere, buildAutomationRunWhere, resolveAutomationScope } from "@/lib/automation/access";
 import { prisma } from "@/lib/prisma";
 import { normalizeCurrency } from "@/lib/payments/currency-allowlist";
 import { isPlatformRole } from "@/lib/global-role";
@@ -179,6 +180,7 @@ export async function getInfrastructureDashboardData(
   const todayStart = startOfDay(now);
   const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
   const sevenDayStart = startOfDay(new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000));
+  const automationScope = await resolveAutomationScope(options.userId);
 
   const canViewBilling = true;
   const canViewInfrastructure = isPlatformRole(options.role);
@@ -203,39 +205,37 @@ export async function getInfrastructureDashboardData(
     recentPayments,
     recentInvoices,
   ] = await Promise.all([
-    prisma.automationFlow.count({ where: { userId: options.userId, status: "ACTIVE" } }),
-    prisma.automationFlow.count({ where: { userId: options.userId, status: "PAUSED" } }),
+    prisma.automationFlow.count({ where: buildAutomationFlowWhere(automationScope, { status: "ACTIVE" }) }),
+    prisma.automationFlow.count({ where: buildAutomationFlowWhere(automationScope, { status: "PAUSED" }) }),
     prisma.automationRun.groupBy({
       by: ["runStatus"],
       _count: { _all: true },
-      where: { userId: options.userId, createdAt: { gte: rangeStart, lte: rangeEnd } },
+      where: buildAutomationRunWhere(automationScope, { createdAt: { gte: rangeStart, lte: rangeEnd } }),
     }),
     prisma.automationRun.groupBy({
       by: ["runStatus"],
       _count: { _all: true },
-      where: { userId: options.userId, createdAt: { gte: todayStart } },
+      where: buildAutomationRunWhere(automationScope, { createdAt: { gte: todayStart } }),
     }),
     prisma.automationRun.count({
-      where: { userId: options.userId, runStatus: { in: ["PENDING", "RUNNING"] } },
+      where: buildAutomationRunWhere(automationScope, { runStatus: { in: ["PENDING", "RUNNING"] } }),
     }),
     prisma.automationRun.findMany({
-      where: {
-        userId: options.userId,
+      where: buildAutomationRunWhere(automationScope, {
         createdAt: { gte: rangeStart, lte: rangeEnd },
         startedAt: { not: null },
         completedAt: { not: null },
-      },
+      }),
       select: { startedAt: true, completedAt: true },
       orderBy: { createdAt: "desc" },
       take: 400,
     }),
     prisma.automationRun.findMany({
-      where: {
-        userId: options.userId,
+      where: buildAutomationRunWhere(automationScope, {
         createdAt: { gte: todayStart },
         startedAt: { not: null },
         completedAt: { not: null },
-      },
+      }),
       select: { startedAt: true, completedAt: true },
       orderBy: { createdAt: "desc" },
       take: 200,
@@ -257,24 +257,24 @@ export async function getInfrastructureDashboardData(
       where: { userId: options.userId, status: "OVERDUE", generatedAt: { gte: rangeStart, lte: rangeEnd } },
     }),
     prisma.automationRun.count({
-      where: { userId: options.userId, runStatus: "FAILED", createdAt: { gte: oneHourAgo } },
+      where: buildAutomationRunWhere(automationScope, { runStatus: "FAILED", createdAt: { gte: oneHourAgo } }),
     }),
     prisma.activityLog.count({
       where: { userId: options.userId, action: "WEBHOOK_FAILED", timestamp: { gte: rangeStart, lte: rangeEnd } },
     }),
     prisma.automationRun.findMany({
-      where: { userId: options.userId, createdAt: { gte: rangeStart, lte: rangeEnd } },
+      where: buildAutomationRunWhere(automationScope, { createdAt: { gte: rangeStart, lte: rangeEnd } }),
       select: { id: true, runStatus: true, logs: true, createdAt: true },
       orderBy: { createdAt: "desc" },
       take: 120,
     }),
     prisma.automationRun.findMany({
-      where: { userId: options.userId, createdAt: { gte: sevenDayStart } },
+      where: buildAutomationRunWhere(automationScope, { createdAt: { gte: sevenDayStart } }),
       select: { runStatus: true, createdAt: true },
       orderBy: { createdAt: "desc" },
     }),
     prisma.automationRun.findMany({
-      where: { userId: options.userId, createdAt: { gte: rangeStart, lte: rangeEnd } },
+      where: buildAutomationRunWhere(automationScope, { createdAt: { gte: rangeStart, lte: rangeEnd } }),
       select: {
         id: true,
         flowId: true,

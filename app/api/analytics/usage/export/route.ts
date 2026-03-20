@@ -173,6 +173,7 @@ export async function GET(req: Request) {
         action: "USAGE_EXPORT_GENERATED",
         resourceType: "usage_export",
         metadata: {
+          orgId: snapshot.orgId,
           feature: selectedFeature ?? "full_cycle",
           format: "csv",
           mode: selectedFeature ? "detailed" : "summary",

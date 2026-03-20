@@ -44,6 +44,10 @@ export async function GET() {
     where: {
       userId: session.user.id,
       action: "USAGE_EXPORT_GENERATED",
+      metadata: {
+        path: ["orgId"],
+        equals: access.orgId,
+      },
     },
     orderBy: { timestamp: "desc" },
     take: 20,
@@ -103,6 +107,7 @@ export async function POST(req: Request) {
       action: "USAGE_EXPORT_GENERATED",
       resourceType: "usage_export",
       metadata: {
+        orgId: access.orgId,
         feature: payload.feature,
         format: payload.format,
         mode: payload.mode,

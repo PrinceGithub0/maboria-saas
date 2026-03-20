@@ -6,6 +6,7 @@ import { withErrorHandling } from "@/lib/api-handler";
 import { aiRouter } from "@/lib/ai/router";
 import { prisma } from "@/lib/prisma";
 import { enforceEntitlement, enforceFlowLimit, enforceUsageLimit, nextPlanAfter } from "@/lib/entitlements";
+import { resolveAutomationScope } from "@/lib/automation/access";
 
 export const POST = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
@@ -77,9 +78,11 @@ export const POST = withErrorHandling(async (req: Request) => {
   });
 
   const flow = JSON.parse(json);
+  const automationScope = await resolveAutomationScope(session.user.id);
   const created = await prisma.automationFlow.create({
     data: {
-      userId: session.user.id,
+      userId: automationScope.ownerUserId,
+      businessId: automationScope.businessId ?? undefined,
       title: flow.title,
       description: flow.description || flow.title,
       steps: flow.actions || [],

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { workflowSchema } from "@/lib/validators";
 import { withErrorHandling } from "@/lib/api-handler";
 import { enforceEntitlement, getUserPlan, isPlanAtLeast, requiredPlanForSteps } from "@/lib/entitlements";
+import { buildAutomationFlowWhere, resolveAutomationScope } from "@/lib/automation/access";
 
 type Params = { params: { id: string } };
 
@@ -29,8 +30,9 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
     );
   }
 
+  const automationScope = await resolveAutomationScope(session.user.id);
   const workflow = await prisma.automationFlow.findFirst({
-    where: { id: params.id, userId: session.user.id },
+    where: buildAutomationFlowWhere(automationScope, { id: params.id }),
     include: { triggers: true, actions: true },
   });
   if (!workflow) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -60,6 +62,7 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
 
   const body = await req.json();
   const parsed = workflowSchema.parse(body);
+  const automationScope = await resolveAutomationScope(session.user.id);
 
   const plan = await getUserPlan(session.user.id);
   const required = requiredPlanForSteps([...(parsed.triggers as any[]), ...(parsed.actions as any[])]);
@@ -76,8 +79,16 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
     );
   }
 
+  const existing = await prisma.automationFlow.findFirst({
+    where: buildAutomationFlowWhere(automationScope, { id: params.id }),
+    select: { id: true },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const updated = await prisma.automationFlow.update({
-    where: { id: params.id, userId: session.user.id },
+    where: { id: existing.id },
     data: {
       title: parsed.title,
       description: parsed.description,
@@ -118,8 +129,15 @@ export const DELETE = withErrorHandling(async (_req: Request, { params }: Params
     );
   }
 
-  await prisma.automationFlow.delete({
-    where: { id: params.id, userId: session.user.id },
+  const automationScope = await resolveAutomationScope(session.user.id);
+  const existing = await prisma.automationFlow.findFirst({
+    where: buildAutomationFlowWhere(automationScope, { id: params.id }),
+    select: { id: true },
   });
+  if (!existing) {
+    return NextResponse.json({ success: true });
+  }
+
+  await prisma.automationFlow.delete({ where: { id: existing.id } });
   return NextResponse.json({ success: true });
 });

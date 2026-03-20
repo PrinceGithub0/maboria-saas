@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { enforceEntitlement } from "@/lib/entitlements";
+import { buildAutomationFlowWhere, resolveAutomationScope } from "@/lib/automation/access";
 import { getAutomationPermissions, hasAutomationPermission } from "@/lib/automation/permissions";
 import { requiresFinancialAutomationPrivilege } from "@/lib/automation/step-policy";
 import { requireSystemFlag } from "@/lib/system-flags-guard";
@@ -48,8 +49,11 @@ export async function POST(req: Request) {
   }
 
   const { flowId, runAt } = await req.json();
-  const flow = await prisma.automationFlow.findUnique({ where: { id: flowId } });
-  if (!flow || flow.userId !== session.user.id)
+  const automationScope = await resolveAutomationScope(session.user.id);
+  const flow = await prisma.automationFlow.findFirst({
+    where: buildAutomationFlowWhere(automationScope, { id: flowId }),
+  });
+  if (!flow)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (requiresFinancialAutomationPrivilege((flow.steps as any[]) || [])) {
     if (!hasAutomationPermission(permissions, "refund")) {
@@ -69,7 +73,7 @@ export async function POST(req: Request) {
   const scheduled = await prisma.automationRun.create({
     data: {
       flowId,
-      userId: session.user.id,
+      userId: flow.userId,
       runStatus: "PENDING",
       logs: [],
       createdAt: runAt ? new Date(runAt) : new Date(),

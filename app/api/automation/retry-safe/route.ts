@@ -7,6 +7,7 @@ import { enforceEntitlement } from "@/lib/entitlements";
 import { executeAutomationRun } from "@/lib/automation/engine";
 import { readFlowSnapshotFromRunOutput } from "@/lib/automation/versioning";
 import { requireSystemFlag } from "@/lib/system-flags-guard";
+import { buildAutomationRunWhere, resolveAutomationScope } from "@/lib/automation/access";
 import { getAutomationPermissions, hasAutomationPermission } from "@/lib/automation/permissions";
 
 const SAFE_PROVIDER_STEPS = new Set(["sendEmail", "sendWhatsApp"]);
@@ -81,11 +82,12 @@ export const POST = withErrorHandling(async (req: Request) => {
     return NextResponse.json({ error: "runId is required" }, { status: 400 });
   }
 
-  const run = await prisma.automationRun.findUnique({
-    where: { id: runId },
+  const automationScope = await resolveAutomationScope(session.user.id);
+  const run = await prisma.automationRun.findFirst({
+    where: buildAutomationRunWhere(automationScope, { id: runId }),
     include: { flow: true },
   });
-  if (!run?.flow || run.userId !== session.user.id) {
+  if (!run?.flow) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

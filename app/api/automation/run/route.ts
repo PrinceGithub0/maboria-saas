@@ -13,6 +13,7 @@ import {
   isPlanAtLeast,
   nextPlanAfter,
 } from "@/lib/entitlements";
+import { buildAutomationFlowWhere, resolveAutomationScope } from "@/lib/automation/access";
 import { getAutomationPermissions, hasAutomationPermission } from "@/lib/automation/permissions";
 import { requiresFinancialAutomationPrivilege } from "@/lib/automation/step-policy";
 
@@ -83,8 +84,11 @@ export const POST = withErrorHandling(async (req: Request) => {
     );
   }
 
-  const flow = await prisma.automationFlow.findUnique({ where: { id: flowId } });
-  if (!flow || flow.userId !== session.user.id) {
+  const automationScope = await resolveAutomationScope(session.user.id);
+  const flow = await prisma.automationFlow.findFirst({
+    where: buildAutomationFlowWhere(automationScope, { id: flowId }),
+  });
+  if (!flow) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

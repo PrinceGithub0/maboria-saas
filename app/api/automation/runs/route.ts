@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { enforceEntitlement } from "@/lib/entitlements";
 import { sanitizeAutomationPayload } from "@/lib/automation/redaction";
+import { buildAutomationRunWhere, resolveAutomationScope } from "@/lib/automation/access";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -26,8 +27,9 @@ export async function GET() {
     );
   }
 
+  const automationScope = await resolveAutomationScope(session.user.id);
   const runs = await prisma.automationRun.findMany({
-    where: { userId: session.user.id },
+    where: buildAutomationRunWhere(automationScope),
     orderBy: { createdAt: "desc" },
     include: { flow: true },
   });

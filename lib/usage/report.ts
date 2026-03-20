@@ -2,7 +2,7 @@ import { OrgSubscriptionStatus, SubscriptionPlan } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { resolveAuthPlaneContextFromRequestContext } from "@/lib/admin/impersonation";
 import { isPlatformRole } from "@/lib/global-role";
-import { normalizeOrgRole, type OrgRole } from "@/lib/org-permissions";
+import { resolveOrgContext } from "@/lib/org-auth";
 import { computeUsageCycleKey } from "@/lib/usage/cycle";
 import { ensureOrgSubscriptionCycleCurrent, usageFeatureFromDb } from "@/lib/usage/ledger";
 import {
@@ -65,13 +65,6 @@ export type UsageReportOrgAccess = {
   orgSubscriptionStatus: OrgSubscriptionStatus | "NONE";
 };
 
-const ORG_ROLE_PRIORITY: Record<OrgRole, number> = {
-  owner: 4,
-  admin: 3,
-  billing_admin: 2,
-  member: 1,
-};
-
 const METERED_FEATURES: UsageFeatureKeyApi[] = [
   "ai_requests",
   "invoices",
@@ -125,15 +118,26 @@ function toDateKey(value: Date) {
 }
 
 export async function resolveUsageReportAccess(userId: string): Promise<UsageReportOrgAccess | null> {
+  const orgContext = await resolveOrgContext(userId);
+  if (orgContext) {
+    return {
+      orgId: orgContext.orgId,
+      ownerUserId: orgContext.ownerUserId,
+      orgAccessStatus: orgContext.orgAccessStatus,
+      orgSubscriptionStatus: orgContext.orgSubscriptionStatus,
+    };
+  }
+
   const authPlane = await resolveAuthPlaneContextFromRequestContext({
     actorUserId: userId,
   });
-  const actorIsPlatform = isPlatformRole(authPlane.actorGlobalRole);
+  if (!isPlatformRole(authPlane.actorGlobalRole)) return null;
   const scopedUserId = authPlane.effectiveUserId;
   const scopedOrgId = authPlane.effectiveTenantId;
+  if (!scopedUserId || !scopedOrgId) return null;
 
   const owned = await prisma.business.findFirst({
-    where: { ownerId: scopedUserId, ...(scopedOrgId ? { id: scopedOrgId } : {}) },
+    where: { ownerId: scopedUserId, id: scopedOrgId },
     select: {
       id: true,
       ownerId: true,
@@ -141,56 +145,13 @@ export async function resolveUsageReportAccess(userId: string): Promise<UsageRep
       orgSubscription: { select: { status: true } },
     },
   });
-  if (owned) {
-    return {
-      orgId: owned.id,
-      ownerUserId: owned.ownerId,
-      orgAccessStatus: owned.accessStatus,
-      orgSubscriptionStatus: owned.orgSubscription?.status ?? "NONE",
-    };
-  }
-
-  const members = await prisma.businessMember.findMany({
-    where: {
-      userId: scopedUserId,
-      status: "active",
-      ...(scopedOrgId ? { businessId: scopedOrgId } : {}),
-    },
-    select: {
-      role: true,
-      createdAt: true,
-      business: {
-        select: {
-          id: true,
-          ownerId: true,
-          accessStatus: true,
-          orgSubscription: { select: { status: true } },
-        },
-      },
-    },
-  });
-
-  if (!members.length) {
-    if (actorIsPlatform) return null;
-    return null;
-  }
-
-  const member = members
-    .slice()
-    .sort((a, b) => {
-      const roleDelta =
-        ORG_ROLE_PRIORITY[normalizeOrgRole(b.role)] - ORG_ROLE_PRIORITY[normalizeOrgRole(a.role)];
-      if (roleDelta !== 0) return roleDelta;
-      return a.createdAt.getTime() - b.createdAt.getTime();
-    })[0];
-
-  if (!member?.business) return null;
+  if (!owned) return null;
 
   return {
-    orgId: member.business.id,
-    ownerUserId: member.business.ownerId,
-    orgAccessStatus: member.business.accessStatus,
-    orgSubscriptionStatus: member.business.orgSubscription?.status ?? "NONE",
+    orgId: owned.id,
+    ownerUserId: owned.ownerId,
+    orgAccessStatus: owned.accessStatus,
+    orgSubscriptionStatus: owned.orgSubscription?.status ?? "NONE",
   };
 }
 

@@ -13,6 +13,7 @@ import {
   nextPlanAfter,
   requiredPlanForSteps,
 } from "@/lib/entitlements";
+import { buildAutomationFlowWhere, resolveAutomationScope } from "@/lib/automation/access";
 import { getAutomationPermissions, hasAutomationPermission } from "@/lib/automation/permissions";
 import { requiresFinancialAutomationPrivilege } from "@/lib/automation/step-policy";
 
@@ -62,8 +63,9 @@ export const GET = withErrorHandling(async (req: Request, { params }: Params) =>
     );
   }
 
+  const automationScope = await resolveAutomationScope(session.user.id);
   const flow = await prisma.automationFlow.findFirst({
-    where: { id: flowId, userId: session.user.id },
+    where: buildAutomationFlowWhere(automationScope, { id: flowId }),
   });
   if (!flow) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(flow);
@@ -108,10 +110,11 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
     );
   }
 
+  const automationScope = await resolveAutomationScope(session.user.id);
   const body = await req.json();
   const parsed = automationFlowSchema.partial().parse(body);
   const existing = await prisma.automationFlow.findFirst({
-    where: { id: flowId, userId: session.user.id },
+    where: buildAutomationFlowWhere(automationScope, { id: flowId }),
     select: { id: true, status: true },
   });
   if (!existing) {
@@ -236,8 +239,9 @@ export const DELETE = withErrorHandling(async (req: Request, { params }: Params)
     );
   }
 
+  const automationScope = await resolveAutomationScope(session.user.id);
   const existing = await prisma.automationFlow.findFirst({
-    where: { id: flowId, userId: session.user.id },
+    where: buildAutomationFlowWhere(automationScope, { id: flowId }),
     select: { id: true },
   });
   if (!existing) {
@@ -245,7 +249,7 @@ export const DELETE = withErrorHandling(async (req: Request, { params }: Params)
   }
 
   await prisma.$transaction(async (tx) => {
-    await tx.automationRun.deleteMany({ where: { flowId, userId: session.user.id } });
+    await tx.automationRun.deleteMany({ where: { flowId } });
     await tx.trigger.deleteMany({ where: { flowId } });
     await tx.action.deleteMany({ where: { flowId } });
     await tx.automationFlow.delete({

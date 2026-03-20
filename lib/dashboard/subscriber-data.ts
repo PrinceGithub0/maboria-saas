@@ -340,7 +340,9 @@ export async function getSubscriberDashboardData(input: {
       select: { total: true, currency: true },
     }),
     prisma.automationRun.findMany({
-      where: { userId: { in: memberUserIds }, createdAt: { gte: fromDate, lte: toDate } },
+      where: businessId
+        ? { flow: { businessId }, createdAt: { gte: fromDate, lte: toDate } }
+        : { userId: { in: memberUserIds }, createdAt: { gte: fromDate, lte: toDate } },
       orderBy: { createdAt: "desc" },
       take: 120,
       select: {
@@ -353,10 +355,14 @@ export async function getSubscriberDashboardData(input: {
     prisma.automationRun.groupBy({
       by: ["runStatus"],
       _count: { _all: true },
-      where: { userId: { in: memberUserIds }, createdAt: { gte: fromDate, lte: toDate } },
+      where: businessId
+        ? { flow: { businessId }, createdAt: { gte: fromDate, lte: toDate } }
+        : { userId: { in: memberUserIds }, createdAt: { gte: fromDate, lte: toDate } },
     }),
     prisma.automationFlow.count({
-      where: { userId: { in: memberUserIds }, status: "ACTIVE" },
+      where: businessId
+        ? { businessId, status: "ACTIVE" }
+        : { userId: { in: memberUserIds }, status: "ACTIVE" },
     }),
     canAI
       ? prisma.aiUsageLog.count({

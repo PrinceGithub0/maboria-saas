@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { buildAutomationRunWhere, resolveAutomationScope } from "@/lib/automation/access";
 import { getWorkspaceScope } from "@/lib/entitlements";
 
 export async function GET() {
@@ -11,14 +12,13 @@ export async function GET() {
   const usageScope = await getWorkspaceScope(session.user.id);
   const start = usageScope.start;
   const end = usageScope.resetAt ?? new Date();
-  const userIds = usageScope.userIds.length ? usageScope.userIds : [session.user.id];
+  const automationScope = await resolveAutomationScope(session.user.id);
 
   const runs = await prisma.automationRun.findMany({
-    where: {
-      userId: { in: userIds },
+    where: buildAutomationRunWhere(automationScope, {
       createdAt: { gte: start, lte: end },
       runStatus: "SUCCESS",
-    },
+    }),
     select: {
       flowId: true,
       flow: { select: { title: true } },
