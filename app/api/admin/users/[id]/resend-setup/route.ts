@@ -7,7 +7,7 @@ import { log } from "@/lib/logger";
 import { requireVerifiedPlatformAdminAccess } from "@/lib/admin/admin-rbac";
 import { resendPlatformUserSetupEmail, toHttpError } from "@/lib/admin/users";
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 function getRequestIp(req: Request) {
   const forwarded = req.headers.get("x-forwarded-for") || "";
@@ -30,6 +30,7 @@ export const POST = withErrorHandling(async (req: Request, { params }: Params) =
     return access.response;
   }
 
+  const { id } = await params;
   try {
     assertRateLimit(`identity-resend-setup:actor:${session.user.id}`, 30, 60_000);
     assertRateLimit(`identity-resend-setup:ip:${ip}`, 50, 60_000);
@@ -43,7 +44,7 @@ export const POST = withErrorHandling(async (req: Request, { params }: Params) =
   try {
     const result = await resendPlatformUserSetupEmail({
       actorId: session.user.id,
-      userId: params.id,
+      userId: id,
       ipAddress: ip,
       userAgent,
     });
@@ -54,7 +55,7 @@ export const POST = withErrorHandling(async (req: Request, { params }: Params) =
       log("warn", "identity_resend_setup_forbidden", {
         actorId: session.user.id,
         ip,
-        targetUserId: params.id,
+        targetUserId: id,
         reason: httpError.message,
       });
     }

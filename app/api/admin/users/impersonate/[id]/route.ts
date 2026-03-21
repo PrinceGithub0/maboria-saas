@@ -22,7 +22,7 @@ function getRequestIp(req: Request) {
   return forwarded.split(",")[0]?.trim() || "unknown";
 }
 
-export const POST = withErrorHandling(async (req: Request, { params }: { params: { id: string } }) => {
+export const POST = withErrorHandling(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const session = await getServerSession(authOptions);
   const denied = requirePlatformAdmin(session?.user);
   if (denied) return denied;
@@ -40,10 +40,11 @@ export const POST = withErrorHandling(async (req: Request, { params }: { params:
     return NextResponse.json({ error: "Confirmation text is invalid.", code: "BAD_REQUEST" }, { status: 400 });
   }
 
+  const { id } = await params;
   try {
     const started = await startImpersonationSession({
       actorUserId,
-      targetUserId: params.id,
+      targetUserId: id,
       tenantId: parsed.data.tenantId,
       reason: parsed.data.reason,
       confirmation: parsed.data.confirmation,

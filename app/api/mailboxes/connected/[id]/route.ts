@@ -6,7 +6,7 @@ import { requireOrgPermission } from "@/lib/org-auth";
 import { prisma } from "@/lib/prisma";
 import { updateConnectedMailboxStatus } from "@/lib/mailboxes/service";
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export const GET = withErrorHandling(async (_req: Request, { params }: Params) => {
   const session = await getServerSession(authOptions);
@@ -22,10 +22,10 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
     return NextResponse.json({ error: access.message, code: access.code }, { status: access.status });
   }
 
+  const { id } = await params;
   const item = await prisma.connectedMailbox.findFirst({
     where: {
-      id: params.id,
-      subscriberId: session.user.id,
+      id,
       workspaceId: access.context.orgId,
     },
   });
@@ -50,6 +50,7 @@ export const PATCH = withErrorHandling(async (req: Request, { params }: Params) 
     return NextResponse.json({ error: access.message, code: access.code }, { status: access.status });
   }
 
+  const { id } = await params;
   const body = await req.json().catch(() => ({}));
   const status = String(body?.status || "").trim().toUpperCase();
   if (!["PENDING", "ACTIVE", "DISCONNECTED", "ERROR"].includes(status)) {
@@ -57,8 +58,7 @@ export const PATCH = withErrorHandling(async (req: Request, { params }: Params) 
   }
 
   const updated = await updateConnectedMailboxStatus({
-    mailboxId: params.id,
-    subscriberId: session.user.id,
+    mailboxId: id,
     workspaceId: access.context.orgId,
     status: status as "PENDING" | "ACTIVE" | "DISCONNECTED" | "ERROR",
     metadata: body?.metadata && typeof body.metadata === "object" ? body.metadata : undefined,
@@ -70,8 +70,7 @@ export const PATCH = withErrorHandling(async (req: Request, { params }: Params) 
 
   const item = await prisma.connectedMailbox.findFirst({
     where: {
-      id: params.id,
-      subscriberId: session.user.id,
+      id,
       workspaceId: access.context.orgId,
     },
   });

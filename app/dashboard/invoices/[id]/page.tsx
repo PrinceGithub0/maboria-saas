@@ -21,8 +21,8 @@ import { getOrCreateInvoicePublicLink } from "@/lib/invoice-public-link";
 import { deriveInvoiceDisplayStatus } from "@/lib/invoice-refund-status";
 
 type PageProps = {
-  params: { id: string };
-  searchParams?: Record<string, string | string[] | undefined>;
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 export const dynamic = "force-dynamic";
@@ -57,8 +57,8 @@ export default async function InvoiceDetailPage({ params, searchParams }: PagePr
   }
   const targetUserId = access.ownerUserId;
 
-  const resolvedParams = await Promise.resolve(params);
-  const resolvedSearchParams = await Promise.resolve(searchParams);
+  const resolvedParams = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const readParam = (value?: string | string[]) =>
     typeof value === "string" ? value : Array.isArray(value) ? value[0] : "";
   const safeDecode = (value: string) => {

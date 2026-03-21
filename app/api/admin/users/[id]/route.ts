@@ -5,7 +5,7 @@ import { withErrorHandling } from "@/lib/api-handler";
 import { requireVerifiedPlatformAdminAccess } from "@/lib/admin/admin-rbac";
 import { getAdminUserDetail, toHttpError } from "@/lib/admin/users";
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export const GET = withErrorHandling(async (req: Request, { params }: Params) => {
   const session = await getServerSession(authOptions);
@@ -20,8 +20,9 @@ export const GET = withErrorHandling(async (req: Request, { params }: Params) =>
     return access.response;
   }
 
+  const { id } = await params;
   try {
-    const detail = await getAdminUserDetail(params.id);
+    const detail = await getAdminUserDetail(id);
     return NextResponse.json(detail);
   } catch (error) {
     const httpError = toHttpError(error);

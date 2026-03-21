@@ -7,7 +7,7 @@ import { enforceEntitlement } from "@/lib/entitlements";
 import { requireBillingAccess } from "@/lib/permissions";
 import { ensureInvoicePdf, resolveInvoiceCustomer } from "@/lib/invoice";
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export const runtime = "nodejs";
 
@@ -36,7 +36,7 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
     );
   }
 
-  const resolvedParams = await Promise.resolve(params);
+  const resolvedParams = await params;
   const url = new URL(_req.url);
   const forceFresh = url.searchParams.get("fresh") === "1";
   const queryId = url.searchParams.get("id") || "";

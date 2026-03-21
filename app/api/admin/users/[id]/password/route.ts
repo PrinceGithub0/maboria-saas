@@ -5,7 +5,7 @@ import { withErrorHandling } from "@/lib/api-handler";
 import { requireNoImpersonationMode } from "@/lib/admin/admin-rbac";
 import { resetAdminUserPassword, toHttpError } from "@/lib/admin/users";
 
-export const POST = withErrorHandling(async (req: Request, { params }: { params: { id: string } }) => {
+export const POST = withErrorHandling(async (req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const session = await getServerSession(authOptions);
   const normalizedRole = String(session?.user?.role || "").toUpperCase();
   if (
@@ -22,13 +22,14 @@ export const POST = withErrorHandling(async (req: Request, { params }: { params:
     return impersonationBlocked;
   }
 
+  const { id } = await params;
   const body = await req.json().catch(() => ({}));
   const password = String((body as { password?: string }).password || "");
 
   try {
     await resetAdminUserPassword({
       actorId: session.user.id,
-      userId: params.id,
+      userId: id,
       password,
     });
     return NextResponse.json({ success: true });

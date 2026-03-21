@@ -10,9 +10,10 @@ import {
   updateSupportTicketPriorityForAdmin,
 } from "@/lib/support/threading";
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export const PATCH = withErrorHandling(async (req: Request, { params }: Params) => {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
@@ -36,7 +37,7 @@ export const PATCH = withErrorHandling(async (req: Request, { params }: Params) 
   }
 
   const result = await updateSupportTicketPriorityForAdmin({
-    ticketId: params.id,
+    ticketId: id,
     actorUserId: session.user.id,
     priority,
     expectedVersion,

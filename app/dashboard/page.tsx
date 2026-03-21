@@ -18,7 +18,7 @@ type DashboardSearchParams = {
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams?: DashboardSearchParams | Promise<DashboardSearchParams>;
+  searchParams?: Promise<DashboardSearchParams>;
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -37,7 +37,7 @@ export default async function DashboardPage({
     );
   }
 
-  const resolved = await Promise.resolve(searchParams);
+  const resolved = searchParams ? await searchParams : undefined;
   const initialData = await getSubscriberDashboardData({
     userId: session.user.id,
     range: resolved?.range,

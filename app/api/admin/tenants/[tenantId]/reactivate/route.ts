@@ -6,7 +6,7 @@ import { requireNoImpersonationMode } from "@/lib/admin/admin-rbac";
 import { reactivateTenant } from "@/lib/admin/tenants";
 import { getActorSystemFlagRole } from "@/lib/system-flags";
 
-type Params = { params: { tenantId: string } };
+type Params = { params: Promise<{ tenantId: string }> };
 
 export const POST = withErrorHandling(async (_req: Request, ctx: Params) => {
   const session = await getServerSession(authOptions);
@@ -29,7 +29,8 @@ export const POST = withErrorHandling(async (_req: Request, ctx: Params) => {
     return impersonationBlocked;
   }
 
-  const tenantId = String(ctx?.params?.tenantId || "").trim();
+  const { tenantId: rawTenantId } = await ctx.params;
+  const tenantId = String(rawTenantId || "").trim();
   if (!tenantId) {
     return NextResponse.json({ error: "Tenant id is required." }, { status: 422 });
   }

@@ -6,7 +6,7 @@ import { withErrorHandling } from "@/lib/api-handler";
 import { requireNoImpersonationMode } from "@/lib/admin/admin-rbac";
 import { subscriptionSchema } from "@/lib/validators";
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export const PUT = withErrorHandling(async (req: Request, { params }: Params) => {
   const session = await getServerSession(authOptions);
@@ -26,12 +26,13 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
   }
   const body = await req.json();
   const parsed = subscriptionSchema.partial().parse(body);
+  const { id } = await params;
   const sub = await prisma.subscription.update({
-    where: { id: params.id },
+    where: { id },
     data: parsed,
   });
   await prisma.activityLog.create({
-    data: { userId: session.user.id, action: "ADMIN_SUB_OVERRIDE", metadata: { subId: params.id, parsed } },
+    data: { userId: session.user.id, action: "ADMIN_SUB_OVERRIDE", metadata: { subId: id, parsed } },
   });
   return NextResponse.json(sub);
 });

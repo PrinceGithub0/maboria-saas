@@ -21,15 +21,16 @@ function sanitizeTagLabels(input: unknown) {
     .slice(0, 25);
 }
 
-export const GET = withErrorHandling(async (_req: Request, ctx: { params: { id: string } }) => {
+export const GET = withErrorHandling(async (_req: Request, ctx: { params: Promise<{ id: string }> }) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const context = await requireUnifiedInboxAccess(session.user.id);
   const billingAccess = await requireBillingAccess(session.user.id);
+  const { id } = await ctx.params;
 
   const conversation = await prisma.unifiedConversation.findFirst({
     where: {
-      id: ctx.params.id,
+      id,
       tenantId: context.orgId,
     },
     include: {
@@ -139,14 +140,15 @@ export const GET = withErrorHandling(async (_req: Request, ctx: { params: { id: 
   });
 });
 
-export const PATCH = withErrorHandling(async (req: Request, ctx: { params: { id: string } }) => {
+export const PATCH = withErrorHandling(async (req: Request, ctx: { params: Promise<{ id: string }> }) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const context = await requireUnifiedInboxAccess(session.user.id);
   const body = await req.json().catch(() => ({}));
+  const { id } = await ctx.params;
 
   const existing = await prisma.unifiedConversation.findFirst({
-    where: { id: ctx.params.id, tenantId: context.orgId },
+    where: { id, tenantId: context.orgId },
     select: { id: true, status: true, assignedUserId: true },
   });
   if (!existing) return NextResponse.json({ error: "Conversation not found." }, { status: 404 });

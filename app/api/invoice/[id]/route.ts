@@ -25,7 +25,7 @@ import { deriveInvoiceDisplayStatus } from "@/lib/invoice-refund-status";
 import { appendInvoiceNumberAlias } from "@/lib/invoice-number";
 import { logUserActivity } from "@/lib/user-activity";
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export const runtime = "nodejs";
 
@@ -53,8 +53,9 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
       { status: 403 }
     );
   }
+  const { id: invoiceId } = await params;
   const invoice = await prisma.invoice.findFirst({
-    where: { id: params.id, userId: targetUserId },
+    where: { id: invoiceId, userId: targetUserId },
     include: {
       customer: {
         select: {
@@ -112,6 +113,7 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
       { status: 403 }
     );
   }
+  const { id: rawRouteId } = await params;
   const body = await req.json();
   const parsed = invoiceSchema.partial().parse(body);
   let nextCurrency: string | undefined;
@@ -131,7 +133,7 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
     return NextResponse.json({ error: "Invalid due date" }, { status: 400 });
   }
 
-  const rawId = params?.id?.trim();
+  const rawId = rawRouteId?.trim();
   const lookupNumber = parsed.invoiceNumber?.trim();
   const existing = await prisma.invoice.findFirst({
     where: {
@@ -453,8 +455,9 @@ export const DELETE = withErrorHandling(async (_req: Request, { params }: Params
     );
   }
 
+  const { id: invoiceId } = await params;
   const existing = await prisma.invoice.findFirst({
-    where: { id: params.id, userId: targetUserId },
+    where: { id: invoiceId, userId: targetUserId },
     select: { id: true, status: true, invoiceNumber: true },
   });
   if (!existing) {

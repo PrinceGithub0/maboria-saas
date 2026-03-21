@@ -6,7 +6,7 @@ import { withErrorHandling } from "@/lib/api-handler";
 import { requireNoImpersonationMode, requirePlatformAdmin } from "@/lib/admin/admin-rbac";
 import { log } from "@/lib/logger";
 
-export const POST = withErrorHandling(async (_req: Request, { params }: { params: { id: string } }) => {
+export const POST = withErrorHandling(async (_req: Request, { params }: { params: Promise<{ id: string }> }) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthenticated", code: "UNAUTHENTICATED" }, { status: 401 });
   const denied = requirePlatformAdmin(session.user);
@@ -17,17 +17,18 @@ export const POST = withErrorHandling(async (_req: Request, { params }: { params
   });
   if (impersonationBlocked) return impersonationBlocked;
 
-  const record = await prisma.webhookEvent.findUnique({ where: { id: params.id } });
+  const { id } = await params;
+  const record = await prisma.webhookEvent.findUnique({ where: { id } });
   if (!record) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const updated = await prisma.webhookEvent.update({
-    where: { id: params.id },
+    where: { id },
     data: { status: "REPLAY_REQUESTED", error: null },
   });
   await prisma.activityLog.create({
-    data: { userId: session.user.id, action: "ADMIN_WEBHOOK_REPLAY", metadata: { id: params.id } },
+    data: { userId: session.user.id, action: "ADMIN_WEBHOOK_REPLAY", metadata: { id } },
   });
   log("info", "Webhook replay requested", {
-    id: params.id,
+    id,
     provider: updated.provider,
     eventId: updated.eventId,
   });

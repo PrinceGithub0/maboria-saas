@@ -14,7 +14,7 @@ const bodySchema = z
   })
   .optional();
 
-export const POST = withErrorHandling(async (req: Request, ctx?: { params?: { runId?: string } }) => {
+export const POST = withErrorHandling(async (req: Request, ctx?: { params?: Promise<{ runId?: string }> }) => {
   const replayDisabled = await requireSystemFlag(
     "automation_replay_enabled",
     "Automation replay is currently disabled."
@@ -34,7 +34,8 @@ export const POST = withErrorHandling(async (req: Request, ctx?: { params?: { ru
   });
   if (impersonationBlocked) return impersonationBlocked;
 
-  const runId = String(ctx?.params?.runId || "").trim();
+  const resolvedParams = ctx?.params ? await ctx.params : null;
+  const runId = String(resolvedParams?.runId || "").trim();
   if (!runId) {
     return NextResponse.json({ error: "Run id is required", code: "VALIDATION_ERROR" }, { status: 422 });
   }

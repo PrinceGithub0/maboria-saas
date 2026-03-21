@@ -22,7 +22,6 @@ export const GET = withErrorHandling(async () => {
   }
 
   const items = await listConnectedMailboxes({
-    subscriberId: session.user.id,
     workspaceId: access.context.orgId,
   });
 

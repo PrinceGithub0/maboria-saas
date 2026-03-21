@@ -24,14 +24,15 @@ type MessagePayload = {
   createdAt?: string | Date;
 };
 
-const resolveConversationId = (req: Request, ctx?: { params?: { id?: string } }) => {
-  if (ctx?.params?.id) return ctx.params.id;
+const resolveConversationId = async (req: Request, ctx?: { params?: Promise<{ id?: string }> }) => {
+  const resolvedParams = ctx?.params ? await ctx.params : null;
+  if (resolvedParams?.id) return resolvedParams.id;
   const path = new URL(req.url).pathname;
   const parts = path.split("/").filter(Boolean);
   return parts[parts.length - 1] || "";
 };
 
-export const GET = withErrorHandling(async (req: Request, ctx?: { params?: { id?: string } }) => {
+export const GET = withErrorHandling(async (req: Request, ctx?: { params?: Promise<{ id?: string }> }) => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -52,7 +53,7 @@ export const GET = withErrorHandling(async (req: Request, ctx?: { params?: { id?
     );
   }
 
-  const conversationId = resolveConversationId(req, ctx);
+  const conversationId = await resolveConversationId(req, ctx);
   if (!conversationId) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
 
   const url = new URL(req.url);
@@ -81,7 +82,7 @@ export const GET = withErrorHandling(async (req: Request, ctx?: { params?: { id?
   });
 });
 
-export const PATCH = withErrorHandling(async (req: Request, ctx?: { params?: { id?: string } }) => {
+export const PATCH = withErrorHandling(async (req: Request, ctx?: { params?: Promise<{ id?: string }> }) => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -102,7 +103,7 @@ export const PATCH = withErrorHandling(async (req: Request, ctx?: { params?: { i
     );
   }
 
-  const conversationId = resolveConversationId(req, ctx);
+  const conversationId = await resolveConversationId(req, ctx);
   if (!conversationId) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
@@ -114,7 +115,7 @@ export const PATCH = withErrorHandling(async (req: Request, ctx?: { params?: { i
   return NextResponse.json({ item: updated });
 });
 
-export const DELETE = withErrorHandling(async (_req: Request, ctx?: { params?: { id?: string } }) => {
+export const DELETE = withErrorHandling(async (_req: Request, ctx?: { params?: Promise<{ id?: string }> }) => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -135,7 +136,7 @@ export const DELETE = withErrorHandling(async (_req: Request, ctx?: { params?: {
     );
   }
 
-  const conversationId = resolveConversationId(_req, ctx);
+  const conversationId = await resolveConversationId(_req, ctx);
   if (!conversationId) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
 
   await deleteAiConversation(session.user.id, conversationId);

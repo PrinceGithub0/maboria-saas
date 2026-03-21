@@ -16,16 +16,16 @@ import { formatCurrency } from "@/lib/currency";
 export const dynamic = "force-dynamic";
 
 type PageProps = {
-  params: { token: string };
-  searchParams?: Record<string, string | string[] | undefined>;
+  params: Promise<{ token: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 const isPayableStatus = (status: string) => ["SENT", "OVERDUE", "FAILED"].includes(status);
 const isFinalStatus = (status: string) => ["PAID", "CANCELED", "EXPIRED"].includes(status);
 
 export default async function PublicInvoicePage({ params, searchParams }: PageProps) {
-  const resolvedParams = await Promise.resolve(params);
-  const resolvedSearchParams = await Promise.resolve(searchParams);
+  const resolvedParams = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const rawToken = resolvedParams?.token;
   const token = typeof rawToken === "string" ? rawToken.trim() : "";
   if (!token) notFound();

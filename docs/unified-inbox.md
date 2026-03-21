@@ -46,7 +46,16 @@ This document describes the first-party unified inbox module built in the Mabori
 
 1. Fetch inboxes for tenant:
    - `GET /api/inbox/unified/inboxes`
-2. Update tenant email inbox credentials:
+2. Connect Gmail or Outlook with OAuth:
+   - `GET /api/mailboxes/connected/oauth/start?provider=GMAIL&bindUnifiedInbox=1&returnTo=/dashboard/inbox`
+   - `GET /api/mailboxes/connected/oauth/start?provider=OUTLOOK&bindUnifiedInbox=1&returnTo=/dashboard/inbox`
+   - callback:
+     - `GET /api/mailboxes/connected/oauth/callback`
+   - behavior:
+     - PKCE + state validation
+     - encrypted access / refresh token storage in `connected_mailboxes`
+     - optional auto-bind into the tenant `EMAIL` unified inbox
+3. Update tenant email inbox credentials (fallback for custom SMTP only):
    - `PUT /api/inbox/unified/inboxes`
    - payload:
      - `id`
@@ -56,7 +65,7 @@ This document describes the first-party unified inbox module built in the Mabori
      - `credentials.email.username`
      - `credentials.email.password`
      - `credentials.email.from`
-3. Update tenant WhatsApp inbox credentials:
+4. Update tenant WhatsApp inbox credentials:
    - `PUT /api/inbox/unified/inboxes`
    - payload:
      - `id`
@@ -65,7 +74,22 @@ This document describes the first-party unified inbox module built in the Mabori
      - `credentials.whatsapp.apiVersion`
      - `credentials.whatsapp.appSecret`
      - `credentials.whatsapp.verifyToken` (optional)
-4. Run channel health checks:
+5. Connect WhatsApp Business with Meta embedded signup:
+   - client:
+     - launch Meta JS SDK login with `config_id=<NEXT_PUBLIC_META_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID>`
+   - server:
+     - `POST /api/inbox/unified/whatsapp/embedded-signup`
+   - payload:
+     - `code`
+     - `phoneNumberId`
+     - `wabaId` (optional)
+     - `businessId` (optional)
+   - behavior:
+     - exchange signup code for a business access token
+     - verify the selected phone number against Graph
+     - persist encrypted channel credentials into the tenant `WHATSAPP` inbox
+     - bind `Business.whatsappPhoneNumberId` for webhook routing
+6. Run channel health checks:
    - `POST /api/inbox/unified/inboxes/test`
 
 ## Security model
@@ -75,6 +99,7 @@ This document describes the first-party unified inbox module built in the Mabori
 - All read/write operations are scoped to `tenantId`.
 - Channel credentials are encrypted at rest using `encryptSecret` before storage.
 - Channel credentials are encrypted at rest using `INBOX_ENCRYPTION_KEY` and stored in `inboxes.credentialsEncrypted`.
+- OAuth mailbox flow uses signed state, PKCE, httpOnly cookies, least-privilege scopes, and encrypted refresh-token storage.
 - Audit trail records status/assignment/tag/note/message events.
 
 ## Rollout plan
@@ -95,6 +120,14 @@ Required (existing in app):
 - `INBOX_ENCRYPTION_KEY`
 - `INBOX_INBOUND_TOKEN`
 - `WEBHOOK_RATE_LIMIT` (optional, defaults to `180` email / `240` WhatsApp per minute)
+- `GOOGLE_MAIL_CLIENT_ID`
+- `GOOGLE_MAIL_CLIENT_SECRET`
+- `MICROSOFT_MAIL_CLIENT_ID`
+- `MICROSOFT_MAIL_CLIENT_SECRET`
+- `NEXT_PUBLIC_META_APP_ID`
+- `NEXT_PUBLIC_META_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID`
+- `META_APP_SECRET`
+- `META_GRAPH_API_VERSION` (optional, defaults to `v23.0`)
 
 Platform email defaults (optional, for Maboria transactional emails only):
 - `PLATFORM_EMAIL_HOST`
@@ -104,7 +137,8 @@ Platform email defaults (optional, for Maboria transactional emails only):
 - `PLATFORM_EMAIL_PASSWORD`
 - `PLATFORM_EMAIL_FROM`
 
-Tenant channel credentials (SMTP + WhatsApp) are configured per inbox and encrypted in database.
+Tenant channel credentials for custom SMTP and WhatsApp are configured per inbox and encrypted in database.
+Gmail and Outlook should use the mailbox OAuth connect flow instead of raw SMTP passwords.
 Global SMTP/WhatsApp provider credentials are no longer used by Unified Inbox send paths.
 
 Inbound webhook security:

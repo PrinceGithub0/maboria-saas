@@ -7,13 +7,9 @@ import { getActorSystemFlagRole } from "@/lib/system-flags";
 import UserActivityTimelineClient from "./UserActivityTimelineClient";
 
 type Props = {
-  params:
-    | {
-        userId: string;
-      }
-    | Promise<{
+  params: Promise<{
     userId: string;
-      }>;
+  }>;
 };
 
 export default async function AdminUserActivityPage({ params }: Props) {

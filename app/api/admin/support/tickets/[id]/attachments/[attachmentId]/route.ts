@@ -6,7 +6,7 @@ import { requireVerifiedPlatformAdminAccess } from "@/lib/admin/admin-rbac";
 import { readStoredSupportAttachment, readSupportAttachmentsFromMetadata } from "@/lib/support-attachments";
 import { getSupportTicketForAdmin } from "@/lib/support/threading";
 
-type Params = { params: { id: string; attachmentId: string } };
+type Params = { params: Promise<{ id: string; attachmentId: string }> };
 
 export const runtime = "nodejs";
 
@@ -15,6 +15,7 @@ export const GET = withErrorHandling(async (req: Request, { params }: Params) =>
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
   }
+  const { id, attachmentId: rawAttachmentId } = await params;
 
   const access = await requireVerifiedPlatformAdminAccess({
     actorUserId: session.user.id,
@@ -24,12 +25,12 @@ export const GET = withErrorHandling(async (req: Request, { params }: Params) =>
     return access.response;
   }
 
-  const ticket = await getSupportTicketForAdmin(params.id, null, session.user.id);
+  const ticket = await getSupportTicketForAdmin(id, null, session.user.id);
   if (!ticket) {
     return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
   }
 
-  const attachmentId = String(params.attachmentId || "").trim();
+  const attachmentId = String(rawAttachmentId || "").trim();
   const attachment = [
     ...ticket.messages.flatMap((message) => readSupportAttachmentsFromMetadata(message.attachments)),
     ...ticket.notes.flatMap((note) => readSupportAttachmentsFromMetadata(note.attachments)),

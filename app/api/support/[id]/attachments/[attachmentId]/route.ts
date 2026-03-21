@@ -5,20 +5,21 @@ import { withErrorHandling } from "@/lib/api-handler";
 import { readStoredSupportAttachment, readSupportAttachmentsFromMetadata } from "@/lib/support-attachments";
 import { findSupportTicketForSubscriber, resolveWorkspaceForSubscriber } from "@/lib/support/threading";
 
-type Params = { params: { id: string; attachmentId: string } };
+type Params = { params: Promise<{ id: string; attachmentId: string }> };
 
 export const runtime = "nodejs";
 
 export const GET = withErrorHandling(async (_req: Request, { params }: Params) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { id, attachmentId: rawAttachmentId } = await params;
   const workspaceId = await resolveWorkspaceForSubscriber(session.user.id);
   if (!workspaceId) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const ticket = await findSupportTicketForSubscriber(params.id, session.user.id, workspaceId);
+  const ticket = await findSupportTicketForSubscriber(id, session.user.id, workspaceId);
   if (!ticket) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const attachmentId = String(params.attachmentId || "").trim();
+  const attachmentId = String(rawAttachmentId || "").trim();
   const attachment = ticket.messages
     .flatMap((message) => readSupportAttachmentsFromMetadata(message.attachments))
     .find((entry) => entry.id === attachmentId);

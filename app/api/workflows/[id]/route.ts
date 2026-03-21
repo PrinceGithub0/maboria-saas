@@ -7,7 +7,7 @@ import { withErrorHandling } from "@/lib/api-handler";
 import { enforceEntitlement, getUserPlan, isPlanAtLeast, requiredPlanForSteps } from "@/lib/entitlements";
 import { buildAutomationFlowWhere, resolveAutomationScope } from "@/lib/automation/access";
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export const GET = withErrorHandling(async (_req: Request, { params }: Params) => {
   const session = await getServerSession(authOptions);
@@ -30,9 +30,10 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
     );
   }
 
+  const { id } = await params;
   const automationScope = await resolveAutomationScope(session.user.id);
   const workflow = await prisma.automationFlow.findFirst({
-    where: buildAutomationFlowWhere(automationScope, { id: params.id }),
+    where: buildAutomationFlowWhere(automationScope, { id }),
     include: { triggers: true, actions: true },
   });
   if (!workflow) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -62,6 +63,7 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
 
   const body = await req.json();
   const parsed = workflowSchema.parse(body);
+  const { id } = await params;
   const automationScope = await resolveAutomationScope(session.user.id);
 
   const plan = await getUserPlan(session.user.id);
@@ -80,7 +82,7 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
   }
 
   const existing = await prisma.automationFlow.findFirst({
-    where: buildAutomationFlowWhere(automationScope, { id: params.id }),
+    where: buildAutomationFlowWhere(automationScope, { id }),
     select: { id: true },
   });
   if (!existing) {
@@ -129,9 +131,10 @@ export const DELETE = withErrorHandling(async (_req: Request, { params }: Params
     );
   }
 
+  const { id } = await params;
   const automationScope = await resolveAutomationScope(session.user.id);
   const existing = await prisma.automationFlow.findFirst({
-    where: buildAutomationFlowWhere(automationScope, { id: params.id }),
+    where: buildAutomationFlowWhere(automationScope, { id }),
     select: { id: true },
   });
   if (!existing) {

@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import useSWR from "swr";
+import { Alert } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Table } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { pricingTableDualCurrency } from "@/lib/pricing";
@@ -10,7 +12,14 @@ import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/currency";
 import { useLanguage } from "@/components/providers/language-provider";
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+const fetcher = async (url: string) => {
+  const response = await fetch(url, { cache: "no-store" });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(String(payload?.error || "Unable to load billing history."));
+  }
+  return payload;
+};
 
 function formatMoney(amount: number, currency: "NGN" | "USD") {
   const locale = currency === "NGN" ? "en-NG" : "en-US";
@@ -22,7 +31,10 @@ function formatMoney(amount: number, currency: "NGN" | "USD") {
 }
 
 export default function BillingPage() {
-  const { data, isLoading } = useSWR("/api/billing/history", fetcher);
+  const { data, error, isLoading } = useSWR("/api/billing/history", fetcher, {
+    shouldRetryOnError: false,
+    revalidateOnFocus: false,
+  });
   const plans = pricingTableDualCurrency();
   const { language } = useLanguage();
   const t = (en: string, fr: string) => (language === "fr" ? fr : en);
@@ -63,6 +75,8 @@ export default function BillingPage() {
   };
   const translateFeature = (feature: string) =>
     language === "fr" ? featureMap[feature]?.fr || feature : featureMap[feature]?.en || feature;
+  const payments = Array.isArray(data?.payments) ? data.payments : [];
+  const invoices = Array.isArray(data?.invoices) ? data.invoices : [];
 
   return (
     <div className="space-y-6 max-md:space-y-7">
@@ -119,12 +133,29 @@ export default function BillingPage() {
         </div>
       </Card>
 
+      {error ? <Alert variant="error">{(error as Error).message}</Alert> : null}
+
       <Card title={t("Payments", "Paiements")}>
         {isLoading ? (
           <Skeleton className="h-24" />
+        ) : error ? (
+          <Alert variant="error">
+            {t(
+              "Billing history could not be loaded. Check billing permissions or try again.",
+              "L historique de facturation n a pas pu etre charge. Verifiez les permissions ou reessayez."
+            )}
+          </Alert>
+        ) : payments.length === 0 ? (
+          <EmptyState
+            title={t("No payments yet", "Aucun paiement pour le moment")}
+            description={t(
+              "Completed subscription and invoice payments will appear here.",
+              "Les paiements d abonnement et de facture apparaitront ici."
+            )}
+          />
         ) : (
           <Table
-            data={data?.payments || []}
+            data={payments}
             keyExtractor={(row: any) => row.id}
             columns={[
               { key: "provider", label: t("Provider", "Prestataire") },
@@ -147,9 +178,24 @@ export default function BillingPage() {
       <Card title={t("Invoices", "Factures")}>
         {isLoading ? (
           <Skeleton className="h-24" />
+        ) : error ? (
+          <Alert variant="error">
+            {t(
+              "Invoices could not be loaded. Check billing permissions or try again.",
+              "Les factures n ont pas pu etre chargees. Verifiez les permissions ou reessayez."
+            )}
+          </Alert>
+        ) : invoices.length === 0 ? (
+          <EmptyState
+            title={t("No invoices yet", "Aucune facture pour le moment")}
+            description={t(
+              "Generated invoices will appear here once you start billing customers.",
+              "Les factures generees apparaitront ici quand vous commencerez a facturer des clients."
+            )}
+          />
         ) : (
           <Table
-            data={data?.invoices || []}
+            data={invoices}
             keyExtractor={(row: any) => row.id}
             columns={[
               { key: "invoiceNumber", label: t("Invoice", "Facture") },

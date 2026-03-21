@@ -6,11 +6,9 @@ import { requireNoImpersonationMode } from "@/lib/admin/admin-rbac";
 import { listUserActivityTimeline, toUserActivityHttpError } from "@/lib/admin/user-activity";
 
 type Params = {
-  params:
-    | { id: string }
-    | Promise<{
-        id: string;
-      }>;
+  params: Promise<{
+    id: string;
+  }>;
 };
 
 export const GET = withErrorHandling(async (req: Request, { params }: Params) => {

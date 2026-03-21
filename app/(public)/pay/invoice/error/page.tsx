@@ -12,11 +12,11 @@ const reasonCopy: Record<string, { title: string; body: string }> = {
 };
 
 type PageProps = {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 export default async function InvoicePaymentErrorPage({ searchParams }: PageProps) {
-  const resolvedSearchParams = await Promise.resolve(searchParams);
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const rawReason = resolvedSearchParams?.reason;
   const reason = typeof rawReason === "string" ? rawReason : Array.isArray(rawReason) ? rawReason[0] : "";
   const copy = reasonCopy[reason] || {

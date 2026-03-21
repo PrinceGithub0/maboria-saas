@@ -89,6 +89,18 @@ type MockState = {
   activityWrites: Array<{ action: string; resourceId: string }>;
 };
 
+type ModuleLoad = (
+  request: string,
+  parent: NodeModule | null,
+  isMain: boolean
+) => unknown;
+
+type MutableModule = typeof Module & {
+  _load: ModuleLoad & {
+    __teamFlowMocksInstalled?: boolean;
+  };
+};
+
 const TEAM_ROUTE_PATH = "../app/api/team/route";
 const INVITE_ACCEPT_ROUTE_PATH = "../app/api/team/invite/accept/route";
 
@@ -115,7 +127,8 @@ const defaultState = (): MockState => ({
 });
 
 const state = defaultState();
-const originalLoad = Module._load;
+const mutableModule = Module as MutableModule;
+const originalLoad = mutableModule._load;
 
 function resetState() {
   const fresh = defaultState();
@@ -134,10 +147,10 @@ function resetState() {
 }
 
 function installMocks() {
-  const loader = Module._load as typeof Module._load & ((request: string, parent: NodeModule | null, isMain: boolean) => unknown);
-  if ((loader as unknown as { __teamFlowMocksInstalled?: boolean }).__teamFlowMocksInstalled) return;
+  const loader = mutableModule._load;
+  if (loader.__teamFlowMocksInstalled) return;
 
-  Module._load = function mockLoad(request: string, parent: NodeModule | null, isMain: boolean) {
+  mutableModule._load = function mockLoad(request: string, parent: NodeModule | null, isMain: boolean) {
     if (request === "next-auth") {
       return {
         getServerSession: async () => state.session,
@@ -423,7 +436,7 @@ function installMocks() {
     return originalLoad.apply(this, [request, parent, isMain]);
   };
 
-  (Module._load as typeof Module._load & { __teamFlowMocksInstalled?: boolean }).__teamFlowMocksInstalled = true;
+  mutableModule._load.__teamFlowMocksInstalled = true;
 }
 
 function clearRouteCaches() {
@@ -740,5 +753,5 @@ run()
     process.exit(1);
   })
   .finally(() => {
-    Module._load = originalLoad;
+    mutableModule._load = originalLoad;
   });

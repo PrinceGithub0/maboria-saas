@@ -38,7 +38,7 @@ function normalizeRefundRequestStatus(value: unknown) {
 
 export async function POST(
   request: NextRequest,
-  context: { params: Promise<{ paymentId: string }> | { paymentId: string } }
+  context: { params: Promise<{ paymentId: string }> }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -67,7 +67,7 @@ export async function POST(
     );
   }
 
-  const { paymentId } = await Promise.resolve(context.params);
+  const { paymentId } = await context.params;
   const body = await request.json().catch(() => ({}));
   const reason = normalizeReason(body?.reason);
 

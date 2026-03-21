@@ -9,7 +9,7 @@ import { appendAdminNotificationAudit, getAdminUnreadCount, sanitizeAdminNotific
 import { requireNoImpersonationMode, requirePlatformAdmin } from "@/lib/admin/admin-rbac";
 import { requireSystemFlag } from "@/lib/system-flags-guard";
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export const GET = withErrorHandling(async (_req: Request, { params }: Params) => {
   const notificationsDisabled = await requireSystemFlag(
@@ -31,9 +31,10 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
   });
   if (impersonationBlocked) return impersonationBlocked;
 
+  const { id } = await params;
   const item = await prisma.adminNotification.findFirst({
     where: {
-      id: params.id,
+      id,
       recipientAdminId: session!.user!.id,
     },
     include: {
@@ -166,9 +167,10 @@ export const PATCH = withErrorHandling(async (req: Request, { params }: Params) 
     return NextResponse.json({ error: "Invalid payload", code: "VALIDATION_ERROR" }, { status: 422 });
   }
 
+  const { id } = await params;
   const current = await prisma.adminNotification.findFirst({
     where: {
-      id: params.id,
+      id,
       recipientAdminId: session!.user!.id,
     },
     select: { id: true, status: true },

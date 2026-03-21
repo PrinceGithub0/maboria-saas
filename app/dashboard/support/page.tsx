@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,7 +29,13 @@ type Ticket = {
   status: string;
   createdAt: string;
   message?: string;
-  metadata?: Record<string, unknown> | null;
+  metadata?:
+    | {
+        firstResponseAt?: string | null;
+        lastActivityAt?: string | null;
+        [key: string]: unknown;
+      }
+    | null;
 };
 
 const MAX_ATTACHMENTS = 3;
@@ -154,7 +160,7 @@ export default function DashboardSupportPage() {
     mutate: refreshTickets,
     isLoading: loadingTickets,
     error: ticketsError,
-  } = useSWR<Ticket[]>("/api/support?limit=3", fetcher, { shouldRetryOnError: false });
+  } = useSWR<Ticket[]>("/api/support?limit=20", fetcher, { shouldRetryOnError: false });
 
   useEffect(() => {
     const nextPreviews: Record<string, string> = {};
@@ -171,10 +177,10 @@ export default function DashboardSupportPage() {
     };
   }, [attachments]);
 
-  const avgResponseTime = useMemo(() => {
-    if (!tickets || tickets.length === 0) return "2-4 hours";
-    return tickets.length > 8 ? "2-4 hours" : "4-8 hours";
-  }, [tickets]);
+  const supportHeaderBadge = t(
+    "Support replies appear here and by email",
+    "Les reponses support apparaissent ici et par email"
+  );
 
   const urgencyClassMap: Record<Urgency, string> = {
     low: "border-[#CBD5E1] bg-white text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200",
@@ -461,7 +467,7 @@ export default function DashboardSupportPage() {
                     forceLight ? "!border-emerald-200 !bg-emerald-50 !text-emerald-700" : ""
                   }`}
                 >
-                  {t(`Current avg. response time: ${avgResponseTime}`, `Temps moyen actuel : ${avgResponseTime}`)}
+                  {supportHeaderBadge}
                 </span>
                 <span
                   className={`rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:border-[#334155] dark:bg-slate-800/70 dark:text-slate-300 ${

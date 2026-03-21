@@ -229,7 +229,7 @@ function hrefWithParams(params: { tenantId?: string | null; range: string; nextR
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams?: AdminSearchParams | Promise<AdminSearchParams>;
+  searchParams?: Promise<AdminSearchParams>;
 }) {
   const session = await getServerSession(authOptions);
   const actorRole = session?.user?.id ? await getActorSystemFlagRole(session.user.id) : "USER";
@@ -237,7 +237,7 @@ export default async function AdminPage({
     redirect("/dashboard");
   }
 
-  const resolved = await Promise.resolve(searchParams);
+  const resolved = searchParams ? await searchParams : undefined;
   const selectedRange = parseRange(resolved?.range);
   const rangeDays = RANGE_DAYS[selectedRange];
   const requestedTenant = String(resolved?.tenant || "").trim();

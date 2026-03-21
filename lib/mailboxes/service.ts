@@ -13,16 +13,16 @@ import { prisma } from "@/lib/prisma";
 type DbClient = Prisma.TransactionClient | typeof prisma;
 
 export async function listConnectedMailboxes(input: {
-  subscriberId: string;
   workspaceId: string;
+  subscriberId?: string | null;
   status?: ConnectedMailboxStatus | null;
   tx?: DbClient;
 }) {
   const db = input.tx ?? prisma;
   return db.connectedMailbox.findMany({
     where: {
-      subscriberId: input.subscriberId,
       workspaceId: input.workspaceId,
+      ...(input.subscriberId ? { subscriberId: input.subscriberId } : {}),
       ...(input.status ? { status: input.status } : {}),
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -63,8 +63,8 @@ export async function createConnectedMailboxRecord(input: {
 
 export async function updateConnectedMailboxStatus(input: {
   mailboxId: string;
-  subscriberId: string;
   workspaceId: string;
+  subscriberId?: string | null;
   status: ConnectedMailboxStatus;
   metadata?: Prisma.InputJsonValue;
   tx?: DbClient;
@@ -73,8 +73,8 @@ export async function updateConnectedMailboxStatus(input: {
   return db.connectedMailbox.updateMany({
     where: {
       id: input.mailboxId,
-      subscriberId: input.subscriberId,
       workspaceId: input.workspaceId,
+      ...(input.subscriberId ? { subscriberId: input.subscriberId } : {}),
     },
     data: {
       status: input.status,

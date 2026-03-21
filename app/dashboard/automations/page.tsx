@@ -116,15 +116,20 @@ export default function AutomationsPage() {
   });
   const executionsThisMonth = monthlyRuns.length;
   const successfulRuns = monthlyRuns.filter((run: any) => {
-    const state = String(run?.status || "").toUpperCase();
+    const state = String(run?.runStatus || run?.status || "").toUpperCase();
     return state === "SUCCESS" || state === "COMPLETED";
   }).length;
-  const messagesSent = successfulRuns;
-  const timeSaved = Math.round(executionsThisMonth / 100);
+  const successRate = executionsThisMonth > 0 ? Math.round((successfulRuns / executionsThisMonth) * 100) : 0;
 
   const isActive = (status?: string) => normalizeAutomationStatus(status) === "ACTIVE";
 
-  const getStatusLabel = (status?: string) => (isActive(status) ? t("Active", "Actif") : t("Paused", "En pause"));
+  const getStatusLabel = (status?: string) => {
+    const normalized = normalizeAutomationStatus(status);
+    if (normalized === "ACTIVE") return t("Active", "Actif");
+    if (normalized === "PAUSED") return t("Paused", "En pause");
+    if (normalized === "ARCHIVED") return t("Archived", "Archive");
+    return t("Draft", "Brouillon");
+  };
 
   const getStatusClass = (status?: string) => {
     const normalized = normalizeAutomationStatus(status);
@@ -265,14 +270,17 @@ export default function AutomationsPage() {
       subtext: t("Across all workflows", "Tous workflows confondus"),
     },
     {
-      label: t("Messages Sent", "Messages envoyes"),
-      value: messagesSent.toLocaleString(),
-      subtext: t("Successful deliveries", "Envois reussis"),
+      label: t("Successful Runs", "Runs reussis"),
+      value: successfulRuns.toLocaleString(),
+      subtext: t("Completed successfully", "Completes avec succes"),
     },
     {
-      label: t("Time Saved", "Temps gagne"),
-      value: `${timeSaved.toLocaleString()}h`,
-      subtext: t("Estimated this month", "Estime ce mois"),
+      label: t("Success Rate", "Taux de succes"),
+      value: `${successRate.toLocaleString()}%`,
+      subtext:
+        executionsThisMonth > 0
+          ? t("Based on this month's runs", "Base sur les runs de ce mois")
+          : t("No runs recorded this month", "Aucun run enregistre ce mois"),
     },
   ];
 

@@ -7,7 +7,7 @@ import { isSuperAdminActor } from "@/lib/admin/notifications";
 import { requireNoImpersonationMode, requirePlatformAdmin } from "@/lib/admin/admin-rbac";
 import { requireSystemFlag } from "@/lib/system-flags-guard";
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export const PATCH = withErrorHandling(async (req: Request, { params }: Params) => {
   const notificationsDisabled = await requireSystemFlag(
@@ -35,8 +35,9 @@ export const PATCH = withErrorHandling(async (req: Request, { params }: Params) 
     return NextResponse.json({ error: "Insufficient privileges", code: "FORBIDDEN" }, { status: 403 });
   }
 
+  const { id } = await params;
   const existing = await prisma.adminIncident.findUnique({
-    where: { id: params.id },
+    where: { id },
     select: { id: true, status: true },
   });
   if (!existing) {

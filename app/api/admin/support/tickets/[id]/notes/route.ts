@@ -6,9 +6,10 @@ import { requireVerifiedPlatformAdminAccess } from "@/lib/admin/admin-rbac";
 import { addSupportInternalNote, normalizeSupportVersion } from "@/lib/support/threading";
 import { requireSystemFlag } from "@/lib/system-flags-guard";
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export const POST = withErrorHandling(async (req: Request, { params }: Params) => {
+  const { id } = await params;
   const supportDisabled = await requireSystemFlag("support_enabled", "Support is currently disabled.");
   if (supportDisabled) return supportDisabled;
 
@@ -36,7 +37,7 @@ export const POST = withErrorHandling(async (req: Request, { params }: Params) =
   }
 
   const result = await addSupportInternalNote({
-    ticketId: params.id,
+    ticketId: id,
     adminId: session.user.id,
     content: message,
     attachments: Array.isArray(body?.attachments) ? body.attachments : undefined,

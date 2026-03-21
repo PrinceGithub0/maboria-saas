@@ -8,12 +8,13 @@ import {
   readStoredInvoiceSupportingFile,
 } from "@/lib/invoice-supporting-files";
 
-type Params = { params: { token: string } };
+type Params = { params: Promise<{ token: string }> };
 
 export const runtime = "nodejs";
 
 export const GET = withErrorHandling(async (req: Request, { params }: Params) => {
-  const token = String(params?.token || "").trim();
+  const { token: rawToken } = await params;
+  const token = String(rawToken || "").trim();
   if (!token) return NextResponse.json({ error: "Invalid token" }, { status: 400 });
 
   const link = await resolveInvoicePublicLink(token);

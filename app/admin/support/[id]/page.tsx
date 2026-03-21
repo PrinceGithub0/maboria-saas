@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 
 type LegacyAdminSupportTicketPageProps = {
-  params: { id: string };
-  searchParams?: Record<string, string | string[] | undefined>;
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 function buildQueryString(searchParams?: Record<string, string | string[] | undefined>) {
@@ -22,10 +22,11 @@ function buildQueryString(searchParams?: Record<string, string | string[] | unde
   return serialized ? `?${serialized}` : "";
 }
 
-export default function LegacyAdminSupportTicketPage({
+export default async function LegacyAdminSupportTicketPage({
   params,
   searchParams,
 }: LegacyAdminSupportTicketPageProps) {
-  const ticketId = encodeURIComponent(String(params?.id || "").trim());
-  redirect(`/admin/support/tickets/${ticketId}${buildQueryString(searchParams)}`);
+  const ticketId = encodeURIComponent(String((await params)?.id || "").trim());
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  redirect(`/admin/support/tickets/${ticketId}${buildQueryString(resolvedSearchParams)}`);
 }

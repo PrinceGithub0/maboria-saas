@@ -3,9 +3,15 @@ import "server-only";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
 import { Prisma, UnifiedInbox, UnifiedMessageChannel } from "@prisma/client";
-import { safeDecryptInboxSecret } from "@/lib/crypto";
+import { encryptInboxSecret, safeDecryptInboxSecret } from "@/lib/crypto";
 import { enforceUsageLimit } from "@/lib/entitlements";
 import { log } from "@/lib/logger";
+import {
+  isOauthMailboxProvider,
+  normalizeMailboxAttachments,
+  refreshMailboxOauthToken,
+  sendOauthMailboxEmail,
+} from "@/lib/mailboxes/oauth";
 import { prisma } from "@/lib/prisma";
 import { billingPeriodKey, incrementUnifiedUsageCounter } from "@/lib/inbox/unified";
 
@@ -18,12 +24,20 @@ type DecryptedInboxCredentials = {
     password?: string;
     from?: string;
   };
+  emailOAuth?: {
+    connectedMailboxId?: string;
+  };
   whatsapp?: {
     accessToken?: string;
     phoneNumberId?: string;
     apiVersion?: string;
     appSecret?: string;
     verifyToken?: string;
+    businessAccountId?: string | null;
+    businessId?: string | null;
+    displayPhoneNumber?: string | null;
+    verifiedName?: string | null;
+    qualityRating?: string | null;
   };
 };
 
@@ -35,6 +49,13 @@ type OutboundChannelResult = {
 };
 
 type InboxCredentialCarrier = Pick<UnifiedInbox, "id" | "credentialsEncrypted" | "type">;
+
+type OutboundEmailAttachment = {
+  name?: string;
+  type?: string;
+  size?: number;
+  dataUrl?: string;
+};
 
 export function decryptInboxCredentials(value: string | null | undefined): DecryptedInboxCredentials {
   if (!value) return {};
@@ -125,16 +146,264 @@ function resolveSmtpConfig(credentials: DecryptedInboxCredentials) {
   };
 }
 
+function resolveOauthMailboxBinding(credentials: DecryptedInboxCredentials) {
+  return {
+    connectedMailboxId: String(credentials.emailOAuth?.connectedMailboxId || "").trim(),
+  };
+}
+
+function parseConnectedMailboxMetadata(value: Prisma.JsonValue | null | undefined) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {} as Record<string, unknown>;
+  }
+  return value as Record<string, unknown>;
+}
+
+function shouldRefreshMailboxAccessToken(metadata: Prisma.JsonValue | null | undefined) {
+  const expiresAt = String(parseConnectedMailboxMetadata(metadata).expiresAt || "").trim();
+  if (!expiresAt) return false;
+  const value = Date.parse(expiresAt);
+  if (!Number.isFinite(value)) return false;
+  return value <= Date.now() + 60_000;
+}
+
+async function persistConnectedMailboxTokens(input: {
+  mailboxId: string;
+  accessToken: string;
+  refreshToken: string | null;
+  metadata: Record<string, unknown>;
+}) {
+  return prisma.connectedMailbox.update({
+    where: { id: input.mailboxId },
+    data: {
+      accessTokenEncrypted: encryptInboxSecret(input.accessToken),
+      refreshTokenEncrypted: input.refreshToken ? encryptInboxSecret(input.refreshToken) : null,
+      metadata: input.metadata as Prisma.InputJsonValue,
+      status: "ACTIVE",
+    },
+    select: {
+      id: true,
+      provider: true,
+      status: true,
+      emailAddress: true,
+      displayName: true,
+      accessTokenEncrypted: true,
+      refreshTokenEncrypted: true,
+      metadata: true,
+    },
+  });
+}
+
+async function markConnectedMailboxDisconnected(input: {
+  mailboxId: string;
+  metadata: Record<string, unknown>;
+  reason: string;
+}) {
+  await prisma.connectedMailbox.update({
+    where: { id: input.mailboxId },
+    data: {
+      status: "DISCONNECTED",
+      metadata: {
+        ...input.metadata,
+        lastError: input.reason,
+        lastErrorAt: new Date().toISOString(),
+      } as Prisma.InputJsonValue,
+    },
+  });
+}
+
+async function refreshConnectedMailboxAccess(input: {
+  mailbox: {
+    id: string;
+    provider: string;
+    refreshTokenEncrypted: string | null;
+    metadata: Prisma.JsonValue | null;
+  };
+}) {
+  if (!isOauthMailboxProvider(input.mailbox.provider)) {
+    throw new Error("Connected mailbox provider does not support OAuth refresh.");
+  }
+
+  const refreshToken = safeDecryptInboxSecret(input.mailbox.refreshTokenEncrypted);
+  if (!refreshToken) {
+    throw new Error("Mailbox refresh token is missing.");
+  }
+
+  const refreshed = await refreshMailboxOauthToken({
+    provider: input.mailbox.provider,
+    refreshToken,
+    callbackUrl: `${process.env.APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000"}/api/mailboxes/connected/oauth/callback`,
+  });
+
+  return persistConnectedMailboxTokens({
+    mailboxId: input.mailbox.id,
+    accessToken: refreshed.accessToken,
+    refreshToken: refreshed.refreshToken,
+    metadata: {
+      ...parseConnectedMailboxMetadata(input.mailbox.metadata),
+      scope: refreshed.scope,
+      tokenType: refreshed.tokenType,
+      expiresAt: refreshed.expiresAt,
+      refreshedAt: new Date().toISOString(),
+    },
+  });
+}
+
 export async function sendOutboundEmail(input: {
   inbox: InboxCredentialCarrier;
   conversationId: string;
   toEmail: string;
   subject: string;
   html: string;
+  text?: string;
   replyTo?: string;
   headers?: Record<string, string>;
+  attachments?: OutboundEmailAttachment[];
 }) {
   const credentials = decryptInboxCredentials(input.inbox.credentialsEncrypted);
+  const oauthBinding = resolveOauthMailboxBinding(credentials);
+  const text = input.text || htmlToText(input.html);
+  if (oauthBinding.connectedMailboxId) {
+    const mailbox = await prisma.connectedMailbox.findUnique({
+      where: { id: oauthBinding.connectedMailboxId },
+      select: {
+        id: true,
+        provider: true,
+        status: true,
+        emailAddress: true,
+        displayName: true,
+        accessTokenEncrypted: true,
+        refreshTokenEncrypted: true,
+        metadata: true,
+      },
+    });
+
+    if (!mailbox || !isOauthMailboxProvider(mailbox.provider)) {
+      return {
+        externalId: null,
+        deliveryStatus: "FAILED",
+        errorCode: "email_oauth_mailbox_missing",
+        errorMessage: "Connected mailbox is not available.",
+      } satisfies OutboundChannelResult;
+    }
+
+    if (mailbox.status !== "ACTIVE") {
+      return {
+        externalId: null,
+        deliveryStatus: "FAILED",
+        errorCode: "email_oauth_mailbox_inactive",
+        errorMessage: "Connected mailbox is not active.",
+      } satisfies OutboundChannelResult;
+    }
+
+    try {
+      let activeMailbox = mailbox;
+      let accessToken = safeDecryptInboxSecret(mailbox.accessTokenEncrypted);
+      if ((!accessToken || shouldRefreshMailboxAccessToken(mailbox.metadata)) && mailbox.refreshTokenEncrypted) {
+        activeMailbox = await refreshConnectedMailboxAccess({
+          mailbox,
+        });
+        accessToken = safeDecryptInboxSecret(activeMailbox.accessTokenEncrypted);
+      }
+
+      if (!accessToken) {
+        return {
+          externalId: null,
+          deliveryStatus: "FAILED",
+          errorCode: "email_oauth_token_missing",
+          errorMessage: "Connected mailbox access token is missing.",
+        } satisfies OutboundChannelResult;
+      }
+
+      try {
+        if (!isOauthMailboxProvider(activeMailbox.provider)) {
+          throw new Error("Connected mailbox provider does not support OAuth send.");
+        }
+        const result = await sendOauthMailboxEmail({
+          provider: activeMailbox.provider,
+          accessToken,
+          mailboxEmailAddress: activeMailbox.emailAddress,
+          mailboxDisplayName: activeMailbox.displayName,
+          toEmail: input.toEmail,
+          subject: input.subject,
+          html: input.html,
+          text,
+          replyTo: input.replyTo,
+          headers: input.headers,
+          attachments: input.attachments,
+        });
+
+        return {
+          externalId: result.externalId,
+          deliveryStatus: "SENT",
+          errorCode: null,
+          errorMessage: null,
+        } satisfies OutboundChannelResult;
+      } catch (error: any) {
+        const shouldRetryWithRefresh =
+          Number(error?.status || 0) === 401 && Boolean(activeMailbox.refreshTokenEncrypted);
+        if (!shouldRetryWithRefresh) {
+          throw error;
+        }
+
+        const refreshedMailbox = await refreshConnectedMailboxAccess({
+          mailbox: activeMailbox,
+        });
+        const refreshedAccessToken = safeDecryptInboxSecret(refreshedMailbox.accessTokenEncrypted);
+        if (!refreshedAccessToken) {
+          throw error;
+        }
+        if (!isOauthMailboxProvider(refreshedMailbox.provider)) {
+          throw error;
+        }
+
+        const result = await sendOauthMailboxEmail({
+          provider: refreshedMailbox.provider,
+          accessToken: refreshedAccessToken,
+          mailboxEmailAddress: refreshedMailbox.emailAddress,
+          mailboxDisplayName: refreshedMailbox.displayName,
+          toEmail: input.toEmail,
+          subject: input.subject,
+          html: input.html,
+          text,
+          replyTo: input.replyTo,
+          headers: input.headers,
+          attachments: input.attachments,
+        });
+
+        return {
+          externalId: result.externalId,
+          deliveryStatus: "SENT",
+          errorCode: null,
+          errorMessage: null,
+        } satisfies OutboundChannelResult;
+      }
+    } catch (error: any) {
+      const metadata = parseConnectedMailboxMetadata(mailbox.metadata);
+      const errorCode = String(error?.code || "email_oauth_send_failed");
+      const errorMessage = String(error?.message || "Failed to send email.");
+
+      if (
+        errorCode === "mailbox_oauth_token_exchange_failed" ||
+        errorCode === "mailbox_missing_access_token" ||
+        Number(error?.status || 0) === 401
+      ) {
+        await markConnectedMailboxDisconnected({
+          mailboxId: mailbox.id,
+          metadata,
+          reason: errorMessage,
+        }).catch(() => undefined);
+      }
+
+      return {
+        externalId: null,
+        deliveryStatus: "FAILED",
+        errorCode,
+        errorMessage,
+      } satisfies OutboundChannelResult;
+    }
+  }
+
   const smtp = resolveSmtpConfig(credentials);
   if (!smtp.host || !smtp.user || !smtp.pass || !smtp.from) {
     return {
@@ -159,13 +428,20 @@ export async function sendOutboundEmail(input: {
   });
 
   try {
+    const attachments = normalizeMailboxAttachments(input.attachments);
     const info = await transport.sendMail({
       from: smtp.from,
       to: input.toEmail,
       subject: input.subject,
       html: input.html,
+      text,
       replyTo: input.replyTo,
       headers: input.headers,
+      attachments: attachments.map((attachment) => ({
+        filename: attachment.filename,
+        contentType: attachment.contentType,
+        content: attachment.content,
+      })),
     });
 
     return {

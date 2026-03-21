@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { Inbox, Paperclip, RefreshCw, Search, Send, Sparkles, Tag, UserCircle2 } from "lucide-react";
+import { WhatsAppEmbeddedSignupCard } from "@/components/inbox/whatsapp-embedded-signup-card";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,6 +77,54 @@ type ConversationDetail = {
 };
 
 type CannedReply = { id: string; title: string; content: string };
+type InboxSetupItem = {
+  id: string;
+  name: string;
+  type: "EMAIL" | "WHATSAPP";
+  status: string;
+  connection:
+    | {
+        mode: "oauth";
+        connectedMailboxId: string;
+        provider: "GMAIL" | "OUTLOOK";
+        status: string;
+        emailAddress: string;
+        displayName: string | null;
+        updatedAt: string;
+      }
+    | {
+        mode: "smtp";
+        host: string;
+        username: string;
+        from: string;
+        configured: true;
+      }
+    | {
+        mode: "whatsapp_api";
+        configured: true;
+        phoneNumberId: string;
+        displayPhoneNumber?: string | null;
+        verifiedName?: string | null;
+        qualityRating?: string | null;
+        apiVersion: string;
+        hasVerifyToken: boolean;
+        hasAppSecret: boolean;
+      }
+    | {
+        mode: "none";
+        configured: false;
+      };
+};
+
+type InboxSetupPayload = {
+  items: InboxSetupItem[];
+  oauthProviders?: {
+    gmail?: { configured: boolean };
+    outlook?: { configured: boolean };
+  };
+};
+
+const LEGACY_IMPORTED_EMAIL_DOMAINS = ["inbox.maboria.local", "placeholder.maboria.local"];
 
 const fetcher = async (url: string) => {
   const response = await fetch(url);
@@ -103,8 +152,54 @@ const directionBubble = {
   SYSTEM: "bg-slate-100 border border-slate-200 text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200",
 } as const;
 
+function isLegacyImportedEmail(value: string | null | undefined) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return LEGACY_IMPORTED_EMAIL_DOMAINS.some((domain) => normalized.endsWith(`@${domain}`));
+}
+
+function getConversationDisplayEmail(value: string | null | undefined) {
+  return isLegacyImportedEmail(value) ? null : String(value || "").trim() || null;
+}
+
+function getConversationPrimaryLabel(contact: ConversationListItem["contact"] | ConversationDetail["contact"] | undefined) {
+  if (!contact) return "Customer";
+  return contact.name || contact.phone || getConversationDisplayEmail(contact.email) || "Customer";
+}
+
+function getConversationSecondaryLabel(contact: ConversationListItem["contact"] | ConversationDetail["contact"] | undefined) {
+  if (!contact) return "";
+  return contact.phone || getConversationDisplayEmail(contact.email) || "Imported legacy conversation";
+}
+
+function isEmailChannelConnected(setup: InboxSetupItem | null) {
+  if (!setup || setup.type !== "EMAIL" || setup.status !== "ACTIVE") return false;
+  if (setup.connection.mode === "oauth") {
+    return setup.connection.status === "ACTIVE";
+  }
+  return setup.connection.mode === "smtp";
+}
+
+function isWhatsAppChannelConnected(setup: InboxSetupItem | null) {
+  return Boolean(setup && setup.type === "WHATSAPP" && setup.status === "ACTIVE" && setup.connection.mode === "whatsapp_api");
+}
+
+function getChannelLabel(type: "EMAIL" | "WHATSAPP") {
+  return type === "EMAIL" ? "Email" : "WhatsApp";
+}
+
+function setupBadgeClasses(status: "connected" | "history" | "setup") {
+  if (status === "connected") {
+    return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300";
+  }
+  if (status === "history") {
+    return "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-400/30 dark:bg-sky-400/10 dark:text-sky-300";
+  }
+  return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300";
+}
+
 export default function InboxPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<ConversationTab>("ALL");
   const [assignee, setAssignee] = useState<AssigneeFilter>("all");
@@ -115,7 +210,6 @@ export default function InboxPage() {
   const [sending, setSending] = useState(false);
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
-  const [composerChannel, setComposerChannel] = useState<"EMAIL" | "WHATSAPP">("WHATSAPP");
   const [attachments, setAttachments] = useState<Array<{ name: string; type: string; size?: number; dataUrl?: string }>>([]);
   const [flash, setFlash] = useState<{ kind: "success" | "error" | "warning"; message: string } | null>(null);
   const [lastSyncAt, setLastSyncAt] = useState(() => new Date().toISOString());
@@ -165,6 +259,39 @@ export default function InboxPage() {
       ? cannedRepliesPayload.items
       : [];
 
+  const { data: inboxSetupPayload, mutate: mutateInboxes } = useSWR<InboxSetupPayload>(
+    "/api/inbox/unified/inboxes",
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      shouldRetryOnError: false,
+    }
+  );
+  const inboxSetupItems = inboxSetupPayload?.items ?? [];
+  const emailSetup = inboxSetupItems.find((item) => item.type === "EMAIL") || null;
+  const whatsappSetup = inboxSetupItems.find((item) => item.type === "WHATSAPP") || null;
+  const gmailOauthConfigured = inboxSetupPayload?.oauthProviders?.gmail?.configured ?? false;
+  const outlookOauthConfigured = inboxSetupPayload?.oauthProviders?.outlook?.configured ?? false;
+  const emailChannelConnected = isEmailChannelConnected(emailSetup);
+  const whatsappChannelConnected = isWhatsAppChannelConnected(whatsappSetup);
+  const emailConversationCount = conversations.filter((item) => item.inbox.type === "EMAIL").length;
+  const whatsappConversationCount = conversations.filter((item) => item.inbox.type === "WHATSAPP").length;
+  const emailHistoryOnly = !emailChannelConnected && emailConversationCount > 0;
+  const whatsappHistoryOnly = !whatsappChannelConnected && whatsappConversationCount > 0;
+  const activeChannelConnected = detail ? (detail.inbox.type === "EMAIL" ? emailChannelConnected : whatsappChannelConnected) : false;
+  const activeChannelLabel = detail ? getChannelLabel(detail.inbox.type) : "Channel";
+  const emailSetupStatus = emailChannelConnected ? "connected" : emailHistoryOnly ? "history" : "setup";
+  const whatsappSetupStatus = whatsappChannelConnected ? "connected" : whatsappHistoryOnly ? "history" : "setup";
+  const activeReplyDisabledReason = !detail
+    ? "Select a conversation to reply."
+    : !activeChannelConnected
+      ? `${activeChannelLabel} is not connected for this workspace. Historical messages stay visible, but reconnect the channel before replying.`
+      : detail.inbox.type === "EMAIL" && !getConversationDisplayEmail(detail.contact.email)
+        ? "This customer does not have an email address on file."
+        : detail.inbox.type === "WHATSAPP" && !detail.contact.phone
+          ? "This customer does not have a phone number on file for WhatsApp."
+          : null;
+
   useEffect(() => {
     if (!activeId && conversations.length) {
       setActiveId(conversations[0].id);
@@ -175,9 +302,24 @@ export default function InboxPage() {
   }, [activeId, conversations]);
 
   useEffect(() => {
-    if (!detail?.inbox?.type) return;
-    setComposerChannel(detail.inbox.type);
-  }, [detail?.inbox?.type]);
+    const mailboxConnected = searchParams.get("mailbox_connected");
+    const mailboxError = searchParams.get("mailbox_error");
+    if (mailboxConnected === "1") {
+      setFlash({ kind: "success", message: "Email channel connected successfully." });
+      return;
+    }
+    if (mailboxError) {
+      const message =
+        mailboxError === "mailbox_oauth_not_configured"
+          ? "Mailbox OAuth is not configured on this deployment yet."
+          : mailboxError === "oauth_state_invalid" || mailboxError === "oauth_state_missing"
+            ? "Mailbox connection expired or was interrupted. Start the connection again."
+            : mailboxError === "access_denied"
+              ? "Mailbox connection was cancelled."
+              : "Unable to connect the mailbox.";
+      setFlash({ kind: "error", message });
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const timer = setInterval(async () => {
@@ -197,6 +339,15 @@ export default function InboxPage() {
     }, 6000);
     return () => clearInterval(timer);
   }, [activeId, lastSyncAt, mutateConversations, mutateDetail]);
+
+  const gmailConnectHref = "/api/mailboxes/connected/oauth/start?provider=GMAIL&bindUnifiedInbox=1&returnTo=/dashboard/inbox";
+  const outlookConnectHref =
+    "/api/mailboxes/connected/oauth/start?provider=OUTLOOK&bindUnifiedInbox=1&returnTo=/dashboard/inbox";
+
+  const startMailboxConnect = (href: string, enabled: boolean) => {
+    if (!enabled || typeof window === "undefined") return;
+    window.location.assign(href);
+  };
 
   const handlePatchConversation = async (payload: Record<string, unknown>) => {
     if (!activeId) return;
@@ -267,7 +418,7 @@ export default function InboxPage() {
         body: JSON.stringify({
           content,
           direction: "OUTBOUND",
-          channel: composerChannel,
+          channel: detail?.inbox.type,
           attachments,
         }),
       });
@@ -340,7 +491,7 @@ export default function InboxPage() {
           <h1 className="text-3xl font-semibold text-slate-900 dark:text-slate-50">Customer conversations</h1>
           <p className="text-sm text-slate-600 dark:text-slate-300">Email + WhatsApp conversations in one workspace.</p>
         </div>
-        <Button variant="secondary" onClick={() => Promise.all([mutateConversations(), mutateDetail()])}>
+        <Button variant="secondary" onClick={() => Promise.all([mutateConversations(), mutateDetail(), mutateInboxes()])}>
           <RefreshCw className="mr-2 h-4 w-4" />
           Refresh
         </Button>
@@ -353,6 +504,157 @@ export default function InboxPage() {
       ) : null}
       {listError && <Alert variant="error">{(listError as Error).message}</Alert>}
       {detailError && <Alert variant="error">{(detailError as Error).message}</Alert>}
+      <section className="rounded-3xl border border-slate-200 bg-[linear-gradient(135deg,rgba(248,250,252,1),rgba(255,255,255,1))] p-5 shadow-[0_8px_22px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-900">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.22em] text-slate-400 dark:text-slate-500">Channel setup</p>
+            <h2 className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">Connect your business channels</h2>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+              Email and WhatsApp connect separately. Old threads stay visible, but only connected channels can send live replies.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <span className={`rounded-full border px-3 py-1 text-xs font-medium ${setupBadgeClasses(emailSetupStatus)}`}>
+              Email: {emailChannelConnected ? "Connected" : emailHistoryOnly ? "History only" : "Setup needed"}
+            </span>
+            <span className={`rounded-full border px-3 py-1 text-xs font-medium ${setupBadgeClasses(whatsappSetupStatus)}`}>
+              WhatsApp: {whatsappChannelConnected ? "Connected" : whatsappHistoryOnly ? "History only" : "Setup needed"}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_8px_22px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_18px_36px_rgba(2,6,23,0.4)]">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Email channel</p>
+              <h2 className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">Gmail or Outlook connect</h2>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                Connect Gmail or Microsoft 365 once, then reply from the inbox without storing mailbox passwords.
+              </p>
+            </div>
+            <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${setupBadgeClasses(emailSetupStatus)}`}>
+              {emailChannelConnected ? "Connected" : emailHistoryOnly ? "History only" : "Setup needed"}
+            </span>
+          </div>
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm dark:border-slate-700 dark:bg-slate-950/60">
+            {emailChannelConnected && emailSetup?.connection.mode === "oauth" ? (
+              <>
+                <p className="font-medium text-slate-900 dark:text-slate-100">
+                  {emailSetup.connection.provider === "GMAIL" ? "Gmail" : "Outlook / Microsoft 365"} connected
+                </p>
+                <p className="mt-1 text-slate-600 dark:text-slate-300">{emailSetup.connection.emailAddress}</p>
+                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Provider OAuth is active with encrypted token storage.</p>
+              </>
+            ) : emailChannelConnected && emailSetup?.connection.mode === "smtp" ? (
+              <>
+                <p className="font-medium text-slate-900 dark:text-slate-100">Custom SMTP configured</p>
+                <p className="mt-1 text-slate-600 dark:text-slate-300">
+                  {emailSetup.connection.from} via {emailSetup.connection.host}
+                </p>
+                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">OAuth is still recommended for Gmail and Outlook mailboxes.</p>
+              </>
+            ) : emailHistoryOnly ? (
+              <>
+                <p className="font-medium text-slate-900 dark:text-slate-100">Email history is still visible</p>
+                <p className="mt-1 text-slate-600 dark:text-slate-300">
+                  Previous email threads remain searchable. Reconnect the mailbox before sending new replies.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="font-medium text-slate-900 dark:text-slate-100">No email mailbox connected</p>
+                <p className="mt-1 text-slate-600 dark:text-slate-300">Choose Gmail or Outlook below to start the one-click connect flow.</p>
+              </>
+            )}
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => startMailboxConnect(gmailConnectHref, gmailOauthConfigured)}
+              disabled={!gmailOauthConfigured}
+              className={`inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                gmailOauthConfigured
+                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-500"
+                  : "cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500"
+              }`}
+            >
+              {emailSetup?.connection.mode === "oauth" && emailSetup.connection.provider === "GMAIL" ? "Reconnect Gmail" : "Connect Gmail"}
+            </button>
+            <button
+              type="button"
+              onClick={() => startMailboxConnect(outlookConnectHref, outlookOauthConfigured)}
+              disabled={!outlookOauthConfigured}
+              className={`inline-flex items-center justify-center rounded-lg border px-4 py-2 text-sm font-semibold transition ${
+                outlookOauthConfigured
+                  ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-slate-900"
+                  : "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500"
+              }`}
+            >
+              {emailSetup?.connection.mode === "oauth" && emailSetup.connection.provider === "OUTLOOK"
+                ? "Reconnect Outlook"
+                : "Connect Outlook"}
+            </button>
+          </div>
+          {!gmailOauthConfigured && !outlookOauthConfigured ? (
+            <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+              Gmail and Outlook connect are disabled because real provider client ID and secret values are not configured yet.
+            </p>
+          ) : null}
+        </section>
+
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_8px_22px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_18px_36px_rgba(2,6,23,0.4)]">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">WhatsApp channel</p>
+              <h2 className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">Business API setup</h2>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                Connect a WhatsApp Business number through Meta embedded signup.
+              </p>
+            </div>
+            <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${setupBadgeClasses(whatsappSetupStatus)}`}>
+              {whatsappChannelConnected ? "Connected" : whatsappHistoryOnly ? "History only" : "Setup needed"}
+            </span>
+          </div>
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm dark:border-slate-700 dark:bg-slate-950/60">
+            {whatsappChannelConnected && whatsappSetup?.connection.mode === "whatsapp_api" ? (
+              <>
+                <p className="font-medium text-slate-900 dark:text-slate-100">Meta Business API configured</p>
+                <p className="mt-1 text-slate-600 dark:text-slate-300">
+                  {whatsappSetup.connection.displayPhoneNumber || "Business number connected"} · {whatsappSetup.connection.phoneNumberId}
+                </p>
+                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Inbound webhooks and delivery updates are active.</p>
+              </>
+            ) : whatsappHistoryOnly ? (
+              <>
+                <p className="font-medium text-slate-900 dark:text-slate-100">WhatsApp history is still visible</p>
+                <p className="mt-1 text-slate-600 dark:text-slate-300">
+                  Imported or prior WhatsApp conversations remain searchable. Reconnect Meta before replying to them.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="font-medium text-slate-900 dark:text-slate-100">No WhatsApp Business channel connected</p>
+                <p className="mt-1 text-slate-600 dark:text-slate-300">Start Meta signup below to connect a live business number.</p>
+              </>
+            )}
+          </div>
+          <div className="mt-4">
+            <WhatsAppEmbeddedSignupCard
+              connection={
+                whatsappSetup?.connection.mode === "whatsapp_api"
+                  ? whatsappSetup.connection
+                  : {
+                      mode: "none",
+                      configured: false,
+                    }
+              }
+              onConnected={() => mutateInboxes()}
+            />
+          </div>
+        </section>
+      </div>
 
       <div className="grid gap-6 xl:grid-cols-[320px_1fr_320px]">
         <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_18px_36px_rgba(2,6,23,0.4)]">
@@ -406,30 +708,54 @@ export default function InboxPage() {
               </div>
             )}
             {conversations.map((conversation) => (
-              <button
-                key={conversation.id}
-                onClick={() => setActiveId(conversation.id)}
-                className={`w-full rounded-xl border p-3 text-left transition ${
-                  activeId === conversation.id
-                    ? "border-indigo-300 bg-indigo-50/40 dark:border-indigo-400/40 dark:bg-indigo-400/10"
-                    : "border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-950"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{conversation.contact.name || conversation.contact.email}</p>
-                    <p className="truncate text-xs text-slate-500 dark:text-slate-400">{conversation.contact.phone || conversation.contact.email}</p>
-                  </div>
-                  <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] ${statusPillClasses[conversation.status]}`}>
-                    {statusLabel[conversation.status]}
-                  </span>
-                </div>
-                <p className="mt-2 line-clamp-2 text-xs text-slate-600 dark:text-slate-300">{conversation.lastMessage?.content || "No messages yet."}</p>
-                <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-                  <span>{conversation.inbox.type === "EMAIL" ? "Email" : "WhatsApp"}</span>
-                  <span>{conversation.unreadCount > 0 ? `${conversation.unreadCount} unread` : "No unread"}</span>
-                </div>
-              </button>
+              (() => {
+                const conversationChannelConnected =
+                  conversation.inbox.type === "EMAIL" ? emailChannelConnected : whatsappChannelConnected;
+                const importedLegacy = isLegacyImportedEmail(conversation.contact.email);
+
+                return (
+                  <button
+                    key={conversation.id}
+                    onClick={() => setActiveId(conversation.id)}
+                    className={`w-full rounded-xl border p-3 text-left transition ${
+                      activeId === conversation.id
+                        ? "border-indigo-300 bg-indigo-50/40 dark:border-indigo-400/40 dark:bg-indigo-400/10"
+                        : "border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-950"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+                          {getConversationPrimaryLabel(conversation.contact)}
+                        </p>
+                        <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                          {getConversationSecondaryLabel(conversation.contact)}
+                        </p>
+                      </div>
+                      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] ${statusPillClasses[conversation.status]}`}>
+                        {statusLabel[conversation.status]}
+                      </span>
+                    </div>
+                    <p className="mt-2 line-clamp-2 text-xs text-slate-600 dark:text-slate-300">{conversation.lastMessage?.content || "No messages yet."}</p>
+                    <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        <span>{conversation.inbox.type === "EMAIL" ? "Email" : "WhatsApp"}</span>
+                        {!conversationChannelConnected ? (
+                          <span className="rounded-full border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 dark:border-sky-400/30 dark:bg-sky-400/10 dark:text-sky-300">
+                            History only
+                          </span>
+                        ) : null}
+                        {importedLegacy ? (
+                          <span className="rounded-full border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                            Imported
+                          </span>
+                        ) : null}
+                      </span>
+                      <span>{conversation.unreadCount > 0 ? `${conversation.unreadCount} unread` : "No unread"}</span>
+                    </div>
+                  </button>
+                );
+              })()
             ))}
           </div>
         </section>
@@ -438,9 +764,27 @@ export default function InboxPage() {
           <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-slate-700">
             <div>
               <p className="text-base font-semibold text-slate-900 dark:text-slate-100">
-                {detail?.contact?.name || detail?.contact?.email || "Select a conversation"}
+                {getConversationPrimaryLabel(detail?.contact)}
               </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">{detail?.contact?.phone || detail?.contact?.email || ""}</p>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                <span>{getConversationSecondaryLabel(detail?.contact)}</span>
+                {detail ? (
+                  <span
+                    className={`rounded-full border px-2 py-0.5 ${
+                      activeChannelConnected
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300"
+                        : "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-400/30 dark:bg-sky-400/10 dark:text-sky-300"
+                    }`}
+                  >
+                    {activeChannelConnected ? `${activeChannelLabel} live` : `${activeChannelLabel} history only`}
+                  </span>
+                ) : null}
+                {detail && isLegacyImportedEmail(detail.contact.email) ? (
+                  <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                    Imported legacy thread
+                  </span>
+                ) : null}
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <select
@@ -500,15 +844,11 @@ export default function InboxPage() {
           </div>
 
           <div className="space-y-3 border-t border-slate-100 px-5 py-4 dark:border-slate-700">
+            {activeReplyDisabledReason ? <Alert variant="warning">{activeReplyDisabledReason}</Alert> : null}
             <div className="flex flex-wrap items-center gap-2">
-              <select
-                value={composerChannel}
-                onChange={(event) => setComposerChannel(event.target.value as "EMAIL" | "WHATSAPP")}
-                className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-              >
-                <option value="WHATSAPP">WhatsApp</option>
-                <option value="EMAIL">Email</option>
-              </select>
+              <div className="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100">
+                Replying on {detail ? getChannelLabel(detail.inbox.type) : "selected channel"}
+              </div>
               <select
                 onChange={(event) => {
                   const id = event.target.value;
@@ -531,10 +871,22 @@ export default function InboxPage() {
                 <Sparkles className="mr-2 h-4 w-4" />
                 {aiLoading ? "Generating..." : "AI reply"}
               </Button>
-              <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-950">
+              <label
+                className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs ${
+                  activeReplyDisabledReason
+                    ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500"
+                    : "cursor-pointer border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-950"
+                }`}
+              >
                 <Paperclip className="h-4 w-4" />
                 Attach
-                <input type="file" multiple className="hidden" onChange={(event) => handleFileAttach(event.target.files)} />
+                <input
+                  type="file"
+                  multiple
+                  className="hidden"
+                  disabled={Boolean(activeReplyDisabledReason)}
+                  onChange={(event) => handleFileAttach(event.target.files)}
+                />
               </label>
             </div>
 
@@ -553,9 +905,10 @@ export default function InboxPage() {
                 className="min-h-[96px] flex-1"
                 value={messageDraft}
                 onChange={(event) => setMessageDraft(event.target.value)}
-                placeholder="Type your reply..."
+                disabled={Boolean(activeReplyDisabledReason)}
+                placeholder={activeReplyDisabledReason || "Type your reply..."}
               />
-              <Button onClick={sendMessage} disabled={!detail || sending}>
+              <Button onClick={sendMessage} disabled={!detail || sending || Boolean(activeReplyDisabledReason)}>
                 <Send className="mr-2 h-4 w-4" />
                 {sending ? "Sending..." : "Send"}
               </Button>
@@ -569,8 +922,8 @@ export default function InboxPage() {
               <UserCircle2 className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{detail?.contact?.name || "Customer"}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">{detail?.contact?.email || ""}</p>
+              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{getConversationPrimaryLabel(detail?.contact)}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{getConversationSecondaryLabel(detail?.contact)}</p>
             </div>
           </div>
 

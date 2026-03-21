@@ -5,7 +5,7 @@ import { withErrorHandling } from "@/lib/api-handler";
 import { requireVerifiedPlatformAdminAccess } from "@/lib/admin/admin-rbac";
 import { normalizeIdentityRole, toHttpError, updateAdminUserRole } from "@/lib/admin/users";
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export const PUT = withErrorHandling(async (req: Request, { params }: Params) => {
   const session = await getServerSession(authOptions);
@@ -20,6 +20,7 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
     return access.response;
   }
 
+  const { id } = await params;
   const body = await req.json().catch(() => ({}));
   const nextRole = normalizeIdentityRole((body as { role?: string }).role);
   if (!nextRole) {
@@ -29,7 +30,7 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
   try {
     const detail = await updateAdminUserRole({
       actorId: session.user.id,
-      userId: params.id,
+      userId: id,
       nextRole,
     });
     return NextResponse.json({ success: true, user: detail.user });

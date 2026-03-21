@@ -5,7 +5,7 @@ import { withErrorHandling } from "@/lib/api-handler";
 import { requireNoImpersonationMode, requirePlatformAdmin } from "@/lib/admin/admin-rbac";
 import { getAutomationErrorDetail } from "@/lib/admin/automation-errors";
 
-export const GET = withErrorHandling(async (req: Request, ctx?: { params?: { runId?: string } }) => {
+export const GET = withErrorHandling(async (req: Request, ctx?: { params?: Promise<{ runId?: string }> }) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthenticated", code: "UNAUTHENTICATED" }, { status: 401 });
@@ -18,7 +18,8 @@ export const GET = withErrorHandling(async (req: Request, ctx?: { params?: { run
   });
   if (impersonationBlocked) return impersonationBlocked;
 
-  const runId = String(ctx?.params?.runId || "").trim();
+  const resolvedParams = ctx?.params ? await ctx.params : null;
+  const runId = String(resolvedParams?.runId || "").trim();
   if (!runId) {
     return NextResponse.json({ error: "Run id is required", code: "VALIDATION_ERROR" }, { status: 422 });
   }

@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { withErrorHandling } from "@/lib/api-handler";
 import { requireVerifiedPlatformAdminAccess } from "@/lib/admin/admin-rbac";
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export const POST = withErrorHandling(async (req: Request, { params }: Params) => {
   const session = await getServerSession(authOptions);
@@ -17,12 +17,13 @@ export const POST = withErrorHandling(async (req: Request, { params }: Params) =
   });
   if (!access.ok) return access.response;
 
+  const { id } = await params;
   return NextResponse.json(
     {
       error:
         "Legacy notes route is disabled. Use POST /api/admin/support/tickets/:id/notes with version.",
       code: "LEGACY_SUPPORT_ROUTE_DISABLED",
-      ticketRoute: `/api/admin/support/tickets/${params.id}/notes`,
+      ticketRoute: `/api/admin/support/tickets/${id}/notes`,
     },
     {
       status: 410,

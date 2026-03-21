@@ -10,7 +10,7 @@ import {
   toApiSupportStatus,
 } from "@/lib/support/threading";
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export const GET = withErrorHandling(async (_req: Request, { params }: Params) => {
   const session = await getServerSession(authOptions);
@@ -24,13 +24,14 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
   if (!access.ok) {
     return access.response;
   }
-  const ticket = await getSupportTicketForAdmin(params.id, null, session.user.id);
+  const { id } = await params;
+  const ticket = await getSupportTicketForAdmin(id, null, session.user.id);
   if (!ticket) {
     return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
   }
 
   await markSupportTicketReadByAdmin({
-    ticketId: params.id,
+    ticketId: id,
     actorUserId: session.user.id,
     workspaceId: null,
   });

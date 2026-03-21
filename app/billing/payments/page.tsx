@@ -21,7 +21,7 @@ type SearchParams = {
 export default async function BillingPaymentsPage({
   searchParams,
 }: {
-  searchParams?: SearchParams | Promise<SearchParams>;
+  searchParams?: Promise<SearchParams>;
 }) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -50,7 +50,7 @@ export default async function BillingPaymentsPage({
     );
   }
 
-  const params = await Promise.resolve(searchParams);
+  const params = searchParams ? await searchParams : undefined;
   const initialData = await getPaymentsLedgerData({
     userId: access.ownerUserId,
     range: params?.range,

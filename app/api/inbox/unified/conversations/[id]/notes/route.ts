@@ -5,13 +5,14 @@ import { withErrorHandling } from "@/lib/api-handler";
 import { requireUnifiedInboxAccess, writeUnifiedAuditEvent } from "@/lib/inbox/unified";
 import { prisma } from "@/lib/prisma";
 
-export const GET = withErrorHandling(async (_req: Request, ctx: { params: { id: string } }) => {
+export const GET = withErrorHandling(async (_req: Request, ctx: { params: Promise<{ id: string }> }) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const context = await requireUnifiedInboxAccess(session.user.id);
+  const { id } = await ctx.params;
 
   const exists = await prisma.unifiedConversation.findFirst({
-    where: { id: ctx.params.id, tenantId: context.orgId },
+    where: { id, tenantId: context.orgId },
     select: { id: true },
   });
   if (!exists) return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
@@ -32,16 +33,17 @@ export const GET = withErrorHandling(async (_req: Request, ctx: { params: { id: 
   return NextResponse.json({ items: notes });
 });
 
-export const POST = withErrorHandling(async (req: Request, ctx: { params: { id: string } }) => {
+export const POST = withErrorHandling(async (req: Request, ctx: { params: Promise<{ id: string }> }) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const context = await requireUnifiedInboxAccess(session.user.id);
   const body = await req.json().catch(() => ({}));
   const content = String(body?.content || "").trim();
   if (!content) return NextResponse.json({ error: "Note content is required." }, { status: 422 });
+  const { id } = await ctx.params;
 
   const conversation = await prisma.unifiedConversation.findFirst({
-    where: { id: ctx.params.id, tenantId: context.orgId },
+    where: { id, tenantId: context.orgId },
     select: { id: true },
   });
   if (!conversation) return NextResponse.json({ error: "Conversation not found." }, { status: 404 });

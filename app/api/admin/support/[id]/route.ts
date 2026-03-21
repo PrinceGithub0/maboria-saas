@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { withErrorHandling } from "@/lib/api-handler";
 import { requireVerifiedPlatformAdminAccess } from "@/lib/admin/admin-rbac";
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 function legacySupportRouteDisabled(id: string) {
   return NextResponse.json(
@@ -33,7 +33,8 @@ export const GET = withErrorHandling(async (req: Request, { params }: Params) =>
   });
   if (!access.ok) return access.response;
 
-  return legacySupportRouteDisabled(params.id);
+  const { id } = await params;
+  return legacySupportRouteDisabled(id);
 });
 
 export const PATCH = withErrorHandling(async (req: Request, { params }: Params) => {
@@ -47,5 +48,6 @@ export const PATCH = withErrorHandling(async (req: Request, { params }: Params) 
   });
   if (!access.ok) return access.response;
 
-  return legacySupportRouteDisabled(params.id);
+  const { id } = await params;
+  return legacySupportRouteDisabled(id);
 });

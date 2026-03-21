@@ -88,5 +88,6 @@ export const GET = withErrorHandling(async () => {
     avgResponseMs,
     openCount,
     series: Object.entries(daily).map(([date, count]) => ({ date, count })),
+    generatedAt: new Date().toISOString(),
   });
 });

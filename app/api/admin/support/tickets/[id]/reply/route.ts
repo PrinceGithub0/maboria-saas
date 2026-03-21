@@ -18,7 +18,7 @@ import {
 import { getReplyAssignmentDecision } from "@/lib/support/reply-assignment";
 import { requireSystemFlag } from "@/lib/system-flags-guard";
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 type ReplyAttachmentInput = {
   filename: string;
   contentType: "image/jpeg" | "image/png" | "application/pdf";
@@ -31,6 +31,7 @@ const MAX_ATTACHMENT_SIZE_BYTES = 5 * 1024 * 1024;
 const MAX_ATTACHMENTS = 5;
 
 export const POST = withErrorHandling(async (req: Request, { params }: Params) => {
+  const { id } = await params;
   const supportDisabled = await requireSystemFlag("support_enabled", "Support is currently disabled.");
   if (supportDisabled) return supportDisabled;
 
@@ -90,7 +91,7 @@ export const POST = withErrorHandling(async (req: Request, { params }: Params) =
     });
   }
 
-  const ticket = await getSupportTicketForAdmin(params.id, null, session.user.id);
+  const ticket = await getSupportTicketForAdmin(id, null, session.user.id);
   if (!ticket) {
     return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
   }
