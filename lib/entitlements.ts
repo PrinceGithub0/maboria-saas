@@ -4,6 +4,7 @@ import { SubscriptionStatus } from "@prisma/client";
 import { PLAN_LIMITS, UNLIMITED } from "@/lib/planLimits";
 import { isPlatformRole } from "@/lib/global-role";
 import { isOrgSubscriptionActive, resolveOrgContext } from "@/lib/org-auth";
+import { isAutomationTriggerMetadataStep } from "@/lib/automation/step-kind";
 
 export type UserPlan = "free" | "starter" | "pro" | "growth" | "business" | "enterprise";
 export type EntitlementStatus = SubscriptionStatus | "INACTIVE";
@@ -168,7 +169,7 @@ export async function getEntitlementForUser(userId: string): Promise<UserEntitle
         canAutomations: true,
         canWorkflows: true,
         canInvoices: true,
-        canAI: isPlanAtLeast(plan, "starter"),
+        canAI: true,
         canWhatsapp: isPlanAtLeast(plan, "starter"),
       };
     }
@@ -227,7 +228,7 @@ export async function getEntitlementForUser(userId: string): Promise<UserEntitle
     canAutomations: active,
     canWorkflows: active,
     canInvoices: active,
-    canAI: active && isPlanAtLeast(plan, "starter"),
+    canAI: active,
     canWhatsapp: active && isPlanAtLeast(plan, "starter"),
   };
 }
@@ -564,8 +565,8 @@ export async function enforceEntitlement(
       type: "upgrade_required" as const,
       plan: entitlement.plan,
       status: entitlement.status,
-      requiredPlan: "starter",
-      reason: "AI is available on Starter and higher plans",
+      requiredPlan: "free",
+      reason: "AI requires an active subscription",
     };
   }
 
@@ -587,6 +588,7 @@ type StepLike = { type?: unknown; config?: Record<string, any>; requiresPlan?: u
 
 function stepRequiresPlan(step: StepLike | null | undefined) {
   if (!step) return null;
+  if (isAutomationTriggerMetadataStep(step)) return null;
   const rawType = typeof step.type === "string" ? step.type.toLowerCase() : "";
   const required =
     (typeof step.requiresPlan === "string" ? step.requiresPlan : undefined) ||
@@ -598,9 +600,6 @@ function stepRequiresPlan(step: StepLike | null | undefined) {
 
   if (rawType.includes("whatsapp")) {
     return { plan: "starter" as const, reason: "WhatsApp automation is a Starter feature" };
-  }
-  if (rawType.startsWith("ai")) {
-    return { plan: "starter" as const, reason: "AI steps are a Starter feature" };
   }
   return null;
 }

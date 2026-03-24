@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { resolveInvoicePublicLink } from "@/lib/invoice-public-link";
 import { verifyPaystackTransaction } from "@/lib/payments/paystack";
-import { verifyFlutterwaveTransaction } from "@/lib/payments/flutterwave";
+import {
+  verifyFlutterwaveTransaction,
+  verifyFlutterwaveTransactionByReference,
+} from "@/lib/payments/flutterwave";
+import { resolveFlutterwaveConfirmationTarget } from "@/lib/payments/flutterwave-confirmation";
 import { recordInvoicePayment } from "@/lib/invoice-payments";
 import { normalizeCurrency } from "@/lib/payments/currency-allowlist";
 import { fromMinorUnits } from "@/lib/payments/currency-allowlist";
@@ -54,7 +58,18 @@ export const GET = async (req: Request, context: { params: Promise<{ token: stri
         rawPayload: verified,
       });
     } else if (provider === "FLUTTERWAVE") {
-      const verification = await verifyFlutterwaveTransaction(reference);
+      const flutterwaveTarget = resolveFlutterwaveConfirmationTarget({
+        transactionId: url.searchParams.get("transaction_id"),
+        txRef: url.searchParams.get("tx_ref"),
+        fallbackReference: paymentMeta?.reference || reference,
+      });
+      if (!flutterwaveTarget) {
+        return NextResponse.redirect(new URL(`/pay/invoice/${token}?status=failed`, url));
+      }
+      const verification =
+        flutterwaveTarget.mode === "transaction"
+          ? await verifyFlutterwaveTransaction(flutterwaveTarget.value)
+          : await verifyFlutterwaveTransactionByReference(flutterwaveTarget.value);
       const verified = verification?.data;
       if (!verification?.status || !verified || verified.status !== "successful") {
         return NextResponse.redirect(new URL(`/pay/invoice/${token}?status=failed`, url));

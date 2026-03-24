@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 
 export type VerifiedAutomationEventType =
+  | "invoice.created"
   | "invoice.status.changed"
   | "payment.verified"
   | "webhook.received"

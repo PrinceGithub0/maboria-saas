@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import clsx from "clsx";
+import { useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -147,6 +148,7 @@ function Sparkline({ values, color }: { values: number[]; color: string }) {
 
 export default function AutomationOperationsPage() {
   const { language } = useLanguage();
+  const searchParams = useSearchParams();
   const t = useCallback((en: string, fr: string) => (language === "fr" ? fr : en), [language]);
   const { data, mutate, error } = useSWR<RunRecord[]>("/api/automation/runs", fetcher, {
     revalidateOnFocus: false,
@@ -207,6 +209,25 @@ export default function AutomationOperationsPage() {
     const timer = window.setTimeout(() => setQuery(searchInput.trim().toLowerCase()), 250);
     return () => window.clearTimeout(timer);
   }, [searchInput]);
+
+  useEffect(() => {
+    const nextSearch = String(searchParams.get("q") || "");
+    const nextStatus = String(searchParams.get("status") || "all").trim().toUpperCase();
+    const nextAutomation = String(searchParams.get("automation") || "all");
+    const nextFrom = String(searchParams.get("from") || "");
+    const nextTo = String(searchParams.get("to") || "");
+
+    setSearchInput(nextSearch);
+    setQuery(nextSearch.trim().toLowerCase());
+    setStatusFilter(
+      nextStatus === "SUCCESS" || nextStatus === "FAILED" || nextStatus === "RUNNING" || nextStatus === "PENDING"
+        ? nextStatus
+        : "all"
+    );
+    setAutomationFilter(nextAutomation || "all");
+    setStartDate(nextFrom);
+    setEndDate(nextTo);
+  }, [searchParams]);
 
   useEffect(() => {
     try {
@@ -450,13 +471,16 @@ export default function AutomationOperationsPage() {
     setRetrying(true);
     setNotice(null);
     try {
+      const originalInput = asObj(run.input);
       const res = await fetch("/api/automation/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           flowId: run.flowId,
-          input: { text: "Retried from Automation Operations", retryFromRunId: run.id },
-          idempotencyKey: `full-run-retry:${run.id}`,
+          input: {
+            ...originalInput,
+            retryFromRunId: run.id,
+          },
         }),
       });
       const payload = await res.json().catch(() => ({}));

@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { withErrorHandling } from "@/lib/api-handler";
 import { authOptions } from "@/lib/auth";
+import { expireUnifiedConversationSnoozes } from "@/lib/inbox/conversation-participants";
 import { requireUnifiedInboxAccess } from "@/lib/inbox/unified";
 import { prisma } from "@/lib/prisma";
 
@@ -12,14 +13,15 @@ export const GET = withErrorHandling(async () => {
   }
 
   const context = await requireUnifiedInboxAccess(session.user.id);
+  await expireUnifiedConversationSnoozes(prisma, { tenantId: context.orgId });
 
-  const unreadCount = await prisma.unifiedMessage.count({
+  const unreadCount = await prisma.unifiedConversationParticipant.aggregate({
     where: {
       tenantId: context.orgId,
-      direction: "INBOUND",
-      channel: { in: ["EMAIL", "WHATSAPP"] },
+      userId: session.user.id,
     },
+    _sum: { unreadCount: true },
   });
 
-  return NextResponse.json({ unreadCount });
+  return NextResponse.json({ unreadCount: unreadCount._sum.unreadCount ?? 0 });
 });

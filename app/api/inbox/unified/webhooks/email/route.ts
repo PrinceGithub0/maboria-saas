@@ -2,6 +2,10 @@ import { Prisma } from "@prisma/client";
 import crypto from "crypto";
 import { NextResponse } from "next/server";
 import {
+  applyUnifiedInboundActivity,
+  ensureUnifiedConversationParticipants,
+} from "@/lib/inbox/conversation-participants";
+import {
   createOrResolveCustomerForInbound,
   extractInboundReplyText,
   extractConversationIdFromEmailSubject,
@@ -158,9 +162,13 @@ export async function POST(req: Request) {
         inboxId: inbox.id,
         contactId: customer.id,
         status: "OPEN",
-        lastMessageAt: new Date(),
       },
       select: { id: true },
+    });
+
+    await ensureUnifiedConversationParticipants(prisma, {
+      tenantId: tenant.id,
+      conversationId: conversation.id,
     });
   }
 
@@ -191,12 +199,10 @@ export async function POST(req: Request) {
         },
       });
 
-      await tx.unifiedConversation.update({
-        where: { id: conversation!.id },
-        data: {
-          status: "OPEN",
-          lastMessageAt: created.createdAt,
-        },
+      await applyUnifiedInboundActivity(tx, {
+        tenantId: tenant.id,
+        conversationId: conversation!.id,
+        occurredAt: created.createdAt,
       });
 
       await writeUnifiedAuditEvent(tx, {

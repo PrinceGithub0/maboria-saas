@@ -163,7 +163,7 @@ export default function CheckoutReturnPage() {
   useEffect(() => {
     if (view !== "success") return;
     const timer = setTimeout(() => {
-      router.replace("/dashboard");
+      router.replace("/dashboard/subscription");
     }, 1200);
     return () => clearTimeout(timer);
   }, [view, router]);
@@ -191,7 +191,7 @@ export default function CheckoutReturnPage() {
               </div>
               <h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-900">Payment successful</h1>
               <p className="mt-2 text-sm text-slate-600">
-                Your subscription is now active. Redirecting to your dashboard...
+                Your subscription is now active. Redirecting to billing...
               </p>
             </div>
           )}

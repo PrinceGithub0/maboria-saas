@@ -3,7 +3,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
-import { Inbox, Paperclip, RefreshCw, Search, Send, Sparkles, Tag, UserCircle2 } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCheck,
+  Clock3,
+  Inbox,
+  Mail,
+  MessageSquareMore,
+  Paperclip,
+  RefreshCw,
+  Search,
+  Send,
+  Sparkles,
+  Tag,
+  UserCircle2,
+} from "lucide-react";
 import { WhatsAppEmbeddedSignupCard } from "@/components/inbox/whatsapp-embedded-signup-card";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -12,7 +26,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TransientAlert } from "@/components/ui/transient-alert";
 import { formatDateTimeDMY } from "@/lib/date";
 
-type ConversationStatus = "OPEN" | "PENDING" | "CLOSED";
+type ConversationStatus = "OPEN" | "WAITING_ON_CUSTOMER" | "SNOOZED" | "RESOLVED";
 type ConversationTab = "ALL" | ConversationStatus;
 type AssigneeFilter = "all" | "mine" | "unassigned";
 
@@ -32,6 +46,11 @@ type ConversationListItem = {
   tags: Array<{ id: string; label: string }>;
   unreadCount: number;
   lastMessageAt: string | null;
+  snoozedUntil: string | null;
+  waitingSince: string | null;
+  lastInboundAt: string | null;
+  lastOutboundAt: string | null;
+  resolvedAt: string | null;
   lastMessage: { id: string; direction: string; content: string; createdAt: string; deliveryStatus: string } | null;
 };
 
@@ -40,6 +59,13 @@ type ConversationListPayload = { items: ConversationListItem[] };
 type ConversationDetail = {
   id: string;
   status: ConversationStatus;
+  unreadCount: number;
+  snoozedUntil: string | null;
+  waitingSince: string | null;
+  lastInboundAt: string | null;
+  lastOutboundAt: string | null;
+  lastCustomerReplyAt: string | null;
+  resolvedAt: string | null;
   inbox: { id: string; name: string; type: "EMAIL" | "WHATSAPP"; status: string };
   contact: {
     id: string;
@@ -134,15 +160,17 @@ const fetcher = async (url: string) => {
 };
 
 const statusLabel: Record<ConversationStatus, string> = {
-  OPEN: "Open",
-  PENDING: "Pending",
-  CLOSED: "Closed",
+  OPEN: "Needs reply",
+  WAITING_ON_CUSTOMER: "Waiting",
+  SNOOZED: "Snoozed",
+  RESOLVED: "Resolved",
 };
 
 const statusPillClasses: Record<ConversationStatus, string> = {
-  OPEN: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-400/10 dark:text-emerald-300 dark:border-emerald-400/30",
-  PENDING: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-400/10 dark:text-amber-300 dark:border-amber-400/30",
-  CLOSED: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700",
+  OPEN: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-300",
+  WAITING_ON_CUSTOMER: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-400/30 dark:bg-sky-400/10 dark:text-sky-300",
+  SNOOZED: "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-400/30 dark:bg-violet-400/10 dark:text-violet-300",
+  RESOLVED: "border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200",
 };
 
 const directionBubble = {
@@ -171,6 +199,16 @@ function getConversationSecondaryLabel(contact: ConversationListItem["contact"] 
   return contact.phone || getConversationDisplayEmail(contact.email) || "Imported legacy conversation";
 }
 
+function getConversationInitials(contact: ConversationListItem["contact"] | ConversationDetail["contact"] | undefined) {
+  const label = getConversationPrimaryLabel(contact).trim();
+  if (!label) return "CU";
+  const parts = label.split(/\s+/).filter(Boolean);
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || "")
+    .join("") || label.slice(0, 2).toUpperCase();
+}
+
 function isEmailChannelConnected(setup: InboxSetupItem | null) {
   if (!setup || setup.type !== "EMAIL" || setup.status !== "ACTIVE") return false;
   if (setup.connection.mode === "oauth") {
@@ -195,6 +233,24 @@ function setupBadgeClasses(status: "connected" | "history" | "setup") {
     return "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-400/30 dark:bg-sky-400/10 dark:text-sky-300";
   }
   return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300";
+}
+
+function getConversationStatusDetail(input: {
+  status: ConversationStatus;
+  snoozedUntil?: string | null;
+  waitingSince?: string | null;
+  resolvedAt?: string | null;
+}) {
+  if (input.status === "SNOOZED" && input.snoozedUntil) {
+    return `Until ${formatDateTimeDMY(new Date(input.snoozedUntil))}`;
+  }
+  if (input.status === "WAITING_ON_CUSTOMER" && input.waitingSince) {
+    return `Waiting since ${formatDateTimeDMY(new Date(input.waitingSince))}`;
+  }
+  if (input.status === "RESOLVED" && input.resolvedAt) {
+    return `Resolved ${formatDateTimeDMY(new Date(input.resolvedAt))}`;
+  }
+  return null;
 }
 
 export default function InboxPage() {
@@ -477,26 +533,45 @@ export default function InboxPage() {
     () => ({
       all: conversations.length,
       open: conversations.filter((item) => item.status === "OPEN").length,
-      pending: conversations.filter((item) => item.status === "PENDING").length,
-      closed: conversations.filter((item) => item.status === "CLOSED").length,
+      waiting: conversations.filter((item) => item.status === "WAITING_ON_CUSTOMER").length,
+      snoozed: conversations.filter((item) => item.status === "SNOOZED").length,
+      resolved: conversations.filter((item) => item.status === "RESOLVED").length,
     }),
     [conversations]
   );
 
+  const inboxStats = useMemo(
+    () => [
+      {
+        label: "Needs reply",
+        value: ticketCounts.open,
+        tone: "text-rose-300",
+        icon: AlertCircle,
+      },
+      {
+        label: "Waiting",
+        value: ticketCounts.waiting,
+        tone: "text-sky-300",
+        icon: Clock3,
+      },
+      {
+        label: "Resolved",
+        value: ticketCounts.resolved,
+        tone: "text-emerald-300",
+        icon: CheckCheck,
+      },
+      {
+        label: "Live channels",
+        value: `${Number(emailChannelConnected) + Number(whatsappChannelConnected)}/2`,
+        tone: "text-violet-300",
+        icon: MessageSquareMore,
+      },
+    ],
+    [emailChannelConnected, ticketCounts.open, ticketCounts.resolved, ticketCounts.waiting, whatsappChannelConnected]
+  );
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-[0.26em] text-slate-500 dark:text-slate-400">Unified inbox</p>
-          <h1 className="text-3xl font-semibold text-slate-900 dark:text-slate-50">Customer conversations</h1>
-          <p className="text-sm text-slate-600 dark:text-slate-300">Email + WhatsApp conversations in one workspace.</p>
-        </div>
-        <Button variant="secondary" onClick={() => Promise.all([mutateConversations(), mutateDetail(), mutateInboxes()])}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
-      </div>
-
       {flash ? (
         <TransientAlert variant={flash.kind} onDismiss={() => setFlash(null)}>
           {flash.message}
@@ -504,195 +579,206 @@ export default function InboxPage() {
       ) : null}
       {listError && <Alert variant="error">{(listError as Error).message}</Alert>}
       {detailError && <Alert variant="error">{(detailError as Error).message}</Alert>}
-      <section className="rounded-3xl border border-slate-200 bg-[linear-gradient(135deg,rgba(248,250,252,1),rgba(255,255,255,1))] p-5 shadow-[0_8px_22px_rgba(15,23,42,0.04)] dark:border-slate-700 dark:bg-slate-900">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.22em] text-slate-400 dark:text-slate-500">Channel setup</p>
-            <h2 className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">Connect your business channels</h2>
-            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-              Email and WhatsApp connect separately. Old threads stay visible, but only connected channels can send live replies.
-            </p>
+
+      <section className="overflow-hidden rounded-[32px] border border-slate-200 bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.16),transparent_34%),linear-gradient(135deg,#081124_0%,#0f172a_46%,#111827_100%)] text-white shadow-[0_24px_70px_rgba(15,23,42,0.24)] dark:border-slate-700 dark:bg-[radial-gradient(circle_at_top_left,rgba(129,140,248,0.18),transparent_36%),linear-gradient(135deg,#020617_0%,#0b1120_50%,#111827_100%)]">
+        <div className="grid gap-6 p-6 xl:grid-cols-[1.25fr_0.95fr] xl:p-7">
+          <div className="space-y-6">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="max-w-2xl">
+                <p className="text-[11px] uppercase tracking-[0.32em] text-slate-300">Unified inbox</p>
+                <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-[2.2rem]">Customer conversations, built for follow-through.</h1>
+                <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300">
+                  Keep email and WhatsApp in one lane, know what needs action now, and reply with billing context without leaving the thread.
+                </p>
+              </div>
+              <Button
+                variant="secondary"
+                className="border-white/15 bg-white/10 text-white backdrop-blur hover:bg-white/16"
+                onClick={() => Promise.all([mutateConversations(), mutateDetail(), mutateInboxes()])}
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Refresh
+              </Button>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {inboxStats.map((stat) => (
+                <div key={stat.label} className="rounded-2xl border border-white/10 bg-white/6 p-4 backdrop-blur">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[11px] uppercase tracking-[0.24em] text-slate-300">{stat.label}</p>
+                    <stat.icon className={`h-4 w-4 ${stat.tone}`} />
+                  </div>
+                  <p className="mt-3 text-3xl font-semibold text-white">{stat.value}</p>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <span className={`rounded-full border px-3 py-1 text-xs font-medium ${setupBadgeClasses(emailSetupStatus)}`}>
-              Email: {emailChannelConnected ? "Connected" : emailHistoryOnly ? "History only" : "Setup needed"}
-            </span>
-            <span className={`rounded-full border px-3 py-1 text-xs font-medium ${setupBadgeClasses(whatsappSetupStatus)}`}>
-              WhatsApp: {whatsappChannelConnected ? "Connected" : whatsappHistoryOnly ? "History only" : "Setup needed"}
-            </span>
+
+          <div className="rounded-[28px] border border-white/10 bg-white/6 p-5 backdrop-blur">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.24em] text-slate-300">Channel control</p>
+                <h2 className="mt-2 text-lg font-semibold text-white">Keep the live channels tight</h2>
+              </div>
+              <div className="rounded-full border border-white/10 bg-white/8 px-3 py-1 text-xs text-slate-200">
+                {Number(emailChannelConnected) + Number(whatsappChannelConnected) === 2 ? "All live" : "Needs setup"}
+              </div>
+            </div>
+
+            <div className="mt-5 space-y-3">
+              <div className="rounded-2xl border border-white/10 bg-black/10 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-white">
+                      <Mail className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-white">Email</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-300">
+                        {emailChannelConnected && emailSetup?.connection.mode === "oauth"
+                          ? `${emailSetup.connection.provider === "GMAIL" ? "Gmail" : "Outlook"} connected as ${emailSetup.connection.emailAddress}`
+                          : emailChannelConnected && emailSetup?.connection.mode === "smtp"
+                            ? `${emailSetup.connection.from} via ${emailSetup.connection.host}`
+                            : emailHistoryOnly
+                              ? "History stays visible, but replies are paused until reconnect."
+                              : "Connect Gmail or Outlook to send live replies from the inbox."}
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${setupBadgeClasses(emailSetupStatus)}`}>
+                    {emailChannelConnected ? "Connected" : emailHistoryOnly ? "History only" : "Setup needed"}
+                  </span>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => startMailboxConnect(gmailConnectHref, gmailOauthConfigured)}
+                    disabled={!gmailOauthConfigured}
+                    className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-semibold transition ${
+                      gmailOauthConfigured
+                        ? "bg-white text-slate-950 hover:bg-slate-200"
+                        : "cursor-not-allowed border border-white/10 bg-white/5 text-slate-500"
+                    }`}
+                  >
+                    {emailSetup?.connection.mode === "oauth" && emailSetup.connection.provider === "GMAIL" ? "Reconnect Gmail" : "Connect Gmail"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => startMailboxConnect(outlookConnectHref, outlookOauthConfigured)}
+                    disabled={!outlookOauthConfigured}
+                    className={`inline-flex items-center justify-center rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                      outlookOauthConfigured
+                        ? "border-white/15 bg-white/6 text-white hover:bg-white/10"
+                        : "cursor-not-allowed border-white/10 bg-white/5 text-slate-500"
+                    }`}
+                  >
+                    {emailSetup?.connection.mode === "oauth" && emailSetup.connection.provider === "OUTLOOK"
+                      ? "Reconnect Outlook"
+                      : "Connect Outlook"}
+                  </button>
+                </div>
+                {!gmailOauthConfigured && !outlookOauthConfigured ? (
+                  <p className="mt-3 text-[11px] text-slate-400">Provider OAuth is not configured on this deployment yet.</p>
+                ) : null}
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-black/10 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#1d9b5f]/20 text-[#9bf0c6]">
+                      <MessageSquareMore className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-white">WhatsApp</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-300">
+                        {whatsappChannelConnected && whatsappSetup?.connection.mode === "whatsapp_api"
+                          ? `${whatsappSetup.connection.displayPhoneNumber || "Business number connected"} - inbound and delivery updates are live.`
+                          : whatsappHistoryOnly
+                            ? "History stays searchable, but reconnect Meta before replying."
+                            : "Use Meta embedded signup to bring a live business number into the inbox."}
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${setupBadgeClasses(whatsappSetupStatus)}`}>
+                    {whatsappChannelConnected ? "Connected" : whatsappHistoryOnly ? "History only" : "Setup needed"}
+                  </span>
+                </div>
+                <div className="mt-4 rounded-2xl border border-white/10 bg-black/10 p-3">
+                  <WhatsAppEmbeddedSignupCard
+                    connection={
+                      whatsappSetup?.connection.mode === "whatsapp_api"
+                        ? whatsappSetup.connection
+                        : {
+                            mode: "none",
+                            configured: false,
+                          }
+                    }
+                    onConnected={() => mutateInboxes()}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_8px_22px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_18px_36px_rgba(2,6,23,0.4)]">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Email channel</p>
-              <h2 className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">Gmail or Outlook connect</h2>
-              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                Connect Gmail or Microsoft 365 once, then reply from the inbox without storing mailbox passwords.
-              </p>
-            </div>
-            <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${setupBadgeClasses(emailSetupStatus)}`}>
-              {emailChannelConnected ? "Connected" : emailHistoryOnly ? "History only" : "Setup needed"}
-            </span>
-          </div>
-          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm dark:border-slate-700 dark:bg-slate-950/60">
-            {emailChannelConnected && emailSetup?.connection.mode === "oauth" ? (
-              <>
-                <p className="font-medium text-slate-900 dark:text-slate-100">
-                  {emailSetup.connection.provider === "GMAIL" ? "Gmail" : "Outlook / Microsoft 365"} connected
-                </p>
-                <p className="mt-1 text-slate-600 dark:text-slate-300">{emailSetup.connection.emailAddress}</p>
-                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Provider OAuth is active with encrypted token storage.</p>
-              </>
-            ) : emailChannelConnected && emailSetup?.connection.mode === "smtp" ? (
-              <>
-                <p className="font-medium text-slate-900 dark:text-slate-100">Custom SMTP configured</p>
-                <p className="mt-1 text-slate-600 dark:text-slate-300">
-                  {emailSetup.connection.from} via {emailSetup.connection.host}
-                </p>
-                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">OAuth is still recommended for Gmail and Outlook mailboxes.</p>
-              </>
-            ) : emailHistoryOnly ? (
-              <>
-                <p className="font-medium text-slate-900 dark:text-slate-100">Email history is still visible</p>
-                <p className="mt-1 text-slate-600 dark:text-slate-300">
-                  Previous email threads remain searchable. Reconnect the mailbox before sending new replies.
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="font-medium text-slate-900 dark:text-slate-100">No email mailbox connected</p>
-                <p className="mt-1 text-slate-600 dark:text-slate-300">Choose Gmail or Outlook below to start the one-click connect flow.</p>
-              </>
-            )}
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => startMailboxConnect(gmailConnectHref, gmailOauthConfigured)}
-              disabled={!gmailOauthConfigured}
-              className={`inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                gmailOauthConfigured
-                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-500"
-                  : "cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500"
-              }`}
-            >
-              {emailSetup?.connection.mode === "oauth" && emailSetup.connection.provider === "GMAIL" ? "Reconnect Gmail" : "Connect Gmail"}
-            </button>
-            <button
-              type="button"
-              onClick={() => startMailboxConnect(outlookConnectHref, outlookOauthConfigured)}
-              disabled={!outlookOauthConfigured}
-              className={`inline-flex items-center justify-center rounded-lg border px-4 py-2 text-sm font-semibold transition ${
-                outlookOauthConfigured
-                  ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-slate-900"
-                  : "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500"
-              }`}
-            >
-              {emailSetup?.connection.mode === "oauth" && emailSetup.connection.provider === "OUTLOOK"
-                ? "Reconnect Outlook"
-                : "Connect Outlook"}
-            </button>
-          </div>
-          {!gmailOauthConfigured && !outlookOauthConfigured ? (
-            <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-              Gmail and Outlook connect are disabled because real provider client ID and secret values are not configured yet.
-            </p>
-          ) : null}
-        </section>
-
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_8px_22px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_18px_36px_rgba(2,6,23,0.4)]">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">WhatsApp channel</p>
-              <h2 className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">Business API setup</h2>
-              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                Connect a WhatsApp Business number through Meta embedded signup.
-              </p>
-            </div>
-            <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${setupBadgeClasses(whatsappSetupStatus)}`}>
-              {whatsappChannelConnected ? "Connected" : whatsappHistoryOnly ? "History only" : "Setup needed"}
-            </span>
-          </div>
-          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm dark:border-slate-700 dark:bg-slate-950/60">
-            {whatsappChannelConnected && whatsappSetup?.connection.mode === "whatsapp_api" ? (
-              <>
-                <p className="font-medium text-slate-900 dark:text-slate-100">Meta Business API configured</p>
-                <p className="mt-1 text-slate-600 dark:text-slate-300">
-                  {whatsappSetup.connection.displayPhoneNumber || "Business number connected"} · {whatsappSetup.connection.phoneNumberId}
-                </p>
-                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Inbound webhooks and delivery updates are active.</p>
-              </>
-            ) : whatsappHistoryOnly ? (
-              <>
-                <p className="font-medium text-slate-900 dark:text-slate-100">WhatsApp history is still visible</p>
-                <p className="mt-1 text-slate-600 dark:text-slate-300">
-                  Imported or prior WhatsApp conversations remain searchable. Reconnect Meta before replying to them.
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="font-medium text-slate-900 dark:text-slate-100">No WhatsApp Business channel connected</p>
-                <p className="mt-1 text-slate-600 dark:text-slate-300">Start Meta signup below to connect a live business number.</p>
-              </>
-            )}
-          </div>
-          <div className="mt-4">
-            <WhatsAppEmbeddedSignupCard
-              connection={
-                whatsappSetup?.connection.mode === "whatsapp_api"
-                  ? whatsappSetup.connection
-                  : {
-                      mode: "none",
-                      configured: false,
-                    }
-              }
-              onConnected={() => mutateInboxes()}
-            />
-          </div>
-        </section>
-      </div>
-
       <div className="grid gap-6 xl:grid-cols-[320px_1fr_320px]">
-        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_18px_36px_rgba(2,6,23,0.4)]">
+        <section className="rounded-[28px] border border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.92))] p-4 shadow-[0_18px_40px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.92),rgba(2,6,23,0.98))] dark:shadow-[0_18px_40px_rgba(2,6,23,0.42)]">
           <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">Queue</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">Live conversation feed</p>
+              </div>
+              <div className="rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-300">
+                {ticketCounts.all} total
+              </div>
+            </div>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
-              <Input className="pl-9" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search conversations" />
+              <Input
+                className="rounded-2xl border-slate-200/80 bg-white/90 pl-9 dark:border-slate-700 dark:bg-slate-950/70"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search conversations"
+              />
             </div>
-            <div className="grid grid-cols-4 gap-2 text-xs">
+            <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3 xl:grid-cols-5">
               <button
-                className={`rounded-lg border px-2 py-1.5 ${status === "ALL" ? "border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-400/40 dark:bg-indigo-400/10 dark:text-indigo-300" : "border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300"}`}
+                className={`rounded-full border px-2.5 py-2 ${status === "ALL" ? "border-indigo-300 bg-indigo-50 text-indigo-700 shadow-sm dark:border-indigo-400/40 dark:bg-indigo-400/10 dark:text-indigo-300" : "border-slate-200 bg-white/80 text-slate-600 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300"}`}
                 onClick={() => setStatus("ALL")}
               >
                 All ({ticketCounts.all})
               </button>
               <button
-                className={`rounded-lg border px-2 py-1.5 ${status === "OPEN" ? "border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-400/40 dark:bg-indigo-400/10 dark:text-indigo-300" : "border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300"}`}
+                className={`rounded-full border px-2.5 py-2 ${status === "OPEN" ? "border-indigo-300 bg-indigo-50 text-indigo-700 shadow-sm dark:border-indigo-400/40 dark:bg-indigo-400/10 dark:text-indigo-300" : "border-slate-200 bg-white/80 text-slate-600 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300"}`}
                 onClick={() => setStatus("OPEN")}
               >
-                Open ({ticketCounts.open})
+                Needs reply ({ticketCounts.open})
               </button>
               <button
-                className={`rounded-lg border px-2 py-1.5 ${status === "PENDING" ? "border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-400/40 dark:bg-indigo-400/10 dark:text-indigo-300" : "border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300"}`}
-                onClick={() => setStatus("PENDING")}
+                className={`rounded-full border px-2.5 py-2 ${status === "WAITING_ON_CUSTOMER" ? "border-indigo-300 bg-indigo-50 text-indigo-700 shadow-sm dark:border-indigo-400/40 dark:bg-indigo-400/10 dark:text-indigo-300" : "border-slate-200 bg-white/80 text-slate-600 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300"}`}
+                onClick={() => setStatus("WAITING_ON_CUSTOMER")}
               >
-                Pending ({ticketCounts.pending})
+                Waiting ({ticketCounts.waiting})
               </button>
               <button
-                className={`rounded-lg border px-2 py-1.5 ${status === "CLOSED" ? "border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-400/40 dark:bg-indigo-400/10 dark:text-indigo-300" : "border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300"}`}
-                onClick={() => setStatus("CLOSED")}
+                className={`rounded-full border px-2.5 py-2 ${status === "SNOOZED" ? "border-indigo-300 bg-indigo-50 text-indigo-700 shadow-sm dark:border-indigo-400/40 dark:bg-indigo-400/10 dark:text-indigo-300" : "border-slate-200 bg-white/80 text-slate-600 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300"}`}
+                onClick={() => setStatus("SNOOZED")}
               >
-                Closed ({ticketCounts.closed})
+                Snoozed ({ticketCounts.snoozed})
+              </button>
+              <button
+                className={`rounded-full border px-2.5 py-2 ${status === "RESOLVED" ? "border-indigo-300 bg-indigo-50 text-indigo-700 shadow-sm dark:border-indigo-400/40 dark:bg-indigo-400/10 dark:text-indigo-300" : "border-slate-200 bg-white/80 text-slate-600 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-300"}`}
+                onClick={() => setStatus("RESOLVED")}
+              >
+                Resolved ({ticketCounts.resolved})
               </button>
             </div>
             <select
               value={assignee}
               onChange={(event) => setAssignee(event.target.value as AssigneeFilter)}
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            className="h-10 w-full rounded-2xl border border-slate-200 bg-white/90 px-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-100"
             >
               <option value="all">All assignments</option>
               <option value="mine">Assigned to me</option>
@@ -717,41 +803,62 @@ export default function InboxPage() {
                   <button
                     key={conversation.id}
                     onClick={() => setActiveId(conversation.id)}
-                    className={`w-full rounded-xl border p-3 text-left transition ${
+                    className={`w-full rounded-2xl border p-3 text-left transition ${
                       activeId === conversation.id
-                        ? "border-indigo-300 bg-indigo-50/40 dark:border-indigo-400/40 dark:bg-indigo-400/10"
-                        : "border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-950"
+                        ? "border-indigo-300 bg-[linear-gradient(180deg,rgba(238,242,255,0.92),rgba(224,231,255,0.66))] shadow-[0_16px_28px_rgba(99,102,241,0.14)] dark:border-indigo-400/40 dark:bg-[linear-gradient(180deg,rgba(99,102,241,0.18),rgba(30,41,59,0.2))]"
+                        : "border-slate-200 bg-white/80 hover:border-slate-300 hover:bg-white dark:border-slate-700 dark:bg-slate-950/45 dark:hover:bg-slate-950"
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
-                          {getConversationPrimaryLabel(conversation.contact)}
-                        </p>
-                        <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                          {getConversationSecondaryLabel(conversation.contact)}
-                        </p>
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-xs font-semibold tracking-[0.16em] text-white dark:bg-slate-100 dark:text-slate-950">
+                        {getConversationInitials(conversation.contact)}
                       </div>
-                      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] ${statusPillClasses[conversation.status]}`}>
-                        {statusLabel[conversation.status]}
-                      </span>
-                    </div>
-                    <p className="mt-2 line-clamp-2 text-xs text-slate-600 dark:text-slate-300">{conversation.lastMessage?.content || "No messages yet."}</p>
-                    <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-                      <span className="flex flex-wrap items-center gap-1.5">
-                        <span>{conversation.inbox.type === "EMAIL" ? "Email" : "WhatsApp"}</span>
-                        {!conversationChannelConnected ? (
-                          <span className="rounded-full border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 dark:border-sky-400/30 dark:bg-sky-400/10 dark:text-sky-300">
-                            History only
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+                              {getConversationPrimaryLabel(conversation.contact)}
+                            </p>
+                            <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                              {getConversationSecondaryLabel(conversation.contact)}
+                            </p>
+                          </div>
+                          <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] ${statusPillClasses[conversation.status]}`}>
+                            {statusLabel[conversation.status]}
                           </span>
-                        ) : null}
-                        {importedLegacy ? (
-                          <span className="rounded-full border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                            Imported
+                        </div>
+                        <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600 dark:text-slate-300">
+                          {conversation.lastMessage?.content || "No messages yet."}
+                        </p>
+                        <div className="mt-3 flex items-center justify-between gap-3 text-[11px] text-slate-500 dark:text-slate-400">
+                          <span className="flex flex-wrap items-center gap-1.5">
+                            <span className="rounded-full border border-slate-200 bg-white/80 px-2 py-0.5 dark:border-slate-700 dark:bg-slate-900/80">
+                              {conversation.inbox.type === "EMAIL" ? "Email" : "WhatsApp"}
+                            </span>
+                            {!conversationChannelConnected ? (
+                              <span className="rounded-full border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 dark:border-sky-400/30 dark:bg-sky-400/10 dark:text-sky-300">
+                                History only
+                              </span>
+                            ) : null}
+                            {importedLegacy ? (
+                              <span className="rounded-full border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                                Imported
+                              </span>
+                            ) : null}
                           </span>
+                          <span className="font-medium text-slate-700 dark:text-slate-300">
+                            {conversation.unreadCount > 0 ? `${conversation.unreadCount} unread` : "Seen"}
+                          </span>
+                        </div>
+                        {getConversationStatusDetail(conversation) ? (
+                          <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">{getConversationStatusDetail(conversation)}</p>
                         ) : null}
-                      </span>
-                      <span>{conversation.unreadCount > 0 ? `${conversation.unreadCount} unread` : "No unread"}</span>
+                        {conversation.assignedUser ? (
+                          <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                            Owner: {conversation.assignedUser.name || conversation.assignedUser.email}
+                          </p>
+                        ) : null}
+                      </div>
                     </div>
                   </button>
                 );
@@ -760,9 +867,10 @@ export default function InboxPage() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white shadow-[0_8px_22px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_18px_36px_rgba(2,6,23,0.4)]">
-          <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-slate-700">
+        <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] shadow-[0_20px_44px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.92),rgba(2,6,23,0.98))] dark:shadow-[0_20px_44px_rgba(2,6,23,0.45)]">
+          <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-white/70 px-5 py-4 backdrop-blur dark:border-slate-700 dark:bg-slate-900/50">
             <div>
+              <p className="text-[11px] uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">Active thread</p>
               <p className="text-base font-semibold text-slate-900 dark:text-slate-100">
                 {getConversationPrimaryLabel(detail?.contact)}
               </p>
@@ -784,19 +892,44 @@ export default function InboxPage() {
                     Imported legacy thread
                   </span>
                 ) : null}
+                {detail ? (
+                  <span className={`rounded-full border px-2 py-0.5 ${statusPillClasses[detail.status]}`}>{statusLabel[detail.status]}</span>
+                ) : null}
+                {detail && getConversationStatusDetail(detail) ? <span>{getConversationStatusDetail(detail)}</span> : null}
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <select
                 value={detail?.status || "OPEN"}
-                onChange={(event) => handlePatchConversation({ status: event.target.value })}
+                onChange={(event) =>
+                  handlePatchConversation(
+                    event.target.value === "SNOOZED"
+                      ? { status: "SNOOZED", snoozedUntil: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() }
+                      : { status: event.target.value }
+                  )
+                }
                 disabled={!detail || saving}
                 className="h-9 rounded-full border border-slate-200 bg-white px-3 text-xs font-medium dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
               >
-                <option value="OPEN">Open</option>
-                <option value="PENDING">Pending</option>
-                <option value="CLOSED">Closed</option>
+                <option value="OPEN">Needs reply</option>
+                <option value="WAITING_ON_CUSTOMER">Waiting on customer</option>
+                <option value="SNOOZED">Snoozed</option>
+                <option value="RESOLVED">Resolved</option>
               </select>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={!detail || saving}
+                onClick={() =>
+                  handlePatchConversation(
+                    detail?.status === "SNOOZED"
+                      ? { status: "OPEN" }
+                      : { status: "SNOOZED", snoozedUntil: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() }
+                  )
+                }
+              >
+                {detail?.status === "SNOOZED" ? "Resume" : "Snooze 1 day"}
+              </Button>
               <select
                 value={detail?.assignedUser?.id || ""}
                 onChange={(event) => handlePatchConversation({ assignedUserId: event.target.value || null })}
@@ -813,7 +946,7 @@ export default function InboxPage() {
             </div>
           </header>
 
-          <div className="max-h-[460px] space-y-3 overflow-y-auto bg-slate-50 px-5 py-5 dark:bg-slate-950/70">
+          <div className="max-h-[460px] space-y-3 overflow-y-auto bg-[linear-gradient(180deg,rgba(248,250,252,0.9),rgba(241,245,249,0.78))] px-5 py-5 dark:bg-[linear-gradient(180deg,rgba(2,6,23,0.72),rgba(15,23,42,0.86))]">
             {detailLoading && <p className="text-sm text-slate-500">Loading thread...</p>}
             {!detailLoading && detail && !detail.messages.length && (
               <p className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
@@ -843,7 +976,7 @@ export default function InboxPage() {
             ))}
           </div>
 
-          <div className="space-y-3 border-t border-slate-100 px-5 py-4 dark:border-slate-700">
+          <div className="space-y-3 border-t border-slate-100 bg-white/70 px-5 py-4 backdrop-blur dark:border-slate-700 dark:bg-slate-900/55">
             {activeReplyDisabledReason ? <Alert variant="warning">{activeReplyDisabledReason}</Alert> : null}
             <div className="flex flex-wrap items-center gap-2">
               <div className="inline-flex h-9 items-center rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100">
@@ -916,12 +1049,13 @@ export default function InboxPage() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_18px_36px_rgba(2,6,23,0.4)]">
+        <section className="rounded-[28px] border border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.94))] p-4 shadow-[0_18px_40px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.94),rgba(2,6,23,0.98))] dark:shadow-[0_18px_40px_rgba(2,6,23,0.44)]">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700 dark:bg-indigo-400/10 dark:text-indigo-300">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-700 dark:bg-indigo-400/10 dark:text-indigo-300">
               <UserCircle2 className="h-5 w-5" />
             </div>
             <div>
+              <p className="text-[11px] uppercase tracking-[0.22em] text-slate-400 dark:text-slate-500">Customer context</p>
               <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{getConversationPrimaryLabel(detail?.contact)}</p>
               <p className="text-xs text-slate-500 dark:text-slate-400">{getConversationSecondaryLabel(detail?.contact)}</p>
             </div>

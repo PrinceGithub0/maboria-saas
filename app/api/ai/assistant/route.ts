@@ -3,13 +3,16 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
+import { getSafeAssistantError } from "@/lib/ai/assistant-error";
 import { aiRouter, aiRouterStream } from "@/lib/ai/router";
+import { normalizeAssistantModelChoice } from "@/lib/ai/model-selection";
 import { enforceEntitlement, enforceUsageLimit, nextPlanAfter } from "@/lib/entitlements";
 import {
   addAiMessage,
   ensureDefaultAiConversation,
   fetchConversationWindow,
   getAiConversationMessages,
+  resolveAiConversation,
 } from "@/lib/assistant-conversations";
 
 export const GET = withErrorHandling(async (req: Request) => {
@@ -18,7 +21,7 @@ export const GET = withErrorHandling(async (req: Request) => {
 
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "ai",
-    requiredPlan: "starter",
+    requiredPlan: "free",
     allowTrial: false,
   });
   if (!entitlement.ok) {
@@ -26,7 +29,7 @@ export const GET = withErrorHandling(async (req: Request) => {
       {
         error: "Upgrade required",
         type: entitlement.type,
-        requiredPlan: "starter",
+        requiredPlan: entitlement.requiredPlan ?? "free",
         reason: entitlement.reason,
       },
       { status: 403 }
@@ -38,8 +41,8 @@ export const GET = withErrorHandling(async (req: Request) => {
   const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 100) : 30;
   const conversationId = url.searchParams.get("conversationId");
   const conversation = conversationId
-    ? { id: conversationId }
-    : (await ensureDefaultAiConversation(session.user.id)) as { id: string };
+    ? await resolveAiConversation(session.user.id, conversationId)
+    : ((await ensureDefaultAiConversation(session.user.id)) as { id: string });
   const result = await getAiConversationMessages(session.user.id, conversation.id, limit);
   if (conversationId && !result) {
     return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
@@ -66,7 +69,7 @@ export const POST = withErrorHandling(async (req: Request) => {
 
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "ai",
-    requiredPlan: "starter",
+    requiredPlan: "free",
     allowTrial: false,
   });
   if (!entitlement.ok) {
@@ -74,7 +77,7 @@ export const POST = withErrorHandling(async (req: Request) => {
       {
         error: "Upgrade required",
         type: entitlement.type,
-        requiredPlan: "starter",
+        requiredPlan: entitlement.requiredPlan ?? "free",
         reason: entitlement.reason,
       },
       { status: 403 }
@@ -111,11 +114,12 @@ export const POST = withErrorHandling(async (req: Request) => {
   const url = new URL(req.url);
   const wantsStream =
     url.searchParams.get("stream") === "1" || req.headers.get("accept")?.includes("text/event-stream");
-  const { mode, prompt, context, style, tone, conversationId } = await req.json();
+  const { mode, prompt, context, style, tone, model, conversationId } = await req.json();
+  const assistantModel = normalizeAssistantModelChoice(model);
   assertRateLimit(`ai:${session.user.id}`);
   const conversation = conversationId
-    ? { id: conversationId }
-    : (await ensureDefaultAiConversation(session.user.id)) as { id: string };
+    ? await resolveAiConversation(session.user.id, conversationId)
+    : ((await ensureDefaultAiConversation(session.user.id)) as { id: string });
   const storedUserMessage = await addAiMessage({
     userId: session.user.id,
     conversationId: conversation.id,
@@ -255,6 +259,7 @@ export const POST = withErrorHandling(async (req: Request) => {
         : `${resolvedPrompt}\nRecent memory:\n${memoryText}`,
     context,
     userId: session.user.id,
+    model: assistantModel,
   };
 
   if (wantsStream) {
@@ -280,8 +285,9 @@ export const POST = withErrorHandling(async (req: Request) => {
           );
           controller.close();
         } catch (error: any) {
+          const safeError = getSafeAssistantError(error);
           controller.enqueue(
-            encoder.encode(`data: ${JSON.stringify({ error: error?.message || "Stream error" })}\n\n`)
+            encoder.encode(`data: ${JSON.stringify({ error: safeError.message })}\n\n`)
           );
           controller.close();
         }
@@ -296,7 +302,13 @@ export const POST = withErrorHandling(async (req: Request) => {
     });
   }
 
-  const output = await aiRouter(routerInput);
+  let output: string;
+  try {
+    output = await aiRouter(routerInput);
+  } catch (error) {
+    const safeError = getSafeAssistantError(error);
+    return NextResponse.json({ error: safeError.message }, { status: safeError.status });
+  }
   await addAiMessage({
     userId: session.user.id,
     conversationId: conversation.id,

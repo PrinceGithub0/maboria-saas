@@ -7,6 +7,10 @@ import { aiRouter } from "@/lib/ai/router";
 import { prisma } from "@/lib/prisma";
 import { enforceEntitlement, enforceFlowLimit, enforceUsageLimit, nextPlanAfter } from "@/lib/entitlements";
 import { resolveAutomationScope } from "@/lib/automation/access";
+import {
+  buildAutomationRelationsFromSteps,
+  buildDashboardStepsFromRelations,
+} from "@/lib/automation/dashboard-definition";
 
 export const POST = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
@@ -14,7 +18,7 @@ export const POST = withErrorHandling(async (req: Request) => {
 
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "ai",
-    requiredPlan: "starter",
+    requiredPlan: "free",
     allowTrial: false,
   });
   if (!entitlement.ok) {
@@ -22,7 +26,7 @@ export const POST = withErrorHandling(async (req: Request) => {
       {
         error: "Upgrade required",
         type: entitlement.type,
-        requiredPlan: "starter",
+        requiredPlan: entitlement.requiredPlan ?? "free",
         reason: entitlement.reason,
       },
       { status: 403 }
@@ -78,6 +82,26 @@ export const POST = withErrorHandling(async (req: Request) => {
   });
 
   const flow = JSON.parse(json);
+  let steps;
+  try {
+    steps = buildDashboardStepsFromRelations(
+      {
+        triggers: flow.trigger ? [{ type: flow.trigger.type, config: flow.trigger.config || {} }] : [],
+        actions: Array.isArray(flow.actions) ? flow.actions : [],
+      },
+      { strict: true }
+    );
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Unable to generate a live automation from that prompt.",
+        reason: error instanceof Error ? error.message : "Unsupported automation definition",
+      },
+      { status: 400 }
+    );
+  }
+
+  const relations = buildAutomationRelationsFromSteps(steps as any[]);
   const automationScope = await resolveAutomationScope(session.user.id);
   const created = await prisma.automationFlow.create({
     data: {
@@ -85,14 +109,22 @@ export const POST = withErrorHandling(async (req: Request) => {
       businessId: automationScope.businessId ?? undefined,
       title: flow.title,
       description: flow.description || flow.title,
-      steps: flow.actions || [],
+      steps: steps as any,
       status: "ACTIVE",
-      triggers: flow.trigger ? { create: [{ type: flow.trigger.type, config: flow.trigger.config }] } : undefined,
+      triggers: relations.triggers.length
+        ? {
+            create: relations.triggers.map((trigger) => ({
+              type: trigger.type,
+              config: trigger.config as any,
+              conditions: (trigger.conditions ?? {}) as any,
+            })),
+          }
+        : undefined,
       actions: {
-        create: (flow.actions || []).map((a: any, idx: number) => ({
-          type: a.type,
-          config: a.config,
-          order: idx + 1,
+        create: relations.actions.map((action) => ({
+          type: action.type,
+          config: action.config as any,
+          order: action.order,
         })),
       },
     },

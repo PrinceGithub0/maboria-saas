@@ -3,8 +3,7 @@ import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
 import { getSubscriberDashboardData } from "@/lib/dashboard/subscriber-data";
-import { requireOrgPermission } from "@/lib/org-auth";
-import { isPlanAtLeast, subscriptionPlanToUserPlan } from "@/lib/entitlements";
+import { hasOrgPermission, requireOrgPermission } from "@/lib/org-auth";
 
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -29,9 +28,8 @@ export async function GET(request: NextRequest) {
     scope: {
       orgId: access.context.orgId,
       ownerUserId: access.context.ownerUserId,
-      canAI: access.context.orgPlan
-        ? isPlanAtLeast(subscriptionPlanToUserPlan(access.context.orgPlan), "starter")
-        : false,
+      canViewBilling: hasOrgPermission(access.context.role, "settings:payout:write"),
+      canAI: true,
     },
   });
 

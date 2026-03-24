@@ -11,7 +11,7 @@ export const GET = withErrorHandling(async () => {
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "ai",
-    requiredPlan: "starter",
+    requiredPlan: "free",
     allowTrial: false,
   });
   if (!entitlement.ok) {
@@ -37,7 +37,7 @@ export const POST = withErrorHandling(async (req: Request) => {
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "ai",
-    requiredPlan: "starter",
+    requiredPlan: "free",
     allowTrial: false,
   });
   if (!entitlement.ok) {

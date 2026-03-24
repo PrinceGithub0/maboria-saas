@@ -4,7 +4,7 @@ import { AutomationFlow, AutomationRunStatus, Prisma } from "@prisma/client";
 import OpenAI from "openai";
 import { prisma } from "../prisma";
 import { sendNotificationsMail } from "../email";
-import { createInvoiceRecord, calculateTotals } from "../invoice";
+import { createInvoiceRecord, calculateTotals, sendInvoiceEmailToCustomer } from "../invoice";
 import { buildInvoiceIssuerCode, buildInvoiceNumberDraft } from "../invoice-number";
 import { normalizeVatSettings } from "../vat";
 import { log } from "../logger";
@@ -26,6 +26,8 @@ import { createAdminNotificationFromEvent } from "../admin/notifications";
 import { assertSystemFlagEnabled } from "../system-flags";
 import { logUserActivity } from "../user-activity";
 import { emitSystemEvent } from "../system-events";
+import { isAutomationTriggerMetadataStep } from "./step-kind";
+import { getOrCreateInvoicePublicLink } from "../invoice-public-link";
 
 type Context = Record<string, any>;
 type ExecuteAutomationMeta = {
@@ -82,6 +84,32 @@ type FailedStepRecord = {
   transient: boolean;
   attempts: number;
   error: Error;
+};
+
+type AutomationInvoiceContext = {
+  invoice: {
+    id: string;
+    invoiceNumber: string;
+    status: string;
+    generatedAt: Date;
+    currency: string;
+    items: unknown;
+    tax?: Prisma.Decimal | null;
+    discount?: Prisma.Decimal | null;
+    total?: Prisma.Decimal | null;
+    lateFeeAmount?: Prisma.Decimal | null;
+    lateFeeTotalAccumulated?: Prisma.Decimal | null;
+    pdfUrl?: string | null;
+    metadata?: Prisma.JsonValue | null;
+    userId?: string;
+  };
+  customer: {
+    name: string | null;
+    email: string | null;
+    phone: string | null;
+    deliveryPreference: "EMAIL" | "WHATSAPP" | "BOTH" | null;
+  } | null;
+  paymentLink: string | null;
 };
 
 const asJsonObject = (value: Record<string, unknown>): Prisma.InputJsonValue =>
@@ -171,6 +199,119 @@ const resolveStepRunAt = (step: any, config: Record<string, any>, now: Date) => 
   }
 
   return null;
+};
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+const readActionId = (config: Record<string, any>) => String(config.actionId || "").trim().toLowerCase();
+
+const pickFirstString = (...values: unknown[]) => {
+  for (const value of values) {
+    const normalized = String(value || "").trim();
+    if (normalized) return normalized;
+  }
+  return "";
+};
+
+const resolveInvoiceIdFromContext = (context: Context, input: Context) =>
+  pickFirstString(
+    context.input?.invoiceId,
+    context.input?.invoice?.id,
+    context.invoice?.id,
+    input?.invoiceId,
+    input?.invoice?.id
+  );
+
+const buildAutomationAiPrompt = (actionId: string, note: string) => {
+  if (note) return note;
+  switch (actionId) {
+    case "improve_message":
+      return "Improve this message for clarity, professionalism, and customer trust.";
+    case "rewrite_tone":
+      return "Rewrite this message in a warm, professional tone without changing the core meaning.";
+    case "generate_auto_reply":
+      return "Generate a concise, customer-ready reply based on this context.";
+    case "generate_summary":
+      return "Summarize this context into key points, decisions, and next steps.";
+    default:
+      return "";
+  }
+};
+
+const buildAutomationEmailDraft = ({
+  actionId,
+  note,
+  flowTitle,
+  invoiceContext,
+}: {
+  actionId: string;
+  note: string;
+  flowTitle: string;
+  invoiceContext: AutomationInvoiceContext | null;
+}) => {
+  const invoiceNumber = invoiceContext?.invoice.invoiceNumber || "your invoice";
+  const paymentLink = invoiceContext?.paymentLink || null;
+  switch (actionId) {
+    case "notify_team_payment":
+      return {
+        subject: `Payment received for ${invoiceNumber}`,
+        html: `<p>Payment has been confirmed for <strong>${escapeHtml(invoiceNumber)}</strong>.</p>`,
+      };
+    case "send_email":
+      return {
+        subject: note || `Update for ${invoiceNumber}`,
+        html: `<p>${escapeHtml(note || `Here is an update for ${invoiceNumber}.`)}</p>`,
+      };
+    default:
+      return {
+        subject: note || `Automation update from ${flowTitle}`,
+        html: `<p>${escapeHtml(note || `Automation ${flowTitle} completed successfully.`)}</p>${
+          paymentLink
+            ? `<p style="margin-top:12px">Payment link: <a href="${escapeHtml(paymentLink)}">${escapeHtml(
+                paymentLink
+              )}</a></p>`
+            : ""
+        }`,
+      };
+  }
+};
+
+const buildAutomationWhatsAppText = ({
+  actionId,
+  note,
+  invoiceContext,
+}: {
+  actionId: string;
+  note: string;
+  invoiceContext: AutomationInvoiceContext | null;
+}) => {
+  const invoiceNumber = invoiceContext?.invoice.invoiceNumber || "your invoice";
+  const paymentLink = invoiceContext?.paymentLink || null;
+  if (note) return note;
+  switch (actionId) {
+    case "send_payment_reminder":
+      return paymentLink
+        ? `Reminder: invoice ${invoiceNumber} is still unpaid. You can pay here: ${paymentLink}`
+        : `Reminder: invoice ${invoiceNumber} is still unpaid.`;
+    case "send_payment_confirmation":
+      return `Payment received for invoice ${invoiceNumber}. Thank you.`;
+    case "send_failed_payment_message":
+      return paymentLink
+        ? `We could not complete payment for invoice ${invoiceNumber}. Please try again here: ${paymentLink}`
+        : `We could not complete payment for invoice ${invoiceNumber}. Please try again.`;
+    case "send_payment_link":
+      return paymentLink
+        ? `You can pay invoice ${invoiceNumber} here: ${paymentLink}`
+        : `Payment link is not available for invoice ${invoiceNumber} yet.`;
+    default:
+      return `Update for invoice ${invoiceNumber}.`;
+  }
 };
 
 const DEFAULT_STEP_RETRY_POLICY = {
@@ -711,6 +852,90 @@ export async function executeAutomationRun(
     businessPhone?: string | null;
     taxId?: string | null;
   } | null = null;
+  let ownerContact: { email: string | null; name: string | null } | null = null;
+  let automationInvoiceContext: AutomationInvoiceContext | null | undefined;
+
+  const ensureBusinessProfile = async () => {
+    if (businessProfile) return businessProfile;
+    businessProfile = await prisma.businessProfile.findUnique({
+      where: { userId: flow.userId },
+      select: {
+        businessName: true,
+        country: true,
+        defaultCurrency: true,
+        businessAddress: true,
+        businessEmail: true,
+        businessPhone: true,
+        taxId: true,
+      },
+    });
+    return businessProfile;
+  };
+
+  const ensureOwnerContact = async () => {
+    if (ownerContact) return ownerContact;
+    ownerContact = await prisma.user.findUnique({
+      where: { id: flow.userId },
+      select: { email: true, name: true },
+    });
+    return ownerContact;
+  };
+
+  const ensureAutomationInvoiceContext = async (runtimeContext?: Context) => {
+    if (automationInvoiceContext !== undefined) return automationInvoiceContext;
+    const invoiceId = resolveInvoiceIdFromContext(runtimeContext || { input }, input);
+    if (!invoiceId) {
+      automationInvoiceContext = null;
+      return automationInvoiceContext;
+    }
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: invoiceId, userId: flow.userId },
+      select: {
+        id: true,
+        invoiceNumber: true,
+        status: true,
+        generatedAt: true,
+        currency: true,
+        items: true,
+        tax: true,
+        discount: true,
+        total: true,
+        lateFeeAmount: true,
+        lateFeeTotalAccumulated: true,
+        pdfUrl: true,
+        metadata: true,
+        userId: true,
+        customer: {
+          select: {
+            name: true,
+            email: true,
+            phone: true,
+            deliveryPreference: true,
+          },
+        },
+      },
+    });
+    if (!invoice) {
+      automationInvoiceContext = null;
+      return automationInvoiceContext;
+    }
+    const publicLink = await getOrCreateInvoicePublicLink(invoice.id).catch(() => null);
+    automationInvoiceContext = {
+      invoice,
+      customer: invoice.customer
+        ? {
+            name: invoice.customer.name ?? null,
+            email: invoice.customer.email ?? null,
+            phone: invoice.customer.phone ?? null,
+            deliveryPreference: invoice.customer.deliveryPreference ?? null,
+          }
+        : null,
+      paymentLink: publicLink
+        ? `${env.appUrl}/api/invoice/pay/${encodeURIComponent(publicLink.token)}`
+        : null,
+    };
+    return automationInvoiceContext;
+  };
 
   if (!runId) {
     if (!meta?.resumeRunId && meta?.event) {
@@ -973,6 +1198,15 @@ export async function executeAutomationRun(
         await persistProgress(stepIndex);
         continue;
       }
+      if (isAutomationTriggerMetadataStep(step)) {
+        pushLog({
+          stepIndex,
+          step: stepType,
+          result: "trigger-metadata-skip",
+        });
+        await persistProgress(stepIndex);
+        continue;
+      }
       const stepId = resolveStepId(step, stepIndex, stepType);
       const idempotencyScope = runOriginalRunId || runId;
       const stepStartedAt = Date.now();
@@ -1118,7 +1352,8 @@ export async function executeAutomationRun(
             break;
           }
           case "generateInvoice": {
-            if (String(config.actionId || "").toLowerCase() === "apply_late_fee") {
+            const actionId = readActionId(config);
+            if (actionId === "apply_late_fee") {
               const targetInvoiceId = String(
                 config.invoiceId ||
                   config.targetInvoiceId ||
@@ -1169,6 +1404,15 @@ export async function executeAutomationRun(
               });
               break;
             }
+            if (actionId === "mark_as_paid" || actionId === "cancel_invoice") {
+              pushLog({
+                stepIndex,
+                step: stepType,
+                skipped: true,
+                reason: `${actionId}_not_supported`,
+              });
+              break;
+            }
             const invoiceNumber = buildInvoiceNumberDraft(
               new Date(),
               buildInvoiceIssuerCode(flow.userId, flow.userId)
@@ -1176,10 +1420,7 @@ export async function executeAutomationRun(
             const items = Array.isArray(config.items)
               ? config.items
               : [{ name: "Automation Service", quantity: 1, price: 10000 }];
-            const owner = await prisma.user.findUnique({
-              where: { id: flow.userId },
-              select: { email: true, name: true },
-            });
+            const owner = await ensureOwnerContact();
             const customer = await createOrGetCustomer({
               userId: flow.userId,
               name: String(config.customerName || owner?.name || "Unknown Customer"),
@@ -1199,11 +1440,46 @@ export async function executeAutomationRun(
             break;
           }
           case "sendEmail": {
-            const to = context.extracted?.email || config.to;
+            const actionId = readActionId(config);
+            const invoiceContext = await ensureAutomationInvoiceContext(context);
+            const business = await ensureBusinessProfile();
+            const owner = await ensureOwnerContact();
+            if (
+              actionId === "send_receipt" &&
+              invoiceContext?.customer &&
+              business
+            ) {
+              await sendInvoiceEmailToCustomer(
+                invoiceContext.invoice,
+                business,
+                invoiceContext.customer
+              );
+              pushLog({
+                stepIndex,
+                step: stepType,
+                result: { to: invoiceContext.customer.email, mode: "invoice-receipt" },
+              });
+              break;
+            }
+            const to = pickFirstString(
+              config.to,
+              actionId === "notify_team_payment" || actionId === "notify_team" ? business?.businessEmail : "",
+              actionId === "notify_team_payment" || actionId === "notify_team" ? owner?.email : "",
+              context.extracted?.email,
+              context.input?.customer?.email,
+              context.input?.invoice?.customerEmail,
+              invoiceContext?.customer?.email
+            );
             if (!to) {
               pushLog({ stepIndex, step: stepType, skipped: true, reason: "Missing recipient email" });
               break;
             }
+            const emailDraft = buildAutomationEmailDraft({
+              actionId,
+              note: String(config.note || ""),
+              flowTitle: flow.title,
+              invoiceContext,
+            });
             await trackRateLimitedAction({
               userId: flow.userId,
               action: "AUTOMATION_EMAIL_DISPATCH",
@@ -1212,8 +1488,8 @@ export async function executeAutomationRun(
             });
             await sendNotificationsMail({
               to,
-              subject: config.subject || "Automation Update",
-              html: config.html || `<p>Automation ${flow.title} completed.</p>`,
+              subject: config.subject || emailDraft.subject,
+              html: config.html || emailDraft.html,
             });
             await logUserActivity({
               tenantId: usageScope.businessId ?? null,
@@ -1247,7 +1523,7 @@ export async function executeAutomationRun(
             break;
           }
           case "aiTransform": {
-            const prompt = config.prompt || "Summarize data";
+            const prompt = config.prompt || buildAutomationAiPrompt(readActionId(config), String(config.note || "")) || "Summarize data";
             const text = input.text || JSON.stringify(context);
             const completion = await openai.responses.create({
               model: "gpt-4.1-mini",
@@ -1281,23 +1557,27 @@ export async function executeAutomationRun(
             break;
           }
           case "sendWhatsApp": {
-            if (!config.to || !config.text) {
+            const actionId = readActionId(config);
+            const invoiceContext = await ensureAutomationInvoiceContext(context);
+            const to = pickFirstString(
+              config.to,
+              context.input?.customer?.phone,
+              context.input?.invoice?.customerPhone,
+              invoiceContext?.customer?.phone
+            );
+            const text =
+              pickFirstString(config.text) ||
+              buildAutomationWhatsAppText({
+                actionId,
+                note: String(config.note || ""),
+                invoiceContext,
+              });
+            if (!to || !text) {
               pushLog({ stepIndex, step: stepType, skipped: true, reason: "Missing WhatsApp message details" });
               break;
             }
             if (!businessProfile) {
-              businessProfile = await prisma.businessProfile.findUnique({
-                where: { userId: flow.userId },
-                select: {
-                  businessName: true,
-                  country: true,
-                  defaultCurrency: true,
-                  businessAddress: true,
-                  businessEmail: true,
-                  businessPhone: true,
-                  taxId: true,
-                },
-              });
+              businessProfile = await ensureBusinessProfile();
             }
             if (!businessProfile) {
               throw new Error("Business profile required before sending WhatsApp messages");
@@ -1311,8 +1591,8 @@ export async function executeAutomationRun(
             pushLog({ stepIndex, step: stepType, result: "queued-whatsapp" });
             enqueueJob("send-notification", {
               channel: "whatsapp",
-              to: config.to,
-              text: config.text,
+              to,
+              text,
               businessProfile,
             });
             break;

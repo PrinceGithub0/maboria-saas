@@ -8,6 +8,7 @@ import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
 import { requireOrgPermission } from "@/lib/org-auth";
+import { resolveCheckoutRequestScope } from "@/lib/payments/checkout-request-scope";
 import { startCheckoutSession } from "@/lib/payments/checkout-session";
 import { CHECKOUT_PROVIDER_VALUES } from "@/lib/payments/payment-providers";
 import { requireSystemFlag } from "@/lib/system-flags-guard";
@@ -39,22 +40,20 @@ export const POST = withRequestLogging(
       permission: "subscription:manage",
       requireActiveSubscription: false,
     });
-    if (!access.ok && access.code !== "ORG_ACCESS_DENIED") {
-      return NextResponse.json({ error: access.message, code: access.code }, { status: access.status });
-    }
-
-    const scopedUserId = access.ok ? access.context.ownerUserId : session.user.id;
-    const scopedOrgId = access.ok ? access.context.orgId : null;
-
-    if (parsed.userId && parsed.userId !== scopedUserId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const scope = resolveCheckoutRequestScope({
+      sessionUserId: session.user.id,
+      requestedUserId: parsed.userId,
+      access,
+    });
+    if (!scope.ok) {
+      return NextResponse.json({ error: scope.message, code: scope.code }, { status: scope.status });
     }
 
     const billingCycle = parsed.billingCycle || parsed.interval || "monthly";
     const result = await startCheckoutSession({
       req,
-      userId: scopedUserId,
-      orgId: scopedOrgId,
+      userId: scope.userId,
+      orgId: scope.orgId,
       selectedPlan: parsed.selectedPlan,
       billingCycle,
       detectedCountry: parsed.detectedCountry,

@@ -10,6 +10,10 @@ import {
   requireUnifiedInboxAccess,
   writeUnifiedAuditEvent,
 } from "@/lib/inbox/unified";
+import {
+  ensureUnifiedConversationParticipants,
+  expireUnifiedConversationSnoozes,
+} from "@/lib/inbox/conversation-participants";
 import { prisma } from "@/lib/prisma";
 
 export const GET = withErrorHandling(async (req: Request) => {
@@ -18,6 +22,7 @@ export const GET = withErrorHandling(async (req: Request) => {
 
   const context = await requireUnifiedInboxAccess(session.user.id);
   await ensureDefaultUnifiedInboxes(context.orgId);
+  await expireUnifiedConversationSnoozes(prisma, { tenantId: context.orgId });
 
   const url = new URL(req.url);
   const search = (url.searchParams.get("search") || "").trim();
@@ -58,6 +63,14 @@ export const GET = withErrorHandling(async (req: Request) => {
       assignedUser: {
         select: { id: true, name: true, email: true },
       },
+      participants: {
+        where: { userId: session.user.id },
+        select: {
+          unreadCount: true,
+          lastSeenAt: true,
+        },
+        take: 1,
+      },
       tags: {
         include: {
           tag: {
@@ -72,20 +85,6 @@ export const GET = withErrorHandling(async (req: Request) => {
     },
   });
 
-  const unreadCounts = await prisma.unifiedMessage.groupBy({
-    by: ["conversationId"],
-    where: {
-      tenantId: context.orgId,
-      direction: "INBOUND",
-      conversationId: {
-        in: conversations.map((item) => item.id),
-      },
-    },
-    _count: { _all: true },
-  });
-
-  const unreadMap = new Map(unreadCounts.map((row) => [row.conversationId, row._count._all]));
-
   return NextResponse.json({
     items: conversations.map((item) => ({
       id: item.id,
@@ -97,7 +96,12 @@ export const GET = withErrorHandling(async (req: Request) => {
       lastMessageAt: item.lastMessageAt,
       updatedAt: item.updatedAt,
       createdAt: item.createdAt,
-      unreadCount: unreadMap.get(item.id) ?? 0,
+      unreadCount: item.participants[0]?.unreadCount ?? 0,
+      snoozedUntil: item.snoozedUntil,
+      waitingSince: item.waitingSince,
+      lastInboundAt: item.lastInboundAt,
+      lastOutboundAt: item.lastOutboundAt,
+      resolvedAt: item.resolvedAt,
       lastMessage: item.messages[0]
         ? {
             id: item.messages[0].id,
@@ -169,6 +173,11 @@ export const POST = withErrorHandling(async (req: Request) => {
         inbox: { select: { id: true, name: true, type: true, status: true } },
         contact: { select: { id: true, name: true, email: true, phone: true, status: true } },
       },
+    });
+
+    await ensureUnifiedConversationParticipants(tx, {
+      tenantId: context.orgId,
+      conversationId: conversation.id,
     });
 
     await writeUnifiedAuditEvent(tx, {

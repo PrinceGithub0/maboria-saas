@@ -1,19 +1,21 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { initializeFlutterwavePayment } from "@/lib/payments/flutterwave";
-import crypto from "crypto";
-import { prisma } from "@/lib/prisma";
 import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
-import { getPlanPriceForInterval, type BillingInterval } from "@/lib/pricing";
 import { z } from "zod";
-import { isAllowedCurrency, isProviderCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
+import { requireOrgPermission } from "@/lib/org-auth";
+import { resolveCheckoutRequestScope } from "@/lib/payments/checkout-request-scope";
+import { startCheckoutSession } from "@/lib/payments/checkout-session";
+import { requireSystemFlag } from "@/lib/system-flags-guard";
 
 export const POST = withRequestLogging(withErrorHandling(async (req: Request) => {
+  const paymentsDisabled = await requireSystemFlag("payments_enabled", "Payments are currently disabled.");
+  if (paymentsDisabled) return paymentsDisabled;
+
   const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const parsed = z
     .object({
@@ -25,62 +27,27 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     .parse(await req.json());
 
   assertRateLimit(`flutterwave:${session.user.id}`, 20, 60_000);
-
-  if (parsed.plan === "enterprise") {
-    return NextResponse.json({ error: "Enterprise is contact sales" }, { status: 400 });
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { email: true, name: true },
+  const access = await requireOrgPermission(session.user.id, {
+    permission: "subscription:manage",
+    requireActiveSubscription: false,
   });
-  if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
-
-  const currency = normalizeCurrency(parsed.currency || "USD");
-  if (!isAllowedCurrency(currency) || !isProviderCurrency("FLUTTERWAVE", currency)) {
-    return NextResponse.json({ error: "Unsupported currency" }, { status: 400 });
-  }
-  const plan = parsed.plan ?? "starter";
-  const interval: BillingInterval = parsed.interval === "yearly" ? "yearly" : "monthly";
-  const planCurrency =
-    plan === "pro"
-      ? "PRO"
-      : plan === "growth"
-        ? "GROWTH"
-        : plan === "business"
-          ? "BUSINESS"
-          : "STARTER";
-  const planAmount = getPlanPriceForInterval(planCurrency, currency, interval);
-
-  if (!planAmount) {
-    return NextResponse.json({ error: "Pricing not configured for selected currency" }, { status: 400 });
+  const scope = resolveCheckoutRequestScope({
+    sessionUserId: session.user.id,
+    access,
+  });
+  if (!scope.ok) {
+    return NextResponse.json({ error: scope.message, code: scope.code }, { status: scope.status });
   }
 
-  if (typeof parsed.amount === "number" && parsed.amount !== planAmount) {
-    return NextResponse.json({ error: "Invalid amount for selected plan" }, { status: 400 });
-  }
-
-  const txRef = `mb_${Date.now().toString(36).slice(-6)}_${crypto.randomBytes(2).toString("hex")}`;
-  const origin = new URL(req.url).origin;
-  const appUrl =
-    process.env.NODE_ENV === "production"
-      ? process.env.APP_URL || process.env.NEXTAUTH_URL || origin
-      : origin;
-  const init = await initializeFlutterwavePayment({
-    amount: planAmount,
-    currency,
-    email: user.email,
-    name: user.name,
-    txRef,
-    redirectUrl: `${appUrl}/dashboard?payment=success&provider=flutterwave&amount=${planAmount}&currency=${currency}&tx_ref=${encodeURIComponent(
-      txRef
-    )}`,
-    metadata: {
-      userId: session.user.id,
-      plan: planCurrency,
-      interval,
-    },
+  const result = await startCheckoutSession({
+    req,
+    userId: scope.userId,
+    orgId: scope.orgId,
+    selectedPlan: parsed.plan,
+    billingCycle: parsed.interval || "monthly",
+    requestedCurrency: parsed.currency,
+    requestedProvider: "FLUTTERWAVE",
   });
 
-  return NextResponse.json(init);
+  return NextResponse.json(result);
 }));

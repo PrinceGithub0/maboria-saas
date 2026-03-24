@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { withErrorHandling } from "@/lib/api-handler";
 import { enforceEntitlement } from "@/lib/entitlements";
+import { decodeAssistantMessageCursor } from "@/lib/assistant-message-cursor";
 import {
   deleteAiConversation,
   getAiConversationMessages,
@@ -38,7 +39,7 @@ export const GET = withErrorHandling(async (req: Request, ctx?: { params?: Promi
 
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "ai",
-    requiredPlan: "starter",
+    requiredPlan: "free",
     allowTrial: false,
   });
   if (!entitlement.ok) {
@@ -46,7 +47,7 @@ export const GET = withErrorHandling(async (req: Request, ctx?: { params?: Promi
       {
         error: "Upgrade required",
         type: entitlement.type,
-        requiredPlan: entitlement.requiredPlan ?? "starter",
+        requiredPlan: entitlement.requiredPlan ?? "free",
         reason: entitlement.reason,
       },
       { status: 403 }
@@ -59,26 +60,33 @@ export const GET = withErrorHandling(async (req: Request, ctx?: { params?: Promi
   const url = new URL(req.url);
   const rawLimit = Number(url.searchParams.get("limit") ?? 100);
   const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 200) : 100;
+  const cursor = decodeAssistantMessageCursor(url.searchParams.get("cursor"));
 
-  const result = (await getAiConversationMessages(session.user.id, conversationId, limit)) as
-    | { conversation: ConversationPayload; messages: MessagePayload[] }
+  const pagedResult = (await getAiConversationMessages(
+    session.user.id,
+    conversationId,
+    limit,
+    cursor
+  )) as
+    | { conversation: ConversationPayload; messages: MessagePayload[]; nextCursor?: string | null }
     | null;
-  if (!result) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+  if (!pagedResult) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
 
   return NextResponse.json({
     conversation: {
-      id: result.conversation.id,
-      title: result.conversation.title,
-      lastMessageAt: result.conversation.lastMessageAt,
-      updatedAt: result.conversation.updatedAt,
-      createdAt: result.conversation.createdAt,
+      id: pagedResult.conversation.id,
+      title: pagedResult.conversation.title,
+      lastMessageAt: pagedResult.conversation.lastMessageAt,
+      updatedAt: pagedResult.conversation.updatedAt,
+      createdAt: pagedResult.conversation.createdAt,
     },
-    messages: result.messages.map((entry) => ({
+    messages: pagedResult.messages.map((entry) => ({
       id: entry.id,
       role: entry.role,
       content: entry.content,
       createdAt: entry.createdAt,
     })),
+    nextCursor: pagedResult.nextCursor ?? null,
   });
 });
 
@@ -88,7 +96,7 @@ export const PATCH = withErrorHandling(async (req: Request, ctx?: { params?: Pro
 
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "ai",
-    requiredPlan: "starter",
+    requiredPlan: "free",
     allowTrial: false,
   });
   if (!entitlement.ok) {
@@ -96,7 +104,7 @@ export const PATCH = withErrorHandling(async (req: Request, ctx?: { params?: Pro
       {
         error: "Upgrade required",
         type: entitlement.type,
-        requiredPlan: entitlement.requiredPlan ?? "starter",
+        requiredPlan: entitlement.requiredPlan ?? "free",
         reason: entitlement.reason,
       },
       { status: 403 }
@@ -112,6 +120,7 @@ export const PATCH = withErrorHandling(async (req: Request, ctx?: { params?: Pro
   }
 
   const updated = await renameAiConversation(session.user.id, conversationId, String(body.title));
+  if (!updated) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
   return NextResponse.json({ item: updated });
 });
 
@@ -121,7 +130,7 @@ export const DELETE = withErrorHandling(async (_req: Request, ctx?: { params?: P
 
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "ai",
-    requiredPlan: "starter",
+    requiredPlan: "free",
     allowTrial: false,
   });
   if (!entitlement.ok) {
@@ -129,7 +138,7 @@ export const DELETE = withErrorHandling(async (_req: Request, ctx?: { params?: P
       {
         error: "Upgrade required",
         type: entitlement.type,
-        requiredPlan: entitlement.requiredPlan ?? "starter",
+        requiredPlan: entitlement.requiredPlan ?? "free",
         reason: entitlement.reason,
       },
       { status: 403 }
@@ -139,6 +148,7 @@ export const DELETE = withErrorHandling(async (_req: Request, ctx?: { params?: P
   const conversationId = await resolveConversationId(_req, ctx);
   if (!conversationId) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
 
-  await deleteAiConversation(session.user.id, conversationId);
+  const deleted = await deleteAiConversation(session.user.id, conversationId);
+  if (!deleted) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
   return NextResponse.json({ ok: true });
 });

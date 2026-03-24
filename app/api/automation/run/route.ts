@@ -114,7 +114,7 @@ export const POST = withErrorHandling(async (req: Request) => {
   if (usesAi) {
     const aiEntitlement = await enforceEntitlement(session.user.id, {
       feature: "ai",
-      requiredPlan: "starter",
+      requiredPlan: "free",
       allowTrial: false,
     });
     if (!aiEntitlement.ok) {
@@ -122,9 +122,9 @@ export const POST = withErrorHandling(async (req: Request) => {
         {
           error: "Upgrade required",
           type: aiEntitlement.type,
-          requiredPlan: aiEntitlement.requiredPlan ?? "starter",
+          requiredPlan: aiEntitlement.requiredPlan ?? "free",
           plan,
-          reason: "AI steps are a Starter feature",
+          reason: aiEntitlement.reason,
         },
         { status: 403 }
       );
@@ -164,39 +164,19 @@ export const POST = withErrorHandling(async (req: Request) => {
   if ((result as any).status === "FAILED") {
     if (isPlanAtLeast(plan, "starter")) {
       const aiUsage = await enforceUsageLimit(session.user.id, "aiRequests");
-      if (!aiUsage.ok) {
-        if (aiUsage.code === "payment_required") {
-          return NextResponse.json(
-            {
-              error: "Payment required",
-              type: "payment_required",
-              reason: "Active subscription required to use AI",
-              plan: aiUsage.plan,
-            },
-            { status: 403 }
-          );
+      if (aiUsage.ok) {
+        try {
+          const diagnosis = await aiRouter({
+            mode: "diagnose",
+            prompt: "Diagnose automation failure",
+            context: { flow, logs: result.logs },
+            userId: session.user.id,
+          });
+          return NextResponse.json({ status: result.status, logs: result.logs, diagnosis });
+        } catch {
+          return NextResponse.json({ status: result.status, logs: result.logs });
         }
-        return NextResponse.json(
-          {
-            error: "Upgrade required",
-            type: "limit_reached",
-            reason: "AI usage limit reached for this month",
-            requiredPlan: nextPlanAfter(aiUsage.plan),
-            plan: aiUsage.plan,
-            limit: aiUsage.limit,
-            used: aiUsage.used,
-          },
-          { status: 402 }
-        );
       }
-
-      const diagnosis = await aiRouter({
-        mode: "diagnose",
-        prompt: "Diagnose automation failure",
-        context: { flow, logs: result.logs },
-        userId: session.user.id,
-      });
-      return NextResponse.json({ status: result.status, logs: result.logs, diagnosis });
     }
     return NextResponse.json({ status: result.status, logs: result.logs });
   }

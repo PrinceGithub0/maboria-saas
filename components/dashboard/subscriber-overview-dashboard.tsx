@@ -284,30 +284,34 @@ export function SubscriberOverviewDashboard({
   const riskRows = useMemo(
     () =>
       [
-      {
-        label: "Overdue invoices",
-        value: `${data.risk.overdueInvoicesCount} • ${formatCurrency(data.risk.overdueInvoicesAmount, data.overview.currency)}`,
-        href: navigateWithRange("/billing/invoices", { status: "overdue" }),
-        count: data.risk.overdueInvoicesCount,
-      },
-      {
-        label: "Failed payments",
-        value: String(data.risk.failedPaymentsCount),
-        href: navigateWithRange("/billing/payments", { status: "failed" }),
-        count: data.risk.failedPaymentsCount,
-      },
-      {
-        label: "Failed automations",
-        value: String(data.risk.failedAutomationsCount),
-        href: navigateWithRange("/dashboard/automation-operations", { status: "FAILED" }),
-        count: data.risk.failedAutomationsCount,
-      },
-      {
-        label: "Undelivered messages",
-        value: String(data.risk.undeliveredMessagesCount),
-        href: navigateWithRange("/dashboard/inbox/analytics", { status: "failed" }),
-        count: data.risk.undeliveredMessagesCount,
-      },
+        ...(data.permissions.canViewBilling
+          ? [
+              {
+                label: "Overdue invoices",
+                value: `${data.risk.overdueInvoicesCount} • ${formatCurrency(data.risk.overdueInvoicesAmount, data.overview.currency)}`,
+                href: "/dashboard/invoices",
+                count: data.risk.overdueInvoicesCount,
+              },
+              {
+                label: "Failed payments",
+                value: String(data.risk.failedPaymentsCount),
+                href: navigateWithRange("/billing/payments", { status: "failed" }),
+                count: data.risk.failedPaymentsCount,
+              },
+            ]
+          : []),
+        {
+          label: "Failed automations",
+          value: String(data.risk.failedAutomationsCount),
+          href: navigateWithRange("/dashboard/automation-operations", { status: "FAILED" }),
+          count: data.risk.failedAutomationsCount,
+        },
+        {
+          label: "Undelivered messages",
+          value: String(data.risk.undeliveredMessagesCount),
+          href: "/dashboard/inbox/analytics",
+          count: data.risk.undeliveredMessagesCount,
+        },
       ].filter((row) => row.count > 0),
     [data, navigateWithRange]
   );
@@ -408,26 +412,39 @@ export function SubscriberOverviewDashboard({
 
       <section className={sectionClass}>
         <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Business Overview</h1>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-          <Link href={navigateWithRange("/billing/payments", { status: "paid" })} className={subcardClass}>
-            <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Revenue</p>
-            <p className="mt-1 text-3xl font-bold leading-tight text-slate-950 dark:text-slate-100">{formatCurrency(data.overview.revenue, data.overview.currency)}</p>
-            <div className="mt-1">
-              <MiniTrend values={data.overview.revenueTrend} />
-            </div>
-            {data.overview.revenueNote ? <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">{data.overview.revenueNote}</p> : null}
-          </Link>
-          <Link href={navigateWithRange("/billing/payments")} className={subcardClass}>
-            <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Payments</p>
-            <p className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">{data.overview.paymentsCount}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Success rate {data.overview.paymentSuccessRate}%</p>
-          </Link>
-          <Link href={navigateWithRange("/billing/invoices")} className={subcardClass}>
-            <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Invoices Sent</p>
-            <p className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">{data.overview.invoicesSent}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Overdue {data.overview.invoicesOverdue}</p>
-          </Link>
-          <Link href={navigateWithRange("/dashboard/inbox/analytics")} className={subcardClass}>
+        <div
+          className={clsx(
+            "mt-3 grid gap-3 sm:grid-cols-2",
+            data.permissions.canViewBilling ? "xl:grid-cols-6" : "xl:grid-cols-3"
+          )}
+        >
+          {data.permissions.canViewBilling ? (
+            <>
+              <Link href={navigateWithRange("/billing/payments", { status: "paid" })} className={subcardClass}>
+                <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Revenue</p>
+                <p className="mt-1 text-3xl font-bold leading-tight text-slate-950 dark:text-slate-100">
+                  {formatCurrency(data.overview.revenue, data.overview.currency)}
+                </p>
+                <div className="mt-1">
+                  <MiniTrend values={data.overview.revenueTrend} />
+                </div>
+                {data.overview.revenueNote ? (
+                  <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">{data.overview.revenueNote}</p>
+                ) : null}
+              </Link>
+              <Link href={navigateWithRange("/billing/payments")} className={subcardClass}>
+                <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Payments</p>
+                <p className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">{data.overview.paymentsCount}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Success rate {data.overview.paymentSuccessRate}%</p>
+              </Link>
+              <Link href="/dashboard/invoices" className={subcardClass}>
+                <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Invoices Sent</p>
+                <p className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">{data.overview.invoicesSent}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Overdue {data.overview.invoicesOverdue}</p>
+              </Link>
+            </>
+          ) : null}
+          <Link href="/dashboard/inbox/analytics" className={subcardClass}>
             <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Messages</p>
             <p className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">{data.overview.messagesSent}</p>
             <p className="text-xs text-slate-500 dark:text-slate-400">Delivery rate {data.overview.messageDeliveryRate}%</p>
@@ -438,7 +455,7 @@ export function SubscriberOverviewDashboard({
             <p className="text-xs text-slate-500 dark:text-slate-400">Failed {data.overview.failedAutomations}</p>
           </Link>
           {typeof data.overview.aiRequests === "number" ? (
-            <Link href={navigateWithRange("/dashboard/assistant")} className={subcardClass}>
+            <Link href="/dashboard/assistant" className={subcardClass}>
               <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">AI</p>
               <p className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">{data.overview.aiRequests}</p>
               <p className="text-xs text-slate-500 dark:text-slate-400">Requests in range</p>
@@ -449,7 +466,7 @@ export function SubscriberOverviewDashboard({
 
       <section className={sectionClass}>
         <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Risk &amp; Attention</h2>
-        {data.risk.paymentConnectionIssue ? (
+        {data.permissions.canViewBilling && data.risk.paymentConnectionIssue ? (
           <div className="mt-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
             Payment subaccount not connected.
             <Link href="/dashboard/settings?tab=payout" className="ml-2 font-semibold text-blue-700 hover:underline dark:text-blue-300">
@@ -457,7 +474,7 @@ export function SubscriberOverviewDashboard({
             </Link>
           </div>
         ) : null}
-        {riskRows.length === 0 && !data.risk.paymentConnectionIssue ? (
+        {riskRows.length === 0 && !(data.permissions.canViewBilling && data.risk.paymentConnectionIssue) ? (
           <p className="mt-3 text-sm text-emerald-700 dark:text-emerald-300">All systems operating normally.</p>
         ) : (
           <div className="mt-3 grid gap-2 md:grid-cols-2">
@@ -477,18 +494,20 @@ export function SubscriberOverviewDashboard({
         )}
       </section>
 
-      <section className="grid gap-3 lg:grid-cols-3">
-        <article className={articleClass}>
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Billing</h3>
-          <div className="mt-2 space-y-1 text-sm text-slate-700 dark:text-slate-300">
-            <p>Revenue: {formatCurrency(data.modules.billing.revenue, data.overview.currency)}</p>
-            <p>Payments: {data.modules.billing.paymentsCount}</p>
-            <p>Overdue invoices: {data.modules.billing.overdueInvoices}</p>
-          </div>
-          <Link href={navigateWithRange("/billing/payments")} className="mt-3 inline-block text-sm font-semibold text-blue-700 dark:text-blue-300">
-            Open payments ledger
-          </Link>
-        </article>
+      <section className={clsx("grid gap-3", data.permissions.canViewBilling ? "lg:grid-cols-3" : "lg:grid-cols-2")}>
+        {data.permissions.canViewBilling ? (
+          <article className={articleClass}>
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Billing</h3>
+            <div className="mt-2 space-y-1 text-sm text-slate-700 dark:text-slate-300">
+              <p>Revenue: {formatCurrency(data.modules.billing.revenue, data.overview.currency)}</p>
+              <p>Payments: {data.modules.billing.paymentsCount}</p>
+              <p>Overdue invoices: {data.modules.billing.overdueInvoices}</p>
+            </div>
+            <Link href={navigateWithRange("/billing/payments")} className="mt-3 inline-block text-sm font-semibold text-blue-700 dark:text-blue-300">
+              Open payments ledger
+            </Link>
+          </article>
+        ) : null}
         <article className={articleClass}>
           <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Automation</h3>
           <div className="mt-2 space-y-1 text-sm text-slate-700 dark:text-slate-300">
@@ -507,7 +526,7 @@ export function SubscriberOverviewDashboard({
             <p>Delivered: {data.modules.messaging.delivered}</p>
             <p>Failed: {data.modules.messaging.failed}</p>
           </div>
-          <Link href={navigateWithRange("/dashboard/inbox/analytics")} className="mt-3 inline-block text-sm font-semibold text-blue-700 dark:text-blue-300">
+          <Link href="/dashboard/inbox/analytics" className="mt-3 inline-block text-sm font-semibold text-blue-700 dark:text-blue-300">
             View messaging
           </Link>
         </article>

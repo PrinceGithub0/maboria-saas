@@ -21,6 +21,16 @@ export type InvoiceDisplayStatus =
   | "REFUNDED"
   | "PARTIALLY_REFUNDED";
 
+export type InvoiceSummaryCounts = {
+  total: number;
+  drafts: number;
+  unpaid: number;
+  overdue: number;
+  paid: number;
+  refunded: number;
+  partiallyRefunded: number;
+};
+
 export function deriveInvoiceDisplayStatus(invoice: InvoiceLike): InvoiceDisplayStatus {
   const baseStatus = String(invoice?.status || "").toUpperCase() as InvoiceDisplayStatus;
   if (baseStatus !== "PAID") {
@@ -51,3 +61,41 @@ export function deriveInvoiceDisplayStatus(invoice: InvoiceLike): InvoiceDisplay
   return "PARTIALLY_REFUNDED";
 }
 
+export function getInvoiceSummaryCounts(invoices: InvoiceLike[]): InvoiceSummaryCounts {
+  return invoices.reduce<InvoiceSummaryCounts>(
+    (summary, invoice) => {
+      const displayStatus = deriveInvoiceDisplayStatus(invoice);
+      summary.total += 1;
+
+      if (displayStatus === "DRAFT") {
+        summary.drafts += 1;
+      }
+      if (displayStatus === "SENT" || displayStatus === "OVERDUE") {
+        summary.unpaid += 1;
+      }
+      if (displayStatus === "OVERDUE") {
+        summary.overdue += 1;
+      }
+      if (displayStatus === "PAID") {
+        summary.paid += 1;
+      }
+      if (displayStatus === "REFUNDED") {
+        summary.refunded += 1;
+      }
+      if (displayStatus === "PARTIALLY_REFUNDED") {
+        summary.partiallyRefunded += 1;
+      }
+
+      return summary;
+    },
+    {
+      total: 0,
+      drafts: 0,
+      unpaid: 0,
+      overdue: 0,
+      paid: 0,
+      refunded: 0,
+      partiallyRefunded: 0,
+    }
+  );
+}

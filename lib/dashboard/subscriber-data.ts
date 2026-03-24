@@ -23,6 +23,9 @@ export type SubscriberDashboardData = {
   generatedAt: string;
   status: "stable" | "attention" | "critical";
   hasConnectedSubaccount: boolean;
+  permissions: {
+    canViewBilling: boolean;
+  };
   overview: {
     revenue: number;
     currency: string;
@@ -80,6 +83,7 @@ export type SubscriberDashboardData = {
 export type SubscriberDashboardScope = {
   orgId: string;
   ownerUserId: string;
+  canViewBilling?: boolean;
   canAI?: boolean;
 };
 
@@ -208,6 +212,7 @@ export async function getSubscriberDashboardData(input: {
   const ownerUserId = targetOwnerUserId ?? workspace?.ownerId ?? input.userId;
   const businessId = targetOrgId ?? workspace?.businessId ?? null;
   const analyticsScopeId = businessId ?? ownerUserId;
+  const canViewBilling = input.scope?.canViewBilling ?? true;
   const memberUserIds = businessId
     ? Array.from(
         new Set([
@@ -292,53 +297,76 @@ export async function getSubscriberDashboardData(input: {
     messageRows,
   ] = await Promise.all([
     prisma.businessProfile.findUnique({ where: { userId: ownerUserId }, select: { defaultCurrency: true } }),
-    prisma.merchantAccount.findUnique({
-      where: { userId: ownerUserId },
-      select: { paystackSubaccountCode: true, flutterwaveSubaccountId: true, currency: true },
-    }),
-    prisma.analyticsEvent.aggregate({
-      _sum: { count: true },
-      where: {
-        workspaceId: analyticsScopeId,
-        type: "INVOICE_SENT" satisfies AnalyticsEventType,
-        day: { gte: fromDate, lte: toDate },
-      },
-    }),
-    prisma.invoicePayment.findMany({
-      where: withInvoicePaymentSubaccountFilters({
-        userId: ownerUserId,
-        createdAt: { gte: fromDate, lte: toDate },
-      }, supportsSubaccountFilters),
-      orderBy: { createdAt: "asc" },
-      select: invoicePaymentsSelect as any,
-    }) as Promise<any[]>,
-    prisma.invoicePayment.findMany({
-      where: withInvoicePaymentSubaccountFilters(
-        supportsLockedFields
-          ? {
-              userId: ownerUserId,
-              confirmedAt: { gte: fromDate, lte: toDate },
-              status: { in: ["SUCCEEDED", "REFUNDED"] as PaymentStatus[] },
-            }
-          : {
+    canViewBilling
+      ? prisma.merchantAccount.findUnique({
+          where: { userId: ownerUserId },
+          select: { paystackSubaccountCode: true, flutterwaveSubaccountId: true, currency: true },
+        })
+      : Promise.resolve(null),
+    canViewBilling
+      ? prisma.analyticsEvent.aggregate({
+          _sum: { count: true },
+          where: {
+            workspaceId: analyticsScopeId,
+            type: "INVOICE_SENT" satisfies AnalyticsEventType,
+            day: { gte: fromDate, lte: toDate },
+          },
+        })
+      : Promise.resolve({ _sum: { count: 0 } }),
+    canViewBilling
+      ? (prisma.invoicePayment.findMany({
+          where: withInvoicePaymentSubaccountFilters(
+            {
               userId: ownerUserId,
               createdAt: { gte: fromDate, lte: toDate },
-              status: { in: ["SUCCEEDED", "REFUNDED"] as PaymentStatus[] },
             },
-        supportsSubaccountFilters
-      ),
-      orderBy: supportsLockedFields ? ({ confirmedAt: "asc" } as const) : ({ createdAt: "asc" } as const),
-      select: revenueWindowSelect as any,
-    }) as Promise<any[]>,
-    prisma.invoice.findMany({
-      where: { userId: ownerUserId, generatedAt: { gte: fromDate, lte: toDate } },
-      orderBy: { generatedAt: "desc" },
-      select: { id: true, invoiceNumber: true, status: true, total: true, currency: true, metadata: true, generatedAt: true },
-    }),
-    prisma.invoice.findMany({
-      where: { userId: ownerUserId, status: "OVERDUE", generatedAt: { gte: fromDate, lte: toDate } },
-      select: { total: true, currency: true },
-    }),
+            supportsSubaccountFilters
+          ),
+          orderBy: { createdAt: "asc" },
+          select: invoicePaymentsSelect as any,
+        }) as Promise<any[]>)
+      : Promise.resolve([] as any[]),
+    canViewBilling
+      ? (prisma.invoicePayment.findMany({
+          where: withInvoicePaymentSubaccountFilters(
+            supportsLockedFields
+              ? {
+                  userId: ownerUserId,
+                  confirmedAt: { gte: fromDate, lte: toDate },
+                  status: { in: ["SUCCEEDED", "REFUNDED"] as PaymentStatus[] },
+                }
+              : {
+                  userId: ownerUserId,
+                  createdAt: { gte: fromDate, lte: toDate },
+                  status: { in: ["SUCCEEDED", "REFUNDED"] as PaymentStatus[] },
+                },
+            supportsSubaccountFilters
+          ),
+          orderBy: supportsLockedFields ? ({ confirmedAt: "asc" } as const) : ({ createdAt: "asc" } as const),
+          select: revenueWindowSelect as any,
+        }) as Promise<any[]>)
+      : Promise.resolve([] as any[]),
+    canViewBilling
+      ? prisma.invoice.findMany({
+          where: { userId: ownerUserId, generatedAt: { gte: fromDate, lte: toDate } },
+          orderBy: { generatedAt: "desc" },
+          select: {
+            id: true,
+            invoiceNumber: true,
+            status: true,
+            total: true,
+            currency: true,
+            metadata: true,
+            generatedAt: true,
+          },
+        })
+      : Promise.resolve([] as any[]),
+    canViewBilling
+      ? prisma.invoice.findMany({
+          where: { userId: ownerUserId, status: "OVERDUE", generatedAt: { gte: fromDate, lte: toDate } },
+          select: { total: true, currency: true },
+        })
+      : Promise.resolve([] as Array<{ total: number; currency: string }>),
     prisma.automationRun.findMany({
       where: businessId
         ? { flow: { businessId }, createdAt: { gte: fromDate, lte: toDate } }
@@ -370,9 +398,9 @@ export async function getSubscriberDashboardData(input: {
         })
       : Promise.resolve(0),
     businessId
-      ? prisma.message.findMany({
+      ? prisma.unifiedMessage.findMany({
           where: {
-            conversation: { businessId },
+            tenantId: businessId,
             direction: "OUTBOUND",
             createdAt: { gte: fromDate, lte: toDate },
           },
@@ -380,9 +408,18 @@ export async function getSubscriberDashboardData(input: {
           take: 200,
           select: {
             id: true,
-            status: true,
+            deliveryStatus: true,
             createdAt: true,
-            conversation: { select: { customerName: true, customerPhone: true, invoice: { select: { invoiceNumber: true } } } },
+            conversation: {
+              select: {
+                contact: {
+                  select: {
+                    name: true,
+                    phone: true,
+                  },
+                },
+              },
+            },
           },
         })
       : Promise.resolve([]),
@@ -431,8 +468,12 @@ export async function getSubscriberDashboardData(input: {
   const failedAutomations = runsStatusMap.get("FAILED") || 0;
 
   const messageSentCount = messageRows.length;
-  const deliveredCount = messageRows.filter((row) => ["DELIVERED", "READ"].includes(String(row.status).toUpperCase())).length;
-  const undeliveredMessagesCount = messageRows.filter((row) => String(row.status).toUpperCase() === "FAILED").length;
+  const deliveredCount = messageRows.filter((row) =>
+    ["DELIVERED", "READ"].includes(String(row.deliveryStatus).toUpperCase())
+  ).length;
+  const undeliveredMessagesCount = messageRows.filter(
+    (row) => String(row.deliveryStatus).toUpperCase() === "FAILED"
+  ).length;
   const messageDeliveryRate = messageSentCount > 0 ? Math.round((deliveredCount / messageSentCount) * 100) : 0;
 
   const overdueInvoicesAmount = overdueInvoices.reduce((sum, invoice) => {
@@ -443,15 +484,17 @@ export async function getSubscriberDashboardData(input: {
     });
     return sum + converted.amount;
   }, 0);
+  const hasBillingActivity =
+    sentInvoiceCount > 0 || paymentStats.total > 0 || overdueInvoices.length > 0 || revenueWindowRows.length > 0;
 
   const financialSystemFailure = !Number.isFinite(revenue);
 
   const risk = {
-    financialSystemFailure,
-    paymentConnectionIssue: !hasConnectedSubaccount,
-    overdueInvoicesCount: overdueInvoices.length,
-    overdueInvoicesAmount,
-    failedPaymentsCount: paymentStats.failed,
+    financialSystemFailure: canViewBilling ? financialSystemFailure : false,
+    paymentConnectionIssue: canViewBilling ? hasBillingActivity && !hasConnectedSubaccount : false,
+    overdueInvoicesCount: canViewBilling ? overdueInvoices.length : 0,
+    overdueInvoicesAmount: canViewBilling ? overdueInvoicesAmount : 0,
+    failedPaymentsCount: canViewBilling ? paymentStats.failed : 0,
     failedAutomationsCount: failedAutomations,
     undeliveredMessagesCount,
   };
@@ -476,30 +519,34 @@ export async function getSubscriberDashboardData(input: {
   })();
 
   const timeline = [
-    ...invoicePayments.map((payment) => {
-      const invoiceMeta = parseMeta(payment.invoice?.metadata);
-      const meta = { ...invoiceMeta, ...parseMeta(payment.metadata) };
-      const normalizedStatus = String(payment.status).toUpperCase();
-      return {
-        id: `payment-${payment.id}`,
-        status: paymentTimelineStatus(normalizedStatus),
-        title: paymentTimelineTitle(normalizedStatus),
-        customer: customerFromMeta(meta),
-        invoice: payment.invoice?.invoiceNumber || invoiceFromMeta(meta),
-        timestamp: payment.createdAt.toISOString(),
-      };
-    }),
-    ...invoiceRows.map((invoice) => {
-      const status = String(invoice.status).toUpperCase();
-      return {
-        id: `invoice-${invoice.id}`,
-        status: status === "OVERDUE" ? ("warning" as const) : ("info" as const),
-        title: status === "OVERDUE" ? "Invoice overdue" : "Invoice created",
-        customer: customerFromMeta(parseMeta(invoice.metadata)),
-        invoice: invoice.invoiceNumber,
-        timestamp: invoice.generatedAt.toISOString(),
-      };
-    }),
+    ...(canViewBilling
+      ? invoicePayments.map((payment) => {
+          const invoiceMeta = parseMeta(payment.invoice?.metadata);
+          const meta = { ...invoiceMeta, ...parseMeta(payment.metadata) };
+          const normalizedStatus = String(payment.status).toUpperCase();
+          return {
+            id: `payment-${payment.id}`,
+            status: paymentTimelineStatus(normalizedStatus),
+            title: paymentTimelineTitle(normalizedStatus),
+            customer: customerFromMeta(meta),
+            invoice: payment.invoice?.invoiceNumber || invoiceFromMeta(meta),
+            timestamp: payment.createdAt.toISOString(),
+          };
+        })
+      : []),
+    ...(canViewBilling
+      ? invoiceRows.map((invoice) => {
+          const status = String(invoice.status).toUpperCase();
+          return {
+            id: `invoice-${invoice.id}`,
+            status: status === "OVERDUE" ? ("warning" as const) : ("info" as const),
+            title: status === "OVERDUE" ? "Invoice overdue" : "Invoice created",
+            customer: customerFromMeta(parseMeta(invoice.metadata)),
+            invoice: invoice.invoiceNumber,
+            timestamp: invoice.generatedAt.toISOString(),
+          };
+        })
+      : []),
     ...automationRuns.map((run) => {
       const status = String(run.runStatus).toUpperCase();
       return {
@@ -512,13 +559,13 @@ export async function getSubscriberDashboardData(input: {
       };
     }),
     ...messageRows.map((message) => {
-      const status = String(message.status).toUpperCase();
+      const status = String(message.deliveryStatus).toUpperCase();
       return {
         id: `message-${message.id}`,
         status: messageTimelineStatus(status),
         title: messageTimelineTitle(status),
-        customer: message.conversation.customerName || message.conversation.customerPhone || null,
-        invoice: message.conversation.invoice?.invoiceNumber || null,
+        customer: message.conversation.contact?.name || message.conversation.contact?.phone || null,
+        invoice: null,
         timestamp: message.createdAt.toISOString(),
       };
     }),
@@ -526,22 +573,25 @@ export async function getSubscriberDashboardData(input: {
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     .slice(0, 100);
 
-  const revenueNote = !hasConnectedSubaccount ? "No payment subaccount connected" : undefined;
+  const revenueNote = risk.paymentConnectionIssue ? "No payment subaccount connected" : undefined;
 
   return {
     dateRange,
     generatedAt: new Date().toISOString(),
     status: statusFromRisk(risk),
     hasConnectedSubaccount,
+    permissions: {
+      canViewBilling,
+    },
     overview: {
-      revenue,
+      revenue: canViewBilling ? revenue : 0,
       currency: defaultCurrency,
-      revenueTrend,
+      revenueTrend: canViewBilling ? revenueTrend : [],
       ...(revenueNote ? { revenueNote } : {}),
-      paymentsCount: paymentStats.total,
-      paymentSuccessRate,
-      invoicesSent: sentInvoiceCount,
-      invoicesOverdue: overdueInvoices.length,
+      paymentsCount: canViewBilling ? paymentStats.total : 0,
+      paymentSuccessRate: canViewBilling ? paymentSuccessRate : 0,
+      invoicesSent: canViewBilling ? sentInvoiceCount : 0,
+      invoicesOverdue: canViewBilling ? overdueInvoices.length : 0,
       messagesSent: messageSentCount,
       messageDeliveryRate,
       automationRuns: automationRuns.length,
@@ -551,9 +601,9 @@ export async function getSubscriberDashboardData(input: {
     risk,
     modules: {
       billing: {
-        revenue,
-        paymentsCount: paymentStats.total,
-        overdueInvoices: overdueInvoices.length,
+        revenue: canViewBilling ? revenue : 0,
+        paymentsCount: canViewBilling ? paymentStats.total : 0,
+        overdueInvoices: canViewBilling ? overdueInvoices.length : 0,
       },
       automation: {
         runs: automationRuns.length,

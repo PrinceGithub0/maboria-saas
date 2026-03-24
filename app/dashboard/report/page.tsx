@@ -164,6 +164,11 @@ export default function ReportPage() {
     }));
   }, [data?.trend.series, selectedFeature]);
 
+  useEffect(() => {
+    if (!data?.trend.defaultFeature) return;
+    setSelectedFeature(data.trend.defaultFeature);
+  }, [data?.trend.defaultFeature]);
+
   const exportAllUrl = "/api/analytics/usage/export?cycle=current";
   const errorStatus = typeof (error as { status?: unknown } | null)?.status === "number"
     ? Number((error as { status?: number }).status)

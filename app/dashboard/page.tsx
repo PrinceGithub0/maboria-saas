@@ -6,8 +6,7 @@ import { PaymentSuccessToast } from "@/components/ui/payment-success-toast";
 import { Alert } from "@/components/ui/alert";
 import { SubscriberOverviewDashboard } from "@/components/dashboard/subscriber-overview-dashboard";
 import { getSubscriberDashboardData } from "@/lib/dashboard/subscriber-data";
-import { requireOrgPermission } from "@/lib/org-auth";
-import { isPlanAtLeast, subscriptionPlanToUserPlan } from "@/lib/entitlements";
+import { hasOrgPermission, requireOrgPermission } from "@/lib/org-auth";
 
 type DashboardSearchParams = {
   range?: string;
@@ -46,9 +45,8 @@ export default async function DashboardPage({
     scope: {
       orgId: access.context.orgId,
       ownerUserId: access.context.ownerUserId,
-      canAI: access.context.orgPlan
-        ? isPlanAtLeast(subscriptionPlanToUserPlan(access.context.orgPlan), "starter")
-        : false,
+      canViewBilling: hasOrgPermission(access.context.role, "settings:payout:write"),
+      canAI: true,
     },
   });
 

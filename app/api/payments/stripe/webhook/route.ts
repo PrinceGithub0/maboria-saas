@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withErrorHandling } from "@/lib/api-handler";
 import { fromMinorUnits, normalizeCurrency } from "@/lib/payments/currency-allowlist";
+import { resolveStripeOrgSubscriptionUpdate } from "@/lib/payments/stripe-org-subscription";
 import { verifyStripeWebhookSignature } from "@/lib/payments/stripe";
 import { finalizeSubscriptionPayment } from "@/lib/payments/subscription";
 
@@ -68,7 +69,7 @@ export const POST = withErrorHandling(async (req: Request) => {
     },
   });
 
-  await finalizeSubscriptionPayment({
+  const finalized = await finalizeSubscriptionPayment({
     provider: "STRIPE",
     reference,
     amount,
@@ -83,17 +84,25 @@ export const POST = withErrorHandling(async (req: Request) => {
 
   const business = await prisma.business.findFirst({
     where: { ownerId: userId },
-    select: { id: true, orgSubscription: { select: { id: true } } },
+    select: {
+      id: true,
+      orgSubscription: {
+        select: {
+          id: true,
+          providerSubscriptionId: true,
+        },
+      },
+    },
   });
 
   if (business?.orgSubscription?.id) {
     await prisma.orgSubscription.update({
       where: { orgId: business.id },
-      data: {
-        provider: "STRIPE",
-        providerCustomerId: String(eventObject?.customer || "") || null,
-        providerSubscriptionId: String(eventObject?.subscription || "") || null,
-      },
+      data: resolveStripeOrgSubscriptionUpdate({
+        providerCustomerId: String(eventObject?.customer || ""),
+        localSubscriptionId: finalized?.subscriptionId,
+        currentLinkedSubscriptionId: business.orgSubscription.providerSubscriptionId,
+      }),
     });
   }
 

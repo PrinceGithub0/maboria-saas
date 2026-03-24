@@ -8,6 +8,7 @@ import { useLanguage } from "@/components/providers/language-provider";
 import { useTheme } from "@/components/providers/theme-provider";
 import { Card } from "@/components/ui/card";
 import { supportEmail, supportMailto } from "@/lib/support/contact";
+import { getSubscriberSupportLastActivityAt } from "@/lib/support/subscriber-display";
 import { ChevronLeft, ChevronRight, MessageSquare } from "lucide-react";
 
 type Ticket = {
@@ -17,6 +18,10 @@ type Ticket = {
   status: string;
   priority?: string;
   createdAt: string;
+  metadata?: {
+    lastActivityAt?: string | null;
+    [key: string]: unknown;
+  } | null;
 };
 
 type TicketPage = {
@@ -278,7 +283,7 @@ export default function SupportTicketsPage() {
                         {ticket.message}
                       </p>
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        {formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true })}
+                        {formatDistanceToNow(new Date(getSubscriberSupportLastActivityAt(ticket)), { addSuffix: true })}
                       </p>
                     </div>
                     <span className={`inline-flex shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-bold ${statusPill.className}`}>

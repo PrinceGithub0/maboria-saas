@@ -17,6 +17,7 @@ import {
 import { buildAutomationFlowWhere, resolveAutomationScope } from "@/lib/automation/access";
 import { getAutomationPermissions, hasAutomationPermission } from "@/lib/automation/permissions";
 import { requiresFinancialAutomationPrivilege } from "@/lib/automation/step-policy";
+import { buildAutomationRelationsFromSteps } from "@/lib/automation/dashboard-definition";
 
 export const GET = withErrorHandling(async () => {
   const session = await getServerSession(authOptions);
@@ -119,6 +120,19 @@ export const POST = withErrorHandling(async (req: Request) => {
   const limitValue = flowLimits[plan].automations ?? null;
   const scope = await getWorkspaceScope(session.user.id);
   const lockKey = scope.businessId ?? session.user.id;
+  let relations;
+  try {
+    relations = buildAutomationRelationsFromSteps((parsed.steps as any[]) || []);
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Invalid automation setup",
+        reason: error instanceof Error ? error.message : "Unsupported automation definition",
+      },
+      { status: 400 }
+    );
+  }
+  const { triggers, actions } = relations;
 
   const result = await prisma.$transaction(async (tx) => {
     if (limitValue != null) {
@@ -146,6 +160,24 @@ export const POST = withErrorHandling(async (req: Request) => {
         description: parsed.description,
         steps: parsed.steps as any,
         status: parsed.status as any,
+        triggers: triggers.length
+          ? {
+              create: triggers.map((trigger) => ({
+                type: trigger.type,
+                config: trigger.config as any,
+                conditions: (trigger.conditions ?? {}) as any,
+              })),
+            }
+          : undefined,
+        actions: actions.length
+          ? {
+              create: actions.map((action) => ({
+                type: action.type,
+                config: action.config as any,
+                order: action.order,
+              })),
+            }
+          : undefined,
       },
     });
     return { flow };

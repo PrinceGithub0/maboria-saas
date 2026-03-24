@@ -13,8 +13,9 @@ import { isProviderCurrency, normalizeCurrency } from "@/lib/payments/currency-a
 import { requireBillingAccess } from "@/lib/permissions";
 import { assertOwnedActiveCustomer } from "@/lib/customers";
 import { withFormattedInvoiceTotals } from "@/lib/invoice-totals";
-import { deriveInvoiceDisplayStatus } from "@/lib/invoice-refund-status";
+import { deriveInvoiceDisplayStatus, getInvoiceSummaryCounts } from "@/lib/invoice-refund-status";
 import { logUserActivity } from "@/lib/user-activity";
+import { triggerInvoiceCreatedAutomations } from "@/lib/automation/events";
 import {
   buildInvoiceIssuerCode,
   formatSequentialInvoiceNumber,
@@ -106,11 +107,7 @@ export const GET = withErrorHandling(async (req: Request) => {
   const [
     invoices,
     total,
-    totalInvoices,
-    draftCount,
-    unpaidCount,
-    overdueCount,
-    paidCount,
+    summaryInvoices,
     businessProfile,
     invoiceCountThisYear,
   ] = await Promise.all([
@@ -134,11 +131,20 @@ export const GET = withErrorHandling(async (req: Request) => {
       },
     }),
     prisma.invoice.count({ where }),
-    prisma.invoice.count({ where: { userId: targetUserId } }),
-    prisma.invoice.count({ where: { userId: targetUserId, status: "DRAFT" } }),
-    prisma.invoice.count({ where: { userId: targetUserId, status: { in: ["SENT", "OVERDUE"] } } }),
-    prisma.invoice.count({ where: { userId: targetUserId, status: "OVERDUE" } }),
-    prisma.invoice.count({ where: { userId: targetUserId, status: "PAID" } }),
+    prisma.invoice.findMany({
+      where: { userId: targetUserId },
+      select: {
+        status: true,
+        invoicePayments: {
+          select: {
+            status: true,
+            refundOfId: true,
+            amount: true,
+            amountOriginal: true,
+          },
+        },
+      },
+    }),
     prisma.businessProfile.findUnique({
       where: { userId: targetUserId },
       select: { businessName: true },
@@ -160,6 +166,7 @@ export const GET = withErrorHandling(async (req: Request) => {
     invoiceCountThisYear + 1,
     issuerCode
   );
+  const summary = getInvoiceSummaryCounts(summaryInvoices);
 
   return NextResponse.json({
     items: invoices.map((invoice) => ({
@@ -170,13 +177,7 @@ export const GET = withErrorHandling(async (req: Request) => {
     skip,
     take,
     hasMore: skip + invoices.length < total,
-    summary: {
-      total: totalInvoices,
-      drafts: draftCount,
-      unpaid: unpaidCount,
-      overdue: overdueCount,
-      paid: paidCount,
-    },
+    summary,
     suggestedInvoiceNumber,
   });
 });
@@ -338,5 +339,14 @@ export const POST = withErrorHandling(async (req: Request) => {
       status: invoice.status,
     },
   });
+  triggerInvoiceCreatedAutomations({
+    userId: targetUserId,
+    invoiceId: invoice.id,
+    invoiceNumber: invoice.invoiceNumber,
+    status: invoice.status,
+    eventId: `invoice:${invoice.id}:created`,
+    occurredAt: invoice.generatedAt,
+    source: "invoice:create",
+  }).catch(() => null);
   return NextResponse.json(invoice, { status: 201 });
 });

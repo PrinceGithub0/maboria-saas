@@ -6,6 +6,7 @@ import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
 import { requireOrgPermission } from "@/lib/org-auth";
+import { resolveCheckoutRequestScope } from "@/lib/payments/checkout-request-scope";
 import { startCheckoutSession } from "@/lib/payments/checkout-session";
 import { requireSystemFlag } from "@/lib/system-flags-guard";
 
@@ -32,13 +33,18 @@ export const POST = withRequestLogging(
       permission: "subscription:manage",
       requireActiveSubscription: false,
     });
-    if (!access.ok) {
-      return NextResponse.json({ error: access.message, code: access.code }, { status: access.status });
+    const scope = resolveCheckoutRequestScope({
+      sessionUserId: session.user.id,
+      access,
+    });
+    if (!scope.ok) {
+      return NextResponse.json({ error: scope.message, code: scope.code }, { status: scope.status });
     }
 
     const result = await startCheckoutSession({
       req,
-      userId: access.context.ownerUserId,
+      userId: scope.userId,
+      orgId: scope.orgId,
       selectedPlan: parsed.plan,
       billingCycle: parsed.interval || "monthly",
       requestedCurrency: parsed.currency,

@@ -81,9 +81,12 @@ type MockState = {
   businessInvite: BusinessInviteRecord | null;
   business: {
     id: string;
+    ownerId: string;
     plan: "STARTER" | "PRO" | "GROWTH" | "BUSINESS" | "ENTERPRISE";
     orgSubscription?: { planId: "STARTER" | "PRO" | "GROWTH" | "BUSINESS" | "ENTERPRISE" } | null;
   } | null;
+  latestOwnerSubscriptionPlan: "STARTER" | "PRO" | "GROWTH" | "BUSINESS" | "ENTERPRISE" | null;
+  seatLimitPlanCalls: Array<string | null | undefined>;
   sentEmails: Array<{ to: string; subject: string }>;
   auditWrites: Array<{ actionType: string; orgId: string; targetUserId?: string | null }>;
   activityWrites: Array<{ action: string; resourceId: string }>;
@@ -118,9 +121,12 @@ const defaultState = (): MockState => ({
   businessInvite: null,
   business: {
     id: "org_1",
+    ownerId: "user_owner",
     plan: "PRO",
     orgSubscription: { planId: "PRO" },
   },
+  latestOwnerSubscriptionPlan: null,
+  seatLimitPlanCalls: [],
   sentEmails: [],
   auditWrites: [],
   activityWrites: [],
@@ -141,6 +147,8 @@ function resetState() {
   state.businessMembers = fresh.businessMembers;
   state.businessInvite = fresh.businessInvite;
   state.business = fresh.business;
+  state.latestOwnerSubscriptionPlan = fresh.latestOwnerSubscriptionPlan;
+  state.seatLimitPlanCalls = fresh.seatLimitPlanCalls;
   state.sentEmails = fresh.sentEmails;
   state.auditWrites = fresh.auditWrites;
   state.activityWrites = fresh.activityWrites;
@@ -218,7 +226,15 @@ function installMocks() {
           if (actor === "admin") return currentRole === "member" && (nextRole === "member" || nextRole === "admin");
           return false;
         },
-        getSeatLimitForPlan: () => state.seatLimit,
+        getSeatLimitForPlan: (plan?: string | null) => {
+          state.seatLimitPlanCalls.push(plan ?? null);
+          const normalized = String(plan || "STARTER").toUpperCase();
+          if (normalized === "PRO") return 3;
+          if (normalized === "GROWTH") return 5;
+          if (normalized === "BUSINESS" || normalized === "PREMIUM") return 10;
+          if (normalized === "ENTERPRISE") return null;
+          return 1;
+        },
         countActiveOrgSeats: async () => state.activeSeatCount,
         requireOrgPermission: async () => state.requireOrgPermission,
         writeOrgAuditLog: async (input: { actionType: string; orgId: string; targetUserId?: string | null }) => {
@@ -323,6 +339,18 @@ function installMocks() {
           business: {
             findUnique: async () => state.business,
           },
+          subscription: {
+            findFirst: async () =>
+              state.latestOwnerSubscriptionPlan
+                ? {
+                    plan: state.latestOwnerSubscriptionPlan,
+                    status: "ACTIVE",
+                    updatedAt: new Date("2026-03-24T08:00:00.000Z"),
+                    createdAt: new Date("2026-03-24T07:00:00.000Z"),
+                    id: "sub_owner_latest",
+                  }
+                : null,
+          },
           auditLog: {
             findMany: async () => state.auditLogs,
             create: async ({
@@ -369,6 +397,18 @@ function installMocks() {
               },
               business: {
                 findUnique: async () => state.business,
+              },
+              subscription: {
+                findFirst: async () =>
+                  state.latestOwnerSubscriptionPlan
+                    ? {
+                        plan: state.latestOwnerSubscriptionPlan,
+                        status: "ACTIVE",
+                        updatedAt: new Date("2026-03-24T08:00:00.000Z"),
+                        createdAt: new Date("2026-03-24T07:00:00.000Z"),
+                        id: "sub_owner_latest",
+                      }
+                    : null,
               },
               businessMember: {
                 findUnique: async ({
@@ -647,6 +687,7 @@ async function testInviteAcceptBlocksAtSeatLimit() {
   };
   state.business = {
     id: "org_1",
+    ownerId: "user_owner",
     plan: "STARTER",
     orgSubscription: { planId: "STARTER" },
   };
@@ -696,6 +737,7 @@ async function testInviteAcceptCreatesMemberAndCookie() {
   };
   state.business = {
     id: "org_1",
+    ownerId: "user_owner",
     plan: "PRO",
     orgSubscription: { planId: "PRO" },
   };
@@ -732,6 +774,57 @@ async function testInviteAcceptCreatesMemberAndCookie() {
   assert.match(String(response.headers.get("set-cookie") || ""), /maboria_active_org=org_1/i);
 }
 
+async function testInviteAcceptUsesOwnerSubscriptionPlanFallback() {
+  resetState();
+  state.session = { user: { id: "user_member", email: "invited@example.com", name: "Invited User" } };
+  state.businessInvite = {
+    id: "invite_1",
+    businessId: "org_1",
+    email: "invited@example.com",
+    role: "member",
+    status: "PENDING",
+    tokenHash: "hash:raw_token",
+    token: "hash:raw_token",
+    expiresAt: new Date("2026-03-26T09:00:00.000Z"),
+    invitedById: "user_owner",
+    invitedByUserId: "user_owner",
+    createdAt: new Date("2026-03-19T09:00:00.000Z"),
+  };
+  state.business = {
+    id: "org_1",
+    ownerId: "user_owner",
+    plan: "STARTER",
+    orgSubscription: null,
+  };
+  state.latestOwnerSubscriptionPlan = "PRO";
+  state.businessMembers = [
+    {
+      id: "member_owner",
+      businessId: "org_1",
+      userId: "user_owner",
+      role: "owner",
+      status: "active",
+      joinedAt: new Date("2026-03-18T09:00:00.000Z"),
+      createdAt: new Date("2026-03-18T09:00:00.000Z"),
+    },
+  ];
+
+  clearRouteCaches();
+  const { POST } = require(INVITE_ACCEPT_ROUTE_PATH) as { POST: (req: Request) => Promise<Response> };
+  const response = await POST(
+    new Request("http://localhost/api/team/invite/accept", {
+      method: "POST",
+      body: JSON.stringify({ inviteToken: "raw_token" }),
+      headers: { "Content-Type": "application/json" },
+    })
+  );
+  const json = await readJson(response);
+
+  assert.equal(response.status, 200);
+  assert.equal(json.accepted, true);
+  assert.equal(state.seatLimitPlanCalls.at(-1), "PRO");
+}
+
 async function run() {
   installMocks();
 
@@ -743,6 +836,7 @@ async function run() {
   await testInviteAcceptIsIdempotentForJoinedMember();
   await testInviteAcceptBlocksAtSeatLimit();
   await testInviteAcceptCreatesMemberAndCookie();
+  await testInviteAcceptUsesOwnerSubscriptionPlanFallback();
 
   console.log("team flow rule checks passed");
 }

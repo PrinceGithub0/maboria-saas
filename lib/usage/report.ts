@@ -13,6 +13,7 @@ import {
 } from "@/lib/usage/plan-limits";
 
 type UsageTrendPoint = { date: string; value: number };
+type MeteredUsageFeatureKey = "ai_requests" | "invoices" | "whatsapp_messages" | "automations_runs";
 
 type CardSnapshot = {
   featureKey: UsageFeatureKeyApi;
@@ -45,7 +46,7 @@ export type UsageReportSnapshot = {
   };
   cards: CardSnapshot[];
   trend: {
-    defaultFeature: "ai_requests" | "invoices" | "whatsapp_messages" | "automations_runs";
+    defaultFeature: MeteredUsageFeatureKey;
     series: Record<UsageFeatureKeyApi, UsageTrendPoint[]>;
   };
   recentActivity: Array<{
@@ -65,12 +66,30 @@ export type UsageReportOrgAccess = {
   orgSubscriptionStatus: OrgSubscriptionStatus | "NONE";
 };
 
-const METERED_FEATURES: UsageFeatureKeyApi[] = [
+const METERED_FEATURES: MeteredUsageFeatureKey[] = [
   "ai_requests",
   "invoices",
   "whatsapp_messages",
   "automations_runs",
 ];
+
+export function pickDefaultTrendFeature(input: {
+  totalsByFeature: Map<UsageFeatureKeyApi, number>;
+  series: Record<UsageFeatureKeyApi, UsageTrendPoint[]>;
+}): MeteredUsageFeatureKey {
+  for (const feature of METERED_FEATURES) {
+    const total = Number(input.totalsByFeature.get(feature) ?? 0);
+    if (total > 0) return feature;
+  }
+
+  for (const feature of METERED_FEATURES) {
+    if (input.series[feature]?.some((point) => Number(point.value) > 0)) {
+      return feature;
+    }
+  }
+
+  return "ai_requests";
+}
 
 const ALL_FEATURES: UsageFeatureKeyApi[] = [...METERED_FEATURES, "team_members_seats"];
 
@@ -376,6 +395,7 @@ export async function getUsageReportSnapshot(
 
   const chartEndExclusive = cycleEndAt < now ? cycleEndAt : startOfNextUtcDay(now);
   const series = await buildTrendSeries(orgAccess.orgId, cycleKey, cycleStartAt, chartEndExclusive);
+  const defaultFeature = pickDefaultTrendFeature({ totalsByFeature, series });
   const recentEvents = await prisma.usageEvent.findMany({
     where: { orgId: orgAccess.orgId, cycleKey },
     orderBy: { occurredAt: "desc" },
@@ -410,7 +430,7 @@ export async function getUsageReportSnapshot(
     },
     cards,
     trend: {
-      defaultFeature: "ai_requests",
+      defaultFeature,
       series,
     },
     recentActivity,

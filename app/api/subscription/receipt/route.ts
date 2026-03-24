@@ -7,6 +7,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { withErrorHandling } from "@/lib/api-handler";
 import { requireOrgPermission } from "@/lib/org-auth";
+import { ensureCurrentSubscriptionForOrg } from "@/lib/subscription-downgrade";
 import { buildSubscriptionReceiptPdfBuffer } from "@/lib/subscription-receipt";
 
 function mapReceiptPlanLabel(plan: string | null | undefined) {
@@ -25,11 +26,14 @@ function readPaymentMethod(metadata: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-async function buildReceiptPdfFromDb(userId: string) {
+async function buildReceiptPdfFromDb(input: { userId: string; subscriptionId?: string | null }) {
   const subscription = await prisma.subscription.findFirst({
-    where: { userId, receiptNumber: { not: null } },
+    where: input.subscriptionId
+      ? { id: input.subscriptionId, userId: input.userId, receiptNumber: { not: null } }
+      : { userId: input.userId, receiptNumber: { not: null } },
     orderBy: [{ receiptIssuedAt: "desc" }, { updatedAt: "desc" }, { createdAt: "desc" }],
     select: {
+      id: true,
       plan: true,
       currency: true,
       interval: true,
@@ -47,13 +51,13 @@ async function buildReceiptPdfFromDb(userId: string) {
   const paymentWhere =
     subscription.lastPaymentReference && subscription.lastPaymentProvider
       ? {
-          userId,
+          userId: input.userId,
           reference: subscription.lastPaymentReference,
           provider: subscription.lastPaymentProvider,
           status: PaymentStatus.SUCCEEDED,
         }
       : {
-          userId,
+          userId: input.userId,
           status: PaymentStatus.SUCCEEDED,
           OR: [
             { metadata: { path: ["type"], equals: "subscription_payment" } },
@@ -76,11 +80,11 @@ async function buildReceiptPdfFromDb(userId: string) {
       },
     }),
     prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: input.userId },
       select: { name: true, email: true },
     }),
     prisma.businessProfile.findUnique({
-      where: { userId },
+      where: { userId: input.userId },
       select: { businessName: true },
     }),
   ]);
@@ -122,26 +126,25 @@ export const GET = withErrorHandling(async (req: Request) => {
     return NextResponse.json({ error: access.message, code: access.code }, { status: access.status });
   }
 
-  const [orgSub, ownedBusinessCount] = await Promise.all([
-    prisma.orgSubscription.findUnique({
-      where: { orgId: access.context.orgId },
-      select: { providerSubscriptionId: true },
-    }),
+  const [currentSubscription, ownedBusinessCount] = await Promise.all([
+    ensureCurrentSubscriptionForOrg(access.context.ownerUserId, access.context.orgId),
     prisma.business.count({
       where: { ownerId: access.context.ownerUserId },
     }),
   ]);
   const subscription =
-    ownedBusinessCount > 1 && orgSub?.providerSubscriptionId
-      ? await prisma.subscription.findFirst({
-          where: { id: orgSub.providerSubscriptionId, receiptUrl: { not: null } },
-          orderBy: [{ receiptIssuedAt: "desc" }, { updatedAt: "desc" }, { createdAt: "desc" }],
-          select: { receiptUrl: true, receiptNumber: true },
-        })
+    ownedBusinessCount > 1
+      ? currentSubscription?.receiptUrl
+        ? {
+            id: currentSubscription.id,
+            receiptUrl: currentSubscription.receiptUrl,
+            receiptNumber: currentSubscription.receiptNumber,
+          }
+        : null
       : await prisma.subscription.findFirst({
           where: { userId: access.context.ownerUserId, receiptUrl: { not: null } },
           orderBy: [{ receiptIssuedAt: "desc" }, { updatedAt: "desc" }, { createdAt: "desc" }],
-          select: { receiptUrl: true, receiptNumber: true },
+          select: { id: true, receiptUrl: true, receiptNumber: true },
         });
 
   if (!subscription?.receiptUrl) {
@@ -155,7 +158,10 @@ export const GET = withErrorHandling(async (req: Request) => {
   try {
     pdfBuffer = await fs.readFile(filePath);
   } catch {
-    const fallback = await buildReceiptPdfFromDb(access.context.ownerUserId);
+    const fallback = await buildReceiptPdfFromDb({
+      userId: access.context.ownerUserId,
+      subscriptionId: subscription.id,
+    });
     if (!fallback) {
       return NextResponse.json({ error: "Receipt file missing" }, { status: 404 });
     }

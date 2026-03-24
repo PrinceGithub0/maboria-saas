@@ -10,6 +10,8 @@ import {
   insightPrompt,
   errorDiagnosisPrompt,
 } from "./templates";
+import { resolveAssistantOpenAiModel, type AssistantModelChoice } from "./model-selection";
+import { getAssistantBoundaryResponse } from "./assistant-boundaries";
 import { env } from "../env";
 import { log } from "../logger";
 import { recordAnalyticsEvent } from "../analytics";
@@ -20,80 +22,105 @@ const client = new OpenAI({ apiKey: env.openaiKey });
 
 type RouterMode = "assistant" | "flow-generate" | "flow-improve" | "step-generate" | "insight" | "diagnose";
 
+const GRATITUDE_TOKENS = new Set([
+  "thanks",
+  "thank",
+  "thankyou",
+  "thx",
+  "ty",
+  "appreciate",
+  "you",
+  "it",
+  "a",
+  "lot",
+  "so",
+  "much",
+  "for",
+  "your",
+  "help",
+  "the",
+  "quick",
+  "response",
+  "ok",
+  "okay",
+  "great",
+  "boss",
+  "bro",
+  "mate",
+  "sir",
+  "ma",
+  "maam",
+  "madam",
+  "miss",
+  "mr",
+  "mrs",
+  "ms",
+]);
+
+const POLITE_ONLY_PATTERNS = [/^please$/, /^pls$/, /^plz$/];
+
+const GREETING_PATTERNS = [
+  /^(hi|hello|hey)$/,
+  /^(hi|hello|hey)\s+(there|maboria|team)$/,
+  /^(good\s+morning|good\s+afternoon|good\s+evening)$/,
+  /^(whats\s+up|sup)$/,
+];
+
+function getAssistantShortCircuitResponse(rawPrompt: string) {
+  const normalized = rawPrompt.trim().toLowerCase();
+  const normalizedClean = normalized.replace(/[^\w\s]/g, "").replace(/\s+/g, " ").trim();
+  const tokens = normalizedClean.split(" ").filter(Boolean);
+  const isGreeting = GREETING_PATTERNS.some((re) => re.test(normalizedClean));
+
+  if (isGreeting) {
+    return "Hi - how can I help with automations, invoices, billing, or workflows in Maboria?";
+  }
+
+  const hasGratitude = tokens.some((token) =>
+    ["thanks", "thank", "thankyou", "thx", "ty", "appreciate"].includes(token)
+  );
+  const isGratitudeOnly = hasGratitude && tokens.every((token) => GRATITUDE_TOKENS.has(token));
+  if (isGratitudeOnly) {
+    return "You're welcome. What would you like to do next?";
+  }
+
+  const isPoliteOnly = POLITE_ONLY_PATTERNS.some((re) => re.test(normalizedClean));
+  if (isPoliteOnly) {
+    return "Of course. What would you like me to do?";
+  }
+
+  return getAssistantBoundaryResponse(rawPrompt)?.response ?? null;
+}
+
+function createStaticStreamResponse(message: string) {
+  async function* quickReply() {
+    yield message;
+  }
+
+  return { stream: quickReply(), done: Promise.resolve(message) };
+}
+
 export async function aiRouter({
   mode,
   prompt,
   context,
   userId,
+  model,
 }: {
   mode: RouterMode;
   prompt: string;
   context?: any;
   userId: string;
+  model?: AssistantModelChoice;
 }) {
   await assertSystemFlagEnabled("ai_enabled", "AI assistant is currently disabled.");
+  const resolvedModel = resolveAssistantOpenAiModel(model);
 
   const rawPrompt = prompt.split(/\nRecent memory:/i)[0] || prompt;
-  const normalized = rawPrompt.trim().toLowerCase();
-  const normalizedClean = normalized.replace(/[^\w\s]/g, "").replace(/\s+/g, " ").trim();
-  const gratitudeTokens = new Set([
-    "thanks",
-    "thank",
-    "thankyou",
-    "thx",
-    "ty",
-    "appreciate",
-    "you",
-    "it",
-    "a",
-    "lot",
-    "so",
-    "much",
-    "for",
-    "your",
-    "help",
-    "the",
-    "quick",
-    "response",
-    "ok",
-    "okay",
-    "great",
-    "boss",
-    "bro",
-    "mate",
-    "sir",
-    "ma",
-    "maam",
-    "madam",
-    "miss",
-    "mr",
-    "mrs",
-    "ms",
-  ]);
-  const politeOnlyPatterns = [/^please$/, /^pls$/, /^plz$/];
-  const greetingPatterns = [
-    /^(hi|hello|hey)$/,
-    /^(hi|hello|hey)\s+(there|maboria|team)$/,
-    /^(good\s+morning|good\s+afternoon|good\s+evening)$/,
-    /^(whats\s+up|sup)$/,
-  ];
-
   if (mode === "assistant") {
-    const tokens = normalizedClean.split(" ").filter(Boolean);
-    const isGreeting = greetingPatterns.some((re) => re.test(normalizedClean));
-    if (isGreeting) {
-      return "Hi — how can I help with automations, invoices, billing, or workflows in Maboria?";
-    }
-    const hasGratitude = tokens.some((t) =>
-      ["thanks", "thank", "thankyou", "thx", "ty", "appreciate"].includes(t)
-    );
-    const isGratitudeOnly = hasGratitude && tokens.every((t) => gratitudeTokens.has(t));
-    if (isGratitudeOnly) {
-      return "You're welcome. What would you like to do next?";
-    }
-    const isPoliteOnly = politeOnlyPatterns.some((re) => re.test(normalizedClean));
-    if (isPoliteOnly) {
-      return "Of course. What would you like me to do?";
+    const shortCircuitResponse = getAssistantShortCircuitResponse(rawPrompt);
+    if (shortCircuitResponse) {
+      return shortCircuitResponse;
     }
   }
 
@@ -120,7 +147,7 @@ export async function aiRouter({
 
   try {
     const res = await client.responses.create({
-      model: "gpt-4.1-mini",
+      model: resolvedModel,
       input: [{ role: "system", content: systemPrompt }, { role: "user", content: input }],
       temperature: 0.3,
       max_output_tokens: 500,
@@ -190,7 +217,7 @@ export async function aiRouter({
     const fallbackTokens = Math.max(1, Math.ceil((input.length + output.length) / 4));
     const resolvedTokens = usageTokens > 0 ? usageTokens : fallbackTokens;
     const usageLog = await prisma.aiUsageLog.create({
-      data: { userId, model: "gpt-4.1-mini", tokens: resolvedTokens, prompt: input },
+      data: { userId, model: resolvedModel, tokens: resolvedTokens, prompt: input },
     });
     const workspace = await getWorkspaceScope(userId);
     const workspaceId = workspace.businessId ?? userId;
@@ -231,84 +258,22 @@ export async function aiRouterStream({
   prompt,
   context,
   userId,
+  model,
 }: {
   mode: RouterMode;
   prompt: string;
   context?: any;
   userId: string;
+  model?: AssistantModelChoice;
 }) {
   await assertSystemFlagEnabled("ai_enabled", "AI assistant is currently disabled.");
+  const resolvedModel = resolveAssistantOpenAiModel(model);
 
   const rawPrompt = prompt.split(/\nRecent memory:/i)[0] || prompt;
-  const normalized = rawPrompt.trim().toLowerCase();
-  const normalizedClean = normalized.replace(/[^\w\s]/g, "").replace(/\s+/g, " ").trim();
-  const gratitudeTokens = new Set([
-    "thanks",
-    "thank",
-    "thankyou",
-    "thx",
-    "ty",
-    "appreciate",
-    "you",
-    "it",
-    "a",
-    "lot",
-    "so",
-    "much",
-    "for",
-    "your",
-    "help",
-    "the",
-    "quick",
-    "response",
-    "ok",
-    "okay",
-    "great",
-    "boss",
-    "bro",
-    "mate",
-    "sir",
-    "ma",
-    "maam",
-    "madam",
-    "miss",
-    "mr",
-    "mrs",
-    "ms",
-  ]);
-  const politeOnlyPatterns = [/^please$/, /^pls$/, /^plz$/];
-  const greetingPatterns = [
-    /^(hi|hello|hey)$/,
-    /^(hi|hello|hey)\s+(there|maboria|team)$/,
-    /^(good\s+morning|good\s+afternoon|good\s+evening)$/,
-    /^(whats\s+up|sup)$/,
-  ];
-
   if (mode === "assistant") {
-    const tokens = normalizedClean.split(" ").filter(Boolean);
-    const isGreeting = greetingPatterns.some((re) => re.test(normalizedClean));
-    if (isGreeting) {
-      async function* quickReply() {
-        yield "Hi — how can I help with automations, invoices, billing, or workflows in Maboria?";
-      }
-      return { stream: quickReply(), done: Promise.resolve("Hi — how can I help with automations, invoices, billing, or workflows in Maboria?") };
-    }
-    const hasGratitude = tokens.some((t) =>
-      ["thanks", "thank", "thankyou", "thx", "ty", "appreciate"].includes(t)
-    );
-    const isGratitudeOnly = hasGratitude && tokens.every((t) => gratitudeTokens.has(t));
-    if (isGratitudeOnly) {
-      async function* quickReply() {
-        yield "You're welcome. What would you like to do next?";
-      }
-      return { stream: quickReply(), done: Promise.resolve("You're welcome. What would you like to do next?") };
-    }
-    const isPoliteOnly = politeOnlyPatterns.some((re) => re.test(normalizedClean));
-    if (isPoliteOnly) {
-      async function* quickReply() {
-        yield "Of course. What would you like me to do?";
-      }
-      return { stream: quickReply(), done: Promise.resolve("Of course. What would you like me to do?") };
+    const shortCircuitResponse = getAssistantShortCircuitResponse(rawPrompt);
+    if (shortCircuitResponse) {
+      return createStaticStreamResponse(shortCircuitResponse);
     }
   }
 
@@ -338,7 +303,7 @@ export async function aiRouterStream({
 
   const stream = (async function* () {
     const res = await client.responses.stream({
-      model: "gpt-4.1-mini",
+      model: resolvedModel,
       input: [{ role: "system", content: systemPrompt }, { role: "user", content: input }],
       temperature: 0.3,
       max_output_tokens: 500,
@@ -420,7 +385,7 @@ export async function aiRouterStream({
     const fallbackTokens = Math.max(1, Math.ceil((input.length + finalOutput.length) / 4));
     const resolvedTokens = usageTokens > 0 ? usageTokens : fallbackTokens;
     const usageLog = await prisma.aiUsageLog.create({
-      data: { userId, model: "gpt-4.1-mini", tokens: resolvedTokens, prompt: input },
+      data: { userId, model: resolvedModel, tokens: resolvedTokens, prompt: input },
     });
     const workspace = await getWorkspaceScope(userId);
     const workspaceId = workspace.businessId ?? userId;

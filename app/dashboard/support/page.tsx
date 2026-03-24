@@ -10,6 +10,10 @@ import { TransientAlert } from "@/components/ui/transient-alert";
 import { useLanguage } from "@/components/providers/language-provider";
 import { useTheme } from "@/components/providers/theme-provider";
 import { supportEmail, supportMailto } from "@/lib/support/contact";
+import {
+  getSubscriberSupportLastActivityAt,
+  sortSubscriberSupportTicketsByRecentActivity,
+} from "@/lib/support/subscriber-display";
 import { CheckCircle2, Mail, Paperclip, X } from "lucide-react";
 import Link from "next/link";
 import useSWR from "swr";
@@ -129,8 +133,8 @@ function SupportCenterIllustration({ forceLight }: { forceLight: boolean }) {
               : "object-contain object-bottom"
           }
           onError={() => setImageIndex((current) => current + 1)}
-          unoptimized
           priority
+          unoptimized
         />
       </div>
     </div>
@@ -342,9 +346,7 @@ export default function DashboardSupportPage() {
   };
 
   const recentTickets = Array.isArray(tickets)
-    ? [...tickets]
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 3)
+    ? sortSubscriberSupportTicketsByRecentActivity(tickets).slice(0, 3)
     : [];
 
   const getTicketStatusPill = (ticketStatus: string) => {
@@ -622,7 +624,7 @@ export default function DashboardSupportPage() {
                             className="mt-1 text-xs text-slate-500 dark:text-slate-400"
                             style={forceLight ? { color: "#475569" } : undefined}
                           >
-                            {formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true })}
+                            {formatDistanceToNow(new Date(getSubscriberSupportLastActivityAt(ticket)), { addSuffix: true })}
                           </p>
                         </div>
                         <span className={`inline-flex shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-bold ${statusPill.className}`}>

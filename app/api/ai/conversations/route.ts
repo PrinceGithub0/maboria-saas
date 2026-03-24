@@ -23,7 +23,7 @@ export const GET = withErrorHandling(async () => {
 
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "ai",
-    requiredPlan: "starter",
+    requiredPlan: "free",
     allowTrial: false,
   });
   if (!entitlement.ok) {
@@ -31,7 +31,7 @@ export const GET = withErrorHandling(async () => {
       {
         error: "Upgrade required",
         type: entitlement.type,
-        requiredPlan: entitlement.requiredPlan ?? "starter",
+        requiredPlan: entitlement.requiredPlan ?? "free",
         reason: entitlement.reason,
       },
       { status: 403 }
@@ -64,7 +64,7 @@ export const POST = withErrorHandling(async (req: Request) => {
 
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "ai",
-    requiredPlan: "starter",
+    requiredPlan: "free",
     allowTrial: false,
   });
   if (!entitlement.ok) {
@@ -72,7 +72,7 @@ export const POST = withErrorHandling(async (req: Request) => {
       {
         error: "Upgrade required",
         type: entitlement.type,
-        requiredPlan: entitlement.requiredPlan ?? "starter",
+        requiredPlan: entitlement.requiredPlan ?? "free",
         reason: entitlement.reason,
       },
       { status: 403 }

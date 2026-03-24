@@ -12,6 +12,7 @@ import {
 import { isAllowedCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
 import { InvoicePreview } from "@/components/invoices/invoice-preview";
 import { formatCurrency } from "@/lib/currency";
+import { deriveInvoiceDisplayStatus } from "@/lib/invoice-refund-status";
 
 export const dynamic = "force-dynamic";
 
@@ -91,6 +92,7 @@ export default async function PublicInvoicePage({ params, searchParams }: PagePr
   const totals = resolveStoredInvoiceTotals(invoice, resolvedBusiness);
   const lateFeeAmount = Number(invoice.lateFeeTotalAccumulated || invoice.lateFeeAmount || 0);
   const totalDue = Number(invoice.total || 0);
+  const displayStatus = deriveInvoiceDisplayStatus(invoice);
 
   const payable = isPayableStatus(invoice.status) && !link.usedAt && !isFinalStatus(invoice.status);
   const paymentLink = payable ? `/api/invoice/pay/${encodeURIComponent(token)}` : null;
@@ -104,7 +106,7 @@ export default async function PublicInvoicePage({ params, searchParams }: PagePr
       <InvoicePreview
         invoiceNumber={invoice.invoiceNumber}
         poNumber={poNumber}
-        status={invoice.status}
+        status={displayStatus}
         issuedAt={invoice.generatedAt}
         dueDate={dueDate}
         currency={normalizedCurrency}

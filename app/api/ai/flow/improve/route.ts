@@ -7,6 +7,10 @@ import { aiRouter } from "@/lib/ai/router";
 import { prisma } from "@/lib/prisma";
 import { enforceEntitlement, enforceUsageLimit, nextPlanAfter } from "@/lib/entitlements";
 import { buildAutomationFlowWhere, resolveAutomationScope } from "@/lib/automation/access";
+import {
+  buildAutomationRelationsFromSteps,
+  buildDashboardStepsFromRelations,
+} from "@/lib/automation/dashboard-definition";
 
 export const POST = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
@@ -14,7 +18,7 @@ export const POST = withErrorHandling(async (req: Request) => {
 
   const entitlement = await enforceEntitlement(session.user.id, {
     feature: "ai",
-    requiredPlan: "starter",
+    requiredPlan: "free",
     allowTrial: false,
   });
   if (!entitlement.ok) {
@@ -22,7 +26,7 @@ export const POST = withErrorHandling(async (req: Request) => {
       {
         error: "Upgrade required",
         type: entitlement.type,
-        requiredPlan: entitlement.requiredPlan ?? "starter",
+        requiredPlan: entitlement.requiredPlan ?? "free",
         reason: entitlement.reason,
       },
       { status: 403 }
@@ -65,22 +69,49 @@ export const POST = withErrorHandling(async (req: Request) => {
     userId: session.user.id,
   });
   const improved = JSON.parse(json);
+  let steps;
+  try {
+    steps = buildDashboardStepsFromRelations(
+      {
+        steps: Array.isArray(flow.steps) ? (flow.steps as any[]) : [],
+        triggers: improved.trigger
+          ? [{ type: improved.trigger.type, config: improved.trigger.config || {} }]
+          : (flow.triggers as any[]),
+        actions: Array.isArray(improved.actions) ? improved.actions : (flow.actions as any[]),
+      },
+      { strict: true }
+    );
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Unable to apply that improvement to a live automation.",
+        reason: error instanceof Error ? error.message : "Unsupported automation definition",
+      },
+      { status: 400 }
+    );
+  }
+
+  const relations = buildAutomationRelationsFromSteps(steps as any[]);
   const updated = await prisma.automationFlow.update({
     where: { id: flowId },
     data: {
       title: improved.title || flow.title,
       description: improved.description || flow.description,
-      steps: improved.actions || flow.steps,
+      steps: steps as any,
       triggers: {
         deleteMany: {},
-        create: improved.trigger ? [{ type: improved.trigger.type, config: improved.trigger.config }] : [],
+        create: relations.triggers.map((trigger) => ({
+          type: trigger.type,
+          config: trigger.config as any,
+          conditions: (trigger.conditions ?? {}) as any,
+        })),
       },
       actions: {
         deleteMany: {},
-        create: (improved.actions || []).map((a: any, idx: number) => ({
-          type: a.type,
-          config: a.config,
-          order: idx + 1,
+        create: relations.actions.map((action) => ({
+          type: action.type,
+          config: action.config as any,
+          order: action.order,
         })),
       },
     },

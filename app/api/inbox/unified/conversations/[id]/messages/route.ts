@@ -5,6 +5,12 @@ import { authOptions } from "@/lib/auth";
 import { withErrorHandling } from "@/lib/api-handler";
 import { emitUnifiedInboxEvent } from "@/lib/inbox/events";
 import {
+  applyUnifiedInboundActivity,
+  applyUnifiedOutboundActivity,
+  expireUnifiedConversationSnoozes,
+  markUnifiedConversationSeen,
+} from "@/lib/inbox/conversation-participants";
+import {
   isUnifiedMessageChannel,
   requireUnifiedInboxAccess,
   writeUnifiedAuditEvent,
@@ -102,6 +108,7 @@ export const GET = withErrorHandling(async (req: Request, ctx: { params: Promise
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const context = await requireUnifiedInboxAccess(session.user.id);
+  await expireUnifiedConversationSnoozes(prisma, { tenantId: context.orgId });
 
   const url = new URL(req.url);
   const limitRaw = Number(url.searchParams.get("limit") || 100);
@@ -125,6 +132,14 @@ export const GET = withErrorHandling(async (req: Request, ctx: { params: Promise
     orderBy: { createdAt: "asc" },
     take: limit,
   });
+
+  await markUnifiedConversationSeen(prisma, {
+    tenantId: context.orgId,
+    conversationId: conversation.id,
+    userId: session.user.id,
+    lastMessageAt: messages[messages.length - 1]?.createdAt ?? null,
+  });
+
   return NextResponse.json({ items: messages });
 });
 
@@ -133,6 +148,7 @@ export const POST = withErrorHandling(async (req: Request, ctx: { params: Promis
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const context = await requireUnifiedInboxAccess(session.user.id);
   const body = await req.json().catch(() => ({}));
+  await expireUnifiedConversationSnoozes(prisma, { tenantId: context.orgId });
 
   const content = String(body?.content || "").trim();
   if (!content) return NextResponse.json({ error: "Message content is required." }, { status: 422 });
@@ -224,12 +240,20 @@ export const POST = withErrorHandling(async (req: Request, ctx: { params: Promis
       },
     });
 
-    await tx.unifiedConversation.update({
-      where: { id: conversation.id },
-      data: {
-        lastMessageAt: message.createdAt,
-      },
-    });
+    if (normalizedDirection === "INBOUND") {
+      await applyUnifiedInboundActivity(tx, {
+        tenantId: context.orgId,
+        conversationId: conversation.id,
+        occurredAt: message.createdAt,
+      });
+    } else {
+      await applyUnifiedOutboundActivity(tx, {
+        tenantId: context.orgId,
+        conversationId: conversation.id,
+        actorUserId: session.user.id,
+        occurredAt: message.createdAt,
+      });
+    }
 
     await writeUnifiedAuditEvent(tx, {
       tenantId: context.orgId,

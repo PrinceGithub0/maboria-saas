@@ -1,16 +1,17 @@
 import "server-only";
 
-import { Prisma, UnifiedConversationStatus, UnifiedInboxType, UnifiedMessageChannel } from "@prisma/client";
+import { Prisma, UnifiedInboxType, UnifiedMessageChannel } from "@prisma/client";
+import {
+  isUnifiedConversationStatus,
+  UNIFIED_CONVERSATION_STATUS_VALUES,
+} from "@/lib/inbox/conversation-state";
 import { prisma } from "@/lib/prisma";
 import { requireOrgPermission } from "@/lib/org-auth";
 
-export const UNIFIED_CONVERSATION_STATUS_VALUES: UnifiedConversationStatus[] = ["OPEN", "PENDING", "CLOSED"];
+export { isUnifiedConversationStatus, UNIFIED_CONVERSATION_STATUS_VALUES };
+
 export const UNIFIED_INBOX_TYPE_VALUES: UnifiedInboxType[] = ["EMAIL", "WHATSAPP"];
 export const UNIFIED_CHANNEL_VALUES: UnifiedMessageChannel[] = ["EMAIL", "WHATSAPP"];
-
-export function isUnifiedConversationStatus(value: string): value is UnifiedConversationStatus {
-  return UNIFIED_CONVERSATION_STATUS_VALUES.includes(value as UnifiedConversationStatus);
-}
 
 export function isUnifiedInboxType(value: string): value is UnifiedInboxType {
   return UNIFIED_INBOX_TYPE_VALUES.includes(value as UnifiedInboxType);

@@ -5,6 +5,14 @@ import { authOptions } from "@/lib/auth";
 import { withErrorHandling } from "@/lib/api-handler";
 import { emitUnifiedInboxEvent } from "@/lib/inbox/events";
 import {
+  expireUnifiedConversationSnoozes,
+  markUnifiedConversationSeen,
+} from "@/lib/inbox/conversation-participants";
+import {
+  buildManualConversationUpdate,
+  getEffectiveUnifiedConversationStatus,
+} from "@/lib/inbox/conversation-state";
+import {
   canViewUnifiedInboxBillingInsights,
   isUnifiedConversationStatus,
   requireUnifiedInboxAccess,
@@ -27,6 +35,7 @@ export const GET = withErrorHandling(async (_req: Request, ctx: { params: Promis
   const context = await requireUnifiedInboxAccess(session.user.id);
   const billingAccess = await requireBillingAccess(session.user.id);
   const { id } = await ctx.params;
+  await expireUnifiedConversationSnoozes(prisma, { tenantId: context.orgId });
 
   const conversation = await prisma.unifiedConversation.findFirst({
     where: {
@@ -51,6 +60,15 @@ export const GET = withErrorHandling(async (_req: Request, ctx: { params: Promis
       assignedUser: {
         select: { id: true, name: true, email: true },
       },
+      participants: {
+        where: { userId: session.user.id },
+        select: {
+          unreadCount: true,
+          lastSeenAt: true,
+          lastSeenMessageAt: true,
+        },
+        take: 1,
+      },
       tags: {
         include: {
           tag: { select: { id: true, label: true } },
@@ -71,6 +89,13 @@ export const GET = withErrorHandling(async (_req: Request, ctx: { params: Promis
   });
 
   if (!conversation) return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
+
+  await markUnifiedConversationSeen(prisma, {
+    tenantId: context.orgId,
+    conversationId: conversation.id,
+    userId: session.user.id,
+    lastMessageAt: conversation.lastMessageAt,
+  });
 
   const canViewBillingInsights = canViewUnifiedInboxBillingInsights({
     billingAccessOk: billingAccess.ok,
@@ -119,8 +144,17 @@ export const GET = withErrorHandling(async (_req: Request, ctx: { params: Promis
 
   return NextResponse.json({
     id: conversation.id,
-    status: conversation.status,
+    status: getEffectiveUnifiedConversationStatus({
+      status: conversation.status,
+      snoozedUntil: conversation.snoozedUntil,
+    }),
     lastMessageAt: conversation.lastMessageAt,
+    snoozedUntil: conversation.snoozedUntil,
+    waitingSince: conversation.waitingSince,
+    lastInboundAt: conversation.lastInboundAt,
+    lastOutboundAt: conversation.lastOutboundAt,
+    lastCustomerReplyAt: conversation.lastCustomerReplyAt,
+    resolvedAt: conversation.resolvedAt,
     createdAt: conversation.createdAt,
     updatedAt: conversation.updatedAt,
     inbox: conversation.inbox,
@@ -129,6 +163,7 @@ export const GET = withErrorHandling(async (_req: Request, ctx: { params: Promis
     tags: conversation.tags.map((entry) => entry.tag),
     messages: conversation.messages,
     notes: conversation.notes,
+    unreadCount: 0,
     canViewBillingInsights,
     customerInsights: canViewBillingInsights
       ? {
@@ -146,10 +181,18 @@ export const PATCH = withErrorHandling(async (req: Request, ctx: { params: Promi
   const context = await requireUnifiedInboxAccess(session.user.id);
   const body = await req.json().catch(() => ({}));
   const { id } = await ctx.params;
+  await expireUnifiedConversationSnoozes(prisma, { tenantId: context.orgId });
 
   const existing = await prisma.unifiedConversation.findFirst({
     where: { id, tenantId: context.orgId },
-    select: { id: true, status: true, assignedUserId: true },
+    select: {
+      id: true,
+      status: true,
+      assignedUserId: true,
+      snoozedUntil: true,
+      waitingSince: true,
+      resolvedAt: true,
+    },
   });
   if (!existing) return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
 
@@ -161,6 +204,17 @@ export const PATCH = withErrorHandling(async (req: Request, ctx: { params: Promi
     return NextResponse.json({ error: "Invalid status." }, { status: 422 });
   }
   const nextStatus = nextStatusRaw && isUnifiedConversationStatus(nextStatusRaw) ? nextStatusRaw : null;
+  const snoozedUntilRaw = body?.snoozedUntil;
+  const nextSnoozedUntil =
+    snoozedUntilRaw === undefined || snoozedUntilRaw === null || snoozedUntilRaw === ""
+      ? null
+      : new Date(String(snoozedUntilRaw));
+
+  if (nextStatus === "SNOOZED") {
+    if (!nextSnoozedUntil || Number.isNaN(nextSnoozedUntil.getTime()) || nextSnoozedUntil <= new Date()) {
+      return NextResponse.json({ error: "snoozedUntil must be a future date." }, { status: 422 });
+    }
+  }
 
   if (nextAssignee) {
     const assigneeExists = await prisma.businessMember.findFirst({
@@ -176,7 +230,15 @@ export const PATCH = withErrorHandling(async (req: Request, ctx: { params: Promi
 
   const result = await prisma.$transaction(async (tx) => {
     const updateData: Prisma.UnifiedConversationUncheckedUpdateInput = {};
-    if (nextStatus) updateData.status = nextStatus;
+    if (nextStatus) {
+      Object.assign(
+        updateData,
+        buildManualConversationUpdate({
+          nextStatus,
+          snoozedUntil: nextSnoozedUntil,
+        })
+      );
+    }
     if (nextAssignee !== undefined) updateData.assignedUserId = nextAssignee;
 
     await tx.unifiedConversation.update({
@@ -256,13 +318,31 @@ export const PATCH = withErrorHandling(async (req: Request, ctx: { params: Promi
     return refreshed;
   });
 
-  if (nextStatus === "CLOSED" && existing.status !== "CLOSED") {
+  if (nextStatus === "RESOLVED" && existing.status !== "RESOLVED") {
     await emitUnifiedInboxEvent({
       tenantId: context.orgId,
-      type: "conversation.closed",
+      type: "conversation.resolved",
       conversationId: existing.id,
       actorUserId: session.user.id,
       metadata: { from: existing.status, to: nextStatus },
+    });
+  }
+  if (nextStatus === "OPEN" && existing.status !== "OPEN") {
+    await emitUnifiedInboxEvent({
+      tenantId: context.orgId,
+      type: "conversation.reopened",
+      conversationId: existing.id,
+      actorUserId: session.user.id,
+      metadata: { from: existing.status, to: nextStatus },
+    });
+  }
+  if (nextStatus === "SNOOZED" && existing.status !== "SNOOZED") {
+    await emitUnifiedInboxEvent({
+      tenantId: context.orgId,
+      type: "conversation.snoozed",
+      conversationId: existing.id,
+      actorUserId: session.user.id,
+      metadata: { from: existing.status, to: nextStatus, snoozedUntil: nextSnoozedUntil?.toISOString() },
     });
   }
   if (nextAssignee !== undefined && nextAssignee !== existing.assignedUserId && nextAssignee) {

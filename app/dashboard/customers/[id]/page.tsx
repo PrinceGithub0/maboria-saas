@@ -113,10 +113,14 @@ const fetcher = async (url: string): Promise<CustomerDetailResponse> => {
 };
 
 const STATUS_CLASS = {
-  ACTIVE: "border-emerald-300 bg-emerald-100 text-emerald-800",
-  ATTENTION: "border-amber-200 bg-amber-50 text-amber-700",
-  NEW: "border-slate-200 bg-slate-100 text-slate-700",
-  DISABLED: "border-rose-200 bg-rose-50 text-rose-700",
+  ACTIVE:
+    "border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-200",
+  ATTENTION:
+    "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-200",
+  NEW:
+    "border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200",
+  DISABLED:
+    "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/15 dark:text-rose-200",
 } as const;
 
 const TAB_ITEMS: Array<{ key: TabKey; label: string; labelFr: string }> = [
@@ -318,15 +322,18 @@ export default function CustomerProfilePage() {
   const maxChartValue = Math.max(1, ...((data?.chart || []).map((point) => point.value) || [1]));
   const recentInvoices = data?.invoices.slice(0, 5) || [];
   const recentPayments = data?.payments.slice(0, 5) || [];
+  const hasReminderCandidate = (data?.invoices || []).some((invoice) =>
+    ["SENT", "OVERDUE"].includes(String(invoice.status || "").toUpperCase())
+  );
 
   if (isLoading) {
     return (
       <div className="mx-auto w-full max-w-[1200px] space-y-6 py-8">
-        <div className="h-32 animate-pulse rounded-2xl border border-slate-200 bg-slate-50" />
+        <div className="h-32 animate-pulse rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900" />
         <div className="grid gap-6 lg:grid-cols-3">
-          <div className="h-28 animate-pulse rounded-2xl border border-slate-200 bg-slate-50" />
-          <div className="h-28 animate-pulse rounded-2xl border border-slate-200 bg-slate-50" />
-          <div className="h-28 animate-pulse rounded-2xl border border-slate-200 bg-slate-50" />
+          <div className="h-28 animate-pulse rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900" />
+          <div className="h-28 animate-pulse rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900" />
+          <div className="h-28 animate-pulse rounded-2xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900" />
         </div>
       </div>
     );
@@ -353,7 +360,7 @@ export default function CustomerProfilePage() {
         </TransientAlert>
       ) : null}
 
-      <section className="rounded-2xl border border-slate-200 bg-slate-50/80 px-8 py-7">
+      <section className="rounded-2xl border border-slate-200 bg-slate-50/80 px-8 py-7 dark:border-slate-800 dark:bg-slate-900/80">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
             <Link href="/dashboard/customers" className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:underline">
@@ -387,17 +394,17 @@ export default function CustomerProfilePage() {
               </Link>
             )}
             <details className="relative">
-              <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700">
+              <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
                 {t("More Actions", "Plus d'actions")}
                 <ChevronDown className="h-4 w-4" />
               </summary>
-              <div className="absolute right-0 top-11 z-20 min-w-[170px] rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+              <div className="absolute right-0 top-11 z-20 min-w-[170px] rounded-xl border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-950 dark:shadow-[0_18px_40px_rgba(2,6,23,0.75)]">
                 {customer.status === "DISABLED" ? (
                   <button
                     type="button"
                     onClick={handleRestore}
                     disabled={disableSubmitting}
-                    className="w-full rounded-lg px-3 py-2 text-left text-sm text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="w-full rounded-lg px-3 py-2 text-left text-sm text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
                   >
                     {disableSubmitting ? t("Restoring...", "Restauration...") : t("Restore customer", "Restaurer le client")}
                   </button>
@@ -405,7 +412,7 @@ export default function CustomerProfilePage() {
                   <button
                     type="button"
                     onClick={() => setShowDisableModal(true)}
-                    className="w-full rounded-lg px-3 py-2 text-left text-sm text-rose-700 transition hover:bg-rose-50"
+                    className="w-full rounded-lg px-3 py-2 text-left text-sm text-rose-700 transition hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-500/10"
                   >
                     {t("Disable customer", "Desactiver le client")}
                   </button>
@@ -417,21 +424,21 @@ export default function CustomerProfilePage() {
       </section>
 
       <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        <Card className="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{t("Total Invoiced", "Total facture")}</p>
-          <p className="mt-3 text-[30px] font-semibold leading-none text-foreground">
+        <Card className="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-[0_18px_40px_rgba(2,6,23,0.45)]">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{t("Total Invoiced", "Total facture")}</p>
+          <p className="mt-3 overflow-hidden text-ellipsis whitespace-nowrap text-[clamp(1.875rem,2vw+1rem,2.5rem)] font-semibold leading-none text-foreground tabular-nums">
             {formatCurrency(customer.totals.invoiced, displayCurrency)}
           </p>
         </Card>
-        <Card className="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{t("Total Paid", "Total paye")}</p>
-          <p className="mt-3 text-[30px] font-semibold leading-none text-foreground">
+        <Card className="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-[0_18px_40px_rgba(2,6,23,0.45)]">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{t("Total Paid", "Total paye")}</p>
+          <p className="mt-3 overflow-hidden text-ellipsis whitespace-nowrap text-[clamp(1.875rem,2vw+1rem,2.5rem)] font-semibold leading-none text-foreground tabular-nums">
             {formatCurrency(customer.totals.paid, displayCurrency)}
           </p>
         </Card>
-        <Card className="rounded-2xl border border-amber-200 bg-amber-50/70 p-7 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">{t("Outstanding Balance", "Solde en attente")}</p>
-          <p className="mt-3 text-[30px] font-semibold leading-none text-slate-900">
+        <Card className="rounded-2xl border border-amber-200 bg-amber-50/70 p-7 shadow-sm dark:border-amber-500/30 dark:bg-amber-500/10 dark:shadow-[0_18px_40px_rgba(2,6,23,0.45)]">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700 dark:text-amber-300">{t("Outstanding Balance", "Solde en attente")}</p>
+          <p className="mt-3 overflow-hidden text-ellipsis whitespace-nowrap text-[clamp(1.875rem,2vw+1rem,2.5rem)] font-semibold leading-none text-slate-900 tabular-nums dark:text-slate-50">
             {formatCurrency(customer.totals.outstanding, displayCurrency)}
           </p>
         </Card>
@@ -439,7 +446,7 @@ export default function CustomerProfilePage() {
 
       <section className="grid gap-8 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,1fr)]">
         <div className="space-y-6">
-          <div className="flex overflow-x-auto border-b border-slate-200">
+          <div className="flex overflow-x-auto border-b border-slate-200 dark:border-slate-800">
             {TAB_ITEMS.map((item) => {
               const active = item.key === activeTab;
               return (
@@ -460,7 +467,7 @@ export default function CustomerProfilePage() {
 
           {activeTab === "overview" ? (
             <div className="space-y-6">
-              <Card className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <Card className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-[0_18px_40px_rgba(2,6,23,0.45)]">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold text-foreground">{t("Revenue trend (30 days)", "Tendance revenus (30 jours)")}</p>
                   <p className="text-xs text-muted-foreground">{t("Last 30 days", "30 derniers jours")}</p>
@@ -472,27 +479,29 @@ export default function CustomerProfilePage() {
                         className="w-full rounded-md bg-indigo-500/30"
                         style={{ height: `${Math.max(8, Math.round((point.value / maxChartValue) * 96))}px` }}
                       />
-                      <span className="text-[10px] text-slate-500">{point.date.slice(5).replace("-", "/")}</span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400">{point.date.slice(5).replace("-", "/")}</span>
                     </div>
                   ))}
                 </div>
               </Card>
 
               <div className="grid gap-6 xl:grid-cols-2">
-                <Card className="rounded-2xl border border-slate-200 bg-white p-0 shadow-sm" title={t("Recent invoices", "Factures recentes")}>
-                  <div className="divide-y divide-slate-100">
+                <Card className="rounded-2xl border border-slate-200 bg-white p-0 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-[0_18px_40px_rgba(2,6,23,0.45)]" title={t("Recent invoices", "Factures recentes")}>
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
                     {recentInvoices.length === 0 ? (
                       <p className="p-4 text-sm text-muted-foreground">{t("No invoices yet.", "Aucune facture pour le moment.")}</p>
                     ) : (
                       recentInvoices.map((invoice) => (
-                        <div key={invoice.id} className="flex items-center justify-between px-4 py-3">
-                          <div>
-                            <p className="text-sm font-medium text-foreground">{invoice.invoiceNumber}</p>
+                        <div key={invoice.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-foreground" title={invoice.invoiceNumber}>
+                              {invoice.invoiceNumber}
+                            </p>
                             <p className="text-xs text-muted-foreground">
                               {formatDistanceToNow(new Date(invoice.issueDate), { addSuffix: true })}
                             </p>
                           </div>
-                          <p className="text-sm font-semibold text-foreground">
+                          <p className="justify-self-end whitespace-nowrap text-right text-sm font-semibold text-foreground tabular-nums">
                             {formatCurrency(invoice.amount, invoice.currency || displayCurrency)}
                           </p>
                         </div>
@@ -500,20 +509,25 @@ export default function CustomerProfilePage() {
                     )}
                   </div>
                 </Card>
-                <Card className="rounded-2xl border border-slate-200 bg-white p-0 shadow-sm" title={t("Recent payments", "Paiements recents")}>
-                  <div className="divide-y divide-slate-100">
+                <Card className="rounded-2xl border border-slate-200 bg-white p-0 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-[0_18px_40px_rgba(2,6,23,0.45)]" title={t("Recent payments", "Paiements recents")}>
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800">
                     {recentPayments.length === 0 ? (
                       <p className="p-4 text-sm text-muted-foreground">{t("No payments yet.", "Aucun paiement pour le moment.")}</p>
                     ) : (
                       recentPayments.map((payment) => (
-                        <div key={payment.id} className="flex items-center justify-between px-4 py-3">
-                          <div>
-                            <p className="text-sm font-medium text-foreground">{payment.invoiceNumber || t("Unlinked payment", "Paiement non lie")}</p>
+                        <div key={payment.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3">
+                          <div className="min-w-0">
+                            <p
+                              className="truncate text-sm font-medium text-foreground"
+                              title={payment.invoiceNumber || t("Unlinked payment", "Paiement non lie")}
+                            >
+                              {payment.invoiceNumber || t("Unlinked payment", "Paiement non lie")}
+                            </p>
                             <p className="text-xs text-muted-foreground">
                               {formatDistanceToNow(new Date(payment.createdAt), { addSuffix: true })}
                             </p>
                           </div>
-                          <p className="text-sm font-semibold text-foreground">
+                          <p className="justify-self-end whitespace-nowrap text-right text-sm font-semibold text-foreground tabular-nums">
                             {formatCurrency(payment.amount, payment.currency || displayCurrency)}
                           </p>
                         </div>
@@ -526,13 +540,13 @@ export default function CustomerProfilePage() {
           ) : null}
 
           {activeTab === "invoices" ? (
-            <Card className="rounded-2xl border border-slate-200 bg-white p-0 shadow-sm">
+            <Card className="rounded-2xl border border-slate-200 bg-white p-0 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-[0_18px_40px_rgba(2,6,23,0.45)]">
               <div className="overflow-x-auto">
                 {data.invoices.length === 0 ? (
                   <p className="p-6 text-sm text-muted-foreground">{t("No invoices yet.", "Aucune facture pour le moment.")}</p>
                 ) : (
-                  <div className="min-w-[760px]">
-                    <div className="grid grid-cols-[1.45fr_0.9fr_1fr_1fr_1.2fr_auto] items-center gap-4 border-b border-slate-200 px-5 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600">
+                  <div className="min-w-[720px]">
+                    <div className="grid grid-cols-[minmax(132px,1.3fr)_minmax(92px,0.82fr)_minmax(108px,0.95fr)_minmax(108px,0.95fr)_minmax(144px,1.15fr)_minmax(64px,auto)] items-center gap-3 border-b border-slate-200 px-5 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600 dark:border-slate-800 dark:text-slate-400">
                       <p>{t("Invoice #", "Facture #")}</p>
                       <p>{t("Status", "Statut")}</p>
                       <p>{t("Issue Date", "Date emission")}</p>
@@ -540,19 +554,19 @@ export default function CustomerProfilePage() {
                       <p>{t("Amount", "Montant")}</p>
                       <p>{t("Action", "Action")}</p>
                     </div>
-                    <div className="divide-y divide-slate-100">
+                    <div className="divide-y divide-slate-100 dark:divide-slate-800">
                       {data.invoices.map((invoice) => (
                         <div
                           key={invoice.id}
-                          className="grid min-h-16 grid-cols-[1.45fr_0.9fr_1fr_1fr_1.2fr_auto] items-center gap-4 px-5 py-3 text-sm hover:bg-slate-50/80"
+                          className="grid min-h-16 grid-cols-[minmax(132px,1.3fr)_minmax(92px,0.82fr)_minmax(108px,0.95fr)_minmax(108px,0.95fr)_minmax(144px,1.15fr)_minmax(64px,auto)] items-center gap-3 px-5 py-3 text-sm hover:bg-slate-50/80 dark:hover:bg-slate-900/80"
                         >
                           <div className="truncate whitespace-nowrap text-center font-medium text-foreground" title={invoice.invoiceNumber}>
                             {invoice.invoiceNumber}
                           </div>
-                          <div className="text-center text-slate-600">{invoice.status}</div>
-                          <div className="text-center text-slate-600">{new Date(invoice.issueDate).toLocaleDateString()}</div>
-                          <div className="text-center text-slate-600">{invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : "--"}</div>
-                          <div className="text-center font-semibold text-foreground">
+                          <div className="text-center text-slate-600 dark:text-slate-400">{invoice.status}</div>
+                          <div className="text-center text-slate-600 dark:text-slate-400">{new Date(invoice.issueDate).toLocaleDateString()}</div>
+                          <div className="text-center text-slate-600 dark:text-slate-400">{invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : "--"}</div>
+                          <div className="whitespace-nowrap text-center font-semibold text-foreground tabular-nums">
                             {formatCurrency(invoice.amount, invoice.currency || displayCurrency)}
                           </div>
                           <div className="flex justify-center">
@@ -570,18 +584,18 @@ export default function CustomerProfilePage() {
           ) : null}
 
           {activeTab === "payments" ? (
-            <Card className="rounded-2xl border border-slate-200 bg-white p-0 shadow-sm">
-              <div className="divide-y divide-slate-100">
+            <Card className="rounded-2xl border border-slate-200 bg-white p-0 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-[0_18px_40px_rgba(2,6,23,0.45)]">
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
                 {data.payments.length === 0 ? (
                   <p className="p-6 text-sm text-muted-foreground">{t("No payments yet.", "Aucun paiement pour le moment.")}</p>
                 ) : (
                   data.payments.map((payment) => (
-                    <div key={payment.id} className="grid min-h-16 grid-cols-5 items-center gap-4 px-5 py-3 text-center text-sm hover:bg-slate-50/80">
-                      <div className="text-slate-600">{new Date(payment.createdAt).toLocaleDateString()}</div>
+                    <div key={payment.id} className="grid min-h-16 grid-cols-5 items-center gap-4 px-5 py-3 text-center text-sm hover:bg-slate-50/80 dark:hover:bg-slate-900/80">
+                      <div className="text-slate-600 dark:text-slate-400">{new Date(payment.createdAt).toLocaleDateString()}</div>
                       <div className="font-medium text-foreground">{payment.invoiceNumber || "--"}</div>
-                      <div className="font-semibold text-foreground">{formatCurrency(payment.amount, payment.currency || displayCurrency)}</div>
-                      <div className="text-slate-600">{payment.provider}</div>
-                      <div className="text-slate-600">{payment.status}</div>
+                      <div className="whitespace-nowrap font-semibold text-foreground tabular-nums">{formatCurrency(payment.amount, payment.currency || displayCurrency)}</div>
+                      <div className="text-slate-600 dark:text-slate-400">{payment.provider}</div>
+                      <div className="text-slate-600 dark:text-slate-400">{payment.status}</div>
                     </div>
                   ))
                 )}
@@ -590,11 +604,11 @@ export default function CustomerProfilePage() {
           ) : null}
 
           {activeTab === "activity" ? (
-            <Card className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <Card className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-[0_18px_40px_rgba(2,6,23,0.45)]">
               {data.activity.length === 0 ? (
                 <p className="text-sm text-muted-foreground">{t("No recent activity.", "Aucune activite recente.")}</p>
               ) : (
-                <div className="relative ml-3 border-l border-slate-200 pl-6">
+                <div className="relative ml-3 border-l border-slate-200 pl-6 dark:border-slate-800">
                   <div className="space-y-6">
                     {data.activity.map((event) => (
                       <div key={event.id} className="relative">
@@ -612,7 +626,7 @@ export default function CustomerProfilePage() {
           ) : null}
 
           {activeTab === "notes" ? (
-            <Card className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <Card className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-[0_18px_40px_rgba(2,6,23,0.45)]">
               <div className="mb-4 flex items-center justify-between">
                 <p className="text-sm font-semibold text-foreground">{t("Private Notes", "Notes privees")}</p>
               </div>
@@ -627,7 +641,7 @@ export default function CustomerProfilePage() {
                   value={noteDraft}
                   onChange={(event) => setNoteDraft(event.target.value)}
                   placeholder={t("Add a note about this customer", "Ajouter une note sur ce client")}
-                  className="min-h-[110px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-indigo-400 focus:outline-none"
+                  className="min-h-[110px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-indigo-400 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:placeholder:text-slate-500"
                 />
                 <div className="flex items-center gap-2">
                   <Button type="button" onClick={saveNote}>
@@ -653,7 +667,7 @@ export default function CustomerProfilePage() {
                   <p className="text-sm text-muted-foreground">{t("No notes yet.", "Aucune note pour le moment.")}</p>
                 ) : (
                   notes.map((note) => (
-                    <div key={note.id} className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+                    <div key={note.id} className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/80">
                       <p className="whitespace-pre-wrap text-sm text-foreground">{note.content}</p>
                       <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
                         <span>{new Date(note.updatedAt).toLocaleString()}</span>
@@ -675,8 +689,8 @@ export default function CustomerProfilePage() {
         </div>
 
         <aside className="h-fit space-y-4 lg:sticky lg:top-24">
-          <Card className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{t("Customer intelligence", "Intelligence client")}</p>
+          <Card className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-[0_18px_40px_rgba(2,6,23,0.45)]">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{t("Customer intelligence", "Intelligence client")}</p>
             <div className="mt-4 space-y-3 text-sm">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">{t("Status", "Statut")}</span>
@@ -690,13 +704,17 @@ export default function CustomerProfilePage() {
                     : t("New", "Nouveau")}
                 </span>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-4">
                 <span className="text-muted-foreground">{t("Lifetime value", "Valeur vie")}</span>
-                <span className="font-semibold text-foreground">{formatCurrency(customer.lifetimeValue, displayCurrency)}</span>
+                <span className="max-w-[11rem] truncate text-right font-semibold text-foreground tabular-nums">
+                  {formatCurrency(customer.lifetimeValue, displayCurrency)}
+                </span>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-4">
                 <span className="text-muted-foreground">{t("Outstanding", "En attente")}</span>
-                <span className="font-semibold text-foreground">{formatCurrency(customer.totals.outstanding, displayCurrency)}</span>
+                <span className="max-w-[11rem] truncate text-right font-semibold text-foreground tabular-nums">
+                  {formatCurrency(customer.totals.outstanding, displayCurrency)}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">{t("Last payment", "Dernier paiement")}</span>
@@ -733,7 +751,7 @@ export default function CustomerProfilePage() {
                 variant="secondary"
                 className="h-10 w-full"
                 onClick={() => setShowReminderModal(true)}
-                disabled={customer.status === "DISABLED"}
+                disabled={customer.status === "DISABLED" || !hasReminderCandidate}
               >
                   {t("Send Reminder", "Envoyer un rappel")}
               </Button>

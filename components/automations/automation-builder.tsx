@@ -44,9 +44,10 @@ type Start = {
   desc: string;
   phrase: string;
   type: string;
+  available?: boolean;
 };
 
-type Def = { id: string; group: string; title: string; phrase: string; type: string };
+type Def = { id: string; group: string; title: string; phrase: string; type: string; available?: boolean };
 type Mode = "now" | "after";
 type Unit = "minutes" | "hours" | "days";
 type Window = "anytime" | "business" | "outside";
@@ -83,9 +84,9 @@ const STARTS: Start[] = [
   { id: "invoice_overdue", group: "Invoices", title: "Invoice Overdue", desc: "When an unpaid invoice passes its due date", phrase: "an invoice becomes overdue", type: "generateInvoice" },
   { id: "payment_received", group: "Payments", title: "Payment Received", desc: "When money is received successfully", phrase: "a payment is received", type: "generateInvoice" },
   { id: "payment_failed", group: "Payments", title: "Payment Failed", desc: "When a payment attempt does not complete", phrase: "a payment fails", type: "generateInvoice" },
-  { id: "customer_created", group: "Customers", title: "New Customer Created", desc: "When a new customer profile is added", phrase: "a new customer is created", type: "generateInvoice" },
-  { id: "whatsapp_received", group: "Messaging", title: "New WhatsApp Message Received", desc: "When a customer sends a WhatsApp message", phrase: "a WhatsApp message is received", type: "generateInvoice" },
-  { id: "email_received", group: "Messaging", title: "New Email Received", desc: "When a customer sends an email", phrase: "an email is received", type: "generateInvoice" },
+  { id: "customer_created", group: "Customers", title: "New Customer Created", desc: "When a new customer profile is added", phrase: "a new customer is created", type: "generateInvoice", available: false },
+  { id: "whatsapp_received", group: "Messaging", title: "New WhatsApp Message Received", desc: "When a customer sends a WhatsApp message", phrase: "a WhatsApp message is received", type: "generateInvoice", available: false },
+  { id: "email_received", group: "Messaging", title: "New Email Received", desc: "When a customer sends an email", phrase: "an email is received", type: "generateInvoice", available: false },
 ];
 
 const DEFS: Def[] = [
@@ -96,23 +97,23 @@ const DEFS: Def[] = [
   { id: "send_payment_confirmation", group: "Send a Message", title: "Send Payment Confirmation", phrase: "send a payment confirmation", type: "sendWhatsApp" },
   { id: "send_failed_payment_message", group: "Send a Message", title: "Send Failed Payment Message", phrase: "send a failed payment message", type: "sendWhatsApp" },
   { id: "create_invoice", group: "Manage Invoice", title: "Create Invoice", phrase: "create an invoice", type: "generateInvoice" },
-  { id: "mark_as_paid", group: "Manage Invoice", title: "Mark as Paid", phrase: "mark the invoice as paid", type: "generateInvoice" },
+  { id: "mark_as_paid", group: "Manage Invoice", title: "Mark as Paid", phrase: "mark the invoice as paid", type: "generateInvoice", available: false },
   { id: "apply_late_fee", group: "Manage Invoice", title: "Apply Late Fee", phrase: "apply a late fee", type: "generateInvoice" },
-  { id: "cancel_invoice", group: "Manage Invoice", title: "Cancel Invoice", phrase: "cancel the invoice", type: "generateInvoice" },
-  { id: "issue_refund", group: "Payment & Confirmation", title: "Issue Refund", phrase: "issue a refund", type: "generateReport" },
+  { id: "cancel_invoice", group: "Manage Invoice", title: "Cancel Invoice", phrase: "cancel the invoice", type: "generateInvoice", available: false },
+  { id: "issue_refund", group: "Payment & Confirmation", title: "Issue Refund", phrase: "issue a refund", type: "generateReport", available: false },
   { id: "notify_team_payment", group: "Payment & Confirmation", title: "Notify Team of Payment", phrase: "notify the team about payment", type: "sendEmail" },
   { id: "send_payment_link", group: "Payment & Confirmation", title: "Send Payment Link", phrase: "send a payment link", type: "sendWhatsApp" },
-  { id: "add_tag", group: "Update Customer", title: "Add Tag", phrase: "add a customer tag", type: "generateReport" },
-  { id: "remove_tag", group: "Update Customer", title: "Remove Tag", phrase: "remove a customer tag", type: "generateReport" },
-  { id: "update_status", group: "Update Customer", title: "Update Status", phrase: "update customer status", type: "generateReport" },
-  { id: "assign_team_member", group: "Update Customer", title: "Assign to Team Member", phrase: "assign to a team member", type: "generateReport" },
-  { id: "add_internal_note", group: "Update Customer", title: "Add Internal Note", phrase: "add an internal note", type: "generateReport" },
+  { id: "add_tag", group: "Update Customer", title: "Add Tag", phrase: "add a customer tag", type: "generateReport", available: false },
+  { id: "remove_tag", group: "Update Customer", title: "Remove Tag", phrase: "remove a customer tag", type: "generateReport", available: false },
+  { id: "update_status", group: "Update Customer", title: "Update Status", phrase: "update customer status", type: "generateReport", available: false },
+  { id: "assign_team_member", group: "Update Customer", title: "Assign to Team Member", phrase: "assign to a team member", type: "generateReport", available: false },
+  { id: "add_internal_note", group: "Update Customer", title: "Add Internal Note", phrase: "add an internal note", type: "generateReport", available: false },
   { id: "improve_message", group: "AI Assist", title: "Improve Message", phrase: "improve a message with AI", type: "aiTransform" },
   { id: "rewrite_tone", group: "AI Assist", title: "Rewrite Tone", phrase: "rewrite the message tone", type: "aiTransform" },
   { id: "generate_auto_reply", group: "AI Assist", title: "Generate Auto Reply", phrase: "generate an automatic reply", type: "aiTransform" },
   { id: "generate_summary", group: "AI Assist", title: "Generate Summary", phrase: "generate a summary", type: "aiTransform" },
-  { id: "create_internal_task", group: "Internal / Team Action", title: "Create Internal Task", phrase: "create an internal task", type: "generateReport" },
-  { id: "log_activity", group: "Internal / Team Action", title: "Log Activity", phrase: "log activity", type: "generateReport" },
+  { id: "create_internal_task", group: "Internal / Team Action", title: "Create Internal Task", phrase: "create an internal task", type: "generateReport", available: false },
+  { id: "log_activity", group: "Internal / Team Action", title: "Log Activity", phrase: "log activity", type: "generateReport", available: false },
   { id: "notify_team", group: "Internal / Team Action", title: "Notify Team", phrase: "notify the team", type: "sendEmail" },
 ];
 
@@ -381,6 +382,7 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
 
   const validationIssues = [
     !form.title.trim() ? "Enter an automation name." : null,
+    !form.description.trim() ? "Enter a short description." : null,
     !start ? "Select what starts this automation." : null,
     actions.length === 0 ? "Add at least one step to complete this automation." : null,
   ].filter(Boolean) as string[];
@@ -578,7 +580,7 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
               {mode === "edit" ? "Automation Details" : "Create Automation"}
             </h2>
             <label className="mt-4 block space-y-2 text-sm text-slate-700"><span className="font-semibold text-slate-900">Automation Name</span><input required value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} placeholder="Example: Invoice reminder" className={inputClass} /></label>
-            <label className="mt-4 block space-y-2 text-sm text-slate-700"><span className="font-semibold text-slate-900">Short Description (optional)</span><textarea value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} placeholder="Describe what this automation should do." className="min-h-[110px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100" /></label>
+            <label className="mt-4 block space-y-2 text-sm text-slate-700"><span className="font-semibold text-slate-900">Short Description</span><textarea required value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} placeholder="Describe what this automation should do." className="min-h-[110px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100" /></label>
             <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Live preview</p>
               <p className="mt-2 text-sm text-slate-700">{previewData.title}</p>
@@ -597,12 +599,15 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
 
           <section className="rounded-2xl border border-slate-300 bg-white p-5 shadow-md sm:p-6">
             <h2 className="text-lg font-semibold text-slate-900">What starts this automation?</h2>
+            <p className="mt-2 text-sm text-slate-600">
+              Live starts are currently wired for invoice and payment events.
+            </p>
             <div className="mt-5 space-y-5">
               {(["Invoices", "Payments", "Customers", "Messaging"] as const).map((group) => (
                 <div key={group} className="space-y-2.5">
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{group}</p>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    {STARTS.filter((s) => s.group === group).map((s) => (
+                    {STARTS.filter((s) => s.group === group && (s.available !== false || s.id === startId)).map((s) => (
                       <div key={s.id} className={`rounded-xl border transition ${s.id === startId ? "border-blue-300 bg-blue-50/60 ring-1 ring-blue-100" : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60"}`}>
                         <button type="button" onClick={() => setStartId(s.id)} className="w-full px-3 py-3 text-left"><div className="flex items-start gap-3"><span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border shadow-sm ${iconStartTone(s.id)}`}>{iconStart(s.id)}</span><div><p className="text-sm font-semibold text-slate-900">{s.title}</p><p className="mt-0.5 text-xs text-slate-600">{s.desc}</p></div></div></button>
                         {s.id === startId ? <div className="border-t border-slate-200 px-3 pb-3 pt-3">{renderStartConfig(s.id)}</div> : null}
@@ -616,6 +621,9 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
 
           <section className="rounded-2xl border border-slate-300 bg-white p-5 shadow-md sm:p-6">
             <h2 className="text-lg font-semibold text-slate-900">What should the system do?</h2>
+            <p className="mt-2 text-sm text-slate-600">
+              The catalog only shows actions that have live runtime behavior today.
+            </p>
             <div className="mt-6 border-t border-slate-200 pt-5">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Steps you&apos;ve added</p>
               <div className="mt-3 space-y-4">
@@ -661,7 +669,11 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
 
                     <div className={`overflow-hidden transition-all duration-200 ${a.edit ? "mt-4 max-h-[900px] border-t border-slate-200 pt-3 opacity-100" : "max-h-0 opacity-0"}`}>
                       <div className="space-y-3">
-                        <label className="block space-y-2 text-sm text-slate-700"><span>Choose action</span><div className="relative"><select value={a.aid} onChange={(e) => { const d = def(e.target.value); if (!d) return; updateAction(a.id, { aid: d.id, type: d.type }); }} className={`${inputClass} h-10 appearance-none pr-10 text-sm`}>{GROUPS.map((g) => <optgroup key={g} label={g}>{DEFS.filter((d) => d.group === g).map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}</optgroup>)}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /></div></label>
+                        <label className="block space-y-2 text-sm text-slate-700"><span>Choose action</span><div className="relative"><select value={a.aid} onChange={(e) => { const d = def(e.target.value); if (!d) return; updateAction(a.id, { aid: d.id, type: d.type }); }} className={`${inputClass} h-10 appearance-none pr-10 text-sm`}>{GROUPS.map((g) => {
+                          const options = DEFS.filter((d) => d.group === g && (d.available !== false || d.id === a.aid));
+                          if (!options.length) return null;
+                          return <optgroup key={g} label={g}>{options.map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}</optgroup>;
+                        })}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /></div></label>
                         <label className="block space-y-2 text-sm text-slate-700"><span>Template or message details</span><input value={a.note} onChange={(e) => updateAction(a.id, { note: e.target.value })} placeholder="Example: Payment Reminder" className={`${inputClass} h-10 text-sm`} /></label>
                         <div className="grid gap-3 sm:grid-cols-[minmax(0,180px)_minmax(0,1fr)] sm:items-end">
                           <label className="block space-y-2 text-sm text-slate-700"><span>Send timing</span><select value={a.mode} onChange={(e) => updateAction(a.id, { mode: e.target.value as Mode })} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"><option value="now">Send immediately</option><option value="after">Send after</option></select></label>
@@ -693,7 +705,7 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
                         {g}
                       </h3>
                       <div className="mt-3 space-y-2">
-                        {DEFS.filter((d) => d.group === g).map((d) => (
+                        {DEFS.filter((d) => d.group === g && d.available !== false).map((d) => (
                           <button key={d.id} type="button" onClick={() => addAction(d.id)} className="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-100"><span>{d.title}</span><Plus className="h-4 w-4 text-slate-400" /></button>
                         ))}
                       </div>

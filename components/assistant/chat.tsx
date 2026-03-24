@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Alert } from "../ui/alert";
+import { Modal } from "../ui/modal";
 import { AnimatePresence, motion } from "framer-motion";
 import { Info, MessageSquare, PencilLine, Plus, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react";
 import { useLanguage } from "../providers/language-provider";
@@ -30,6 +31,7 @@ type Conversation = {
 
 const LEGACY_ID = "legacy";
 const LEGACY_TITLE_KEY = "maboria_ai_legacy_title";
+const MESSAGE_PAGE_SIZE = 60;
 
 export function AssistantChat() {
   const { language } = useLanguage();
@@ -47,37 +49,57 @@ export function AssistantChat() {
   const [style, setStyle] = useState<AiStyle>("detailed");
   const [tone, setTone] = useState<AiTone>("balanced");
   const [prefsReady, setPrefsReady] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("maboria_ai_history_open") === "true";
-  });
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [legacyTitleOverride, setLegacyTitleOverride] = useState<string | null>(null);
   const [model, setModel] = useState("maboria-1");
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [modelTooltip, setModelTooltip] = useState<"maboria-1" | "maboria-2" | null>(null);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
+  const [messageHistoryCursor, setMessageHistoryCursor] = useState<string | null>(null);
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null);
+  const [deletingConversationId, setDeletingConversationId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const lastAssistantRef = useRef<HTMLDivElement>(null);
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const modelMenuRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const loadMessages = useCallback(async (conversationId: string) => {
+  const mapApiMessages = useCallback((items: any[]): Message[] => {
+    return items.map((entry: any) => ({
+      id: entry.id,
+      role: entry.role === "assistant" ? "assistant" : "user",
+      content: entry.content || "",
+      ts: entry.createdAt ? new Date(entry.createdAt).getTime() : undefined,
+    }));
+  }, []);
+
+  const mergeMessages = useCallback((existing: Message[], incoming: Message[]) => {
+    const seen = new Set<string>();
+    const merged: Message[] = [];
+    for (const message of [...existing, ...incoming]) {
+      if (!message?.id || seen.has(message.id)) continue;
+      seen.add(message.id);
+      merged.push(message);
+    }
+    return merged;
+  }, []);
+
+  const loadMessages = useCallback(async (conversationId: string, cursor?: string | null) => {
     try {
-      const res = await fetch(`/api/ai/conversations/${conversationId}?limit=200`);
+      const params = new URLSearchParams({ limit: String(MESSAGE_PAGE_SIZE) });
+      if (cursor) params.set("cursor", cursor);
+      const res = await fetch(`/api/ai/conversations/${conversationId}?${params.toString()}`);
       if (!res.ok) return;
       const data = await res.json();
       const items = Array.isArray(data?.messages) ? data.messages : [];
-      const mapped: Message[] = items.map((entry: any) => ({
-        id: entry.id,
-        role: entry.role === "assistant" ? "assistant" : "user",
-        content: entry.content || "",
-        ts: entry.createdAt ? new Date(entry.createdAt).getTime() : undefined,
-      }));
-      setMessages(mapped);
+      const mapped = mapApiMessages(items);
+      setMessageHistoryCursor(typeof data?.nextCursor === "string" ? data.nextCursor : null);
+      setMessages((prev) => (cursor ? mergeMessages(mapped, prev) : mapped));
     } finally {
     }
-  }, []);
+  }, [mapApiMessages, mergeMessages]);
 
   const uniqueById = useCallback((items: Conversation[]) => {
     const seen = new Set<string>();
@@ -111,6 +133,16 @@ export function AssistantChat() {
   useEffect(() => {
     loadConversations();
   }, [loadConversations]);
+
+  useEffect(() => {
+    try {
+      setHistoryOpen(window.localStorage.getItem("maboria_ai_history_open") === "true");
+      setLegacyTitleOverride(window.localStorage.getItem(LEGACY_TITLE_KEY));
+    } catch {
+      setHistoryOpen(false);
+      setLegacyTitleOverride(null);
+    }
+  }, []);
 
   useEffect(() => {
     if (!autoScrollEnabled) return;
@@ -287,28 +319,20 @@ export function AssistantChat() {
     return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-  const getLegacyTitle = () => {
-    if (typeof window === "undefined") return null;
-    try {
-      return window.localStorage.getItem(LEGACY_TITLE_KEY);
-    } catch {
-      return null;
-    }
-  };
-
   const setLegacyTitle = (value: string) => {
     if (typeof window === "undefined") return;
     try {
       window.localStorage.setItem(LEGACY_TITLE_KEY, value);
+      setLegacyTitleOverride(value);
     } catch {
       // ignore
     }
   };
 
   const withLegacyTitle = useCallback((items: Conversation[]) => {
-    const legacyTitle = getLegacyTitle();
+    const legacyTitle = legacyTitleOverride;
     return items.map((item) => (item.id === LEGACY_ID && legacyTitle ? { ...item, title: legacyTitle } : item));
-  }, []);
+  }, [legacyTitleOverride]);
 
   const dedupedConversations = useMemo(
     () => withLegacyTitle(uniqueById(conversations)),
@@ -329,10 +353,11 @@ export function AssistantChat() {
   const handleNewChat = async () => {
     const created = await createConversation();
     if (!created) return;
-    const next = created.id === LEGACY_ID ? { ...created, title: getLegacyTitle() || created.title } : created;
+    const next = created.id === LEGACY_ID ? { ...created, title: legacyTitleOverride || created.title } : created;
     setConversations((prev) => uniqueById([next, ...prev]));
     setActiveConversationId(created.id);
     setMessages([]);
+    setMessageHistoryCursor(null);
   };
 
   const handleRename = async (conversationId: string, title: string) => {
@@ -365,20 +390,22 @@ export function AssistantChat() {
     setEditingId(null);
   };
 
-  const handleDelete = async (conversationId: string) => {
-    const confirmDelete = window.confirm(
-      t("Delete this chat? This cannot be undone.", "Supprimer ce chat? Action irreversible.")
-    );
-    if (!confirmDelete) return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const conversationId = deleteTarget.id;
+    setDeletingConversationId(conversationId);
     const res = await fetch(`/api/ai/conversations/${conversationId}`, { method: "DELETE" });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       setStatus(data?.error || t("Unable to delete chat right now.", "Impossible de supprimer le chat."));
       setStatusVariant("error");
+      setDeletingConversationId(null);
       return;
     }
     const nextList = conversations.filter((c) => c.id !== conversationId);
     setConversations(nextList);
+    setDeleteTarget(null);
+    setDeletingConversationId(null);
     if (activeConversationId === conversationId) {
       setAutoScrollEnabled(false);
       const next = nextList[0];
@@ -391,6 +418,23 @@ export function AssistantChat() {
     }
   };
 
+  const loadOlderMessages = async () => {
+    if (!activeConversationId || !messageHistoryCursor || loadingOlderMessages) return;
+    const scrollContainer = listRef.current;
+    const previousHeight = scrollContainer?.scrollHeight ?? 0;
+    setLoadingOlderMessages(true);
+    try {
+      await loadMessages(activeConversationId, messageHistoryCursor);
+      requestAnimationFrame(() => {
+        if (!scrollContainer) return;
+        const nextHeight = scrollContainer.scrollHeight;
+        scrollContainer.scrollTop = Math.max(0, nextHeight - previousHeight);
+      });
+    } finally {
+      setLoadingOlderMessages(false);
+    }
+  };
+
   const send = async () => {
     const trimmed = input.trim();
     if (!trimmed || loading) return;
@@ -398,7 +442,7 @@ export function AssistantChat() {
     if (!conversationId) {
       const created = await createConversation();
       if (created) {
-        const next = created.id === LEGACY_ID ? { ...created, title: getLegacyTitle() || created.title } : created;
+        const next = created.id === LEGACY_ID ? { ...created, title: legacyTitleOverride || created.title } : created;
         setConversations((prev) => uniqueById([next, ...prev]));
         setActiveConversationId(created.id);
         conversationId = created.id;
@@ -429,6 +473,7 @@ export function AssistantChat() {
           prompt: trimmed,
           style,
           tone,
+          model,
           conversationId,
         }),
       });
@@ -708,14 +753,14 @@ export function AssistantChat() {
                       >
                         <PencilLine className="h-3 w-3" />
                       </button>
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          handleDelete(conversation.id);
-                        }}
-                        className="rounded-full p-1 text-muted-foreground hover:text-foreground"
-                        aria-label={t("Delete chat", "Supprimer le chat")}
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            setDeleteTarget(conversation);
+                          }}
+                          className="rounded-full p-1 text-muted-foreground hover:text-foreground"
+                          aria-label={t("Delete chat", "Supprimer le chat")}
                       >
                         <Trash2 className="h-3 w-3" />
                       </button>
@@ -772,6 +817,19 @@ export function AssistantChat() {
             setAutoScrollEnabled(nearBottom);
           }}
         >
+          {messageHistoryCursor ? (
+            <div className="flex justify-center pt-1">
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-8 rounded-full px-3 text-[11px]"
+                onClick={loadOlderMessages}
+                loading={loadingOlderMessages}
+              >
+                {t("Load older messages", "Charger les anciens messages")}
+              </Button>
+            </div>
+          ) : null}
           {messages.length === 0 && !loading && (
             <div className="flex h-full items-center justify-center">
               <div className="max-w-xl text-center">
@@ -1011,6 +1069,56 @@ export function AssistantChat() {
           </div>
         </div>
       </section>
+
+      <Modal
+        open={Boolean(deleteTarget)}
+        onClose={() => {
+          if (!deletingConversationId) setDeleteTarget(null);
+        }}
+        hideHeader
+        className="max-w-sm overflow-hidden border-border/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.98))] p-0 shadow-[0_24px_70px_rgba(15,23,42,0.16)] dark:border-white/10 dark:bg-[linear-gradient(180deg,rgba(9,14,27,0.98),rgba(7,11,22,0.98))] dark:shadow-[0_24px_70px_rgba(2,6,23,0.55)]"
+        bodyClassName="max-h-none overflow-visible p-0"
+      >
+        {deleteTarget ? (
+          <div className="relative overflow-hidden rounded-2xl">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(244,63,94,0.08),transparent_42%)] dark:bg-[radial-gradient(circle_at_top,rgba(244,63,94,0.08),transparent_42%)]" />
+            <div className="relative px-5 py-5">
+              <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-rose-300/40 bg-rose-500/8 text-rose-600 dark:border-rose-400/20 dark:bg-rose-500/10 dark:text-rose-200">
+                <Trash2 className="h-4 w-4" />
+              </div>
+              <h3 className="mt-4 text-xl font-semibold tracking-[-0.02em] text-slate-950 dark:text-white">
+                {t("Delete this chat?", "Supprimer ce chat ?")}
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                {t(
+                  "This permanently removes this conversation and its saved history.",
+                  "Cette action supprime definitivement cette conversation et son historique enregistre."
+                )}
+              </p>
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-white/8 dark:bg-white/[0.04]">
+                <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">{formatTitle(deleteTarget.title)}</p>
+              </div>
+              <div className="mt-5 flex items-center justify-end gap-2">
+                <Button
+                  variant="secondary"
+                  className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-slate-700 hover:bg-slate-100 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200 dark:hover:bg-white/[0.08]"
+                  onClick={() => setDeleteTarget(null)}
+                  disabled={Boolean(deletingConversationId)}
+                >
+                  {t("Keep chat", "Garder le chat")}
+                </Button>
+                <Button
+                  className="h-10 rounded-xl bg-[linear-gradient(135deg,#f43f5e,#e11d48)] px-4 text-white shadow-[0_12px_24px_rgba(225,29,72,0.24)] hover:opacity-95"
+                  onClick={handleDelete}
+                  loading={deletingConversationId === deleteTarget.id}
+                >
+                  {t("Delete", "Supprimer")}
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 }

@@ -16,6 +16,10 @@ import {
 import { buildAutomationFlowWhere, resolveAutomationScope } from "@/lib/automation/access";
 import { getAutomationPermissions, hasAutomationPermission } from "@/lib/automation/permissions";
 import { requiresFinancialAutomationPrivilege } from "@/lib/automation/step-policy";
+import {
+  buildAutomationRelationsFromSteps,
+  buildDashboardStepsFromRelations,
+} from "@/lib/automation/dashboard-definition";
 
 type Params = { params?: { id?: string } };
 
@@ -66,9 +70,21 @@ export const GET = withErrorHandling(async (req: Request, { params }: Params) =>
   const automationScope = await resolveAutomationScope(session.user.id);
   const flow = await prisma.automationFlow.findFirst({
     where: buildAutomationFlowWhere(automationScope, { id: flowId }),
+    include: {
+      triggers: true,
+      actions: { orderBy: { order: "asc" } },
+    },
   });
   if (!flow) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json(flow);
+  const steps = buildDashboardStepsFromRelations({
+    steps: Array.isArray(flow.steps) ? (flow.steps as any[]) : [],
+    triggers: flow.triggers as any[],
+    actions: flow.actions as any[],
+  });
+  return NextResponse.json({
+    ...flow,
+    steps,
+  });
 });
 
 export const PUT = withErrorHandling(async (req: Request, { params }: Params) => {
@@ -184,16 +200,61 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
     }
   }
 
-  const updated = await prisma.automationFlow.update({
-    where: { id: flowId },
-    data: {
-      title: parsed.title ?? undefined,
-      description: parsed.description ?? undefined,
-      steps: (parsed.steps as any) ?? undefined,
-      category: parsed.category ?? undefined,
-      aiParams: (parsed.aiParams as any) ?? undefined,
-      status: parsed.status as any,
-    },
+  let relations:
+    | ReturnType<typeof buildAutomationRelationsFromSteps>
+    | null = null;
+  if (parsed.steps) {
+    try {
+      relations = buildAutomationRelationsFromSteps((parsed.steps as any[]) || []);
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error: "Invalid automation setup",
+          reason: error instanceof Error ? error.message : "Unsupported automation definition",
+        },
+        { status: 400 }
+      );
+    }
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    if (parsed.steps && relations) {
+      const { triggers, actions } = relations;
+      await tx.trigger.deleteMany({ where: { flowId } });
+      await tx.action.deleteMany({ where: { flowId } });
+      if (triggers.length) {
+        await tx.trigger.createMany({
+          data: triggers.map((trigger) => ({
+            flowId,
+            type: trigger.type,
+            config: trigger.config as any,
+            conditions: (trigger.conditions ?? {}) as any,
+          })),
+        });
+      }
+      if (actions.length) {
+        await tx.action.createMany({
+          data: actions.map((action) => ({
+            flowId,
+            type: action.type,
+            config: action.config as any,
+            order: action.order,
+          })),
+        });
+      }
+    }
+
+    return tx.automationFlow.update({
+      where: { id: flowId },
+      data: {
+        title: parsed.title ?? undefined,
+        description: parsed.description ?? undefined,
+        steps: (parsed.steps as any) ?? undefined,
+        category: parsed.category ?? undefined,
+        aiParams: (parsed.aiParams as any) ?? undefined,
+        status: parsed.status as any,
+      },
+    });
   });
   return NextResponse.json(updated);
 });

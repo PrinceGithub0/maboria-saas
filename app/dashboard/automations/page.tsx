@@ -366,7 +366,7 @@ export default function AutomationsPage() {
               const flowId = String(flow?.id || "");
               const flowRuns = runsByFlow.get(flowId) || [];
               const lastRun = flowRuns[0]?.createdAt;
-              const triggeredCount = flowRuns.length;
+              const executionsCount = flowRuns.length;
               const active = isActive(flow?.status);
 
               return (
@@ -392,7 +392,7 @@ export default function AutomationsPage() {
 
                   <div className="mt-4 flex items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
                     <span>
-                      {t("Triggers", "Declenchements")}: <span className="font-semibold text-slate-700 dark:text-slate-200">{triggeredCount}</span>
+                      {t("Runs", "Executions")}: <span className="font-semibold text-slate-700 dark:text-slate-200">{executionsCount}</span>
                     </span>
                     <span className="text-right">
                       {t("Last run", "Dernier run")}: <span className="font-semibold text-slate-700 dark:text-slate-200">{formatRelativeTime(lastRun)}</span>

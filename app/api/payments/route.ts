@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { requireOrgPermission } from "@/lib/org-auth";
 import { prisma } from "@/lib/prisma";
 import { withErrorHandling } from "@/lib/api-handler";
+import { ensureCurrentSubscriptionForOrg } from "@/lib/subscription-downgrade";
+import { resolveSubscriptionPaymentScope } from "@/lib/payments/subscription-payment-scope";
 import { withRequestLogging } from "@/lib/request-logger";
 
 const SUBSCRIPTION_PAYMENTS_PAGE_SIZE = 8;
@@ -50,6 +52,60 @@ export const GET = withRequestLogging(withErrorHandling(async (req: Request) => 
   const url = new URL(req.url);
   const limit = normalizeHistoryLimit(url.searchParams.get("limit"));
   const cursor = decodeHistoryCursor(url.searchParams.get("cursor"));
+  const [orgSub, ownedBusinessCount] = await Promise.all([
+    prisma.orgSubscription.findUnique({
+      where: { orgId: access.context.orgId },
+      select: {
+        providerSubscriptionId: true,
+        status: true,
+      },
+    }),
+    prisma.business.count({
+      where: { ownerId: access.context.ownerUserId },
+    }),
+  ]);
+
+  const bridgedSubscription =
+    ownedBusinessCount > 1 &&
+    !orgSub?.providerSubscriptionId &&
+    ["ACTIVE", "PAST_DUE", "TRIALING"].includes(String(orgSub?.status || "").toUpperCase())
+      ? await ensureCurrentSubscriptionForOrg(access.context.ownerUserId, access.context.orgId)
+      : null;
+
+  const paymentScope = resolveSubscriptionPaymentScope({
+    ownedBusinessCount,
+    linkedSubscriptionId: orgSub?.providerSubscriptionId,
+    bridgedSubscriptionId: bridgedSubscription?.id,
+    orgSubscriptionStatus: orgSub?.status,
+  });
+
+  if (paymentScope.mode === "empty") {
+    return NextResponse.json({
+      items: [],
+      pagination: {
+        pageSize: limit,
+        hasMore: false,
+        nextCursor: null,
+      },
+    });
+  }
+
+  const paymentTypeWhere = [
+    { metadata: { path: ["type"], equals: "subscription_payment" } },
+    { metadata: { path: ["type"], equals: "checkout_session" } },
+    { metadata: { path: ["receiptUrl"], string_contains: "/receipts/subscriptions/" } },
+  ];
+  const scopedPaymentWhere =
+    paymentScope.mode === "scoped_subscription" && paymentScope.subscriptionId
+      ? {
+          AND: [
+            { OR: paymentTypeWhere },
+            { metadata: { path: ["subscriptionId"], equals: paymentScope.subscriptionId } },
+          ],
+        }
+      : {
+          OR: paymentTypeWhere,
+        };
   const cursorWhere = cursor
     ? {
         OR: [
@@ -59,25 +115,18 @@ export const GET = withRequestLogging(withErrorHandling(async (req: Request) => 
       }
     : null;
 
+  const rowsWhere = cursorWhere
+    ? {
+        userId: access.context.ownerUserId,
+        AND: [scopedPaymentWhere, cursorWhere],
+      }
+    : {
+        userId: access.context.ownerUserId,
+        ...scopedPaymentWhere,
+      };
+
   const rows = await prisma.payment.findMany({
-    where: cursorWhere
-      ? {
-          userId: access.context.ownerUserId,
-          OR: [
-            { metadata: { path: ["type"], equals: "subscription_payment" } },
-            { metadata: { path: ["type"], equals: "checkout_session" } },
-            { metadata: { path: ["receiptUrl"], string_contains: "/receipts/subscriptions/" } },
-          ],
-          AND: [cursorWhere],
-        }
-      : {
-          userId: access.context.ownerUserId,
-          OR: [
-            { metadata: { path: ["type"], equals: "subscription_payment" } },
-            { metadata: { path: ["type"], equals: "checkout_session" } },
-            { metadata: { path: ["receiptUrl"], string_contains: "/receipts/subscriptions/" } },
-          ],
-        },
+    where: rowsWhere,
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limit + 1,
     select: {

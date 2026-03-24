@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import Image from "next/image";
 import { Card } from "@/components/ui/card";
@@ -21,6 +22,7 @@ import {
 import { formatCurrency } from "@/lib/currency";
 import { useLanguage } from "@/components/providers/language-provider";
 import { formatBusinessAddress, hasRequiredAddress, parseBusinessAddress } from "@/lib/address";
+import { getAccessibleSettingsTab, resolveRequestedSettingsTab, type SettingsTab } from "@/lib/dashboard/settings-tabs";
 import {
   MIN_PASSWORD_LENGTH,
   PASSWORD_MIN_LENGTH_ERROR,
@@ -34,12 +36,14 @@ const profileFetcher = async (url: string) => {
   return { data, status: res.status };
 };
 
-type SettingsTab = "profile" | "business" | "payout" | "security";
-
 export default function SettingsPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { language } = useLanguage();
   const t = (en: string, fr: string) => (language === "fr" ? fr : en);
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
+  const [tabStateReady, setTabStateReady] = useState(false);
   const [pendingTab, setPendingTab] = useState<SettingsTab | null>(null);
   const [showUnsavedPrompt, setShowUnsavedPrompt] = useState(false);
   const [dirtyTabs, setDirtyTabs] = useState<Record<SettingsTab, boolean>>({
@@ -114,6 +118,7 @@ export default function SettingsPage() {
 
   const { data: totpStatus, mutate: refreshTotp } = useSWR("/api/auth/2fa/totp", fetcher);
   const { data: me, mutate: refreshMe } = useSWR("/api/user/me", fetcher);
+  const hasResolvedUserContext = typeof me !== "undefined";
   const orgRole = String(me?.orgRole || "").toLowerCase();
   const canReadBusinessSettings =
     orgRole === "owner" || orgRole === "admin" || orgRole === "billing_admin" || orgRole === "member";
@@ -251,6 +256,7 @@ export default function SettingsPage() {
   };
 
   const switchTab = (nextTab: SettingsTab) => {
+    if (!tabStateReady) return;
     if (nextTab === activeTab) return;
     if (dirtyTabs[activeTab]) {
       setPendingTab(nextTab);
@@ -274,20 +280,41 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
+    if (!hasResolvedUserContext || tabStateReady) return;
+    const rawTab = searchParams.get("tab");
+    const nextTab = resolveRequestedSettingsTab(rawTab, { canReadBusinessSettings, canReadPayoutSettings });
+    setActiveTab(nextTab);
+    setTabStateReady(true);
+  }, [tabStateReady, hasResolvedUserContext, searchParams, canReadBusinessSettings, canReadPayoutSettings]);
+
+  useEffect(() => {
+    if (!hasResolvedUserContext || !tabStateReady) return;
+    const params = new URLSearchParams(searchParams.toString());
+    const currentTabParam = searchParams.get("tab");
+    const nextTabParam = activeTab === "profile" ? null : activeTab;
+    if (currentTabParam === nextTabParam) return;
+    if (nextTabParam) {
+      params.set("tab", nextTabParam);
+    } else {
+      params.delete("tab");
+    }
+    const nextQuery = params.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+  }, [activeTab, tabStateReady, hasResolvedUserContext, pathname, router, searchParams]);
+
+  useEffect(() => {
     if (me?.name || me?.email) {
       setProfile({ name: me?.name || "", email: me?.email || "" });
     }
   }, [me?.name, me?.email]);
 
   useEffect(() => {
-    if (activeTab === "business" && !canReadBusinessSettings) {
-      setActiveTab("profile");
-      return;
+    if (!tabStateReady) return;
+    const accessibleTab = getAccessibleSettingsTab(activeTab, { canReadBusinessSettings, canReadPayoutSettings });
+    if (accessibleTab !== activeTab) {
+      setActiveTab(accessibleTab);
     }
-    if (activeTab === "payout" && !canReadPayoutSettings) {
-      setActiveTab("profile");
-    }
-  }, [activeTab, canReadBusinessSettings, canReadPayoutSettings]);
+  }, [activeTab, tabStateReady, canReadBusinessSettings, canReadPayoutSettings]);
 
   useEffect(() => {
     if (businessProfile?.id) {
@@ -1138,6 +1165,17 @@ export default function SettingsPage() {
           )}
         </p>
       </div>
+      {!tabStateReady ? (
+        <Card title={t("Loading settings", "Chargement des parametres")}>
+          <p className="text-sm text-muted-foreground">
+            {t(
+              "Preparing your settings workspace.",
+              "Preparation de votre espace de parametres."
+            )}
+          </p>
+        </Card>
+      ) : (
+      <>
       <div role="tablist" aria-label={t("Settings sections", "Sections des parametres")} className="flex gap-2 overflow-x-auto border-b border-border pb-3">
         {[
           { key: "profile", label: t("Profile", "Profil") },
@@ -2119,6 +2157,8 @@ export default function SettingsPage() {
           ) : null}
         </div>
       </Card>
+      </>
+      )}
       </>
       )}
     </div>

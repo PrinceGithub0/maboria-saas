@@ -17,11 +17,19 @@ export const GET = withErrorHandling(async (req: Request) => {
 
   const checkout = await prisma.checkoutSession.findUnique({
     where: { reference },
-    select: { status: true, provider: true, plan: true, billingCycle: true, currency: true, amount: true, userId: true },
+    select: {
+      status: true,
+      provider: true,
+      plan: true,
+      billingCycle: true,
+      currency: true,
+      amount: true,
+      userId: true,
+      subscriptionId: true,
+    },
   });
   if (!checkout) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  let scopedUserId = session.user.id;
   if (checkout.userId !== session.user.id) {
     const access = await requireOrgPermission(session.user.id, {
       permission: "subscription:manage",
@@ -30,12 +38,10 @@ export const GET = withErrorHandling(async (req: Request) => {
     if (!access.ok || access.context.ownerUserId !== checkout.userId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    scopedUserId = access.context.ownerUserId;
   }
 
-  const subscription = await prisma.subscription.findFirst({
-    where: { userId: scopedUserId },
-    orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+  const subscription = await prisma.subscription.findUnique({
+    where: { id: checkout.subscriptionId },
     select: { status: true, plan: true },
   });
 

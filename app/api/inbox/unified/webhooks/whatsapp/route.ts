@@ -2,6 +2,10 @@ import { Prisma } from "@prisma/client";
 import crypto from "crypto";
 import { NextResponse } from "next/server";
 import {
+  applyUnifiedInboundActivity,
+  ensureUnifiedConversationParticipants,
+} from "@/lib/inbox/conversation-participants";
+import {
   createOrResolveCustomerForInbound,
   decryptInboxCredentials,
   logChannelFailure,
@@ -151,10 +155,16 @@ export async function POST(req: Request) {
           inboxId: whatsapp.id,
           contactId: customer.id,
           status: "OPEN",
-          lastMessageAt: new Date(),
         },
         select: { id: true },
       }));
+
+    if (!existingConversation) {
+      await ensureUnifiedConversationParticipants(prisma, {
+        tenantId: business.id,
+        conversationId: conversation.id,
+      });
+    }
 
     try {
       let createdMessageId: string | null = null;
@@ -173,12 +183,10 @@ export async function POST(req: Request) {
           },
         });
 
-        await tx.unifiedConversation.update({
-          where: { id: conversation.id },
-          data: {
-            status: "OPEN",
-            lastMessageAt: created.createdAt,
-          },
+        await applyUnifiedInboundActivity(tx, {
+          tenantId: business.id,
+          conversationId: conversation.id,
+          occurredAt: created.createdAt,
         });
 
         await writeUnifiedAuditEvent(tx, {

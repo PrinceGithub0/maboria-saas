@@ -36,6 +36,46 @@ const getInvoiceDueDate = (invoice: { metadata?: Prisma.JsonValue | null; genera
   return dueDateFromMeta || invoice.generatedAt;
 };
 
+type ReminderInvoiceRecord = {
+  id: string;
+  invoiceNumber: string;
+  total: Prisma.Decimal | number;
+  lateFeeAmount: Prisma.Decimal | number;
+  lateFeeTotalAccumulated?: Prisma.Decimal | number;
+  lateFeeAppliedAt?: Date | null;
+  lastLateFeeAppliedAt?: Date | null;
+  lateFeeCount?: number | null;
+  lateFeeLocked?: boolean | null;
+  status: string;
+  generatedAt: Date;
+  currency: string;
+  metadata: Prisma.JsonValue | null;
+};
+
+export function pickReminderInvoice<T extends ReminderInvoiceRecord>(invoices: T[]): T | null {
+  if (!Array.isArray(invoices) || invoices.length === 0) return null;
+
+  const prioritized = [...invoices].sort((left, right) => {
+    const leftStatus = String(left.status || "").toUpperCase();
+    const rightStatus = String(right.status || "").toUpperCase();
+    const leftPriority = leftStatus === "OVERDUE" ? 0 : 1;
+    const rightPriority = rightStatus === "OVERDUE" ? 0 : 1;
+    if (leftPriority !== rightPriority) {
+      return leftPriority - rightPriority;
+    }
+
+    const leftDueAt = getInvoiceDueDate(left)?.getTime() ?? Number.POSITIVE_INFINITY;
+    const rightDueAt = getInvoiceDueDate(right)?.getTime() ?? Number.POSITIVE_INFINITY;
+    if (leftDueAt !== rightDueAt) {
+      return leftDueAt - rightDueAt;
+    }
+
+    return left.generatedAt.getTime() - right.generatedAt.getTime();
+  });
+
+  return prioritized[0] || null;
+}
+
 const getLateFeeTotal = (invoice: {
   lateFeeAmount: Prisma.Decimal | number;
   lateFeeTotalAccumulated?: Prisma.Decimal | number;
@@ -89,7 +129,7 @@ export async function sendCustomerReminder(input: {
   automationId?: string;
 }) {
   const now = new Date();
-  const [customer, invoice] = await Promise.all([
+  const [customer, invoiceCandidates] = await Promise.all([
     prisma.customer.findFirst({
       where: { id: input.customerId, userId: input.userId, deletedAt: null },
       select: {
@@ -101,7 +141,7 @@ export async function sendCustomerReminder(input: {
         status: true,
       },
     }),
-    prisma.invoice.findFirst({
+    prisma.invoice.findMany({
       where: {
         userId: input.userId,
         customerId: input.customerId,
@@ -122,9 +162,9 @@ export async function sendCustomerReminder(input: {
         currency: true,
         metadata: true,
       },
-      orderBy: [{ generatedAt: "desc" }],
     }),
   ]);
+  const invoice = pickReminderInvoice(invoiceCandidates);
 
   if (!customer) {
     const error = new Error("Customer not found.");

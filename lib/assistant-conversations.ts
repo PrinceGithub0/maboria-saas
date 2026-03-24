@@ -3,10 +3,23 @@ import { prisma } from "./prisma";
 type AsyncResult<T = unknown> = Promise<T>;
 type DelegateFn<T = unknown> = (...args: unknown[]) => AsyncResult<T>;
 type DelegateListFn<T = unknown> = (...args: unknown[]) => AsyncResult<T[]>;
-type LegacyEntry = { createdAt: Date; role: string; content: string };
+type LegacyEntry = { id?: string; createdAt: Date; role: string; content: string };
 type ConversationRecord = {
   id: string;
   title?: string | null;
+  lastMessageAt?: Date | null;
+  updatedAt?: Date | null;
+  createdAt?: Date | null;
+};
+type MessageRecord = {
+  id?: string;
+  role: string;
+  content: string;
+  createdAt?: Date | null;
+};
+type PersistedConversationRecord = {
+  id: string;
+  title: string;
   lastMessageAt?: Date | null;
   updatedAt?: Date | null;
   createdAt?: Date | null;
@@ -48,6 +61,31 @@ const toTitle = (value: string) => {
 
 const isLegacyConversation = (conversationId?: string | null) =>
   conversationId === LEGACY_CONVERSATION_ID;
+
+export async function getAiConversation(userId: string, conversationId: string) {
+  if (isLegacyConversation(conversationId) || !hasAiSchema) {
+    return {
+      id: LEGACY_CONVERSATION_ID,
+      title: LEGACY_TITLE,
+      lastMessageAt: null,
+      updatedAt: null,
+      createdAt: null,
+    } satisfies PersistedConversationRecord;
+  }
+
+  return (await prismaAny.aiConversation!.findFirst({
+    where: { id: conversationId, userId },
+  })) as PersistedConversationRecord | null;
+}
+
+export async function resolveAiConversation(userId: string, conversationId?: string | null) {
+  if (conversationId) {
+    const existing = await getAiConversation(userId, conversationId);
+    if (existing) return existing;
+  }
+
+  return ensureDefaultAiConversation(userId);
+}
 
 export async function listAiConversations(userId: string) {
   if (!hasAiSchema) {
@@ -162,13 +200,7 @@ export async function renameAiConversation(userId: string, conversationId: strin
     where: { id: conversationId, userId },
   })) as ConversationRecord | null;
   if (!existing) {
-    return {
-      id: LEGACY_CONVERSATION_ID,
-      title: normalizedTitle,
-      lastMessageAt: null,
-      updatedAt: null,
-      createdAt: null,
-    };
+    return null;
   }
   return (await prismaAny.aiConversation!.update({
     where: { id: conversationId, userId },
@@ -179,24 +211,31 @@ export async function renameAiConversation(userId: string, conversationId: strin
 export async function deleteAiConversation(userId: string, conversationId: string) {
   if (isLegacyConversation(conversationId) || !hasAiSchema) {
     await prismaAny.aiMemory?.deleteMany({ where: { userId } });
-    return;
+    return true;
   }
-  await prismaAny.aiConversation?.deleteMany({
+  const result = await prismaAny.aiConversation?.deleteMany({
     where: { id: conversationId, userId },
   });
+  return typeof (result as { count?: number } | undefined)?.count === "number"
+    ? ((result as { count: number }).count > 0)
+    : true;
 }
 
 export async function getAiConversationMessages(
   userId: string,
   conversationId: string,
-  limit = 100
+  limit = 100,
+  cursor?: string | null
 ) {
   if (isLegacyConversation(conversationId) || !hasAiSchema) {
-    const messages = (await prismaAny.aiMemory?.findMany({
+    const messages = ((await prismaAny.aiMemory?.findMany({
       where: { userId },
       orderBy: { createdAt: "asc" },
-      take: limit,
-    })) as LegacyEntry[] | undefined;
+    })) as LegacyEntry[] | undefined) ?? [];
+    const normalizedLimit = Math.max(1, limit);
+    const end = cursor ? Math.min(messages.length, Math.max(0, Number(cursor))) : messages.length;
+    const start = Math.max(0, end - normalizedLimit);
+    const page = messages.slice(start, end);
     return {
       conversation: {
         id: LEGACY_CONVERSATION_ID,
@@ -205,36 +244,26 @@ export async function getAiConversationMessages(
         updatedAt: null,
         createdAt: null,
       },
-      messages: messages ?? [],
+      messages: page,
+      nextCursor: start > 0 ? String(start) : null,
     };
   }
   const conversation = (await prismaAny.aiConversation!.findFirst({
     where: { id: conversationId, userId },
   })) as ConversationRecord | null;
   if (!conversation) {
-    const messages = (await prismaAny.aiMemory?.findMany({
-      where: { userId },
-      orderBy: { createdAt: "asc" },
-      take: limit,
-    })) as LegacyEntry[] | undefined;
-    if (!messages || messages.length === 0) return null;
-    return {
-      conversation: {
-        id: LEGACY_CONVERSATION_ID,
-        title: LEGACY_TITLE,
-        lastMessageAt: null,
-        updatedAt: null,
-        createdAt: null,
-      },
-      messages,
-    };
+    return null;
   }
-  const messages = await prismaAny.aiMessage!.findMany({
+  const rawMessages = (await prismaAny.aiMessage!.findMany({
     where: { conversationId, userId },
-    orderBy: { createdAt: "asc" },
-    take: limit,
-  });
-  return { conversation, messages };
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: limit + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+  })) as MessageRecord[];
+  const hasMore = rawMessages.length > limit;
+  const page = hasMore ? rawMessages.slice(0, limit) : rawMessages;
+  const nextCursor = hasMore ? page[page.length - 1]?.id ?? null : null;
+  return { conversation, messages: page.reverse(), nextCursor };
 }
 
 export async function addAiMessage(params: {
@@ -253,9 +282,7 @@ export async function addAiMessage(params: {
     where: { id: conversationId, userId },
   });
   if (!existing) {
-    return prismaAny.aiMemory?.create({
-      data: { userId, role, content },
-    });
+    return null;
   }
   return prisma.$transaction(async (tx: any) => {
     const conversation = (await tx.aiConversation.findFirst({

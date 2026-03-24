@@ -9,7 +9,9 @@ export type UnifiedEventType =
   | "message.received"
   | "message.sent"
   | "conversation.assigned"
-  | "conversation.closed";
+  | "conversation.resolved"
+  | "conversation.reopened"
+  | "conversation.snoozed";
 
 export async function emitUnifiedInboxEvent(input: {
   tenantId: string;

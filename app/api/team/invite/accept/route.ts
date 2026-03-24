@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { SubscriptionPlan } from "@prisma/client";
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -7,6 +8,34 @@ import { ACTIVE_ORG_COOKIE_NAME, getSeatLimitForPlan, hashInviteToken, safeToken
 
 function jsonError(status: number, error: string, extras?: Record<string, unknown>) {
   return NextResponse.json({ error, ...(extras || {}) }, { status });
+}
+
+async function resolveSeatPlanForInviteAcceptance(
+  tx: {
+    subscription: {
+      findFirst: typeof prisma.subscription.findFirst;
+    };
+  },
+  business: {
+    ownerId: string;
+    plan: SubscriptionPlan | null;
+    orgSubscription?: { planId?: SubscriptionPlan | null } | null;
+  }
+): Promise<SubscriptionPlan | null> {
+  if (business.orgSubscription?.planId) {
+    return business.orgSubscription.planId;
+  }
+
+  const latestOwnerSubscription = await tx.subscription.findFirst({
+    where: {
+      userId: business.ownerId,
+      status: { in: ["ACTIVE", "PAST_DUE", "TRIALING"] },
+    },
+    orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+    select: { plan: true },
+  });
+
+  return latestOwnerSubscription?.plan ?? business.plan;
 }
 
 export async function POST(request: Request) {
@@ -100,6 +129,7 @@ export async function POST(request: Request) {
           where: { id: currentInvite.businessId },
           select: {
             id: true,
+            ownerId: true,
             plan: true,
             orgSubscription: {
               select: { planId: true },
@@ -120,7 +150,7 @@ export async function POST(request: Request) {
           },
         });
 
-        const planForSeats = business.orgSubscription?.planId ?? business.plan;
+        const planForSeats = await resolveSeatPlanForInviteAcceptance(tx, business);
         const seatLimit = getSeatLimitForPlan(planForSeats);
         const seatsUsed = await tx.businessMember.count({
           where: { businessId: business.id, status: "active" },

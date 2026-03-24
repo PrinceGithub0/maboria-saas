@@ -7,6 +7,10 @@ import { buildAutomationFlowWhere, resolveAutomationScope } from "@/lib/automati
 import { getAutomationPermissions, hasAutomationPermission } from "@/lib/automation/permissions";
 import { requiresFinancialAutomationPrivilege } from "@/lib/automation/step-policy";
 import { requireSystemFlag } from "@/lib/system-flags-guard";
+import {
+  buildScheduledAutomationRunOutput,
+  parseScheduledAutomationRunAt,
+} from "@/lib/automation/scheduled-run";
 
 export async function POST(req: Request) {
   const automationDisabled = await requireSystemFlag(
@@ -49,6 +53,10 @@ export async function POST(req: Request) {
   }
 
   const { flowId, runAt } = await req.json();
+  const scheduledFor = parseScheduledAutomationRunAt(runAt);
+  if (!scheduledFor) {
+    return NextResponse.json({ error: "Invalid scheduled run time" }, { status: 400 });
+  }
   const automationScope = await resolveAutomationScope(session.user.id);
   const flow = await prisma.automationFlow.findFirst({
     where: buildAutomationFlowWhere(automationScope, { id: flowId }),
@@ -76,12 +84,8 @@ export async function POST(req: Request) {
       userId: flow.userId,
       runStatus: "PENDING",
       logs: [],
-      createdAt: runAt ? new Date(runAt) : new Date(),
-      output: {
-        trigger: "Schedule",
-        source: "Scheduler",
-        input: { scheduledFor: runAt ?? null },
-      },
+      startedAt: null,
+      output: buildScheduledAutomationRunOutput(scheduledFor),
     },
   });
 
