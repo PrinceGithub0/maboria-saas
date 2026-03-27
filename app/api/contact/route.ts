@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { contactSalesSchema } from "@/lib/validators";
-import { sendSupportMail } from "@/lib/email";
+import { sendInfoMail } from "@/lib/email";
 import { log } from "@/lib/logger";
 import { withErrorHandling } from "@/lib/api-handler";
+import { buildContactSalesEmail } from "@/emails/templates/contact-sales";
 
 export const POST = withErrorHandling(async (req: Request) => {
   const body = await req.json();
@@ -14,15 +15,11 @@ export const POST = withErrorHandling(async (req: Request) => {
     process.env.EMAIL_SUPPORT_FROM ||
     process.env.EMAIL_FROM ||
     "support@mail.maboria.com";
-  const subject = `Contact sales: ${parsed.name}`;
-  const html = `<p><strong>Name:</strong> ${parsed.name}</p>
-<p><strong>Email:</strong> ${parsed.email}</p>
-<p><strong>Company:</strong> ${parsed.company || "-"}</p>
-<p><strong>Message:</strong></p>
-<pre style="white-space:pre-wrap;">${parsed.message}</pre>`;
+  const subject = `New enterprise inquiry: ${parsed.name}`;
+  const { html, text } = buildContactSalesEmail(parsed);
 
   try {
-    await sendSupportMail({ to: recipient, subject, html, replyTo: parsed.email });
+    await sendInfoMail({ to: recipient, subject, html, text, replyTo: parsed.email });
   } catch (error: any) {
     const message = error?.message || "Failed to send contact request";
     log("error", "contact_sales_email_failed", { error: message });
