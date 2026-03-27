@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/components/providers/language-provider";
+import { localizeServerMessage } from "@/lib/localization/server-messages";
 
 type PlanIntent = "starter" | "pro" | "growth" | "business";
 
@@ -19,7 +20,7 @@ const PLAN_OPTIONS: Array<{
 ];
 
 export default function StartWorkspacePage() {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const [planIntent, setPlanIntent] = useState<PlanIntent>("starter");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -38,7 +39,7 @@ export default function StartWorkspacePage() {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setError(payload?.error || t("Unable to start workspace setup.", "Impossible de demarrer la configuration de l'espace de travail.", "Workspace-Einrichtung kann nicht gestartet werden.", "No se pudo iniciar la configuración del espacio de trabajo.", "Não foi possivel iniciar a configuração do espaco de trabalho."));
+        setError(localizeServerMessage(payload?.error, language, t("Unable to start workspace setup.", "Impossible de demarrer la configuration de l'espace de travail.", "Workspace-Einrichtung kann nicht gestartet werden.", "No se pudo iniciar la configuraciÃ³n del espacio de trabajo.", "NÃ£o foi possivel iniciar a configuraÃ§Ã£o do espaco de trabalho.")));
         return;
       }
 
@@ -63,7 +64,11 @@ export default function StartWorkspacePage() {
             {t("You no longer have access to a workspace on this account. Choose a plan to start your own business workspace.", "Vous n'avez plus accès a un espace de travail sur ce compte. Choisissez un plan pour lancer votre propre espace de travail professionnel.", "Du hast keinen Zugriff mehr auf einen Workspace in diesem Konto. Wähle einen Plan, um deinen eigenen Business-Workspace zu starten.", "Ya no tienes acceso a un espacio de trabajo en esta cuenta. Elige un plan para iniciar tu propio espacio de trabajo empresarial.", "Ja não tem acesso a um espaco de trabalho nesta conta. Escolha um plano para iniciar o seu proprio espaco de trabalho empresarial.")}
           </p>
 
-          {error ? <Alert className="mt-5" variant="error">{error}</Alert> : null}
+          {error ? (
+            <Alert className="mt-5" variant="error">
+              {localizeServerMessage(error, language, t("Unable to start workspace setup.", "Impossible de demarrer la configuration de l'espace de travail.", "Workspace-Einrichtung kann nicht gestartet werden.", "No se pudo iniciar la configuraciÃ³n del espacio de trabajo.", "NÃ£o foi possivel iniciar a configuraÃ§Ã£o do espaco de trabalho."))}
+            </Alert>
+          ) : null}
 
           <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
             <div className="space-y-2">

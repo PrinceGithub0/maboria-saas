@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useLanguage } from "@/components/providers/language-provider";
+import { localizeServerMessage } from "@/lib/localization/server-messages";
 
 const quickQuestions = [
   {
@@ -89,7 +90,7 @@ const commonIssues = [
 ];
 
 export default function SupportPage() {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const [status, setStatus] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [form, setForm] = useState({ email: "", subject: "", message: "" });
@@ -151,7 +152,9 @@ export default function SupportPage() {
         );
       } else if (!res.ok) {
         setStatus(
-          data.error ||
+          localizeServerMessage(
+            data.error,
+            language,
             t(
               `Could not submit ticket (status ${res.status}).`,
               `Envoi impossible (statut ${res.status}).`,
@@ -159,6 +162,7 @@ export default function SupportPage() {
               `No se pudo enviar el ticket (estado ${res.status}).`,
               `Nao foi possivel enviar o ticket (estado ${res.status}).`
             )
+          )
         );
       } else {
         if (data.emailError) {

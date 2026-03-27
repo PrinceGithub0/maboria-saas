@@ -9,6 +9,7 @@ import { Eye, EyeOff, Lock, Mail, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { useLanguage } from "@/components/providers/language-provider";
+import { localizeServerMessage } from "@/lib/localization/server-messages";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -25,7 +26,7 @@ export default function LoginPage() {
   const inviteRole = params.get("role") || "member";
   const inviteInviter = params.get("inviter") || "";
   const logoSrc = "/branding/Maboria%20Company%20logo.png";
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const inviteMode = Boolean(inviteToken);
   const inviteRoleLabel =
     inviteRole === "billing_admin" ? "Billing Admin" : inviteRole === "admin" ? "Admin" : "Member";
@@ -94,11 +95,14 @@ export default function LoginPage() {
         const invitePayload = await inviteAcceptance.json().catch(() => ({}));
         if (!inviteAcceptance.ok) {
           setError(
-            invitePayload?.error ||
+            localizeServerMessage(
+              invitePayload?.error,
+              language,
               t(
                 "Signed in, but the workspace invitation could not be accepted.",
                 "Connexion reussie, mais l'invitation à l'espace n'a pas pu être acceptee."
               )
+            )
           );
           return;
         }
@@ -244,7 +248,11 @@ export default function LoginPage() {
               </div>
             )}
             {params.get("message") && <Alert className="mt-5" variant="success">{params.get("message")}</Alert>}
-            {error && <Alert className="mt-5" variant="error">{error}</Alert>}
+            {error && (
+              <Alert className="mt-5" variant="error">
+                {localizeServerMessage(error, language, t("Sign in failed. Please try again.", "Connexion Ã©chouÃ©e. Reessayez."))}
+              </Alert>
+            )}
 
             <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
           <label className="grid gap-2 text-sm font-medium text-foreground">

@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/components/providers/language-provider";
+import { localizeServerMessage } from "@/lib/localization/server-messages";
 import {
   MIN_PASSWORD_LENGTH,
   PASSWORD_MIN_LENGTH_ERROR,
@@ -24,7 +25,7 @@ function getPasswordStrengthLabel(password: string, t: ReturnType<typeof useLang
 }
 
 export default function ResetPasswordPage() {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const token = useSearchParams().get("token") || "";
   const router = useRouter();
   const [validationState, setValidationState] = useState<ValidationState>("checking");
@@ -94,7 +95,7 @@ export default function ResetPasswordPage() {
       });
       const payload = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(payload?.error || t("Reset failed. Please request a new link.", "La reinitialisation a échoué. Demandez un nouveau lien."));
+        setError(localizeServerMessage(payload?.error, language, t("Reset failed. Please request a new link.", "La reinitialisation a Ã©chouÃ©. Demandez un nouveau lien.")));
         return;
       }
       router.push("/login?reset=success");
@@ -156,7 +157,11 @@ export default function ResetPasswordPage() {
               </p>
             </div>
 
-            {error && <Alert className="mt-5" variant="error">{error}</Alert>}
+            {error && (
+              <Alert className="mt-5" variant="error">
+                {localizeServerMessage(error, language, t("Reset failed. Please request a new link.", "La reinitialisation a Ã©chouÃ©. Demandez un nouveau lien."))}
+              </Alert>
+            )}
 
             <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
               <label className="grid gap-2 text-sm font-medium text-foreground">

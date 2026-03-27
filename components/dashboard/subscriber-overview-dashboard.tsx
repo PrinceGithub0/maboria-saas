@@ -21,6 +21,17 @@ type DashboardRequestError = Error & {
   code?: string;
 };
 
+function normalizeDashboardErrorMessage(message: unknown) {
+  return String(message || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[.!?]+$/, "");
+}
+
+function matchesDashboardErrorMessage(error: DashboardRequestError, expected: string) {
+  return normalizeDashboardErrorMessage(error.message) === normalizeDashboardErrorMessage(expected);
+}
+
 function statusClass(status: SubscriberDashboardData["status"]) {
   if (status === "critical") return "border-red-300 bg-red-100 text-red-900 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200";
   if (status === "attention") return "border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200";
@@ -148,7 +159,7 @@ export function SubscriberOverviewDashboard({
         );
       }
       if (status !== 403) return null;
-      if (error.code === "ORG_ACCESS_DENIED" || error.message === "Organization access denied.") {
+      if (error.code === "ORG_ACCESS_DENIED" || matchesDashboardErrorMessage(error, "Organization access denied.")) {
         return t(
           "Organization access denied.",
           "Accès à l'organisation refuse.",
@@ -158,7 +169,7 @@ export function SubscriberOverviewDashboard({
         );
       }
       if (error.code === "TENANT_SUSPENDED") {
-        return error.message === "Organization access has been disabled."
+        return matchesDashboardErrorMessage(error, "Organization access has been disabled.")
           ? t(
               "Organization access has been disabled.",
               "L accès à l'organisation a ?t? desactive.",
@@ -175,7 +186,7 @@ export function SubscriberOverviewDashboard({
             );
       }
       if (error.code === "SUBSCRIPTION_INACTIVE") {
-        return error.message === "Organization subscription inactive. Please renew billing."
+        return matchesDashboardErrorMessage(error, "Organization subscription inactive. Please renew billing.")
           ? t(
               "Organization subscription inactive. Please renew billing.",
               "L abonnement de l'organisation est inactif. Veuillez renouveler la facturation.",
@@ -191,7 +202,7 @@ export function SubscriberOverviewDashboard({
               "A subscrição da organização esta inativa. Contacte o proprietário da organização."
             );
       }
-      if (error.code === "FORBIDDEN" || error.message === "You do not have permission for this action.") {
+      if (error.code === "FORBIDDEN" || matchesDashboardErrorMessage(error, "You do not have permission for this action.")) {
         return t(
           "You do not have permission for this action.",
           "Vous n'avez pas l autorisation pour cette action.",

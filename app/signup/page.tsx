@@ -8,6 +8,7 @@ import { Lock, Mail, User, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { useLanguage } from "@/components/providers/language-provider";
+import { localizeServerMessage } from "@/lib/localization/server-messages";
 import { useSearchParams } from "next/navigation";
 import {
   MIN_PASSWORD_LENGTH,
@@ -30,7 +31,7 @@ export default function SignupPage() {
   const [joinedWorkspace, setJoinedWorkspace] = useState(false);
   const [loading, setLoading] = useState(false);
   const logoSrc = "/branding/Maboria%20Company%20logo.png";
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const searchParams = useSearchParams();
   const inviteToken = searchParams.get("invite") || undefined;
   const inviteEmail = searchParams.get("email") || "";
@@ -81,7 +82,7 @@ export default function SignupPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.error || t("Signup failed", "Echec de l inscription"));
+        setError(localizeServerMessage(data.error, language, t("Signup failed", "Echec de l inscription")));
         return;
       }
       setUserId(data.userId || null);
@@ -233,7 +234,11 @@ export default function SignupPage() {
               </div>
             </div>
 
-            {error && <Alert className="mt-5" variant="error">{error}</Alert>}
+            {error && (
+              <Alert className="mt-5" variant="error">
+                {localizeServerMessage(error, language, t("Signup failed", "Echec de l inscription"))}
+              </Alert>
+            )}
             {success && (
               <Alert className="mt-5" variant="success">
                 {t(

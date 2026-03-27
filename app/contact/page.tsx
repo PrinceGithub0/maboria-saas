@@ -8,10 +8,11 @@ import { Alert } from "@/components/ui/alert";
 import { TransientAlert } from "@/components/ui/transient-alert";
 import { useState } from "react";
 import { useLanguage } from "@/components/providers/language-provider";
+import { localizeServerMessage } from "@/lib/localization/server-messages";
 import { contactSalesEmail, contactSalesMailto } from "@/lib/sales/contact";
 
 export default function ContactPage() {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const [form, setForm] = useState({ name: "", email: "", company: "", message: "" });
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -30,11 +31,11 @@ export default function ContactPage() {
     const data = await res.json().catch(() => ({}));
     setLoading(false);
     if (!res.ok) {
-      setError(data.error || t("Could not send message.", "Envoi impossible."));
+      setError(localizeServerMessage(data.error, language, t("Could not send message.", "Envoi impossible.")));
       return;
     }
     if (data.error) {
-      setError(data.error);
+      setError(localizeServerMessage(data.error, language, t("Could not send message.", "Envoi impossible.")));
       return;
     }
     setStatus(t("Message sent. We will respond shortly.", "Message envoye. Réponse rapide."));
@@ -63,7 +64,7 @@ export default function ContactPage() {
                 {status}
               </TransientAlert>
             ) : null}
-            {error && <Alert variant="error">{error}</Alert>}
+            {error && <Alert variant="error">{localizeServerMessage(error, language, t("Could not send message.", "Envoi impossible."))}</Alert>}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Input
                 label={t("Name", "Nom")}

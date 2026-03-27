@@ -4,6 +4,7 @@ import useSWR from "swr";
 import { MiniAreaChart } from "@/components/charts/area-chart";
 import { LANGUAGE_LOCALES } from "@/lib/i18n";
 import { useLanguage } from "@/components/providers/language-provider";
+import { localizeServerMessage } from "@/lib/localization/server-messages";
 
 type AnalyticsData = {
   messagesToday: number;
@@ -79,7 +80,7 @@ export default function InboxAnalyticsPage() {
 
         <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <span>{error instanceof Error ? error.message : t("Unable to load inbox analytics.", "Impossible de charger l'analytique de la boite de reception.", "Posteingangsanalysen können nicht geladen werden.", "No se puede cargar la analitica de la bandeja de entrada.", "Não foi possivel carregar a analitica da caixa de entrada.")}</span>
+            <span>{localizeServerMessage(error instanceof Error ? error.message : "", language, t("Unable to load inbox analytics.", "Impossible de charger l'analytique de la boite de reception.", "Posteingangsanalysen kÃ¶nnen nicht geladen werden.", "No se puede cargar la analitica de la bandeja de entrada.", "NÃ£o foi possivel carregar a analitica da caixa de entrada."))}</span>
             <button
               type="button"
               onClick={() => void mutate()}

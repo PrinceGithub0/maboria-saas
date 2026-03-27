@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/components/providers/language-provider";
+import { localizeServerMessage } from "@/lib/localization/server-messages";
 
 declare global {
   interface Window {
@@ -156,7 +157,7 @@ function ensureMetaSdkLoaded(appId: string, graphVersion: string) {
 }
 
 export function WhatsAppEmbeddedSignupCard({ connection, onConnected }: Props) {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const env = readEnv();
   const enabled = isConfiguredRuntimeValue(env.appId) && isConfiguredRuntimeValue(env.configId);
   const missingClientConfig = [
@@ -386,7 +387,21 @@ export function WhatsAppEmbeddedSignupCard({ connection, onConnected }: Props) {
       ) : null}
 
       {success ? <Alert variant="success">{success}</Alert> : null}
-      {error ? <Alert variant="error">{error}</Alert> : null}
+      {error ? (
+        <Alert variant="error">
+          {localizeServerMessage(
+            error,
+            language,
+            t(
+              "Unable to complete WhatsApp onboarding.",
+              "Impossible de finaliser l'onboarding WhatsApp.",
+              "WhatsApp-Onboarding kann nicht abgeschlossen werden.",
+              "No se pudo completar la configuraciÃ³n de WhatsApp.",
+              "NÃ£o foi possivel concluir a configuraÃ§Ã£o do WhatsApp."
+            )
+          )}
+        </Alert>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
         <Button
