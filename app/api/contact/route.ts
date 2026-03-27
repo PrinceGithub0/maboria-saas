@@ -9,7 +9,11 @@ export const POST = withErrorHandling(async (req: Request) => {
   const parsed = contactSalesSchema.parse(body);
 
   const recipient =
-    process.env.SUPPORT_EMAIL || process.env.EMAIL_SUPPORT_FROM || process.env.EMAIL_FROM || "support@mail.maboria.com";
+    process.env.CONTACT_SALES_EMAIL ||
+    process.env.SUPPORT_EMAIL ||
+    process.env.EMAIL_SUPPORT_FROM ||
+    process.env.EMAIL_FROM ||
+    "support@mail.maboria.com";
   const subject = `Contact sales: ${parsed.name}`;
   const html = `<p><strong>Name:</strong> ${parsed.name}</p>
 <p><strong>Email:</strong> ${parsed.email}</p>
