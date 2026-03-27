@@ -63,7 +63,7 @@ export function RunsTable({
     () => ({
       createdAt: t("Created", "Cree le"),
       runStatus: t("Status", "Statut"),
-      duration: t("Duration", "Duree"),
+      duration: t("Duration", "Durée"),
     }),
     [t]
   );
@@ -339,7 +339,7 @@ export function RunsTable({
                   <p className="mt-1 text-sm text-foreground">{trigger}</p>
                 </div>
                 <div>
-                  <p className="uppercase tracking-[0.18em]">{t("Duration", "Duree")}</p>
+                  <p className="uppercase tracking-[0.18em]">{t("Duration", "Durée")}</p>
                   <p className="mt-1 text-sm text-foreground">{durationLabel}</p>
                 </div>
               </div>

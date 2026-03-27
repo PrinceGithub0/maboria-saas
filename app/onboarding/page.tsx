@@ -7,9 +7,56 @@ import { Alert } from "@/components/ui/alert";
 import { TransientAlert } from "@/components/ui/transient-alert";
 import { useLanguage } from "@/components/providers/language-provider";
 
+type Translate = (en: string, fr?: string, de?: string, es?: string, pt?: string) => string;
+
+function localizeBusinessError(error: unknown, t: Translate) {
+  const message = String(error || "").trim();
+  if (!message) {
+    return t(
+      "Could not create business.",
+      "Creation impossible.",
+      "Unternehmen konnte nicht erstellt werden.",
+      "No se pudo crear la empresa.",
+      "Não foi possivel criar a empresa."
+    );
+  }
+
+  const known: Record<string, string> = {
+    Unauthorized: t(
+      "Please sign in and try again.",
+      "Veuillez vous connecter puis réessayer.",
+      "Bitte melde dich an und versuche es erneut.",
+      "Inicia sesión y vuelve a intentarlo.",
+      "Inicie sessão e tente novamente."
+    ),
+    "String must contain at least 2 character(s)": t(
+      "Enter a business name with at least 2 characters.",
+      "Saisissez un nom d entreprise d au moins 2 caracteres.",
+      "Gib einen Unternehmensnamen mit mindestens 2 Zeichen ein.",
+      "Introduce un nombre de empresa con al menos 2 caracteres.",
+      "Introduza um nome de empresa com pelo menos 2 caracteres."
+    ),
+    "Business name too short": t(
+      "Enter a business name with at least 2 characters.",
+      "Saisissez un nom d entreprise d au moins 2 caracteres.",
+      "Gib einen Unternehmensnamen mit mindestens 2 Zeichen ein.",
+      "Introduce un nombre de empresa con al menos 2 caracteres.",
+      "Introduza um nome de empresa com pelo menos 2 caracteres."
+    ),
+    "Invalid business data": t(
+      "Please review your business details and try again.",
+      "Veuillez verifier les informations de votre entreprise puis réessayer.",
+      "Bitte überprüfe deine Unternehmensdaten und versuche es erneut.",
+      "Revisa los datos de tu empresa y vuelve a intentarlo.",
+      "Verifique os dados da sua empresa e tente novamente."
+    ),
+  };
+
+  return known[message] || message;
+}
+
 export default function OnboardingPage() {
-  const { language } = useLanguage();
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const { t } = useLanguage();
   const [form, setForm] = useState({ name: "", domain: "" });
   const [status, setStatus] = useState<{ message: string; variant: "success" | "error" } | null>(null);
 
@@ -19,7 +66,7 @@ export default function OnboardingPage() {
     const data = await res.json();
     if (!res.ok || data.error) {
       setStatus({
-        message: data.error || t("Could not create business.", "Creation impossible."),
+        message: localizeBusinessError(data.error, t),
         variant: "error",
       });
       return;

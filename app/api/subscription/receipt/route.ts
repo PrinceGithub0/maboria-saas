@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { withErrorHandling } from "@/lib/api-handler";
 import { requireOrgPermission } from "@/lib/org-auth";
 import { ensureCurrentSubscriptionForOrg } from "@/lib/subscription-downgrade";
-import { buildSubscriptionReceiptPdfBuffer } from "@/lib/subscription-receipt";
+import { buildSubscriptionReceiptPdfBuffer, isSubscriptionReceiptProvider } from "@/lib/subscription-receipt";
 
 function mapReceiptPlanLabel(plan: string | null | undefined) {
   const value = String(plan || "").toUpperCase();
@@ -90,7 +90,7 @@ async function buildReceiptPdfFromDb(input: { userId: string; subscriptionId?: s
   ]);
 
   const provider = (subscription.lastPaymentProvider ?? payment?.provider ?? null) as PaymentProvider | null;
-  if (!payment || (provider !== "PAYSTACK" && provider !== "FLUTTERWAVE")) {
+  if (!payment || !isSubscriptionReceiptProvider(provider)) {
     return null;
   }
 

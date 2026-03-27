@@ -5,6 +5,7 @@ import useSWR from "swr";
 import { useRouter } from "next/navigation";
 import { Copy, GitBranch, PencilLine } from "lucide-react";
 import { useLanguage } from "@/components/providers/language-provider";
+import { LANGUAGE_LOCALES } from "@/lib/i18n";
 
 type AutomationStatus = "DRAFT" | "ACTIVE" | "PAUSED" | "ARCHIVED";
 const AUTOMATION_STATUSES: AutomationStatus[] = ["DRAFT", "ACTIVE", "PAUSED", "ARCHIVED"];
@@ -48,25 +49,19 @@ const fetcher = async (url: string) => {
 const templates = [
   {
     id: "overdue_reminder_3_days",
-    title: "Send payment reminder after 3 days",
-    description: "Auto-send reminder if invoice unpaid.",
   },
   {
     id: "whatsapp_thank_you",
-    title: "Send WhatsApp thank you message",
-    description: "Automatically thank customers after payment.",
   },
   {
     id: "notify_invoice_paid",
-    title: "Notify when invoice is paid",
-    description: "Send instant alerts when invoices are settled.",
   },
 ];
 
 export default function AutomationsPage() {
   const router = useRouter();
-  const { language } = useLanguage();
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const { language, t } = useLanguage();
+  const locale = LANGUAGE_LOCALES[language];
 
   const { data: flows, error: flowsError, mutate, isLoading } = useSWR("/api/automation", fetcher);
   const { data: runs } = useSWR("/api/automation/runs", fetcher, {
@@ -125,10 +120,10 @@ export default function AutomationsPage() {
 
   const getStatusLabel = (status?: string) => {
     const normalized = normalizeAutomationStatus(status);
-    if (normalized === "ACTIVE") return t("Active", "Actif");
-    if (normalized === "PAUSED") return t("Paused", "En pause");
-    if (normalized === "ARCHIVED") return t("Archived", "Archive");
-    return t("Draft", "Brouillon");
+    if (normalized === "ACTIVE") return t("Active", "Actif", "Aktiv", "Activa", "Ativa");
+    if (normalized === "PAUSED") return t("Paused", "En pause", "Pausiert", "Pausada", "Em pausa");
+    if (normalized === "ARCHIVED") return t("Archived", "Archive", "Archiviert", "Archivada", "Arquivada");
+    return t("Draft", "Brouillon", "Entwurf", "Borrador", "Rascunho");
   };
 
   const getStatusClass = (status?: string) => {
@@ -139,31 +134,24 @@ export default function AutomationsPage() {
   };
 
   const formatRelativeTime = (value?: string) => {
-    if (!value) return t("Never", "Jamais");
+    if (!value) return t("Never", "Jamais", "Nie", "Nunca", "Nunca");
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return t("Never", "Jamais");
+    if (Number.isNaN(date.getTime())) return t("Never", "Jamais", "Nie", "Nunca", "Nunca");
     const diffMs = Date.now() - date.getTime();
-    if (diffMs < 60 * 1000) return t("just now", "a l instant");
-
-    const units = [
-      { ms: 1000 * 60 * 60 * 24 * 365, en: "year", fr: "an" },
-      { ms: 1000 * 60 * 60 * 24 * 30, en: "month", fr: "mois" },
-      { ms: 1000 * 60 * 60 * 24, en: "day", fr: "jour" },
-      { ms: 1000 * 60 * 60, en: "hour", fr: "heure" },
-      { ms: 1000 * 60, en: "minute", fr: "minute" },
+    if (diffMs < 60 * 1000) return t("just now", "a l instant", "gerade eben", "justo ahora", "agora mesmo");
+    const formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+    const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+      ["year", 1000 * 60 * 60 * 24 * 365],
+      ["month", 1000 * 60 * 60 * 24 * 30],
+      ["day", 1000 * 60 * 60 * 24],
+      ["hour", 1000 * 60 * 60],
+      ["minute", 1000 * 60],
     ];
-
-    for (const unit of units) {
-      const count = Math.floor(diffMs / unit.ms);
-      if (count <= 0) continue;
-      if (language === "fr") {
-        const suffix = unit.fr === "mois" ? "" : count > 1 ? "s" : "";
-        return `il y a ${count} ${unit.fr}${suffix}`;
-      }
-      return `${count} ${unit.en}${count > 1 ? "s" : ""} ago`;
+    for (const [unit, ms] of units) {
+      const count = Math.floor(diffMs / ms);
+      if (count > 0) return formatter.format(-count, unit);
     }
-
-    return t("just now", "a l instant");
+    return t("just now", "a l instant", "gerade eben", "justo ahora", "agora mesmo");
   };
 
   const resolveSummary = (flow: any) => {
@@ -171,7 +159,10 @@ export default function AutomationsPage() {
     if (description) return description;
     return t(
       "When invoice becomes overdue ? Send WhatsApp message",
-      "Quand une facture devient en retard ? Envoyer un message WhatsApp"
+      "Quand une facture devient en retard ? Envoyer un message WhatsApp",
+      "Wenn eine Rechnung überfällig wird - WhatsApp-Nachricht senden",
+      "Cuando una factura vence - enviar mensaje de WhatsApp",
+      "Quando uma fatura entra em atraso - enviar mensagem WhatsApp"
     );
   };
 
@@ -182,7 +173,7 @@ export default function AutomationsPage() {
   const duplicateFlow = async (flow: any) => {
     const flowId = String(flow?.id || "");
     if (!flowId) {
-      setStatusMessage(t("Missing automation id.", "ID automation manquant."));
+      setStatusMessage(t("Missing automation id.", "ID automation manquant.", "Automatisierungs-ID fehlt.", "Falta el ID de la automatización.", "Falta o ID da automação."));
       return;
     }
 
@@ -190,7 +181,7 @@ export default function AutomationsPage() {
     setStatusMessage(null);
 
     try {
-      const copyTitle = language === "fr" ? `${flow.title || "Automation"} (Copie)` : `${flow.title || "Automation"} (Copy)`;
+      const copyTitle = `${flow.title || t("Automation", "Automatisation", "Automatisierung", "Automatización", "Automação")} (${t("Copy", "Copie", "Kopie", "Copia", "Copia")})`;
       const res = await fetch("/api/automation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -206,16 +197,16 @@ export default function AutomationsPage() {
         setStatusMessage(
           resolveAutomationErrorMessage(
             json,
-            t("Could not duplicate automation.", "Impossible de dupliquer."),
+            t("Could not duplicate automation.", "Impossible de dupliquer.", "Automatisierung konnte nicht dupliziert werden.", "No se pudo duplicar la automatización.", "Não foi possivel duplicar a automação."),
             "automation_duplicate_failed"
           )
         );
       } else {
-        setStatusMessage(t("Automation duplicated.", "Automation dupliquee."));
+        setStatusMessage(t("Automation duplicated.", "Automatisation dupliquee.", "Automatisierung dupliziert.", "Automatización duplicada.", "Automação duplicada."));
         mutate();
       }
     } catch {
-      setStatusMessage(t("Could not duplicate automation.", "Impossible de dupliquer."));
+      setStatusMessage(t("Could not duplicate automation.", "Impossible de dupliquer.", "Automatisierung konnte nicht dupliziert werden.", "No se pudo duplicar la automatización.", "Não foi possivel duplicar a automação."));
     } finally {
       clearBusy();
     }
@@ -224,7 +215,7 @@ export default function AutomationsPage() {
   const toggleFlow = async (flow: any) => {
     const flowId = String(flow?.id || "");
     if (!flowId) {
-      setStatusMessage(t("Missing automation id.", "ID automation manquant."));
+      setStatusMessage(t("Missing automation id.", "ID automation manquant.", "Automatisierungs-ID fehlt.", "Falta el ID de la automatización.", "Falta o ID da automação."));
       return;
     }
 
@@ -243,16 +234,16 @@ export default function AutomationsPage() {
         setStatusMessage(
           resolveAutomationErrorMessage(
             json,
-            t("Unable to update automation. Please try again.", "Impossible de mettre a jour l automation. Reessayez."),
+            t("Unable to update automation. Please try again.", "Impossible de mettre a jour l automation. Reessayez.", "Automatisierung konnte nicht aktualisiert werden. Bitte versuche es erneut.", "No se pudo actualizar la automatización. Intentalo de nuevo.", "Não foi possivel atualizar a automação. Tente novamente."),
             "automation_toggle_failed"
           )
         );
       } else {
-        setStatusMessage(t("Automation updated.", "Automation mise a jour."));
+        setStatusMessage(t("Automation updated.", "Automatisation mise a jour.", "Automatisierung aktualisiert.", "Automatizacion actualizada.", "Automacao atualizada."));
         mutate();
       }
     } catch {
-      setStatusMessage(t("Could not update automation.", "Impossible de mettre a jour."));
+      setStatusMessage(t("Could not update automation.", "Impossible de mettre a jour.", "Automatisierung konnte nicht aktualisiert werden.", "No se pudo actualizar la automatización.", "Não foi possivel atualizar a automação."));
     } finally {
       clearBusy();
     }
@@ -260,39 +251,68 @@ export default function AutomationsPage() {
 
   const stats = [
     {
-      label: t("Active Automations", "Automations actives"),
+      label: t("Active Automations", "Automations actives", "Aktive Automatisierungen", "Automatizaciónes activas", "Automações ativas"),
       value: activeAutomations.toLocaleString(),
-      subtext: t("Currently running", "Actuellement en cours"),
+      subtext: t("Currently running", "Actuellement en cours", "Derzeit aktiv", "En ejecucion", "Em execucao"),
     },
     {
-      label: t("Executions This Month", "Executions ce mois"),
+      label: t("Executions This Month", "Executions ce mois", "Ausfuhrungen diesen Monat", "Ejecuciones este mes", "Execucoes este mes"),
       value: executionsThisMonth.toLocaleString(),
-      subtext: t("Across all workflows", "Tous workflows confondus"),
+      subtext: t("Across all workflows", "Tous workflows confondus", "über alle Workflows hinweg", "En todos los flujos", "Em todos os fluxos"),
     },
     {
-      label: t("Successful Runs", "Runs reussis"),
+      label: t("Successful Runs", "Runs reussis", "Erfolgreiche Ausfuhrungen", "Ejecuciones correctas", "Execucoes bem-sucedidas"),
       value: successfulRuns.toLocaleString(),
-      subtext: t("Completed successfully", "Completes avec succes"),
+      subtext: t("Completed successfully", "Completes avec succes", "Erfolgreich abgeschlossen", "Completadas con exito", "Concluidas com sucesso"),
     },
     {
-      label: t("Success Rate", "Taux de succes"),
+      label: t("Success Rate", "Taux de succes", "Erfolgsquote", "Tasa de exito", "Taxa de sucesso"),
       value: `${successRate.toLocaleString()}%`,
       subtext:
         executionsThisMonth > 0
-          ? t("Based on this month's runs", "Base sur les runs de ce mois")
-          : t("No runs recorded this month", "Aucun run enregistre ce mois"),
+          ? t("Based on this month's runs", "Base sur les runs de ce mois", "Basierend auf den Ausfuhrungen dieses Monats", "Basado en las ejecuciones de este mes", "Com base nas execucoes deste mes")
+          : t("No runs recorded this month", "Aucun run enregistre ce mois", "Keine Ausfuhrungen in diesem Monat", "No se registraron ejecuciones este mes", "Não ha execucoes registadas este mes"),
     },
   ];
+
+  const localizedTemplates = useMemo(
+    () =>
+      templates.map((template) => {
+        if (template.id === "overdue_reminder_3_days") {
+          return {
+            ...template,
+            title: t("Send payment reminder after 3 days", "Envoyer un rappel de paiement apres 3 jours", "Zahlungserinnerung nach 3 Tagen senden", "Enviar recordatorio de pago despues de 3 dias", "Enviar lembrete de pagamento após 3 dias"),
+            description: t("Auto-send reminder if invoice unpaid.", "Envoyer automatiquement un rappel si la facture reste impayee.", "Erinnerung automatisch senden, wenn die Rechnung unbezahlt bleibt.", "Enviar recordatorio automatico si la factura sigue impagada.", "Enviar lembrete automaticamente se a fatura continuar por pagar."),
+          };
+        }
+        if (template.id === "whatsapp_thank_you") {
+          return {
+            ...template,
+            title: t("Send WhatsApp thank you message", "Envoyer un message WhatsApp de remerciement", "WhatsApp-Dankesnachricht senden", "Enviar mensaje de agradecimiento por WhatsApp", "Enviar mensagem de agradecimento por WhatsApp"),
+            description: t("Automatically thank customers after payment.", "Remercier automatiquement les clients apres paiement.", "Kundinnen und Kunden nach der Zahlung automatisch danken.", "Agradecer automaticamente a los clientes tras el pago.", "Agradecer automaticamente aos clientes após o pagamento."),
+          };
+        }
+        return {
+          ...template,
+          title: t("Notify when invoice is paid", "Notifier quand la facture est payee", "Benachrichtigen, wenn eine Rechnung bezahlt wird", "Notificar cuando se pague la factura", "Notificar quando a fatura for paga"),
+          description: t("Send instant alerts when invoices are settled.", "Envoyer des alertes instantanees quand les factures sont reglees.", "Sofortige Hinweise senden, wenn Rechnungen beglichen sind.", "Enviar alertas instantaneas cuando se liquiden facturas.", "Enviar alertas imediatos quando as faturas forem liquidadas."),
+        };
+      }),
+    [t]
+  );
 
   return (
     <div className="mx-auto w-full max-w-[1220px] space-y-8 bg-slate-50 px-4 py-6 dark:bg-transparent sm:px-6 lg:px-8">
       <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">{t("Automation", "Automation")}</h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">{t("Automation", "Automatisation", "Automatisierung", "Automatización", "Automação")}</h1>
           <p className="text-sm text-slate-600 dark:text-slate-300">
             {t(
               "Create workflows that run your business automatically.",
-              "Creez des workflows qui executent votre entreprise automatiquement."
+              "Creez des workflows qui executent votre entreprise automatiquement.",
+              "Erstelle Workflows, die dein Unternehmen automatisch ausfuhren.",
+              "Crea flujos que ejecuten tu negocio automaticamente.",
+              "Crie fluxos que executem o seu negocio automaticamente."
             )}
           </p>
         </div>
@@ -301,7 +321,7 @@ export default function AutomationsPage() {
           onClick={() => router.push("/dashboard/automations/new")}
           className="inline-flex h-12 w-full items-center justify-center rounded-lg bg-blue-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 sm:w-auto"
         >
-          {t("New Automation", "Nouvelle automation")}
+          {t("New Automation", "Nouvelle automatisation", "Neue Automatisierung", "Nueva automatización", "Nova automação")}
         </button>
       </section>
 
@@ -332,7 +352,7 @@ export default function AutomationsPage() {
           <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-300">
             {resolveAutomationErrorMessage(
               (flowsError as any)?.data,
-              t("Unable to load automations.", "Impossible de charger les automatisations."),
+              t("Unable to load automations.", "Impossible de charger les automatisations.", "Automatisierungen konnten nicht geladen werden.", "No se pudieron cargar las automatizaciones.", "Não foi possivel carregar as automações."),
               "automation_list_load_failed"
             )}
           </div>
@@ -343,11 +363,14 @@ export default function AutomationsPage() {
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
               <GitBranch className="h-5 w-5" />
             </div>
-            <h2 className="mt-4 text-lg font-semibold text-slate-900 dark:text-slate-50">{t("No automations yet", "Aucune automation")}</h2>
+            <h2 className="mt-4 text-lg font-semibold text-slate-900 dark:text-slate-50">{t("No automations yet", "Aucune automatisation", "Noch keine Automatisierungen", "Aún no hay automatizaciones", "Ainda não ha automações")}</h2>
             <p className="mx-auto mt-2 max-w-md text-sm text-slate-600 dark:text-slate-300">
               {t(
                 "Create your first workflow to start automating your business.",
-                "Creez votre premier workflow pour commencer a automatiser votre entreprise."
+                "Creez votre premier workflow pour commencer a automatiser votre entreprise.",
+                "Erstelle deinen ersten Workflow, um dein Unternehmen zu automatisieren.",
+                "Crea tu primer flujo para empezar a automatizar tu negocio.",
+                "Crie o seu primeiro fluxo para comecar a automatizar o negocio."
               )}
             </p>
             <button
@@ -355,7 +378,7 @@ export default function AutomationsPage() {
               onClick={() => router.push("/dashboard/automations/new")}
               className="mt-6 inline-flex h-12 w-full items-center justify-center rounded-lg bg-blue-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 sm:w-auto"
             >
-              {t("Create Automation", "Creer une automation")}
+              {t("Create Automation", "Creer une automatisation", "Automatisierung erstellen", "Crear automatización", "Criar automação")}
             </button>
           </div>
         ) : null}
@@ -380,7 +403,7 @@ export default function AutomationsPage() {
                         <GitBranch className="h-4 w-4" />
                       </span>
                       <h3 className="truncate text-lg font-semibold text-slate-900 dark:text-slate-100">
-                        {flow?.title || t("Untitled automation", "Automation sans titre")}
+                        {flow?.title || t("Untitled automation", "Automatisation sans titre", "Unbenannte Automatisierung", "Automatización sin título", "Automação sem título")}
                       </h3>
                     </div>
                     <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${getStatusClass(flow?.status)}`}>
@@ -392,10 +415,10 @@ export default function AutomationsPage() {
 
                   <div className="mt-4 flex items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
                     <span>
-                      {t("Runs", "Executions")}: <span className="font-semibold text-slate-700 dark:text-slate-200">{executionsCount}</span>
+                      {t("Runs", "Executions", "Ausfuhrungen", "Ejecuciones", "Execucoes")}: <span className="font-semibold text-slate-700 dark:text-slate-200">{executionsCount}</span>
                     </span>
                     <span className="text-right">
-                      {t("Last run", "Dernier run")}: <span className="font-semibold text-slate-700 dark:text-slate-200">{formatRelativeTime(lastRun)}</span>
+                      {t("Last run", "Derniere execution", "Letzte Ausfuhrung", "Ultima ejecucion", "Ultima execucao")}: <span className="font-semibold text-slate-700 dark:text-slate-200">{formatRelativeTime(lastRun)}</span>
                     </span>
                   </div>
 
@@ -407,7 +430,7 @@ export default function AutomationsPage() {
                         className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-transparent bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 sm:w-auto"
                       >
                         <PencilLine className="h-3.5 w-3.5" />
-                        {t("Edit", "Modifier")}
+                        {t("Edit", "Modifier", "Bearbeiten", "Editar", "Editar")}
                       </button>
                       <button
                         type="button"
@@ -416,7 +439,7 @@ export default function AutomationsPage() {
                         className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-transparent bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 sm:w-auto"
                       >
                         <Copy className="h-3.5 w-3.5" />
-                        {t("Duplicate", "Dupliquer")}
+                        {t("Duplicate", "Dupliquer", "Duplizieren", "Duplicar", "Duplicar")}
                       </button>
                     </div>
 
@@ -424,7 +447,7 @@ export default function AutomationsPage() {
                       type="button"
                       role="switch"
                       aria-checked={active}
-                      aria-label={t("Toggle automation", "Basculer automation")}
+                      aria-label={t("Toggle automation", "Basculer l automatisation", "Automatisierung umschalten", "Cambiar automatización", "Alternar automação")}
                       disabled={isBusy("toggle", flowId)}
                       onClick={() => toggleFlow(flow)}
                       className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition ${
@@ -447,10 +470,10 @@ export default function AutomationsPage() {
 
       <section className="space-y-4">
         <div>
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-50">{t("Templates", "Modeles")}</h2>
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-50">{t("Templates", "Modeles", "Vorlagen", "Plantillas", "Modelos")}</h2>
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {templates.map((template) => (
+          {localizedTemplates.map((template) => (
             <article key={template.id} className="rounded-xl border border-slate-200 bg-slate-100/80 p-4 dark:border-slate-700 dark:bg-slate-900">
               <div className="flex items-start gap-3">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-slate-600 shadow-sm dark:bg-slate-800 dark:text-slate-300">
@@ -466,7 +489,7 @@ export default function AutomationsPage() {
                 onClick={() => router.push(`/dashboard/automations/new?template=${encodeURIComponent(template.id)}`)}
                 className="mt-4 inline-flex h-9 items-center justify-center rounded-lg bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
               >
-                {t("Use Template", "Utiliser le modele")}
+                {t("Use Template", "Utiliser le modele", "Vorlage verwenden", "Usar plantilla", "Usar modelo")}
               </button>
             </article>
           ))}

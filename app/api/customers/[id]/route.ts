@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { requireBillingAccess } from "@/lib/permissions";
+import { getVisibleCustomerWhere } from "@/lib/customers";
 import { customerCreateSchema } from "@/lib/validators";
 
 type Params = { params: Promise<{ id: string }> };
@@ -20,9 +21,10 @@ export async function GET(_request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: billingAccess.message }, { status: 403 });
   }
   const targetUserId = billingAccess.ownerUserId;
+  const visibilityWhere = await getVisibleCustomerWhere(targetUserId);
 
   const customer = await prisma.customer.findFirst({
-    where: { id, userId: targetUserId, deletedAt: null },
+    where: { ...visibilityWhere, id, userId: targetUserId, deletedAt: null },
     select: {
       id: true,
       name: true,
@@ -59,9 +61,10 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: billingAccess.message }, { status: 403 });
   }
   const targetUserId = billingAccess.ownerUserId;
+  const visibilityWhere = await getVisibleCustomerWhere(targetUserId);
 
   const customer = await prisma.customer.findFirst({
-    where: { id, userId: targetUserId },
+    where: { ...visibilityWhere, id, userId: targetUserId },
     select: { id: true, status: true },
   });
   if (!customer) {
@@ -70,7 +73,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
 
   if (customer.status !== "DISABLED") {
     const invoiceCount = await prisma.invoice.count({
-      where: { userId: targetUserId, customerId: customer.id },
+      where: { userId: targetUserId, customerId: customer.id, subscriptionId: null },
     });
     await prisma.$transaction([
       prisma.customer.update({
@@ -115,6 +118,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: billingAccess.message }, { status: 403 });
   }
   const targetUserId = billingAccess.ownerUserId;
+  const visibilityWhere = await getVisibleCustomerWhere(targetUserId);
 
   const body = await request.json().catch(() => ({}));
   if (body?.action !== "restore" && body?.action !== "disable") {
@@ -122,7 +126,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 
   const customer = await prisma.customer.findFirst({
-    where: { id, userId: targetUserId },
+    where: { ...visibilityWhere, id, userId: targetUserId },
     select: { id: true },
   });
   if (!customer) {
@@ -154,7 +158,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     ]);
   } else {
     const invoiceCount = await prisma.invoice.count({
-      where: { userId: targetUserId, customerId: customer.id },
+      where: { userId: targetUserId, customerId: customer.id, subscriptionId: null },
     });
     await prisma.$transaction([
       prisma.customer.update({
@@ -199,6 +203,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: billingAccess.message }, { status: 403 });
   }
   const targetUserId = billingAccess.ownerUserId;
+  const visibilityWhere = await getVisibleCustomerWhere(targetUserId);
 
   const body = await request.json();
   const parsed = customerCreateSchema.partial().safeParse(body);
@@ -207,7 +212,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
   }
 
   const customer = await prisma.customer.findFirst({
-    where: { id, userId: targetUserId },
+    where: { ...visibilityWhere, id, userId: targetUserId },
     select: { id: true, phone: true, deliveryPreference: true },
   });
   if (!customer) {

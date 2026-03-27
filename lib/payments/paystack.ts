@@ -5,7 +5,6 @@ import { prisma } from "../prisma";
 import { log } from "../logger";
 import { env } from "../env";
 import { notifyPaymentSucceeded } from "../whatsapp";
-import { maybeSendSubscriptionReceipt } from "../subscription-receipt";
 import { recordInvoicePayment } from "../invoice-payments";
 import { fromMinorUnits, toMinorUnits } from "./currency-allowlist";
 import type { BillingInterval } from "../pricing";
@@ -252,24 +251,6 @@ export async function recordPaystackPayment(data: any) {
   });
 
   if (!finalized?.payment) return;
-
-  try {
-    await maybeSendSubscriptionReceipt({
-      paymentId: finalized.payment.id,
-      userId: resolvedUserId,
-      amount,
-      currency,
-      provider: "PAYSTACK",
-      reference,
-      paidAt: finalized.payment.createdAt,
-      plan: finalized.plan,
-      interval: finalized.interval,
-      paymentMethod,
-      verified: true,
-    });
-  } catch (error: any) {
-    log("error", "paystack_receipt_failed", { userId: resolvedUserId, reference, error: error.message });
-  }
   try {
     await notifyPaymentSucceeded({
       userId: resolvedUserId,

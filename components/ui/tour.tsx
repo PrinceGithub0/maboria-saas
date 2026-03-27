@@ -5,57 +5,59 @@ import { Button } from "./button";
 import { useUser } from "@/lib/hooks/use-user";
 import { usePathname, useRouter } from "next/navigation";
 import { useLanguage } from "@/components/providers/language-provider";
+import { getLocalizedText, resolveLocalizedText, type LocalizedText } from "@/lib/i18n";
 
-const steps = [
+const text = (en: string, fr: string) => resolveLocalizedText({ en, fr });
+
+const steps: Array<{ title: LocalizedText; desc: LocalizedText; href: string }> = [
   {
-    title: { en: "Dashboard", fr: "Tableau de bord" },
-    desc: { en: "See metrics, cards, and quick actions.", fr: "Voir les metriques, cartes et actions rapides." },
+    title: text("Dashboard", "Tableau de bord"),
+    desc: text("See metrics, cards, and quick actions.", "Voir les métriques, cartes et actions rapides."),
     href: "/dashboard",
   },
   {
-    title: { en: "Automations", fr: "Automatisations" },
-    desc: { en: "Build or AI-generate workflows with triggers and actions.", fr: "Creer ou generer des workflows IA avec declencheurs et actions." },
+    title: text("Automations", "Automatisations"),
+    desc: text("Build or AI-generate workflows with triggers and actions.", "Creer ou generer des workflows IA avec declencheurs et actions."),
     href: "/dashboard/automations",
   },
   {
-    title: { en: "Automation Operations", fr: "Operations automatisation" },
-    desc: {
-      en: "Monitor automation health and investigate failed steps.",
-      fr: "Surveiller la sante des automatisations et investiguer les echecs.",
-    },
+    title: text("Automation Operations", "Operations automatisation"),
+    desc: text(
+      "Monitor automation health and investigate failed steps.",
+      "Surveiller la sante des automatisations et investiguer les echecs."
+    ),
     href: "/dashboard/automation-operations",
   },
   {
-    title: { en: "AI Assistant", fr: "Assistant IA" },
-    desc: { en: "Chat, create flows, and diagnose errors with AI.", fr: "Discuter, creer des flux, diagnostiquer avec l IA." },
+    title: text("AI Assistant", "Assistant IA"),
+    desc: text("Chat, create flows, and diagnose errors with AI.", "Discuter, creer des flux, diagnostiquer avec l IA."),
     href: "/dashboard/assistant",
   },
   {
-    title: { en: "Inbox", fr: "Boite de reception" },
-    desc: { en: "Review customer messages and replies in one place.", fr: "Voir messages clients et reponses au meme endroit." },
+    title: text("Inbox", "Boite de reception"),
+    desc: text("Review customer messages and replies in one place.", "Voir messages clients et réponses au meme endroit."),
     href: "/dashboard/inbox",
   },
   {
-    title: { en: "Billing", fr: "Facturation" },
-    desc: { en: "Manage plans, invoices, and payment methods.", fr: "Gerer plans, factures et moyens de paiement." },
+    title: text("Billing", "Facturation"),
+    desc: text("Manage plans, invoices, and payment methods.", "Gerer plans, factures et moyens de paiement."),
     href: "/dashboard/subscription",
   },
   {
-    title: { en: "Analytics", fr: "Analyses" },
-    desc: { en: "Review usage, automation runs, and quotas.", fr: "Voir l usage, executions et quotas." },
+    title: text("Analytics", "Analyses"),
+    desc: text("Review usage, automation runs, and quotas.", "Voir l usage, executions et quotas."),
     href: "/dashboard/report",
   },
   {
-    title: { en: "Settings", fr: "Parametres" },
-    desc: { en: "Profile, security, and 2FA preferences.", fr: "Profil, securite et preferences 2FA." },
+    title: text("Settings", "Paramêtres"),
+    desc: text("Profile, security, and 2FA preferences.", "Profil, sécurité et preferences 2FA."),
     href: "/dashboard/settings",
   },
 ];
 
 export function TourOverlay() {
   const { user, mutate } = useUser();
-  const { language } = useLanguage();
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const { language, t } = useLanguage();
   const [active, setActive] = useState(0);
   const [visible, setVisible] = useState(false);
   const router = useRouter();
@@ -137,8 +139,8 @@ export function TourOverlay() {
           {t("Step", "Etape")} {active + 1} {t("of", "sur")} {steps.length}
         </span>
       </div>
-      <h4 className="mt-3 text-xl font-semibold">{step.title[language]}</h4>
-      <p className={`mt-1 text-sm ${descClass}`}>{step.desc[language]}</p>
+      <h4 className="mt-3 text-xl font-semibold">{getLocalizedText(step.title, language)}</h4>
+      <p className={`mt-1 text-sm ${descClass}`}>{getLocalizedText(step.desc, language)}</p>
       <div className="mt-4">
         <div className={`h-1.5 w-full rounded-full ${trackClass}`}>
           <div
@@ -162,8 +164,8 @@ export function TourOverlay() {
               onClick={() => step?.href && router.push(step.href)}
               aria-label={
                 language === "fr"
-                  ? `Aller a ${step.title[language]}`
-                  : `Go to ${step.title[language]}`
+                  ? `Aller a ${getLocalizedText(step.title, language)}`
+                  : `Go to ${getLocalizedText(step.title, language)}`
               }
             >
               {t("Go", "Aller")}
@@ -212,8 +214,7 @@ export function RestartTourButton({
 }) {
   const { mutate } = useUser();
   const router = useRouter();
-  const { language } = useLanguage();
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
 
   const restart = async () => {

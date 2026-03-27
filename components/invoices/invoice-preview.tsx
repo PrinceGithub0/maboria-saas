@@ -1,5 +1,8 @@
+"use client";
+
 import { Card } from "@/components/ui/card";
 import { LangText } from "@/components/ui/lang-text";
+import { useLanguage } from "@/components/providers/language-provider";
 import { parseBusinessAddress } from "@/lib/address";
 import { getCountryName } from "@/lib/countries";
 import { formatCurrency } from "@/lib/currency";
@@ -79,6 +82,7 @@ const getSingleLineAmountStyle = (
 };
 
 export function InvoicePreview(props: InvoicePreviewProps) {
+  const { language } = useLanguage();
   const previewVariant = props.variant ?? "default";
   const isCompactPreview = previewVariant === "compact";
   const normalizedStatus = String(props.status || "").toUpperCase();
@@ -88,30 +92,45 @@ export function InvoicePreview(props: InvoicePreviewProps) {
         return {
           label: "PAID",
           fr: "PAYE",
+          de: "BEZAHLT",
+          es: "PAGADA",
+          pt: "PAGA",
           toneClass: "bg-emerald-500/15 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300",
         };
       case "REFUNDED":
         return {
           label: "REFUNDED",
           fr: "REMBOURSEE",
+          de: "ERSTATTET",
+          es: "REEMBOLSADA",
+          pt: "REEMBOLSADA",
           toneClass: "bg-sky-500/15 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300",
         };
       case "PARTIALLY_REFUNDED":
         return {
           label: "PARTIALLY REFUNDED",
           fr: "PARTIELLEMENT REMBOURSEE",
+          de: "TEILWEISE ERSTATTET",
+          es: "PARCIALMENTE REEMBOLSADA",
+          pt: "PARCIALMENTE REEMBOLSADA",
           toneClass: "bg-cyan-500/15 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-300",
         };
       case "OVERDUE":
         return {
           label: "OVERDUE",
           fr: "EN RETARD",
+          de: "UBERFALLIG",
+          es: "VENCIDA",
+          pt: "EM ATRASO",
           toneClass: "bg-rose-500/15 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
         };
       case "FAILED":
         return {
           label: "FAILED",
           fr: "ECHEC",
+          de: "FEHLGESCHLAGEN",
+          es: "FALLIDA",
+          pt: "FALHOU",
           toneClass: "bg-rose-500/15 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
         };
       case "CANCELED":
@@ -119,47 +138,67 @@ export function InvoicePreview(props: InvoicePreviewProps) {
         return {
           label: "CANCELED",
           fr: "ANNULEE",
+          de: "STORNIERT",
+          es: "CANCELADA",
+          pt: "CANCELADA",
           toneClass: "bg-slate-500/15 text-slate-700 dark:bg-slate-500/15 dark:text-slate-300",
         };
       case "EXPIRED":
         return {
           label: "EXPIRED",
           fr: "EXPIREE",
+          de: "ABGELAUFEN",
+          es: "EXPIRADA",
+          pt: "EXPIRADA",
           toneClass: "bg-slate-500/15 text-slate-700 dark:bg-slate-500/15 dark:text-slate-300",
         };
       case "DRAFT":
         return {
           label: "DRAFT",
           fr: "BROUILLON",
+          de: "ENTWURF",
+          es: "BORRADOR",
+          pt: "RASCUNHO",
           toneClass: "bg-slate-500/15 text-slate-700 dark:bg-slate-500/15 dark:text-slate-300",
         };
       case "SENT":
         return {
           label: "DUE",
           fr: "EN ATTENTE",
+          de: "FALLIG",
+          es: "PENDIENTE",
+          pt: "PENDENTE",
           toneClass: "bg-amber-500/15 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
         };
       default:
         return {
           label: normalizedStatus || "DUE",
           fr: normalizedStatus || "EN ATTENTE",
+          de: normalizedStatus || "FALLIG",
+          es: normalizedStatus || "PENDIENTE",
+          pt: normalizedStatus || "PENDENTE",
           toneClass: "bg-amber-500/15 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
         };
     }
   })();
   const displayStatus = statusPresentation.label;
   const statusFr = statusPresentation.fr;
+  const statusDe = statusPresentation.de;
+  const statusEs = statusPresentation.es;
+  const statusPt = statusPresentation.pt;
   const statusToneClass = statusPresentation.toneClass;
   const showTax = Boolean(props.totals.vatEnabled) && Number(props.totals.vatRate || 0) > 0;
   const lateFeeAmount = Math.max(0, Number(props.lateFeeAmount || 0));
   const totalDue = Number.isFinite(Number(props.totalDue))
     ? Number(props.totalDue)
     : Number(props.totals.total || 0);
-  const t = (en: string, fr: string) => <LangText en={en} fr={fr} />;
+  const t = (en: string, fr: string, de?: string, es?: string, pt?: string) => (
+    <LangText en={en} fr={fr} de={de} es={es} pt={pt} />
+  );
   const formatCountryName = (value?: string | null) => {
     const raw = String(value || "").trim();
     if (!raw) return "";
-    if (raw.length === 2) return getCountryName(raw.toUpperCase(), "en");
+    if (raw.length === 2) return getCountryName(raw.toUpperCase(), language);
     return raw;
   };
   const rawBusinessAddress = props.business.businessAddress?.trim() || "";
@@ -196,9 +235,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
   const formattedTotalDue = formatCurrency(totalDue, props.currency);
   const vatRateLabel = formatVatRateLabel(props.totals.vatRate, props.business.vatRateDisplay);
   const isDashboardDocument = previewVariant === "dashboard" && Array.isArray(props.items);
-  const billToName = props.billTo?.name?.trim() || "Customer";
-  const invoiceSummary =
-    props.items.length === 1 ? props.items[0]?.name?.trim() || "1 item" : `${props.items.length} items`;
+  const billToName = props.billTo?.name?.trim() || null;
 
   if (isDashboardDocument) {
     return (
@@ -228,34 +265,34 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 <span
                   className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusToneClass}`}
                 >
-                  <LangText en={displayStatus} fr={statusFr} />
+                  <LangText en={displayStatus} fr={statusFr} de={statusDe} es={statusEs} pt={statusPt} />
                 </span>
               </div>
               <div className="space-y-3 text-sm">
                 <div className="flex items-start justify-between gap-4 lg:justify-end lg:text-right">
-                  <span className="text-muted-foreground">{t("Invoice No.", "Facture n°")}</span>
+                  <span className="text-muted-foreground">{t("Invoice No.", "Facture n°", "Rechnungsnr.", "N.º de factura", "N.º da fatura")}</span>
                   <span className="max-w-[65%] break-words font-semibold text-foreground">{props.invoiceNumber}</span>
                 </div>
                 {props.poNumber ? (
                   <div className="flex items-start justify-between gap-4 lg:justify-end lg:text-right">
-                    <span className="text-muted-foreground">{t("PO Number", "Bon de commande")}</span>
+                    <span className="text-muted-foreground">{t("PO Number", "Bon de commande", "Bestellnummer", "Numero OC", "Numero OC")}</span>
                     <span className="max-w-[65%] break-words font-semibold text-foreground">{props.poNumber}</span>
                   </div>
                 ) : null}
                 <div className="flex items-start justify-between gap-4 lg:justify-end lg:text-right">
-                  <span className="text-muted-foreground">{t("Issue Date", "Date d emission")}</span>
+                  <span className="text-muted-foreground">{t("Issue Date", "Date d emission", "Ausstellungsdatum", "Fecha de emision", "Data de emissao")}</span>
                   <span className="font-semibold text-foreground">{formatDateDMY(props.issuedAt)}</span>
                 </div>
                 {props.dueDate ? (
                   <div className="flex items-start justify-between gap-4 lg:justify-end lg:text-right">
-                    <span className="text-muted-foreground">{t("Due Date", "Echeance")}</span>
+                    <span className="text-muted-foreground">{t("Due Date", "Echeance", "Falligkeitsdatum", "Fecha de vencimiento", "Data de vencimento")}</span>
                     <span className="font-semibold text-foreground">{formatDateDMY(props.dueDate)}</span>
                   </div>
                 ) : null}
               </div>
               <div className="border-t border-slate-200/80 pt-4 dark:border-slate-700/80">
                 <p className="text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                  {t("Total due", "Total du")}
+                  {t("Total due", "Total du", "Gesamtbetrag fallig", "Total adeudado", "Total em divida")}
                 </p>
                 <div
                   className={getSingleLineAmountClass(
@@ -273,11 +310,11 @@ export function InvoicePreview(props: InvoicePreviewProps) {
           <div className="grid gap-8 border-b border-slate-200/80 pb-8 dark:border-slate-700/80 md:grid-cols-2">
             <div className="min-w-0">
               <p className="text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                {t("Billed to", "Facture a")}
+                {t("Billed to", "Facture a", "Berechnet an", "Facturado a", "Faturado a")}
               </p>
               <div className="mt-4 space-y-1.5 text-sm leading-7 text-foreground">
                 <p className="text-[1.08rem] font-semibold tracking-[-0.025em]">
-                  {props.billTo?.name ?? <LangText en="Customer" fr="Client" />}
+                  {props.billTo?.name ?? <LangText en="Customer" fr="Client" de="Kunde" es="Cliente" pt="Cliente" />}
                 </p>
                 {props.billTo?.companyName && <p>{props.billTo.companyName}</p>}
                 {props.billTo?.email && <p>{props.billTo.email}</p>}
@@ -292,7 +329,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 ) : null}
                 {props.billTo?.taxId && (
                   <p className="pt-1">
-                    {t("Tax ID", "ID fiscal")}: {props.billTo.taxId}
+                    {t("Tax ID", "ID fiscal", "Steuer-ID", "ID fiscal", "NIF")}: {props.billTo.taxId}
                   </p>
                 )}
               </div>
@@ -300,7 +337,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
 
             <div className="min-w-0 md:text-right">
               <p className="text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                {t("Invoiced by", "Facture par")}
+                {t("Invoiced by", "Facture par", "Ausgestellt von", "Facturado por", "Faturado por")}
               </p>
               <div className="mt-4 space-y-1.5 text-sm leading-7 text-foreground">
                 <p className="text-[1.08rem] font-semibold tracking-[-0.025em]">{props.business.businessName}</p>
@@ -318,7 +355,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 ) : null}
                 {props.business.taxId && (
                   <p className="pt-1">
-                    {t("Tax ID", "ID fiscal")}: {props.business.taxId}
+                    {t("Tax ID", "ID fiscal", "Steuer-ID", "ID fiscal", "NIF")}: {props.business.taxId}
                   </p>
                 )}
               </div>
@@ -327,10 +364,10 @@ export function InvoicePreview(props: InvoicePreviewProps) {
 
           <div className="min-w-0 overflow-hidden">
             <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_72px_124px_118px] gap-3 border-b border-slate-200/80 px-1 pb-4 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:border-slate-700/80 dark:text-slate-400">
-              <div className="min-w-0">{t("Description", "Description")}</div>
-              <div className="text-center whitespace-nowrap">{t("Qty", "Qt")}</div>
-              <div className="text-center whitespace-nowrap">{t("Unit Price", "Prix unitaire")}</div>
-              <div className="pr-1 text-right whitespace-nowrap">{t("Total", "Total")}</div>
+              <div className="min-w-0">{t("Description", "Description", "Beschreibung", "Descripcion", "Descricao")}</div>
+              <div className="text-center whitespace-nowrap">{t("Qty", "Qt", "Menge", "Cant.", "Qtd.")}</div>
+              <div className="text-center whitespace-nowrap">{t("Unit Price", "Prix unitaire", "Einzelpreis", "Precio unitario", "Preco unitario")}</div>
+              <div className="pr-1 text-right whitespace-nowrap">{t("Total", "Total", "Gesamt", "Total", "Total")}</div>
             </div>
             <div className="divide-y divide-slate-200/80 dark:divide-slate-700/80">
               {props.items.map((item, idx) => (
@@ -386,7 +423,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
               {props.note ? (
                 <div className="space-y-3">
                   <p className="text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                    {t("Customer note", "Note au client")}
+                    {t("Customer note", "Note au client", "Kundennotiz", "Nota del cliente", "Nota do cliente")}
                   </p>
                   <p className="max-w-3xl whitespace-pre-line break-words text-sm leading-7 text-foreground">
                     {props.note}
@@ -404,7 +441,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 }}
               >
                 <div className="flex items-start justify-between gap-4">
-                  <span className="text-muted-foreground">{t("Subtotal", "Sous-total")}</span>
+                  <span className="text-muted-foreground">{t("Subtotal", "Sous-total", "Zwischensumme", "Subtotal", "Subtotal")}</span>
                   <span
                     className={getSingleLineAmountClass(
                       formatCurrency(props.totals.subtotal, props.currency),
@@ -424,7 +461,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 {showTax ? (
                   <div className="flex items-start justify-between gap-4">
                     <span className="text-muted-foreground">
-                      {t("Tax", "Taxe")} ({vatRateLabel}%)
+                      {t("Tax", "Taxe", "Steuer", "Impuesto", "Imposto")} ({vatRateLabel}%)
                     </span>
                     <span
                       className={getSingleLineAmountClass(
@@ -445,7 +482,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 ) : null}
                 {props.totals.discountAmount > 0 ? (
                   <div className="flex items-start justify-between gap-4">
-                    <span className="text-muted-foreground">{t("Discount", "Remise")}</span>
+                    <span className="text-muted-foreground">{t("Discount", "Remise", "Rabatt", "Descuento", "Desconto")}</span>
                     <span
                       className={getSingleLineAmountClass(
                         `-${formatCurrency(props.totals.discountAmount, props.currency)}`,
@@ -465,7 +502,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 ) : null}
                 {lateFeeAmount > 0 ? (
                   <div className="flex items-start justify-between gap-4">
-                    <span className="text-muted-foreground">{t("Late fee", "Frais de retard")}</span>
+                    <span className="text-muted-foreground">{t("Late fee", "Frais de retard", "Verzugsgebühr", "Recargo por demora", "Taxa de atraso")}</span>
                     <span
                       className={getSingleLineAmountClass(
                         formatCurrency(lateFeeAmount, props.currency),
@@ -486,7 +523,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 <div className="border-t border-slate-200/80 pt-4 dark:border-slate-700/80">
                   <div className="flex items-start justify-between gap-4">
                     <span className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                      {t("Total due", "Total du")}
+                      {t("Total due", "Total du", "Gesamtbetrag fallig", "Total adeudado", "Total em divida")}
                     </span>
                     <span
                       className={getSingleLineAmountClass(
@@ -508,15 +545,21 @@ export function InvoicePreview(props: InvoicePreviewProps) {
               {props.dueDate
                 ? t(
                     "Payment is expected by the due date shown above.",
-                    "Le paiement est attendu avant l echeance indiquee ci-dessus."
+                    "Le paiement est attendu avant l echeance indiquee ci-dessus.",
+                    "Die Zahlung wird bis zum oben angegebenen Falligkeitsdatum erwartet.",
+                    "Se espera el pago antes de la fecha de vencimiento indicada arriba.",
+                    "O pagamento e esperado at? a data de vencimento indicada acima."
                   )
                 : t(
                     "This invoice is ready to be shared with your customer.",
-                    "Cette facture est prete a etre partagee avec votre client."
+                    "Cette facture est prete a être partagee avec votre client.",
+                    "Diese Rechnung kann jetzt mit deinem Kunden geteilt werden.",
+                    "Esta factura esta lista para compartirse con tu cliente.",
+                    "Esta fatura esta pronta para ser partilhada com o seu cliente."
                   )}
             </p>
             <p className="absolute inset-x-0 bottom-0 text-center text-[0.68rem] font-medium uppercase tracking-[0.22em] text-slate-400 dark:text-slate-500">
-              {t("Generated with Maboria", "Genere avec Maboria")}
+              {t("Generated with Maboria", "Genere avec Maboria", "Erstellt mit Maboria", "Generado con Maboria", "Gerado com a Maboria")}
             </p>
           </div>
         </div>
@@ -553,7 +596,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-indigo-700/80 dark:text-indigo-200/90">
-                    {t("Total due", "Total du")}
+                  {t("Total due", "Total du", "Gesamtbetrag fallig", "Total adeudado", "Total em divida")}
                   </p>
                   <div
                     className={getSingleLineAmountClass(
@@ -568,37 +611,37 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 <span
                   className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusToneClass}`}
                 >
-                  <LangText en={displayStatus} fr={statusFr} />
+                  <LangText en={displayStatus} fr={statusFr} de={statusDe} es={statusEs} pt={statusPt} />
                 </span>
               </div>
               <div className="mt-5 space-y-3 rounded-2xl border border-slate-200/80 bg-white/78 p-4 text-sm dark:border-slate-700/80 dark:bg-slate-950/58">
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-muted-foreground">{t("Invoice No.", "Facture n°")}</span>
+                  <span className="text-muted-foreground">{t("Invoice No.", "Facture n°", "Rechnungsnr.", "N.º de factura", "N.º da fatura")}</span>
                   <span className="max-w-[60%] break-words text-right font-semibold text-foreground">{props.invoiceNumber}</span>
                 </div>
                 {props.poNumber ? (
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-muted-foreground">{t("PO Number", "Bon de commande")}</span>
+                    <span className="text-muted-foreground">{t("PO Number", "Bon de commande", "Bestellnummer", "Numero OC", "Numero OC")}</span>
                     <span className="max-w-[60%] break-words text-right font-semibold text-foreground">{props.poNumber}</span>
                   </div>
                 ) : null}
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-muted-foreground">{t("Issue Date", "Date d emission")}</span>
+                  <span className="text-muted-foreground">{t("Issue Date", "Date d emission", "Ausstellungsdatum", "Fecha de emision", "Data de emissao")}</span>
                   <span className="font-semibold text-foreground">{formatDateDMY(props.issuedAt)}</span>
                 </div>
                 {props.dueDate ? (
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-muted-foreground">{t("Due", "Echeance")}</span>
+                    <span className="text-muted-foreground">{t("Due", "Echeance", "Fallig", "Vence", "Vence")}</span>
                     <span className="font-semibold text-foreground">{formatDateDMY(props.dueDate)}</span>
                   </div>
                 ) : null}
               </div>
               <div className="mt-4 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
                 <span className="rounded-full border border-slate-200/80 bg-white/80 px-2.5 py-1 dark:border-slate-700/80 dark:bg-slate-950/60">
-                  {t("SSL encrypted", "SSL chiffre")}
+                  {t("SSL encrypted", "SSL chiffre", "SSL-verschlusselt", "SSL cifrado", "SSL encriptado")}
                 </span>
                 <span className="rounded-full border border-slate-200/80 bg-white/80 px-2.5 py-1 dark:border-slate-700/80 dark:bg-slate-950/60">
-                  {paymentProviderLabel || t("Secure payment route", "Route de paiement securisee")}
+                  {paymentProviderLabel || t("Secure payment route", "Route de paiement securisee", "Sicherer Zahlungsweg", "Ruta de pago segura", "Rota de pagamento segura")}
                 </span>
               </div>
               <div className="mt-5">
@@ -607,11 +650,11 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                     href={props.paymentLink}
                     className="inline-flex w-full items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#6657ff_0%,#5547f0_48%,#4338ca_100%)] px-4 py-3 text-sm font-semibold text-white shadow-[0_22px_46px_-22px_rgba(79,70,229,0.88)] hover:bg-[linear-gradient(135deg,#7163ff_0%,#5f51f4_48%,#4b3fd4_100%)]"
                   >
-                    {t("Pay Now Securely", "Payer de maniere securisee")}
+                    {t("Pay Now Securely", "Payer de maniere securisee", "Jetzt sicher bezahlen", "Pagar ahora de forma segura", "Pagar agora com seguranca")}
                   </a>
                 ) : (
                   <span className="inline-flex w-full items-center justify-center rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
-                    {t("Payment unavailable", "Paiement indisponible")}
+                    {t("Payment unavailable", "Paiement indisponible", "Zahlung nicht verfügbar", "Pago no disponible", "Pagamento indisponivel")}
                   </span>
                 )}
               </div>
@@ -621,11 +664,11 @@ export function InvoicePreview(props: InvoicePreviewProps) {
           <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
             <div className="self-start rounded-[24px] border border-slate-200/80 bg-white/78 p-5 dark:border-slate-700/80 dark:bg-slate-950/58">
               <p className="text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                {t("Billed to", "Facture a")}
+                {t("Billed to", "Facture a", "Berechnet an", "Facturado a", "Faturado a")}
               </p>
               <div className="mt-4 space-y-1.5 text-sm leading-6 text-foreground">
                 <p className="text-[1.05rem] font-semibold tracking-[-0.025em]">
-                  {props.billTo?.name ?? <LangText en="Customer" fr="Client" />}
+                  {props.billTo?.name ?? <LangText en="Customer" fr="Client" de="Kunde" es="Cliente" pt="Cliente" />}
                 </p>
                 {props.billTo?.email && <p>{props.billTo.email}</p>}
                 {props.billTo?.companyName && <p>{props.billTo.companyName}</p>}
@@ -638,12 +681,12 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                     ))}
                   </div>
                 ) : null}
-                {props.billTo?.taxId && <p>{t("Tax ID", "ID fiscal")}: {props.billTo.taxId}</p>}
+                {props.billTo?.taxId && <p>{t("Tax ID", "ID fiscal", "Steuer-ID", "ID fiscal", "NIF")}: {props.billTo.taxId}</p>}
               </div>
             </div>
             <div className="self-start rounded-[24px] border border-slate-200/80 bg-white/78 p-5 dark:border-slate-700/80 dark:bg-slate-950/58">
               <p className="text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                {t("Invoiced by", "Facture par")}
+                {t("Invoiced by", "Facture par", "Ausgestellt von", "Facturado por", "Faturado por")}
               </p>
               <div className="mt-4 space-y-1.5 text-sm leading-6 text-foreground">
                 <p className="text-[1.05rem] font-semibold tracking-[-0.025em]">{props.business.businessName}</p>
@@ -659,7 +702,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 ) : businessAddress ? (
                   <p className="break-words">{businessAddress}</p>
                 ) : null}
-                {props.business.taxId && <p>{t("Tax ID", "ID fiscal")}: {props.business.taxId}</p>}
+                {props.business.taxId && <p>{t("Tax ID", "ID fiscal", "Steuer-ID", "ID fiscal", "NIF")}: {props.business.taxId}</p>}
               </div>
             </div>
           </div>
@@ -669,29 +712,29 @@ export function InvoicePreview(props: InvoicePreviewProps) {
               <div className="flex items-center justify-between gap-3 border-b border-slate-200/80 px-5 py-4 dark:border-slate-700/80">
                 <div>
                   <p className="text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                    {t("Line items", "Articles")}
+                    {t("Line items", "Articles", "Positionen", "Partidas", "Itens")}
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {props.items.length === 1
-                      ? <LangText en="1 item on this invoice" fr="1 article sur cette facture" />
+                      ? <LangText en="1 item on this invoice" fr="1 article sur cette facture" de="1 Position auf dieser Rechnung" es="1 item en esta factura" pt="1 item nesta fatura" />
                       : (
                         <>
-                          {props.items.length} <LangText en="items on this invoice" fr="articles sur cette facture" />
+                          {props.items.length} <LangText en="items on this invoice" fr="articles sur cette facture" de="Positionen auf dieser Rechnung" es="items en esta factura" pt="itens nesta fatura" />
                         </>
                       )}
                   </p>
                 </div>
                 {showTax ? (
                   <div className="rounded-full border border-slate-200/80 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 dark:border-slate-700/80 dark:bg-slate-900 dark:text-slate-300">
-                    {t("VAT", "TVA")} ({vatRateLabel}%)
+                    {t("VAT", "TVA", "MwSt.", "IVA", "IVA")} ({vatRateLabel}%)
                   </div>
                 ) : null}
               </div>
               <div className="grid min-w-0 grid-cols-[minmax(0,1.95fr)_72px_minmax(0,0.75fr)_minmax(0,0.8fr)] gap-2 border-b border-slate-200/80 bg-slate-50/80 px-5 py-4 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:border-slate-700/80 dark:bg-slate-900/70 dark:text-slate-400">
-                <div className="min-w-0">{t("Description", "Description")}</div>
-                <div className="text-center whitespace-nowrap">{t("Qty", "Qt")}</div>
-                <div className="text-right whitespace-nowrap">{t("Unit Price", "Prix unitaire")}</div>
-                <div className="text-right whitespace-nowrap">{t("Total", "Total")}</div>
+                <div className="min-w-0">{t("Description", "Description", "Beschreibung", "Descripcion", "Descricao")}</div>
+                <div className="text-center whitespace-nowrap">{t("Qty", "Qt", "Menge", "Cant.", "Qtd.")}</div>
+                <div className="text-right whitespace-nowrap">{t("Unit Price", "Prix unitaire", "Einzelpreis", "Precio unitario", "Preco unitario")}</div>
+                <div className="text-right whitespace-nowrap">{t("Total", "Total", "Gesamt", "Total", "Total")}</div>
               </div>
               <div className="divide-y divide-slate-200/80 dark:divide-slate-700/80">
                 {props.items.map((item, idx) => (
@@ -716,11 +759,11 @@ export function InvoicePreview(props: InvoicePreviewProps) {
 
             <div className="self-start rounded-[26px] border border-slate-200/80 bg-white/82 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] dark:border-slate-700/80 dark:bg-slate-950/58 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
               <p className="text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                {t("Summary", "Resume")}
+                {t("Summary", "Resume", "Zusammenfassung", "Resumen", "Resumo")}
               </p>
               <div className="mt-5 space-y-3 text-sm text-foreground">
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-muted-foreground">{t("Subtotal", "Sous-total")}</span>
+                  <span className="text-muted-foreground">{t("Subtotal", "Sous-total", "Zwischensumme", "Subtotal", "Subtotal")}</span>
                   <span className="max-w-[55%] text-right font-semibold tabular-nums break-all">
                     {formatCurrency(props.totals.subtotal, props.currency)}
                   </span>
@@ -728,7 +771,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 {showTax ? (
                   <div className="flex items-start justify-between gap-3">
                     <span className="text-muted-foreground">
-                      {t("Tax", "Taxe")} ({vatRateLabel}%)
+                      {t("Tax", "Taxe", "Steuer", "Impuesto", "Imposto")} ({vatRateLabel}%)
                     </span>
                     <span className="max-w-[55%] text-right font-semibold tabular-nums break-all">
                       {formatCurrency(props.totals.taxAmount, props.currency)}
@@ -737,7 +780,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 ) : null}
                 {props.totals.discountAmount > 0 ? (
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-muted-foreground">{t("Discount", "Remise")}</span>
+                    <span className="text-muted-foreground">{t("Discount", "Remise", "Rabatt", "Descuento", "Desconto")}</span>
                     <span className="max-w-[55%] text-right font-semibold tabular-nums break-all">
                       -{formatCurrency(props.totals.discountAmount, props.currency)}
                     </span>
@@ -745,7 +788,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 ) : null}
                 {lateFeeAmount > 0 ? (
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-muted-foreground">{t("Late fee", "Frais de retard")}</span>
+                    <span className="text-muted-foreground">{t("Late fee", "Frais de retard", "Verzugsgebühr", "Recargo por demora", "Taxa de atraso")}</span>
                     <span className="max-w-[55%] text-right font-semibold tabular-nums break-all">
                       {formatCurrency(lateFeeAmount, props.currency)}
                     </span>
@@ -755,7 +798,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
               <div className="mt-5 border-t border-slate-200/80 pt-4 dark:border-slate-700/80">
                 <div className="flex items-start justify-between gap-3">
                   <span className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                    {t("Total Due", "Total du")}
+                    {t("Total Due", "Total du", "Gesamtbetrag fallig", "Total adeudado", "Total em divida")}
                   </span>
                   <span
                     className={getSingleLineAmountClass(
@@ -774,7 +817,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
           {props.note ? (
             <div className="rounded-[22px] border border-slate-200/80 bg-white/78 p-5 dark:border-slate-700/80 dark:bg-slate-950/58">
               <p className="text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                {t("Customer note", "Note au client")}
+                {t("Customer note", "Note au client", "Kundennotiz", "Nota del cliente", "Nota do cliente")}
               </p>
               <p className="mt-3 whitespace-pre-line break-words text-sm leading-7 text-foreground">
                 {props.note}
@@ -785,11 +828,11 @@ export function InvoicePreview(props: InvoicePreviewProps) {
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200/80 pt-4 text-sm text-muted-foreground dark:border-slate-700/80">
             <span>
               {props.dueDate
-                ? t("Payment is expected by the due date shown above.", "Le paiement est attendu avant l echeance indiquee ci-dessus.")
-                : t("Please complete payment using the secure checkout link.", "Veuillez effectuer le paiement via le lien securise.")}
+                ? t("Payment is expected by the due date shown above.", "Le paiement est attendu avant l echeance indiquee ci-dessus.", "Die Zahlung wird bis zum oben angegebenen Falligkeitsdatum erwartet.", "Se espera el pago antes de la fecha de vencimiento indicada arriba.", "O pagamento e esperado at? a data de vencimento indicada acima.")
+                : t("Please complete payment using the secure checkout link.", "Veuillez effectuer le paiement via le lien securise.", "Bitte schliesse die Zahlung über den sicheren Checkout-Link ab.", "Completa el pago usando el enlace seguro de pago.", "Conclua o pagamento usando a ligacao segura de checkout.")}
             </span>
             <span className="font-semibold text-foreground">
-              {t("Generated with Maboria", "Genere avec Maboria")}
+              {t("Generated with Maboria", "Genere avec Maboria", "Erstellt mit Maboria", "Generado con Maboria", "Gerado com a Maboria")}
             </span>
           </div>
         </div>
@@ -838,7 +881,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                     : "w-fit grid-cols-[max-content_max-content] gap-x-4 justify-end max-md:justify-start"
                 }`}
               >
-                <span className="font-semibold text-foreground">Invoice No:</span>
+                <span className="font-semibold text-foreground">{t("Invoice No:", "Facture n°", "Rechnungsnr.:", "N.º de factura:", "N.º da fatura:")}</span>
                 <span className={`${isCompactPreview ? "break-all" : "whitespace-nowrap"} text-left text-foreground`}>
                   {props.invoiceNumber}
                 </span>
@@ -854,7 +897,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 <span className="text-left text-foreground">{formatDateDMY(props.issuedAt)}</span>
                 {props.dueDate ? (
                   <>
-                    <span className="font-semibold text-foreground">Due Date:</span>
+                <span className="font-semibold text-foreground">{t("Due Date:", "Echeance:", "Falligkeitsdatum:", "Fecha de vencimiento:", "Data de vencimento:")}</span>
                     <span className="text-left text-foreground">
                       {formatDateDMY(props.dueDate)}
                     </span>
@@ -873,7 +916,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
 
           <div className={`invoice-section grid text-sm text-foreground ${isCompactPreview ? "grid-cols-1 gap-6" : "grid-cols-2 gap-8 max-md:grid-cols-1"}`}>
             <div className="w-full py-1">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">Billed To</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">{t("Billed To", "Facture a", "Berechnet an", "Facturado a", "Faturado a")}</p>
               <div className="mt-3 space-y-1">
                 <p className="font-semibold text-foreground">{billToName}</p>
                 {props.billTo?.companyName ? <p>{props.billTo.companyName}</p> : null}
@@ -887,11 +930,13 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                     ))}
                   </div>
                 ) : null}
-                {props.billTo?.taxId ? <p>Tax ID: {props.billTo.taxId}</p> : null}
+              {props.billTo?.taxId ? <p>{t("Tax ID", "ID fiscal", "Steuer-ID", "ID fiscal", "NIF")}: {props.billTo.taxId}</p> : null}
               </div>
             </div>
             <div className={`w-full py-1 ${isCompactPreview ? "" : "md:pl-32"}`}>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">Invoiced By</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
+                {t("Invoiced By", "Facture par", "Ausgestellt von", "Facturado por", "Faturado por")}
+              </p>
               <div className="mt-3 space-y-1">
                 <p className="font-semibold text-foreground">{props.business.businessName}</p>
                 {props.business.businessEmail ? <p>{props.business.businessEmail}</p> : null}
@@ -906,31 +951,33 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 ) : businessAddress ? (
                   <p className="break-words">{businessAddress}</p>
                 ) : null}
-                {props.business.taxId ? <p>Tax ID: {props.business.taxId}</p> : null}
+              {props.business.taxId ? <p>{t("Tax ID", "ID fiscal", "Steuer-ID", "ID fiscal", "NIF")}: {props.business.taxId}</p> : null}
               </div>
             </div>
           </div>
 
           <div className={`invoice-section grid gap-6 ${isCompactPreview ? "grid-cols-1" : "grid-cols-[1.2fr_0.8fr] max-md:grid-cols-1"}`}>
             <div className="flex h-full flex-col p-1">
-              <h4 className="text-sm font-semibold text-foreground">Invoice Details</h4>
+              <h4 className="text-sm font-semibold text-foreground">{t("Invoice Details", "Details", "Rechnungsdetails", "Detalles de la factura", "Detalhes da fatura")}</h4>
               <div className="mt-4 space-y-3 text-sm text-muted-foreground">
                 {isCompactPreview ? (
                   <div className="font-medium text-foreground">
-                    {props.items.length === 1 ? "1 item" : `${props.items.length} items`}
+                    {props.items.length === 1 ? t("1 item", "1 article", "1 Position", "1 item", "1 item") : <>{props.items.length} {t("items", "articles", "Positionen", "items", "itens")}</>}
                   </div>
                 ) : (
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-semibold text-foreground">Description:</span>
+                    <span className="font-semibold text-foreground">{t("Description", "Description", "Beschreibung", "Descripcion", "Descricao")}:</span>
                     <span className="min-w-0 break-words">
-                      {props.items.length === 1 ? invoiceSummary : `${props.items.length} items`}
+                      {props.items.length === 1 ? (props.items[0]?.name?.trim() || t("1 item", "1 article", "1 Position", "1 item", "1 item")) : <>{props.items.length} {t("items", "articles", "Positionen", "items", "itens")}</>}
                     </span>
                   </div>
                 )}
               </div>
               {showTax ? (
                 <div className="mt-4 max-w-[118px] p-0 text-xs text-muted-foreground">
-                  <div className="font-semibold text-foreground">VAT ({vatRateLabel}%)</div>
+                  <div className="font-semibold text-foreground">
+                    {t("VAT", "TVA", "MwSt.", "IVA", "IVA")} ({vatRateLabel}%)
+                  </div>
                   <div className="mt-1 tabular-nums text-foreground">
                     {formatCurrency(props.totals.taxAmount, props.currency)}
                   </div>
@@ -939,7 +986,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
             </div>
 
             <div className="flex h-full flex-col p-1">
-              <h4 className="text-sm font-semibold text-foreground">Total Due</h4>
+            <h4 className="text-sm font-semibold text-foreground">{t("Total Due", "Total du", "Gesamtbetrag fallig", "Total adeudado", "Total em divida")}</h4>
               <div
                 className={
                   isCompactPreview
@@ -959,11 +1006,11 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                     href={props.paymentLink}
                     className="inline-flex w-full items-center justify-center rounded-md bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-500"
                   >
-                    Pay Now
+                    {t("Pay Now", "Payer maintenant", "Jetzt bezahlen", "Pagar ahora", "Pagar agora")}
                   </a>
                 ) : (
                   <span className="inline-flex w-full items-center justify-center rounded-md bg-indigo-300/70 px-4 py-3 text-sm font-semibold text-white/95">
-                    Pay Now
+                    {t("Pay Now", "Payer maintenant", "Jetzt bezahlen", "Pagar ahora", "Pagar agora")}
                   </span>
                 )}
               </div>
@@ -975,7 +1022,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
               {isCompactPreview ? (
                 <>
                   <div className="border-b border-border/60 bg-muted/20 px-3 py-3 text-[11px] font-semibold text-foreground">
-                    Description
+                    {t("Description", "Description", "Beschreibung", "Descripcion", "Descricao")}
                   </div>
                   <div className="divide-y divide-border">
                     {props.items.map((item, idx) => (
@@ -986,7 +1033,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                         <div className="mt-3 grid grid-cols-[44px_minmax(0,1fr)] gap-3 border-t border-border/50 pt-3">
                           <div className="min-w-0">
                             <div className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                              Qty
+                              {t("Qty", "Qt", "Menge", "Cant.", "Qtd.")}
                             </div>
                             <div className="mt-1 text-[13px] tabular-nums text-foreground">
                               {item.quantity}
@@ -995,7 +1042,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                           <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
                             <div className="min-w-0 text-right">
                               <div className="whitespace-nowrap text-[9px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                                Unit Price
+                                {t("Unit Price", "Prix unitaire", "Einzelpreis", "Precio unitario", "Preco unitario")}
                               </div>
                               <div
                                 className={getSingleLineAmountClass(
@@ -1009,7 +1056,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                             </div>
                             <div className="min-w-0 text-right">
                               <div className="whitespace-nowrap text-[9px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                                Total
+                                {t("Total", "Total", "Gesamt", "Total", "Total")}
                               </div>
                               <div
                                 className={getSingleLineAmountClass(
@@ -1036,10 +1083,10 @@ export function InvoicePreview(props: InvoicePreviewProps) {
               ) : (
                 <>
                   <div className="grid min-w-0 grid-cols-[minmax(0,1.6fr)_72px_minmax(0,0.85fr)_minmax(0,0.95fr)] gap-2 border-b border-border/60 bg-muted/20 px-4 py-4 text-xs font-semibold text-foreground">
-                    <div className="min-w-0">Description</div>
-                    <div className="whitespace-nowrap text-center">Qty</div>
-                    <div className="whitespace-nowrap text-right">Unit Price</div>
-                    <div className="whitespace-nowrap text-right">Total</div>
+                    <div className="min-w-0">{t("Description", "Description", "Beschreibung", "Descripcion", "Descricao")}</div>
+                    <div className="whitespace-nowrap text-center">{t("Qty", "Qt", "Menge", "Cant.", "Qtd.")}</div>
+                    <div className="whitespace-nowrap text-right">{t("Unit Price", "Prix unitaire", "Einzelpreis", "Precio unitario", "Preco unitario")}</div>
+                    <div className="whitespace-nowrap text-right">{t("Total", "Total", "Gesamt", "Total", "Total")}</div>
                   </div>
                   <div className="divide-y divide-border">
                     {props.items.map((item, idx) => (
@@ -1069,7 +1116,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
             <div className={`min-w-0 ${isCompactPreview ? "hidden" : "pt-10 max-md:pt-2"}`}>
               {props.note ? (
                 <div className="text-xs text-muted-foreground">
-                  <div className="font-semibold text-[1rem] text-foreground">Note</div>
+                  <div className="font-semibold text-[1rem] text-foreground">{t("Note", "Note", "Notiz", "Nota", "Nota")}</div>
                   <div className="mt-1 whitespace-pre-line break-words text-[0.95rem] leading-7">
                     {props.note}
                   </div>
@@ -1095,7 +1142,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                     columnGap: 10,
                   }}
                 >
-                  <span className="whitespace-nowrap text-left text-muted-foreground">Subtotal</span>
+                  <span className="whitespace-nowrap text-left text-muted-foreground">{t("Subtotal", "Sous-total", "Zwischensumme", "Subtotal", "Subtotal")}</span>
                   <span
                     className={getSingleLineAmountClass(
                       formatCurrency(props.totals.subtotal, props.currency),
@@ -1117,7 +1164,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                     }}
                   >
                     <span className="whitespace-nowrap text-left text-muted-foreground">
-                      VAT ({vatRateLabel}%)
+                      {t("VAT", "TVA", "MwSt.", "IVA", "IVA")} ({vatRateLabel}%)
                     </span>
                     <span
                       className={getSingleLineAmountClass(
@@ -1140,7 +1187,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                       columnGap: 10,
                     }}
                   >
-                    <span className="whitespace-nowrap text-left text-muted-foreground">Discount</span>
+                    <span className="whitespace-nowrap text-left text-muted-foreground">{t("Discount", "Remise", "Rabatt", "Descuento", "Desconto")}</span>
                     <span
                       className={getSingleLineAmountClass(
                         `-${formatCurrency(props.totals.discountAmount, props.currency)}`,
@@ -1162,7 +1209,9 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                       columnGap: 10,
                     }}
                   >
-                    <span className="whitespace-nowrap text-left text-muted-foreground">Late fee</span>
+                    <span className="whitespace-nowrap text-left text-muted-foreground">
+                      {t("Late fee", "Frais de retard", "Verzugsgebühr", "Recargo por demora", "Taxa de atraso")}
+                    </span>
                     <span
                       className={getSingleLineAmountClass(
                         formatCurrency(lateFeeAmount, props.currency),
@@ -1183,7 +1232,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                     columnGap: 10,
                   }}
                 >
-                  <span className="whitespace-nowrap text-left">Total Due</span>
+                  <span className="whitespace-nowrap text-left">{t("Total Due", "Total du", "Gesamtbetrag fallig", "Total adeudado", "Total em divida")}</span>
                   <span
                     className={getSingleLineAmountClass(
                       formattedTotalDue,
@@ -1198,7 +1247,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
 
               {isCompactPreview && props.note ? (
                 <div className="mt-6 w-full text-xs text-muted-foreground">
-                  <div className="font-semibold text-[1rem] text-foreground">Note</div>
+                  <div className="font-semibold text-[1rem] text-foreground">{t("Note", "Note", "Notiz", "Nota", "Nota")}</div>
                   <div className="mt-1 whitespace-pre-line break-words text-[0.95rem] leading-7">
                     {props.note}
                   </div>
@@ -1208,11 +1257,17 @@ export function InvoicePreview(props: InvoicePreviewProps) {
           </div>
 
           <div className={`invoice-section text-center text-sm text-muted-foreground ${isCompactPreview ? "pt-4" : "pt-6"}`}>
-            Please make the payment by the due date. Thank you for your business.
+            {t(
+              "Please make the payment by the due date. Thank you for your business.",
+              "Veuillez payer avant l echeance. Merci pour votre confiance.",
+              "Bitte zahle bis zum Falligkeitsdatum. Vielen Dank für dein Vertrauen.",
+              "Realiza el pago antes de la fecha de vencimiento. Gracias por tu confianza.",
+              "Efetue o pagamento at? a data de vencimento. Obrigado pela sua confianca."
+            )}
           </div>
 
           <p className={`invoice-section text-center text-xs font-medium text-muted-foreground ${isCompactPreview ? "pt-6" : "pt-10"}`}>
-            Generated with Maboria
+            {t("Generated with Maboria", "Genere avec Maboria", "Erstellt mit Maboria", "Generado con Maboria", "Gerado com a Maboria")}
           </p>
         </div>
       </Card>
@@ -1238,29 +1293,29 @@ export function InvoicePreview(props: InvoicePreviewProps) {
           </div>
           <div className="flex w-full max-w-[260px] flex-col items-end gap-2 text-sm text-muted-foreground text-right">
             <div className="inline-flex items-baseline justify-end gap-2">
-              <span className="font-semibold text-foreground">{t("Invoice No:", "Facture n°")}</span>
+              <span className="font-semibold text-foreground">{t("Invoice No:", "Facture n°", "Rechnungsnr.:", "N.º de factura:", "N.º da fatura:")}</span>
               <span className="min-w-[150px] text-left text-foreground">{props.invoiceNumber}</span>
             </div>
             {props.poNumber ? (
               <div className="inline-flex items-baseline justify-end gap-2">
-                <span className="font-semibold text-foreground">{t("PO Number:", "Bon de commande :")}</span>
+                <span className="font-semibold text-foreground">{t("PO Number:", "Bon de commande :", "Bestellnummer:", "Numero OC:", "Numero OC:")}</span>
                 <span className="min-w-[150px] text-left text-foreground">{props.poNumber}</span>
               </div>
             ) : null}
             <div className="inline-flex items-baseline justify-end gap-2">
-              <span className="font-semibold text-foreground">{t("Issue Date:", "Date d emission :")}</span>
+              <span className="font-semibold text-foreground">{t("Issue Date:", "Date d emission :", "Ausstellungsdatum:", "Fecha de emision:", "Data de emissao:")}</span>
               <span className="min-w-[150px] text-left text-foreground">{formatDateDMY(props.issuedAt)}</span>
             </div>
             {props.dueDate ? (
               <div className="inline-flex items-baseline justify-end gap-2">
-                <span className="font-semibold text-foreground">{t("Due Date:", "Echeance:")}</span>
+                <span className="font-semibold text-foreground">{t("Due Date:", "Echeance:", "Falligkeitsdatum:", "Fecha de vencimiento:", "Data de vencimento:")}</span>
                 <span className="min-w-[150px] text-left text-foreground">{formatDateDMY(props.dueDate)}</span>
               </div>
             ) : null}
             <span
               className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${statusToneClass}`}
             >
-              <LangText en={displayStatus} fr={statusFr} />
+              <LangText en={displayStatus} fr={statusFr} de={statusDe} es={statusEs} pt={statusPt} />
             </span>
           </div>
         </div>
@@ -1270,11 +1325,11 @@ export function InvoicePreview(props: InvoicePreviewProps) {
         <div className="invoice-section grid grid-cols-2 gap-8 text-sm text-foreground max-md:grid-cols-1">
           <div className="w-full py-1">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
-              {t("Billed To", "Facture a")}
+              {t("Billed To", "Facture a", "Berechnet an", "Facturado a", "Faturado a")}
             </p>
             <div className="mt-3 space-y-1">
               <p className="font-semibold text-foreground">
-                {props.billTo?.name ?? <LangText en="Customer" fr="Client" />}
+                {props.billTo?.name ?? <LangText en="Customer" fr="Client" de="Kunde" es="Cliente" pt="Cliente" />}
               </p>
               {props.billTo?.email && <p>{props.billTo.email}</p>}
               {props.billTo?.companyName && <p>{props.billTo.companyName}</p>}
@@ -1287,12 +1342,12 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                   ))}
                 </div>
               ) : null}
-              {props.billTo?.taxId && <p>{t("Tax ID", "ID fiscal")}: {props.billTo.taxId}</p>}
+              {props.billTo?.taxId && <p>{t("Tax ID", "ID fiscal", "Steuer-ID", "ID fiscal", "NIF")}: {props.billTo.taxId}</p>}
             </div>
           </div>
           <div className="w-full py-1 md:pl-32">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground">
-              {t("Invoiced By", "Facture par")}
+              {t("Invoiced By", "Facture par", "Ausgestellt von", "Facturado por", "Faturado por")}
             </p>
             <div className="mt-3 space-y-1">
               <p className="font-semibold text-foreground">{props.business.businessName}</p>
@@ -1308,17 +1363,17 @@ export function InvoicePreview(props: InvoicePreviewProps) {
               ) : businessAddress ? (
                 <p className="break-words">{businessAddress}</p>
               ) : null}
-              {props.business.taxId ? <p>{t("Tax ID", "ID fiscal")}: {props.business.taxId}</p> : null}
+              {props.business.taxId ? <p>{t("Tax ID", "ID fiscal", "Steuer-ID", "ID fiscal", "NIF")}: {props.business.taxId}</p> : null}
             </div>
           </div>
         </div>
 
         <div className="invoice-section grid grid-cols-[1.2fr_0.8fr] gap-6">
           <div className="flex h-full flex-col p-1">
-            <h4 className="text-sm font-semibold text-foreground">{t("Invoice Details", "Details")}</h4>
+            <h4 className="text-sm font-semibold text-foreground">{t("Invoice Details", "Details", "Rechnungsdetails", "Detalles de la factura", "Detalhes da fatura")}</h4>
               <div className="mt-4 space-y-3 text-sm text-muted-foreground">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-semibold text-foreground">{t("Description", "Description")}:</span>
+                  <span className="font-semibold text-foreground">{t("Description", "Description", "Beschreibung", "Descripcion", "Descricao")}:</span>
                   <span className="min-w-0 break-words">
                     {props.items.length === 1 ? props.items[0].name : `${props.items.length} items`}
                   </span>
@@ -1327,31 +1382,31 @@ export function InvoicePreview(props: InvoicePreviewProps) {
             {showTax ? (
               <div className="mt-4 p-0 text-xs text-muted-foreground">
                 <div className="font-semibold text-foreground">
-                  {t("VAT", "TVA")} ({vatRateLabel}%)
+                  {t("VAT", "TVA", "MwSt.", "IVA", "IVA")} ({vatRateLabel}%)
                 </div>
                 <div className="mt-1 tabular-nums text-foreground">{formatCurrency(props.totals.taxAmount, props.currency)}</div>
               </div>
             ) : null}
           </div>
           <div className="flex h-full flex-col p-1">
-            <h4 className="text-sm font-semibold text-foreground">{t("Amount Due", "Montant du")}</h4>
+            <h4 className="text-sm font-semibold text-foreground">{t("Amount Due", "Montant du", "Falliger Betrag", "Importe adeudado", "Montante em divida")}</h4>
             <div className="mt-4 text-3xl font-semibold text-foreground">
               {formatCurrency(totalDue, props.currency)}
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
-              {t("Secure payment checkout", "Paiement securise")}
+              {t("Secure payment checkout", "Paiement securise", "Sicherer Zahlungs-Checkout", "Pago seguro", "Checkout de pagamento seguro")}
             </p>
             {paymentProviderLabel ? (
               <p className="mt-1 text-xs font-semibold text-foreground">
-                {t("Payment provider:", "Prestataire de paiement :")} {paymentProviderLabel}
+                {t("Payment provider:", "Prestataire de paiement :", "Zahlungsanbieter:", "Proveedor de pago:", "Prestador de pagamento:")} {paymentProviderLabel}
               </p>
             ) : null}
             <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
               <span className="rounded-full border border-border/70 bg-background/80 px-2.5 py-1">
-                {t("SSL encrypted", "SSL chiffre")}
+                {t("SSL encrypted", "SSL chiffre", "SSL-verschlusselt", "SSL cifrado", "SSL encriptado")}
               </span>
               <span className="rounded-full border border-border/70 bg-background/80 px-2.5 py-1">
-                {t("Trusted payment provider", "Prestataire de paiement securise")}
+                {t("Trusted payment provider", "Prestataire de paiement securise", "Vertrauenswurdiger Zahlungsanbieter", "Proveedor de pago confiable", "Prestador de pagamento confiavel")}
               </span>
             </div>
             <div className="mt-4">
@@ -1360,11 +1415,11 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                   href={props.paymentLink}
                   className="inline-flex w-full items-center justify-center rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-500"
                 >
-                  {t("Pay Now Securely", "Payer de maniere securisee")}
+                  {t("Pay Now Securely", "Payer de maniere securisee", "Jetzt sicher bezahlen", "Pagar ahora de forma segura", "Pagar agora com seguranca")}
                 </a>
               ) : (
                 <span className="inline-flex w-full items-center justify-center rounded-full border border-border bg-muted px-4 py-2 text-sm text-muted-foreground">
-                  {t("Payment unavailable", "Paiement indisponible")}
+                  {t("Payment unavailable", "Paiement indisponible", "Zahlung nicht verfügbar", "Pago no disponible", "Pagamento indisponivel")}
                 </span>
               )}
             </div>
@@ -1380,10 +1435,10 @@ export function InvoicePreview(props: InvoicePreviewProps) {
         <div className="mt-4 grid grid-cols-[1.2fr_0.8fr] items-start gap-6">
           <div className="min-w-0 overflow-hidden rounded-2xl border border-border/60">
             <div className="grid min-w-0 grid-cols-[minmax(0,1.6fr)_72px_minmax(0,0.85fr)_minmax(0,0.95fr)] gap-2 border-b border-border/60 bg-muted/20 px-4 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-foreground">
-              <div className="min-w-0">{t("Description", "Description")}</div>
-              <div className="text-center whitespace-nowrap">{t("Qty", "Qt")}</div>
-              <div className="text-right whitespace-nowrap">{t("Unit Price", "Prix unitaire")}</div>
-              <div className="text-right whitespace-nowrap">{t("Total", "Total")}</div>
+              <div className="min-w-0">{t("Description", "Description", "Beschreibung", "Descripcion", "Descricao")}</div>
+              <div className="text-center whitespace-nowrap">{t("Qty", "Qt", "Menge", "Cant.", "Qtd.")}</div>
+              <div className="text-right whitespace-nowrap">{t("Unit Price", "Prix unitaire", "Einzelpreis", "Precio unitario", "Preco unitario")}</div>
+              <div className="text-right whitespace-nowrap">{t("Total", "Total", "Gesamt", "Total", "Total")}</div>
             </div>
             <div className="divide-y divide-border">
               {props.items.map((item, idx) => (
@@ -1421,7 +1476,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 }}
               >
                 <span className="whitespace-nowrap text-left font-semibold">
-                  {t("Subtotal", "Sous-total")}
+                  {t("Subtotal", "Sous-total", "Zwischensumme", "Subtotal", "Subtotal")}
                 </span>
                 <span className="text-right font-semibold text-foreground tabular-nums whitespace-nowrap">
                   {formatCurrency(props.totals.subtotal, props.currency)}
@@ -1436,7 +1491,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                   }}
                 >
                   <span className="whitespace-nowrap text-left font-semibold">
-                    {t("Tax", "Taxe")}
+                    {t("Tax", "Taxe", "Steuer", "Impuesto", "Imposto")}
                   </span>
                   <span className="text-right font-semibold text-foreground tabular-nums whitespace-nowrap">
                     {formatCurrency(props.totals.taxAmount, props.currency)}
@@ -1452,7 +1507,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                   }}
                 >
                   <span className="whitespace-nowrap text-left font-semibold">
-                    {t("Discount", "Remise")}
+                    {t("Discount", "Remise", "Rabatt", "Descuento", "Desconto")}
                   </span>
                   <span className="text-right font-semibold text-foreground tabular-nums whitespace-nowrap">
                     -{formatCurrency(props.totals.discountAmount, props.currency)}
@@ -1468,7 +1523,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                   }}
                 >
                   <span className="whitespace-nowrap text-left font-semibold">
-                    {t("Late fee", "Frais de retard")}
+                    {t("Late fee", "Frais de retard", "Verzugsgebühr", "Recargo por demora", "Taxa de atraso")}
                   </span>
                   <span className="text-right font-semibold text-foreground tabular-nums whitespace-nowrap">
                     {formatCurrency(lateFeeAmount, props.currency)}
@@ -1482,7 +1537,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                   columnGap: 10,
                 }}
               >
-                <span className="whitespace-nowrap text-left">{t("Total Due", "Total du")}</span>
+                <span className="whitespace-nowrap text-left">{t("Total Due", "Total du", "Gesamtbetrag fallig", "Total adeudado", "Total em divida")}</span>
                 <span
                   className={getSingleLineAmountClass(
                     formattedTotalDue,
@@ -1509,13 +1564,13 @@ export function InvoicePreview(props: InvoicePreviewProps) {
 
         {props.note ? (
           <div className="rounded-2xl border border-border bg-background/60 p-4 text-xs text-muted-foreground">
-            <div className="font-semibold text-foreground">{t("Note", "Note")}</div>
+          <div className="font-semibold text-foreground">{t("Note", "Note", "Notiz", "Nota", "Nota")}</div>
             <div className="mt-1">{props.note}</div>
           </div>
         ) : null}
 
         <p className="invoice-section text-center text-xs font-semibold text-muted-foreground">
-          {t("This invoice was generated with Maboria.", "Facture generee avec Maboria.")}
+          {t("This invoice was generated with Maboria.", "Facture generee avec Maboria.", "Diese Rechnung wurde mit Maboria erstellt.", "Esta factura fue generada con Maboria.", "Esta fatura foi gerada com a Maboria.")}
         </p>
       </div>
     </Card>

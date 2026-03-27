@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { Button } from "./button";
 import useSWR from "swr";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThemeSwitcher } from "@/components/ui/theme-switcher";
@@ -55,6 +55,7 @@ export function Navbar({ role }: { role?: string }) {
   const pathname = usePathname();
   const resolvedRole = String(role || data?.user?.role || "").toUpperCase();
   const isAdminSession = pathname.startsWith("/admin") && ["OPS_ADMIN", "SUPER_ADMIN"].includes(resolvedRole);
+  const isOpsAdmin = resolvedRole === "OPS_ADMIN";
   const { data: me } = useSWR(data ? "/api/user/me" : null, fetcher, {
     shouldRetryOnError: false,
   });
@@ -94,55 +95,58 @@ export function Navbar({ role }: { role?: string }) {
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const { language, setLanguage } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
   const notificationsRef = useRef<HTMLDivElement | null>(null);
   const displayName = me?.name ?? data?.user?.name ?? "User";
   const displayEmail = me?.email ?? data?.user?.email ?? "";
   const logoSrc = "/branding/Maboria%20Company%20logo.png";
-  const t = useCallback((en: string, fr: string) => (language === "fr" ? fr : en), [language]);
   const labelMap = useMemo(
     () => ({
-      Dashboard: language === "fr" ? "Tableau" : "Dashboard",
-      Website: language === "fr" ? "Site" : "Website",
-      Automations: language === "fr" ? "Automatisations" : "Automations",
-      AutomationOperations: language === "fr" ? "Operations automatisation" : "Automation Operations",
-      "AI Assistant": language === "fr" ? "Assistant IA" : "AI Assistant",
-      Inbox: language === "fr" ? "Boite de reception" : "Inbox",
-      Team: language === "fr" ? "Equipe" : "Team",
-      Invoices: language === "fr" ? "Factures" : "Invoices",
-      Customers: language === "fr" ? "Clients" : "Customers",
-      Subscription: language === "fr" ? "Abonnement" : "Subscription",
-      Reports: language === "fr" ? "Rapports" : "Reports",
-      Support: language === "fr" ? "Support" : "Support",
-      Settings: language === "fr" ? "Parametres" : "Settings",
-      Admin: language === "fr" ? "Tableau admin" : "Admin Dashboard",
-      AdminDashboard: language === "fr" ? "Tableau admin" : "Admin Dashboard",
-      "Admin Metrics": language === "fr" ? "Mesures admin" : "Admin Metrics",
-      "System Logs": language === "fr" ? "Journaux systeme" : "System Logs",
-      Users: language === "fr" ? "Utilisateurs" : "Users",
-      Notifications: language === "fr" ? "Notifications" : "Notifications",
-      "Automation Errors": language === "fr" ? "Erreurs automatisation" : "Automation Errors",
-      Prelaunch: language === "fr" ? "Prelaunch" : "Prelaunch",
-      "System Flags": language === "fr" ? "Drapeaux systeme" : "System Flags",
-      "Receipt Preview": language === "fr" ? "Apercu recu" : "Receipt Preview",
+      Dashboard: t("Dashboard", "Tableau"),
+      Website: t("Website", "Site"),
+      Automations: t("Automations", "Automatisations"),
+      AutomationOperations: t("Automation Operations", "Operations automatisation"),
+      "AI Assistant": t("AI Assistant", "Assistant IA"),
+      Inbox: t("Inbox", "Boite de reception"),
+      Team: t("Team", "équipe"),
+      Invoices: t("Invoices", "Factures"),
+      Customers: t("Customers", "Clients"),
+      Subscription: t("Subscription", "Abonnement"),
+      Reports: t("Reports", "Rapports"),
+      Support: t("Support", "Support"),
+      Settings: t("Settings", "Paramêtres"),
+      Admin: t("Admin Dashboard", "Tableau admin"),
+      AdminDashboard: t("Admin Dashboard", "Tableau admin"),
+      "Admin Metrics": t("Admin Metrics", "Mesures admin"),
+      "System Logs": t("System Logs", "Journaux systeme"),
+      Users: t("Users", "Utilisateurs"),
+      Notifications: t("Notifications", "Notifications"),
+      "Automation Errors": t("Automation Errors", "Erreurs automatisation"),
+      Prelaunch: "Prelaunch",
+      "System Flags": t("System Flags", "Drapeaux systeme"),
+      "Receipt Preview": t("Receipt Preview", "Aperçu recu"),
     }),
-    [language]
+    [t]
   );
   const navItems = useMemo(
     () => [
-      { label: labelMap.Dashboard, href: "/dashboard", icon: LayoutDashboard },
-      { label: labelMap.Website, href: "/", icon: Globe2 },
-      { label: labelMap.Automations, href: "/dashboard/automations", icon: Workflow },
-      { label: labelMap.AutomationOperations, href: "/dashboard/automation-operations", icon: ClipboardList },
-      { label: labelMap["AI Assistant"], href: "/dashboard/assistant", icon: Sparkles },
-      { label: labelMap.Inbox, href: "/dashboard/inbox", icon: Inbox },
-      { label: labelMap.Team, href: "/dashboard/team", icon: Users },
-      { label: labelMap.Invoices, href: "/dashboard/invoices", icon: Receipt },
-      { label: labelMap.Customers, href: "/dashboard/customers", icon: UserRound },
-      { label: labelMap.Subscription, href: "/dashboard/subscription", icon: CreditCard },
-      { label: labelMap.Reports, href: "/dashboard/report", icon: BarChart3 },
-      { label: labelMap.Support, href: "/dashboard/support", icon: LifeBuoy },
-      { label: labelMap.Settings, href: "/dashboard/settings", icon: Settings },
+      ...(!isOpsAdmin
+        ? [
+            { label: labelMap.Dashboard, href: "/dashboard", icon: LayoutDashboard },
+            { label: labelMap.Website, href: "/", icon: Globe2 },
+            { label: labelMap.Automations, href: "/dashboard/automations", icon: Workflow },
+            { label: labelMap.AutomationOperations, href: "/dashboard/automation-operations", icon: ClipboardList },
+            { label: labelMap["AI Assistant"], href: "/dashboard/assistant", icon: Sparkles },
+            { label: labelMap.Inbox, href: "/dashboard/inbox", icon: Inbox },
+            { label: labelMap.Team, href: "/dashboard/team", icon: Users },
+            { label: labelMap.Invoices, href: "/dashboard/invoices", icon: Receipt },
+            { label: labelMap.Customers, href: "/dashboard/customers", icon: UserRound },
+            { label: labelMap.Subscription, href: "/dashboard/subscription", icon: CreditCard },
+            { label: labelMap.Reports, href: "/dashboard/report", icon: BarChart3 },
+            { label: labelMap.Support, href: "/dashboard/support", icon: LifeBuoy },
+            { label: labelMap.Settings, href: "/dashboard/settings", icon: Settings },
+          ]
+        : []),
       ...(["OPS_ADMIN", "SUPER_ADMIN"].includes(resolvedRole)
         ? [
             { label: labelMap.AdminDashboard, href: "/admin", icon: Shield },
@@ -158,7 +162,7 @@ export function Navbar({ role }: { role?: string }) {
           ]
         : []),
     ],
-    [resolvedRole, labelMap]
+    [isOpsAdmin, resolvedRole, labelMap]
   );
   const commandItems: CommandItem[] = useMemo(() => {
     const nav = navItems.map((item) => ({
@@ -172,53 +176,57 @@ export function Navbar({ role }: { role?: string }) {
     }));
     return [
       ...nav,
-      {
-        id: "create-automation",
-        label: t("Create automation", "Creer une automatisation"),
-        description: t("Build a new flow", "Creer un nouveau flux"),
-        href: "/dashboard/automations/new",
-        icon: Workflow,
-        group: t("Create", "Creer"),
-        keywords: ["automation", "flow", "new"],
-      },
-      {
-        id: "create-invoice",
-        label: t("Create invoice", "Creer une facture"),
-        description: t("Generate a new invoice", "Generer une nouvelle facture"),
-        href: "/dashboard/invoices",
-        icon: Receipt,
-        group: t("Create", "Creer"),
-        keywords: ["invoice", "billing"],
-      },
-      {
-        id: "open-customers",
-        label: t("Open customers", "Ouvrir les clients"),
-        description: t("Manage business clients", "Gerer les clients"),
-        href: "/dashboard/customers",
-        icon: Users,
-        group: t("Navigate", "Naviguer"),
-        keywords: ["customer", "clients", "crm"],
-      },
-      {
-        id: "open-ai",
-        label: t("Open AI assistant", "Ouvrir l assistant IA"),
-        description: t("Ask Maboria AI", "Demander a Maboria IA"),
-        href: "/dashboard/assistant",
-        icon: Sparkles,
-        group: t("Create", "Creer"),
-        keywords: ["ai", "assistant", "copilot"],
-      },
-      {
-        id: "support",
-        label: t("Contact support", "Contacter le support"),
-        description: t("Submit a ticket", "Soumettre un ticket"),
-        href: "/dashboard/support",
-        icon: LifeBuoy,
-        group: t("Help", "Aide"),
-        keywords: ["support", "help", "ticket"],
-      },
+      ...(!isOpsAdmin
+        ? [
+            {
+              id: "create-automation",
+              label: t("Create automation", "Creer une automatisation"),
+              description: t("Build a new flow", "Creer un nouveau flux"),
+              href: "/dashboard/automations/new",
+              icon: Workflow,
+              group: t("Create", "Creer"),
+              keywords: ["automation", "flow", "new"],
+            },
+            {
+              id: "create-invoice",
+              label: t("Create invoice", "Creer une facture"),
+              description: t("Generate a new invoice", "Generer une nouvelle facture"),
+              href: "/dashboard/invoices",
+              icon: Receipt,
+              group: t("Create", "Creer"),
+              keywords: ["invoice", "billing"],
+            },
+            {
+              id: "open-customers",
+              label: t("Open customers", "Ouvrir les clients"),
+              description: t("Manage business clients", "Gerer les clients"),
+              href: "/dashboard/customers",
+              icon: Users,
+              group: t("Navigate", "Naviguer"),
+              keywords: ["customer", "clients", "crm"],
+            },
+            {
+              id: "open-ai",
+              label: t("Open AI assistant", "Ouvrir l assistant IA"),
+              description: t("Ask Maboria AI", "Demander a Maboria IA"),
+              href: "/dashboard/assistant",
+              icon: Sparkles,
+              group: t("Create", "Creer"),
+              keywords: ["ai", "assistant", "copilot"],
+            },
+            {
+              id: "support",
+              label: t("Contact support", "Contacter le support"),
+              description: t("Submit a ticket", "Soumettre un ticket"),
+              href: "/dashboard/support",
+              icon: LifeBuoy,
+              group: t("Help", "Aide"),
+              keywords: ["support", "help", "ticket"],
+            },
+          ]
+        : []),
     ];
-  }, [navItems, t]);
+  }, [isOpsAdmin, navItems, t]);
   const handleLogout = async () => {
     try {
       await signOut({ redirect: false });
@@ -321,16 +329,16 @@ export function Navbar({ role }: { role?: string }) {
 
   return (
     <>
-      <header className="relative z-40 flex items-center justify-between border-b border-border bg-background px-4 py-3 backdrop-blur lg:px-6 overflow-visible max-md:mx-4 max-md:mt-3 max-md:rounded-[28px] max-md:border max-md:bg-background max-md:shadow-[0_16px_36px_rgba(15,23,42,0.12)]">
-        <div className="flex flex-1 items-center gap-3">
+      <header className="relative z-40 flex items-center justify-between border-b border-border bg-background px-3 py-2.5 backdrop-blur lg:px-5 overflow-visible max-md:mx-3 max-md:mt-2.5 max-md:rounded-[20px] max-md:border max-md:bg-background max-md:shadow-[0_10px_24px_rgba(15,23,42,0.1)]">
+        <div className="flex flex-1 items-center gap-2.5">
           <button
-            className="rounded-lg border border-border bg-card p-2 text-muted-foreground hover:bg-muted lg:hidden"
-            aria-label="Toggle navigation"
+            className="rounded-lg border border-border bg-card p-1.5 text-muted-foreground hover:bg-muted lg:hidden"
+            aria-label={t("Toggle navigation", "Afficher la navigation", "Navigation umschalten", "Alternar navegacion", "Alternar navegacao")}
             onClick={() => setMenuOpen((o) => !o)}
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="h-4.5 w-4.5" />
           </button>
-          <div className="relative hidden w-80 lg:block">
+          <div className="relative hidden w-72 lg:block">
             <div
               className="flex w-full items-center gap-2 rounded-lg border border-input bg-muted px-3 py-2 text-sm text-muted-foreground hover:bg-muted/80"
               onClick={() => handleCommandOpenChange(true)}
@@ -350,17 +358,17 @@ export function Navbar({ role }: { role?: string }) {
                     : "Search automations, invoices, payments"
                 }
                 className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
-                aria-label="Search"
+                aria-label={t("Search", "Rechercher", "Suchen", "Buscar", "Pesquisar")}
               />
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => handleCommandOpenChange(true)}
-            className="rounded-full border border-border bg-card p-2 text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden"
-            aria-label="Open command palette"
+            className="rounded-full border border-border bg-card p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden"
+            aria-label={t("Open command palette", "Ouvrir la palette de commandes", "Befehlspalette öffnen", "Abrir la paleta de comandos", "Abrir a paleta de comandos")}
           >
             <Search className="h-4 w-4" />
           </button>
@@ -370,8 +378,8 @@ export function Navbar({ role }: { role?: string }) {
             <button
               type="button"
               onClick={() => setNotificationsOpen((open) => !open)}
-              className="relative rounded-full border border-border bg-card p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-              aria-label="Notifications"
+              className="relative rounded-full border border-border bg-card p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label={t("Notifications", "Notifications", "Benachrichtigungen", "Notificaciones", "Notificacoes")}
               aria-expanded={notificationsOpen}
             >
               <Bell className="h-4 w-4" />
@@ -382,7 +390,7 @@ export function Navbar({ role }: { role?: string }) {
               )}
             </button>
             {notificationsOpen && (
-              <div className="absolute right-0 top-12 z-50 w-72 rounded-2xl border border-border bg-background shadow-2xl">
+              <div className="absolute right-0 top-11 z-50 w-72 rounded-xl border border-border bg-background shadow-2xl">
                 <div className="flex items-center justify-between border-b border-border px-4 py-3">
                   <p className="text-sm font-semibold text-foreground">{t("Notifications", "Notifications")}</p>
                   <button
@@ -401,7 +409,7 @@ export function Navbar({ role }: { role?: string }) {
                         key={item.id}
                         onClick={() => markNotificationRead(item.id)}
                         className={clsx(
-                          "flex w-full flex-col gap-1 px-4 py-3 text-left text-sm transition",
+                          "flex w-full flex-col gap-1 px-4 py-2.5 text-left text-sm transition",
                           isAdminSession ? (item.status === "UNREAD" ? "bg-indigo-500/10" : "bg-background") : item.read ? "bg-background" : "bg-indigo-500/10"
                         )}
                       >
@@ -428,7 +436,7 @@ export function Navbar({ role }: { role?: string }) {
             )}
           </div>
           <div className="hidden text-right lg:block">
-            <p className="text-sm font-semibold text-foreground">{displayName}</p>
+            <p className="text-sm font-semibold leading-tight text-foreground">{displayName}</p>
             <p className="text-xs text-muted-foreground">{displayEmail}</p>
           </div>
           <Button variant="ghost" onClick={handleLogout}>
@@ -454,7 +462,7 @@ export function Navbar({ role }: { role?: string }) {
           >
             <button
               className="absolute inset-0 z-0 bg-slate-950/60 backdrop-blur-sm"
-              aria-label="Close navigation"
+              aria-label={t("Close navigation", "Fermer la navigation", "Navigation schliessen", "Cerrar navegacion", "Fechar navegacao")}
               onClick={() => setMenuOpen(false)}
             />
             <motion.aside
@@ -462,27 +470,27 @@ export function Navbar({ role }: { role?: string }) {
               animate={{ x: 0 }}
               exit={{ x: -320 }}
               transition={{ type: "spring", stiffness: 260, damping: 28 }}
-              className="relative z-10 h-full w-full max-w-full overflow-y-auto border-r border-border bg-background p-4 shadow-2xl sm:w-72 sm:max-w-[85%]"
+              className="relative z-10 h-full w-full max-w-full overflow-y-auto border-r border-border bg-background px-3 py-3.5 shadow-2xl sm:w-72 sm:max-w-[85%]"
             >
-              <div className="mb-6 flex items-center justify-between">
+              <div className="mb-5 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="relative h-10 w-10 overflow-hidden rounded-xl border border-border bg-card">
+                    <div className="relative h-9 w-9 overflow-hidden rounded-lg border border-border bg-card">
                       <Image src={logoSrc} alt="Maboria" fill sizes="40px" className="object-contain p-0 scale-110" priority />
                     </div>
                     <div>
-                    <p className="text-sm text-muted-foreground">Maboria</p>
-                    <p className="text-lg font-semibold text-foreground">{t("Control", "Controle")}</p>
+                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Maboria</p>
+                    <p className="text-base font-semibold text-foreground">{t("Control", "Controle")}</p>
                   </div>
                 </div>
                 <button
-                  className="rounded-lg border border-border bg-card p-2 text-muted-foreground hover:bg-muted"
-                  aria-label="Close menu"
+                  className="rounded-lg border border-border bg-card p-1.5 text-muted-foreground hover:bg-muted"
+                  aria-label={t("Close menu", "Fermer le menu", "Menue schliessen", "Cerrar menu", "Fechar menu")}
                   onClick={() => setMenuOpen(false)}
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
-              <nav className="flex flex-col gap-2 text-sm">
+              <nav className="flex flex-col gap-1.5 text-[13px]">
                 {navItems.map((item) => {
                   const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
                   const Icon = item.icon;
@@ -490,19 +498,19 @@ export function Navbar({ role }: { role?: string }) {
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={`group flex items-center gap-3 rounded-xl px-3 py-2 transition-all duration-200 ${
+                      className={`group flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-all duration-200 ${
                         active ? "bg-indigo-500/15 text-foreground" : "text-muted-foreground hover:bg-muted"
                       }`}
                       onClick={() => setMenuOpen(false)}
                     >
                       <span
-                        className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border ${
+                        className={`inline-flex h-7 w-7 items-center justify-center rounded-md border ${
                           active
                             ? "border-indigo-300/60 bg-indigo-500/15 text-indigo-700 dark:text-indigo-300"
                             : "border-border bg-card text-slate-600 group-hover:text-slate-900 dark:text-slate-300"
                         }`}
                       >
-                        <Icon className="h-4 w-4" />
+                        <Icon className="h-3.5 w-3.5" />
                       </span>
                       {item.label}
                     </Link>
@@ -516,3 +524,4 @@ export function Navbar({ role }: { role?: string }) {
     </>
   );
 }
+

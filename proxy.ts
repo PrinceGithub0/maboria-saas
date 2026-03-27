@@ -101,6 +101,15 @@ async function getFlagSnapshot(req: NextRequest): Promise<SystemFlagSnapshot> {
 
 async function handleProxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const isLegacyPrelaunchPath =
+    pathname !== "/admin/prelaunch" &&
+    pathname.startsWith("/admin/prela") &&
+    pathname.endsWith("nch");
+
+  if (isLegacyPrelaunchPath) {
+    return NextResponse.redirect(new URL("/admin/prelaunch", req.url));
+  }
+
   const IMPERSONATION_COOKIE_NAME = "maboria_impersonation_session";
   const ADMIN_IMPERSONATION_ALLOWLIST = new Set([
     "/api/admin/impersonation/current",
@@ -156,6 +165,8 @@ async function handleProxy(req: NextRequest) {
     "/api/invoice/receipt",
     "/api/invoice/",
     "/api/payments/callback",
+    "/api/subscription/process-renewals",
+    "/api/subscription/apply-pending-downgrades",
   ];
 
   const isPublicPath = PUBLIC_PATHS.has(pathname) || PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));

@@ -25,8 +25,7 @@ export default function LoginPage() {
   const inviteRole = params.get("role") || "member";
   const inviteInviter = params.get("inviter") || "";
   const logoSrc = "/branding/Maboria%20Company%20logo.png";
-  const { language } = useLanguage();
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const { t } = useLanguage();
   const inviteMode = Boolean(inviteToken);
   const inviteRoleLabel =
     inviteRole === "billing_admin" ? "Billing Admin" : inviteRole === "admin" ? "Admin" : "Member";
@@ -52,7 +51,7 @@ export default function LoginPage() {
         otp: otp || undefined,
       });
       if (!res) {
-        setError(t("Sign in failed. Please try again.", "Connexion echouee. Reessayez."));
+        setError(t("Sign in failed. Please try again.", "Connexion échouée. Reessayez."));
         return;
       }
       if (res.error) {
@@ -68,7 +67,7 @@ export default function LoginPage() {
         setError(
           t(
             "Sign in succeeded, but session cookie was not set. Check NEXTAUTH_URL and your browser URL.",
-            "Connexion reussie, mais le cookie de session n'a pas ete defini. Verifiez NEXTAUTH_URL et l'URL du navigateur."
+            "Connexion reussie, mais le cookie de session n'a pas ?t? defini. Verifiez NEXTAUTH_URL et l'URL du navigateur."
           )
         );
         return;
@@ -83,6 +82,8 @@ export default function LoginPage() {
         );
         return;
       }
+      const postLoginHref =
+        String(session.user.role || "").toUpperCase() === "OPS_ADMIN" ? "/admin" : "/dashboard";
       if (inviteToken) {
         const inviteAcceptance = await fetch("/api/team/invite/accept", {
           method: "POST",
@@ -96,7 +97,7 @@ export default function LoginPage() {
             invitePayload?.error ||
               t(
                 "Signed in, but the workspace invitation could not be accepted.",
-                "Connexion reussie, mais l invitation a l espace n a pas pu etre acceptee."
+                "Connexion reussie, mais l'invitation à l'espace n'a pas pu être acceptee."
               )
           );
           return;
@@ -104,12 +105,12 @@ export default function LoginPage() {
         window.location.href =
           typeof invitePayload?.redirectTo === "string" && invitePayload.redirectTo
             ? invitePayload.redirectTo
-            : "/dashboard";
+            : postLoginHref;
         return;
       }
-      window.location.href = "/dashboard";
+      window.location.href = postLoginHref;
     } catch {
-      setError(t("Sign in failed. Please try again.", "Connexion echouee. Reessayez."));
+      setError(t("Sign in failed. Please try again.", "Connexion échouée. Reessayez."));
     } finally {
       setLoading(false);
     }
@@ -147,7 +148,7 @@ export default function LoginPage() {
                 <p className="max-w-lg text-base leading-8 text-slate-600">
                   {t(
                     "This access flow is reserved for invited teammates. Sign in with your existing account and we will attach the workspace invite automatically.",
-                    "Ce flux d acces est reserve aux membres invites. Connectez-vous avec votre compte existant et nous rattacherons automatiquement l invitation."
+                    "Ce flux d accès est reserve aux membres invites. Connectez-vous avec votre compte existant et nous rattacherons automatiquement l'invitation."
                   )}
                 </p>
               </div>
@@ -157,21 +158,21 @@ export default function LoginPage() {
                   <p className="text-xl font-semibold text-slate-950">{inviteInviter || "Maboria team"}</p>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">{t("Access level", "Niveau d acces")}</p>
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">{t("Access level", "Niveau d accès")}</p>
                   <p className="text-xl font-semibold text-slate-950">{inviteRoleLabel}</p>
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">{t("Invitation email", "Email de l invitation")}</p>
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">{t("Invitation email", "Email de l'invitation")}</p>
                   <p className="break-all text-xl font-semibold text-slate-950">{inviteEmail || t("Use the invited address", "Utilisez l adresse invitee")}</p>
                 </div>
               </div>
             </div>
             <div className="relative mx-auto mt-10 w-full max-w-[580px] border-t border-slate-200 pt-6 text-slate-950">
-              <p className="text-[11px] uppercase tracking-[0.22em] text-sky-700">{t("Why sign in first", "Pourquoi se connecter d abord")}</p>
+              <p className="text-[11px] uppercase tracking-[0.22em] text-sky-700">{t("Why sign in first", "Pourquoi se connecter d'abord")}</p>
               <p className="mt-3 max-w-xl text-sm leading-7 text-slate-600">
                 {t(
                   "Existing teammates can accept the invite without creating a duplicate account. If you do not have an account yet, use the create account link below and the invite will stay attached.",
-                  "Les membres existants peuvent accepter l invitation sans creer de compte en double. Si vous n avez pas encore de compte, utilisez le lien de creation ci-dessous et l invitation restera attachee."
+                  "Les membres existants peuvent accepter l'invitation sans creer de compte en double. Si vous n'avez pas encore de compte, utilisez le lien de creation ci-dessous et l'invitation restera attachee."
                 )}
               </p>
             </div>
@@ -200,7 +201,7 @@ export default function LoginPage() {
               <Alert className="mt-5" variant="success">
                 {t(
                   "Your password has been updated successfully. You can now sign in.",
-                  "Votre mot de passe a ete mis a jour avec succes. Vous pouvez maintenant vous connecter."
+                  "Votre mot de passe a ?t? mis ? jour avec succes. Vous pouvez maintenant vous connecter."
                 )}
               </Alert>
             )}
@@ -216,7 +217,7 @@ export default function LoginPage() {
                 </div>
                 <div>
                   <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
-                    {t("Accept your team access", "Acceptez votre acces equipe")}
+                    {t("Accept your team access", "Acceptez votre accès équipe")}
                   </h2>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
                     {inviteOrg
@@ -226,7 +227,7 @@ export default function LoginPage() {
                         )
                       : t(
                           "Sign in to accept your workspace invitation.",
-                          "Connectez-vous pour accepter votre invitation a l espace de travail."
+                          "Connectez-vous pour accepter votre invitation à l'espace de travail."
                         )}
                   </p>
                 </div>

@@ -45,11 +45,12 @@ export function Sidebar({ role }: Props) {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const { data } = useSession();
-  const { language } = useLanguage();
+  const { t } = useLanguage();
   const userRole = role || data?.user?.role;
   const normalizedRole = String(userRole || "").trim().toUpperCase();
   const isPlatformStaff = normalizedRole === "OPS_ADMIN" || normalizedRole === "SUPER_ADMIN";
   const isSuperAdmin = normalizedRole === "SUPER_ADMIN";
+  const isOpsAdmin = normalizedRole === "OPS_ADMIN";
   const fetcher = async (url: string) => {
     try {
       const res = await fetch(url, { cache: "no-store" });
@@ -72,67 +73,73 @@ export function Sidebar({ role }: Props) {
   const canAccessBillingWorkspacePages =
     orgRole === "owner" || orgRole === "admin" || orgRole === "billing_admin";
   const labelMap = {
-    Dashboard: language === "fr" ? "Tableau" : "Dashboard",
-    Website: language === "fr" ? "Site" : "Website",
-    Automations: language === "fr" ? "Automatisations" : "Automations",
-    AutomationOperations: language === "fr" ? "Operations automatisation" : "Automation Operations",
-    "AI Assistant": language === "fr" ? "Assistant IA" : "AI Assistant",
-    Inbox: language === "fr" ? "Boite de reception" : "Inbox",
-    Team: language === "fr" ? "Equipe" : "Team",
-    Invoices: language === "fr" ? "Factures" : "Invoices",
-    Customers: language === "fr" ? "Clients" : "Customers",
-    Subscription: language === "fr" ? "Abonnement" : "Subscription",
-    Payments: language === "fr" ? "Paiements" : "Payments",
-    Reports: language === "fr" ? "Rapports" : "Reports",
-    Support: language === "fr" ? "Support" : "Support",
-    Settings: language === "fr" ? "Parametres" : "Settings",
-    Admin: language === "fr" ? "Administration" : "Admin",
-    AdminDashboard: language === "fr" ? "Tableau admin" : "Admin Dashboard",
-    "Admin Metrics": language === "fr" ? "Mesures admin" : "Admin Metrics",
-    "System Logs": language === "fr" ? "Journaux systeme" : "System Logs",
-    "Audit Explorer": language === "fr" ? "Explorateur d'audit" : "Audit Explorer",
-    "Events Explorer": language === "fr" ? "Explorateur d'evenements" : "Events Explorer",
-    Users: language === "fr" ? "Utilisateurs" : "Users",
-    Tenants: language === "fr" ? "Tenants" : "Tenants",
-    Notifications: language === "fr" ? "Notifications" : "Notifications",
-    "Automation Errors": language === "fr" ? "Erreurs automatisation" : "Automation Errors",
-    Prelaunch: language === "fr" ? "Prelaunch" : "Prelaunch",
-    "System Flags": language === "fr" ? "Drapeaux systeme" : "System Flags",
-    "Receipt Preview": language === "fr" ? "Apercu recu" : "Receipt Preview",
-    Core: language === "fr" ? "Principal" : "Core",
-    Billing: language === "fr" ? "Facturation" : "Billing",
-    SupportSettings: language === "fr" ? "Support et parametres" : "Support & Settings",
-    Overview: language === "fr" ? "Vue d'ensemble" : "Overview",
-    Operations: language === "fr" ? "Operations" : "Operations",
-    SystemMonitoring: language === "fr" ? "Surveillance systeme" : "System Monitoring",
-    Controls: language === "fr" ? "Controles" : "Controls",
-    FinancialTools: language === "fr" ? "Outils financiers" : "Financial Tools",
+    Dashboard: t("Dashboard", "Tableau"),
+    Website: t("Website", "Site"),
+    Automations: t("Automations", "Automatisations"),
+    AutomationOperations: t("Automation Operations", "Operations automatisation"),
+    "AI Assistant": t("AI Assistant", "Assistant IA"),
+    Inbox: t("Inbox", "Boite de reception"),
+    Team: t("Team", "équipe"),
+    Invoices: t("Invoices", "Factures"),
+    Customers: t("Customers", "Clients"),
+    Subscription: t("Subscription", "Abonnement"),
+    Payments: t("Payments", "Paiements"),
+    Reports: t("Reports", "Rapports"),
+    Support: t("Support", "Support"),
+    Settings: t("Settings", "Paramêtres"),
+    Admin: t("Admin", "Administration"),
+    AdminDashboard: t("Admin Dashboard", "Tableau admin"),
+    "Admin Metrics": t("Admin Metrics", "Mesures admin"),
+    "System Logs": t("System Logs", "Journaux systeme"),
+    "Audit Explorer": t("Audit Explorer", "Explorateur d audit"),
+    "Events Explorer": t("Events Explorer", "Explorateur d evenements"),
+    Users: t("Users", "Utilisateurs"),
+    Tenants: t("Tenants", "Tenants"),
+    Notifications: t("Notifications", "Notifications"),
+    "Automation Errors": t("Automation Errors", "Erreurs automatisation"),
+    Prelaunch: "Prelaunch",
+    "System Flags": t("System Flags", "Drapeaux systeme"),
+    "Receipt Preview": t("Receipt Preview", "Aperçu recu"),
+    Core: t("Core", "Principal"),
+    Billing: t("Billing", "Facturation"),
+    SupportSettings: t("Support & Settings", "Support et paramêtres"),
+    Overview: t("Overview", "Vue d ensemble"),
+    Operations: t("Operations", "Operations"),
+    SystemMonitoring: t("System Monitoring", "Surveillance systeme"),
+    Controls: t("Controls", "Controles"),
+    FinancialTools: t("Financial Tools", "Outils financiers"),
   };
-  const coreItems: NavItem[] = [
-    { href: "/dashboard", label: labelMap.Dashboard, icon: LayoutGrid },
-    { href: "/", label: labelMap.Website, icon: Globe },
-    { href: "/dashboard/automations", label: labelMap.Automations, icon: Workflow },
-    { href: "/dashboard/automation-operations", label: labelMap.AutomationOperations, icon: Activity },
-    { href: "/dashboard/assistant", label: labelMap["AI Assistant"], icon: Sparkles },
-    {
-      href: "/dashboard/inbox",
-      label: labelMap.Inbox,
-      icon: Inbox,
-      badge: unreadBadge,
-    },
-    { href: "/dashboard/team", label: labelMap.Team, icon: Users },
-  ];
-  const billingItems: NavItem[] = [
-    ...(canAccessBillingWorkspacePages ? [{ href: "/dashboard/invoices", label: labelMap.Invoices, icon: Receipt } as NavItem] : []),
-    ...(canAccessBillingWorkspacePages ? [{ href: "/dashboard/customers", label: labelMap.Customers, icon: UsersRound } as NavItem] : []),
-    ...(canManageWorkspaceSubscription ? [{ href: "/dashboard/subscription", label: labelMap.Subscription, icon: Repeat } as NavItem] : []),
-    ...(canAccessBillingWorkspacePages ? [{ href: "/billing/payments", label: labelMap.Payments, icon: CreditCard } as NavItem] : []),
-    { href: "/dashboard/report", label: labelMap.Reports, icon: BarChart3 },
-  ];
-  const supportItems: NavItem[] = [
-    { href: "/dashboard/support", label: labelMap.Support, icon: Headset },
-    { href: "/dashboard/settings", label: labelMap.Settings, icon: Settings },
-  ];
+  const coreItems: NavItem[] = isOpsAdmin
+    ? []
+    : [
+        { href: "/dashboard", label: labelMap.Dashboard, icon: LayoutGrid },
+        { href: "/", label: labelMap.Website, icon: Globe },
+        { href: "/dashboard/automations", label: labelMap.Automations, icon: Workflow },
+        { href: "/dashboard/automation-operations", label: labelMap.AutomationOperations, icon: Activity },
+        { href: "/dashboard/assistant", label: labelMap["AI Assistant"], icon: Sparkles },
+        {
+          href: "/dashboard/inbox",
+          label: labelMap.Inbox,
+          icon: Inbox,
+          badge: unreadBadge,
+        },
+        { href: "/dashboard/team", label: labelMap.Team, icon: Users },
+      ];
+  const billingItems: NavItem[] = isOpsAdmin
+    ? []
+    : [
+        ...(canAccessBillingWorkspacePages ? [{ href: "/dashboard/invoices", label: labelMap.Invoices, icon: Receipt } as NavItem] : []),
+        ...(canAccessBillingWorkspacePages ? [{ href: "/dashboard/customers", label: labelMap.Customers, icon: UsersRound } as NavItem] : []),
+        ...(canManageWorkspaceSubscription ? [{ href: "/dashboard/subscription", label: labelMap.Subscription, icon: Repeat } as NavItem] : []),
+        ...(canAccessBillingWorkspacePages ? [{ href: "/billing/payments", label: labelMap.Payments, icon: CreditCard } as NavItem] : []),
+        { href: "/dashboard/report", label: labelMap.Reports, icon: BarChart3 },
+      ];
+  const supportItems: NavItem[] = isOpsAdmin
+    ? []
+    : [
+        { href: "/dashboard/support", label: labelMap.Support, icon: Headset },
+        { href: "/dashboard/settings", label: labelMap.Settings, icon: Settings },
+      ];
   const adminGroups =
     isPlatformStaff
       ? [
@@ -194,7 +201,7 @@ export function Sidebar({ role }: Props) {
         href={item.href}
         suppressHydrationWarning
         className={clsx(
-          "group relative flex h-[46px] items-center gap-3 rounded-xl px-3 text-sm font-medium tracking-[0.01em] transition-all duration-[180ms] ease-out",
+          "group relative flex h-10 items-center gap-2.5 rounded-lg px-2.5 text-[13px] font-medium tracking-[0.01em] transition-all duration-[180ms] ease-out",
           active
             ? "bg-slate-900/[0.05] text-slate-900 dark:bg-white/[0.08] dark:text-slate-100"
             : "text-slate-900 hover:bg-muted dark:text-muted-foreground"
@@ -203,13 +210,13 @@ export function Sidebar({ role }: Props) {
         <span
           aria-hidden="true"
           className={clsx(
-            "absolute left-1 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full transition-all duration-[180ms] ease-out",
+            "absolute left-1 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full transition-all duration-[180ms] ease-out",
             active ? "bg-blue-500/85 opacity-100" : "opacity-0"
           )}
         />
         <span
           className={clsx(
-            "inline-flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-lg bg-[rgba(17,24,39,0.04)] transition-colors duration-[180ms] ease-out",
+            "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[rgba(17,24,39,0.04)] transition-colors duration-[180ms] ease-out",
             active
               ? "text-blue-600 dark:text-blue-300"
               : clsx(
@@ -218,7 +225,7 @@ export function Sidebar({ role }: Props) {
                 )
           )}
         >
-          <Icon className="h-5 w-5" strokeWidth={item.zone === "admin" ? 2.25 : 2.1} />
+          <Icon className="h-4 w-4" strokeWidth={item.zone === "admin" ? 2.25 : 2.1} />
         </span>
         <span
           className={clsx(
@@ -243,10 +250,10 @@ export function Sidebar({ role }: Props) {
 
   const renderSection = (title: string, items: NavItem[]) => (
     <div>
-      <p className="px-3 text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500">
+      <p className="px-2.5 text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">
         {title}
       </p>
-      <div className="mt-2 flex flex-col gap-2">
+      <div className="mt-1.5 flex flex-col gap-1">
         {items.map((item) => renderNavLink(item))}
       </div>
     </div>
@@ -254,13 +261,13 @@ export function Sidebar({ role }: Props) {
 
   const renderBillingSection = () => (
     <div>
-      <p className="px-3 text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500">
+      <p className="px-2.5 text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">
         {labelMap.Billing}
       </p>
-      <div className="mt-2 flex flex-col gap-2">
+      <div className="mt-1.5 flex flex-col gap-1">
         {billingItems.map((item) => renderNavLink(item))}
         <div className="my-1 h-px bg-border/50" />
-        <p className="px-3 text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500">
+        <p className="px-2.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">
           {labelMap.SupportSettings}
         </p>
         {supportItems.map((item) => renderNavLink(item))}
@@ -270,16 +277,16 @@ export function Sidebar({ role }: Props) {
 
   const renderAdminSection = () => (
     <div>
-      <p className="px-3 text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500">
+      <p className="px-2.5 text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">
         {labelMap.Admin}
       </p>
-      <div className="mt-2 flex flex-col gap-3">
+      <div className="mt-1.5 flex flex-col gap-2.5">
         {adminGroups.map((group) => (
           <div key={group.title}>
-            <p className="px-3 text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+            <p className="px-2.5 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
               {group.title}
             </p>
-            <div className="mt-1.5 flex flex-col gap-2">
+            <div className="mt-1.5 flex flex-col gap-1">
               {group.items.map((item) => renderNavLink(item))}
             </div>
           </div>
@@ -289,19 +296,19 @@ export function Sidebar({ role }: Props) {
   );
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-64 flex-col border-r border-border bg-background p-4 backdrop-blur lg:flex">
-        <div className="mb-6 flex items-center gap-2">
-          <div className="relative h-10 w-10 overflow-hidden rounded-xl border border-border bg-card">
+    <aside className="sticky top-0 hidden h-screen w-60 flex-col border-r border-border bg-background px-3 py-3.5 backdrop-blur lg:flex">
+        <div className="mb-5 flex items-center gap-2">
+          <div className="relative h-9 w-9 overflow-hidden rounded-lg border border-border bg-card">
             <Image src={logoSrc} alt="Maboria" fill sizes="40px" className="object-contain p-0 scale-110" priority />
           </div>
           <div>
-          <p className="text-sm text-slate-700 dark:text-muted-foreground">Maboria</p>
-          <p className="text-lg font-semibold text-foreground">
-            {language === "fr" ? "Controle" : "Control"}
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-muted-foreground">Maboria</p>
+          <p className="text-base font-semibold text-foreground">
+            {t("Control", "Controle", "Kontrolle", "Control", "Controlo")}
           </p>
         </div>
       </div>
-      <nav className="flex flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden pr-1">
+      <nav className="flex flex-1 flex-col gap-3 overflow-y-auto overflow-x-hidden pr-1">
         {renderSection(labelMap.Core, coreItems)}
         <div className="h-px bg-border/70" />
         {renderBillingSection()}
@@ -315,3 +322,4 @@ export function Sidebar({ role }: Props) {
     </aside>
   );
 }
+

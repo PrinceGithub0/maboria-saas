@@ -19,6 +19,7 @@ import { LangText } from "@/components/ui/lang-text";
 import { cookies } from "next/headers";
 import { getOrCreateInvoicePublicLink } from "@/lib/invoice-public-link";
 import { deriveInvoiceDisplayStatus } from "@/lib/invoice-refund-status";
+import { getLocalizedText, normalizeLanguage } from "@/lib/i18n";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -31,13 +32,21 @@ const isPayableStatus = (status: string) => ["SENT", "OVERDUE", "FAILED"].includ
 const isFinalStatus = (status: string) => ["PAID", "CANCELED", "EXPIRED"].includes(String(status || "").toUpperCase());
 
 export default async function InvoiceDetailPage({ params, searchParams }: PageProps) {
-  const t = (en: string, fr: string) => <LangText en={en} fr={fr} />;
+  const t = (en: string, fr: string, de?: string, es?: string, pt?: string) => (
+    <LangText en={en} fr={fr} de={de} es={es} pt={pt} />
+  );
   const cookieStore = await cookies();
-  const language = cookieStore.get("maboria_language")?.value === "fr" ? "fr" : "en";
-  const pdfHint =
-    language === "fr"
-      ? "Corrigez la devise et le profil entreprise pour activer le PDF."
-      : "Fix invoice currency and business profile to enable PDF.";
+  const language = normalizeLanguage(cookieStore.get("maboria_language")?.value);
+  const pdfHint = getLocalizedText(
+    {
+      en: "Fix invoice currency and business profile to enable PDF.",
+      fr: "Corrigez la devise et le profil entreprise pour activer le PDF.",
+      de: "Korrigiere Rechnungswährung und Unternehmensprofil, um das PDF zu aktivieren.",
+      es: "Corrige la divisa de la factura y el perfil de empresa para habilitar el PDF.",
+      pt: "Corrija a moeda da fatura e o perfil da empresa para ativar o PDF.",
+    },
+    language
+  );
   const session = await getServerSession(authOptions);
   if (!session?.user) {
     redirect("/login");
@@ -51,7 +60,7 @@ export default async function InvoiceDetailPage({ params, searchParams }: PagePr
   if (!access.ok) {
     return (
       <div className="space-y-6">
-        <Alert variant="error">{t("Access denied.", "Acces refuse.")}</Alert>
+        <Alert variant="error">{t("Access denied.", "Accès refuse.", "Zugriff verweigert.", "Acceso denegado.", "Acesso negado.")}</Alert>
       </div>
     );
   }
@@ -84,12 +93,12 @@ export default async function InvoiceDetailPage({ params, searchParams }: PagePr
   if (candidates.length === 0) {
     return (
       <div className="space-y-4">
-        <Alert variant="error">{t("Invalid invoice link.", "Lien de facture invalide.")}</Alert>
+        <Alert variant="error">{t("Invalid invoice link.", "Lien de facture invalide.", "Ungültiger Rechnungslink.", "Enlace de factura no valido.", "Ligacao de fatura invalida.")}</Alert>
         <Link
           href="/dashboard/invoices"
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-muted px-4 py-2 text-sm font-semibold text-foreground hover:brightness-95"
         >
-          {t("Back to invoices", "Retour aux factures")}
+          {t("Back to invoices", "Retour aux factures", "Zurück zu Rechnungen", "Volver a facturas", "Voltar a faturas")}
         </Link>
       </div>
     );
@@ -104,8 +113,15 @@ export default async function InvoiceDetailPage({ params, searchParams }: PagePr
     return (
       <div className="space-y-6">
         <Alert variant="error">
-          {t("Access denied.", "Acces refuse.")}{" "}
-          {entitlement.reason || t("Upgrade required to view invoices.", "Mise a niveau requise pour voir les factures.")}
+          {t("Access denied.", "Accès refuse.", "Zugriff verweigert.", "Acceso denegado.", "Acesso negado.")}{" "}
+          {entitlement.reason ||
+            t(
+              "Upgrade required to view invoices.",
+              "Mise a niveau requise pour voir les factures.",
+              "Upgrade erforderlich, um Rechnungen anzusehen.",
+              "Se requiere una mejora para ver las facturas.",
+              "E necessario fazer upgrade para ver as faturas."
+            )}
         </Alert>
       </div>
     );
@@ -114,6 +130,7 @@ export default async function InvoiceDetailPage({ params, searchParams }: PagePr
   const invoice = await prisma.invoice.findFirst({
     where: {
       userId: targetUserId,
+      subscriptionId: null,
       OR: candidates.flatMap((value) => [
         { id: value },
         { invoiceNumber: value },
@@ -139,14 +156,17 @@ export default async function InvoiceDetailPage({ params, searchParams }: PagePr
         <Alert variant="error">
           {t(
             "Invoice not found. It may have been deleted or the link is incorrect.",
-            "Facture introuvable. Elle a peut-etre ete supprimee ou le lien est incorrect."
+            "Facture introuvable. Elle a peut-être ?t? supprimee ou le lien est incorrect.",
+            "Rechnung nicht gefunden. Sie wurde moglicherweise gelöscht oder der Link ist falsch.",
+            "No se encontro la factura. Puede que se haya eliminado o que el enlace sea incorrecto.",
+            "Fatura não encontrada. Pode ter sido eliminada ou a ligacao esta incorreta."
           )}
         </Alert>
         <Link
           href="/dashboard/invoices"
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-muted px-4 py-2 text-sm font-semibold text-foreground hover:brightness-95"
         >
-          {t("Back to invoices", "Retour aux factures")}
+          {t("Back to invoices", "Retour aux factures", "Zurück zu Rechnungen", "Volver a facturas", "Voltar a faturas")}
         </Link>
       </div>
     );
@@ -212,10 +232,10 @@ export default async function InvoiceDetailPage({ params, searchParams }: PagePr
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
-            {t("Invoices", "Factures")}
+            {t("Invoices", "Factures", "Rechnungen", "Facturas", "Faturas")}
           </p>
           <h1 className="text-3xl font-semibold text-foreground">
-            {t("Invoice", "Facture")} {invoice.invoiceNumber}
+            {t("Invoice", "Facture", "Rechnung", "Factura", "Fatura")} {invoice.invoiceNumber}
           </h1>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -223,7 +243,7 @@ export default async function InvoiceDetailPage({ params, searchParams }: PagePr
             href="/dashboard/invoices"
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-muted px-4 py-2 text-sm font-semibold text-foreground hover:brightness-95"
           >
-            {t("Back to invoices", "Retour aux factures")}
+            {t("Back to invoices", "Retour aux factures", "Zurück zu Rechnungen", "Volver a facturas", "Voltar a faturas")}
           </Link>
           {currencyAllowed && !businessMissing ? (
             <a
@@ -231,7 +251,7 @@ export default async function InvoiceDetailPage({ params, searchParams }: PagePr
               download
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-500"
             >
-              {t("Download PDF", "Telecharger PDF")}
+              {t("Download PDF", "Télécharger PDF", "PDF herunterladen", "Descargar PDF", "Transferir PDF")}
             </a>
           ) : (
             <span
@@ -239,7 +259,7 @@ export default async function InvoiceDetailPage({ params, searchParams }: PagePr
               title={pdfHint}
               aria-disabled="true"
             >
-              {t("Download PDF", "Telecharger PDF")}
+              {t("Download PDF", "Télécharger PDF", "PDF herunterladen", "Descargar PDF", "Transferir PDF")}
             </span>
           )}
         </div>
@@ -249,7 +269,10 @@ export default async function InvoiceDetailPage({ params, searchParams }: PagePr
         <Alert variant="error">
           {t(
             "Invoice currency is invalid. Update the invoice currency before downloading a PDF.",
-            "Devise invalide. Mettez a jour la devise avant de telecharger le PDF."
+            "Devise invalide. Mettez a jour la devise avant de télécharger le PDF.",
+            "Die Rechnungswährung ist unzulassig. Aktualisiere die Währung, bevor du ein PDF herunterladst.",
+            "La moneda de la factura no es valida. Actualiza la moneda antes de descargar el PDF.",
+            "A moeda da fatura e invalida. Atualize a moeda antes de transferir o PDF."
           )}
         </Alert>
       )}
@@ -257,7 +280,10 @@ export default async function InvoiceDetailPage({ params, searchParams }: PagePr
         <Alert variant="error">
           {t(
             "Business profile snapshot is missing on this invoice. Please recreate the invoice.",
-            "Profil entreprise manquant sur cette facture. Veuillez recreer la facture."
+            "Profil entreprise manquant sur cette facture. Veuillez recreer la facture.",
+            "Der Snapshot des Unternehmensprofils fehlt auf dieser Rechnung. Bitte erstelle die Rechnung erneut.",
+            "Falta la instantanea del perfil de empresa en esta factura. Vuelve a crear la factura.",
+            "Falta o snapshot do perfil da empresa nesta fatura. Crie a fatura novamente."
           )}
         </Alert>
       )}

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { AppShell } from "@/components/layouts/app-shell";
 import { authOptions } from "@/lib/auth";
 import { resolveImpersonationFromRequestContext } from "@/lib/admin/impersonation";
-import { evaluateWorkspaceGate, isPlatformRole, shouldRunWorkspaceChecks } from "@/lib/global-role";
+import { evaluateWorkspaceGate, isOpsAdminRole, isPlatformRole, shouldRunWorkspaceChecks } from "@/lib/global-role";
 import { resolveOrgContext } from "@/lib/org-auth";
 import { getActorSystemFlagRole } from "@/lib/system-flags";
 import { prisma } from "@/lib/prisma";
@@ -22,6 +22,9 @@ export default async function BillingPaymentsLayout({
   const globalRole = await getActorSystemFlagRole(session.user.id);
   if (isPlatformRole(globalRole)) {
     const impersonation = await resolveImpersonationFromRequestContext(session.user.id);
+    if (!impersonation && isOpsAdminRole(globalRole)) {
+      redirect("/admin");
+    }
     const effectiveRole = impersonation ? "USER" : globalRole;
     if (impersonation) {
       const context = await resolveOrgContext(session.user.id);

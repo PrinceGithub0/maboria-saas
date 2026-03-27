@@ -3,17 +3,34 @@
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { Check, ChevronDown, Globe } from "lucide-react";
-
-type Language = "en" | "fr";
-
-const options: Array<{ value: Language; label: { en: string; fr: string } }> = [
-  { value: "en", label: { en: "English", fr: "Anglais" } },
-  { value: "fr", label: { en: "French", fr: "Francais" } },
-];
+import {
+  getLanguageDisplayName,
+  getLocalizedText,
+  getLanguageShortCode,
+  SUPPORTED_LANGUAGES,
+  type Language,
+} from "@/lib/i18n";
 
 type Props = {
   value: Language;
   onChange: (value: Language) => void;
+};
+
+const languageSwitcherText = {
+  buttonLabel: {
+    en: "Language",
+    fr: "Langue",
+    de: "Sprache",
+    es: "Idioma",
+    pt: "Idioma",
+  },
+  menuLabel: {
+    en: "Language menu",
+    fr: "Menu des langues",
+    de: "Sprachmenu",
+    es: "Menu de idiomas",
+    pt: "Menu de idiomas",
+  },
 };
 
 export function LanguageSwitcher({ value, onChange }: Props) {
@@ -42,37 +59,37 @@ export function LanguageSwitcher({ value, onChange }: Props) {
     <div ref={wrapperRef} className="relative z-[60]">
       <button
         type="button"
-        aria-label="Language"
+        aria-label={getLocalizedText(languageSwitcherText.buttonLabel, value)}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((prev) => !prev)}
         className="inline-flex items-center gap-2 rounded-full border border-border bg-card/95 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground shadow-sm hover:bg-muted focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
       >
         <Globe className="h-4 w-4 text-muted-foreground" />
-        <span>{value === "fr" ? "FR" : "EN"}</span>
+        <span>{getLanguageShortCode(value)}</span>
         <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
       </button>
 
       {open && (
         <div
           role="menu"
-          aria-label="Language menu"
+          aria-label={getLocalizedText(languageSwitcherText.menuLabel, value)}
           className="absolute right-0 mt-2 w-48 overflow-hidden rounded-2xl border border-border bg-background shadow-2xl"
         >
           <div className="px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            {value === "fr" ? "Langue" : "Language"}
+            {getLanguageDisplayName(value, value)}
           </div>
           <div className="border-t border-border">
-            {options.map((opt) => {
-              const active = opt.value === value;
+            {SUPPORTED_LANGUAGES.map((language) => {
+              const active = language === value;
               return (
                 <button
-                  key={opt.value}
+                  key={language}
                   type="button"
                   role="menuitemradio"
                   aria-checked={active}
                   onClick={() => {
-                    onChange(opt.value);
+                    onChange(language);
                     setOpen(false);
                   }}
                   className={clsx(
@@ -80,7 +97,7 @@ export function LanguageSwitcher({ value, onChange }: Props) {
                     active ? "bg-indigo-500/10 text-foreground" : "hover:bg-muted"
                   )}
                 >
-                  <span className="text-foreground">{value === "fr" ? opt.label.fr : opt.label.en}</span>
+                  <span className="text-foreground">{getLanguageDisplayName(language, value)}</span>
                   {active && <Check className="h-4 w-4 text-indigo-500" />}
                 </button>
               );

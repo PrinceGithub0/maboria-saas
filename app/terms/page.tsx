@@ -1,7 +1,10 @@
 import { LangText } from "@/components/ui/lang-text";
+import { resolveLocalizedText } from "@/lib/i18n";
 
 export default function TermsPage() {
-  const t = (en: string, fr: string) => <LangText en={en} fr={fr} />;
+  const t = (en: string, fr: string, de?: string, es?: string, pt?: string) => (
+    <LangText {...resolveLocalizedText({ en, fr, de, es, pt })} />
+  );
   return (
     <div className="mx-auto max-w-[900px] space-y-10 px-6 py-14 text-foreground max-md:mx-0 max-md:w-full max-md:max-w-none">
       <div className="space-y-2">
@@ -18,7 +21,7 @@ export default function TermsPage() {
         <p>
           {t(
             "These Terms of Service (\"Terms\") govern your access to and use of the Maboria platform and services (\"Maboria\", \"we\", \"our\", or \"us\"). By using Maboria, you agree to these Terms.",
-            "Les presentes Conditions de service (\"Conditions\") regissent votre acces et votre utilisation de la plateforme et des services Maboria (\"Maboria\", \"nous\", \"notre\" ou \"nos\"). En utilisant Maboria, vous acceptez ces Conditions."
+            "Les presentes Conditions de service (\"Conditions\") regissent votre accès et votre utilisation de la plateforme et des services Maboria (\"Maboria\", \"nous\", \"notre\" ou \"nos\"). En utilisant Maboria, vous acceptez ces Conditions."
           )}
         </p>
         <p>
@@ -34,7 +37,7 @@ export default function TermsPage() {
         <p>
           {t(
             "You may use Maboria if you have the legal capacity and authority to enter into these Terms, either on your own behalf or on behalf of a business or organization. If you use Maboria for a company, you confirm that you are authorized to act for that business.",
-            "Vous pouvez utiliser Maboria si vous avez la capacite juridique et l autorite necessaires pour accepter ces Conditions, en votre nom ou au nom d une entreprise ou organisation. Si vous utilisez Maboria pour une societe, vous confirmez etre autorise a agir pour cette entreprise."
+            "Vous pouvez utiliser Maboria si vous avez la capacite juridique et l autorite necessaires pour accepter ces Conditions, en votre nom ou au nom d une entreprise ou organisation. Si vous utilisez Maboria pour une societe, vous confirmez être autorise a agir pour cette entreprise."
           )}
         </p>
         <p>
@@ -50,13 +53,13 @@ export default function TermsPage() {
         <p>{t("You are responsible for:", "Vous etes responsable de :")}</p>
         <ul className="list-disc space-y-2 pl-5 text-sm text-muted-foreground">
           <li>{t("keeping your login credentials secure", "proteger vos identifiants de connexion")}</li>
-          <li>{t("all activity that occurs under your account", "toute activite effectuee via votre compte")}</li>
+          <li>{t("all activity that occurs under your account", "toute activité effectuee via votre compte")}</li>
           <li>{t("ensuring that the information you provide is accurate and up to date", "vous assurer que les informations fournies sont exactes et a jour")}</li>
         </ul>
         <p>
           {t(
             "If you believe your account has been accessed without permission, you should contact support as soon as possible.",
-            "Si vous pensez que votre compte a ete utilise sans autorisation, vous devez contacter le support des que possible."
+            "Si vous pensez que votre compte a ?t? utilise sans autorisation, vous devez contacter le support des que possible."
           )}
         </p>
       </section>
@@ -71,7 +74,7 @@ export default function TermsPage() {
           <li>{t("generating receipts where enabled", "la generation de recus lorsque cette option est activee")}</li>
           <li>{t("sending and automating WhatsApp messages", "l envoi et l automatisation de messages WhatsApp")}</li>
           <li>{t("automation workflows and reporting", "les workflows d automatisation et les rapports")}</li>
-          <li>{t("team access, activity logs, and usage analytics", "l acces d equipe, les journaux d activite et l analytique d usage")}</li>
+          <li>{t("team access, activity logs, and usage analytics", "l accès d équipe, les journaux d activité et l analytique d usage")}</li>
           <li>{t("AI features that assist with messaging and workflow setup", "des fonctionnalites IA qui assistent la messagerie et la configuration des workflows")}</li>
         </ul>
         <p>{t("You control how these tools are used and how you communicate with your customers.", "Vous controlez la maniere dont ces outils sont utilises et la facon dont vous communiquez avec vos clients.")}</p>
@@ -95,17 +98,17 @@ export default function TermsPage() {
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold">{t("6. Disputes, Refunds, and Settlement Issues", "6. Litiges, remboursements et reglements")}</h2>
+        <h2 className="text-xl font-semibold">{t("6. Disputes, Refunds, and Settlement Issues", "6. Litiges, remboursements et règlements")}</h2>
         <p>
           {t(
             "Disputes, chargebacks, refunds, failed payments, and settlement delays related to customer payments are handled by the payment provider (such as Paystack or Flutterwave) and the users bank, in accordance with the providers policies.",
-            "Les litiges, retrofacturations, remboursements, paiements echoues et retards de reglement lies aux paiements clients sont geres par le prestataire de paiement (Paystack ou Flutterwave) et la banque de l utilisateur, conformement aux politiques du prestataire."
+            "Les litiges, rétrofacturations, remboursements, paiements échoués et retards de règlement lies aux paiements clients sont geres par le prestataire de paiement (Paystack ou Flutterwave) et la banque de l utilisateur, conformement aux politiques du prestataire."
           )}
         </p>
         <p>
           {t(
             "Because Maboria does not handle or control customer funds, Maboria is not responsible for resolving payment disputes or settlement issues.",
-            "Parce que Maboria ne gere ni ne controle les fonds des clients, Maboria n est pas responsable de la resolution des litiges ou des problemes de reglement."
+            "Parce que Maboria ne gere ni ne controle les fonds des clients, Maboria n est pas responsable de la résolution des litiges ou des problemes de règlement."
           )}
         </p>
         <p>
@@ -157,11 +160,11 @@ export default function TermsPage() {
 
       <section className="space-y-4">
         <h2 className="text-xl font-semibold">{t("9. Automation and AI Assistance", "9. Automatisation et assistance IA")}</h2>
-        <p>{t("Automations run based on rules and configurations you define.", "Les automatisations s executent selon les regles et configurations que vous definissez.")}</p>
+        <p>{t("Automations run based on rules and configurations you define.", "Les automatisations s executent selon les règles et configurations que vous definissez.")}</p>
         <p>
           {t(
             "AI features assist by improving message wording, summarizing activity, and helping configure workflows. AI does not act independently and does not make decisions on your behalf.",
-            "Les fonctionnalites IA assistent en ameliorant la formulation des messages, en resumant l activite et en aidant a configurer les workflows. L IA n agit pas de maniere independante et ne prend pas de decisions a votre place."
+            "Les fonctionnalites IA assistent en ameliorant la formulation des messages, en resumant l activité et en aidant a configurer les workflows. L IA n agit pas de maniere independante et ne prend pas de decisions a votre place."
           )}
         </p>
         <p>
@@ -177,29 +180,29 @@ export default function TermsPage() {
         <p>
           {t(
             "Maboria supports team access with role-based permissions. Relevant actions such as invoice updates, payment events, and automation execution are logged for operational visibility.",
-            "Maboria prend en charge l acces d equipe avec des permissions par role. Les actions pertinentes telles que les mises a jour de factures, les evenements de paiement et l execution des automatisations sont enregistrees pour la visibilite operationnelle."
+            "Maboria prend en charge l accès d équipe avec des permissions par role. Les actions pertinentes telles que les mises a jour de factures, les evenements de paiement et l execution des automatisations sont enregistrees pour la visibilite operationnelle."
           )}
         </p>
         <p>
           {t(
             "Where supported, reports and usage data may be exported, including CSV files.",
-            "Lorsque cela est pris en charge, les rapports et les donnees d usage peuvent etre exportes, y compris en CSV."
+            "Lorsque cela est pris en charge, les rapports et les données d usage peuvent être exportes, y compris en CSV."
           )}
         </p>
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold">{t("11. Fair Use and Platform Safety", "11. Usage loyal et securite de la plateforme")}</h2>
+        <h2 className="text-xl font-semibold">{t("11. Fair Use and Platform Safety", "11. Usage loyal et sécurité de la plateforme")}</h2>
         <p>
           {t(
             "You agree not to use Maboria for illegal activity, harmful behavior, or misuse of messaging and automation features.",
-            "Vous acceptez de ne pas utiliser Maboria pour des activites illegales, des comportements nuisibles ou un mauvais usage des fonctionnalites de messagerie et d automatisation."
+            "Vous acceptez de ne pas utiliser Maboria pour des activités illegales, des comportements nuisibles ou un mauvais usage des fonctionnalites de messagerie et d automatisation."
           )}
         </p>
         <p>
           {t(
             "We may suspend or restrict access if necessary to protect the platform, other users, or comply with legal obligations.",
-            "Nous pouvons suspendre ou restreindre l acces si necessaire pour proteger la plateforme, les autres utilisateurs ou respecter des obligations legales."
+            "Nous pouvons suspendre ou restreindre l accès si necessaire pour proteger la plateforme, les autres utilisateurs ou respecter des obligations legales."
           )}
         </p>
       </section>
@@ -209,7 +212,7 @@ export default function TermsPage() {
         <p>
           {t(
             "Access to features depends on your subscription plan. Plan limits may apply based on usage, including invoice volume, WhatsApp usage, automation usage, AI usage, and number of team members.",
-            "L acces aux fonctionnalites depend de votre plan d abonnement. Des limites peuvent s appliquer selon l usage, notamment le volume de factures, l utilisation WhatsApp, l utilisation des automatisations, l utilisation de l IA et le nombre de membres de l equipe."
+            "L accès aux fonctionnalites depend de votre plan d abonnement. Des limites peuvent s appliquer selon l usage, notamment le volume de factures, l utilisation WhatsApp, l utilisation des automatisations, l utilisation de l IA et le nombre de membres de l équipe."
           )}
         </p>
         <p>
@@ -221,17 +224,17 @@ export default function TermsPage() {
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold">{t("13. Data and Privacy", "13. Donnees et confidentialite")}</h2>
+        <h2 className="text-xl font-semibold">{t("13. Data and Privacy", "13. Données et confidentialité")}</h2>
         <p>
           {t(
             "You retain ownership of your business data. We process data only to provide and improve the service, maintain reliability, and support your use of the platform.",
-            "Vous conservez la propriete de vos donnees professionnelles. Nous traitons les donnees uniquement pour fournir et ameliorer le service, maintenir la fiabilite et soutenir votre utilisation de la plateforme."
+            "Vous conservez la propriete de vos données professionnelles. Nous traitons les données uniquement pour fournir et ameliorer le service, maintenir la fiabilite et soutenir votre utilisation de la plateforme."
           )}
         </p>
         <p>
           {t(
             "Details about personal data handling are explained in our Privacy Policy.",
-            "Les details concernant le traitement des donnees personnelles sont expliques dans notre Politique de confidentialite."
+            "Les details concernant le traitement des données personnelles sont expliques dans notre Politique de confidentialité."
           )}
         </p>
       </section>
@@ -251,7 +254,7 @@ export default function TermsPage() {
         <p>
           {t(
             "We aim to keep Maboria reliable, but access may occasionally be affected by maintenance, updates, or factors outside our control.",
-            "Nous visons a maintenir Maboria fiable, mais l acces peut parfois etre affecte par la maintenance, des mises a jour ou des facteurs hors de notre controle."
+            "Nous visons a maintenir Maboria fiable, mais l accès peut parfois être affecte par la maintenance, des mises a jour ou des facteurs hors de notre controle."
           )}
         </p>
       </section>
@@ -272,7 +275,7 @@ export default function TermsPage() {
         <p>
           {t(
             "We may suspend or terminate access if the service is misused, required by law, or if subscription payments fail repeatedly.",
-            "Nous pouvons suspendre ou resilier l acces si le service est utilise de maniere abusive, si la loi l exige ou si les paiements d abonnement echouent de maniere repetee."
+            "Nous pouvons suspendre ou resilier l accès si le service est utilise de maniere abusive, si la loi l exige ou si les paiements d abonnement echouent de maniere repetee."
           )}
         </p>
       </section>
@@ -292,7 +295,7 @@ export default function TermsPage() {
         <p>
           {t(
             "Questions about these Terms can be sent through the official support channels listed on the Maboria website.",
-            "Les questions concernant ces Conditions peuvent etre envoyees via les canaux de support officiels listes sur le site Maboria."
+            "Les questions concernant ces Conditions peuvent être envoyees via les canaux de support officiels listes sur le site Maboria."
           )}
         </p>
       </section>

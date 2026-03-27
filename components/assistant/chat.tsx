@@ -8,7 +8,11 @@ import { Modal } from "../ui/modal";
 import { AnimatePresence, motion } from "framer-motion";
 import { Info, MessageSquare, PencilLine, Plus, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react";
 import { useLanguage } from "../providers/language-provider";
-import { formatDateDMY } from "@/lib/date";
+import {
+  formatAssistantDate,
+  formatAssistantTime,
+  localizeAssistantServerMessage,
+} from "@/lib/assistant/localization";
 
 type Message = {
   id: string;
@@ -34,8 +38,7 @@ const LEGACY_TITLE_KEY = "maboria_ai_legacy_title";
 const MESSAGE_PAGE_SIZE = 60;
 
 export function AssistantChat() {
-  const { language } = useLanguage();
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const { language, t } = useLanguage();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [loadingConversations, setLoadingConversations] = useState(true);
@@ -314,10 +317,7 @@ export function AssistantChat() {
     return <p className="whitespace-pre-wrap leading-relaxed">{renderInline(content.replace(/^["\u201C]|["\u201D]$/g, ""))}</p>;
   };
 
-  const formatTime = (value?: number) => {
-    if (!value) return "";
-    return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  };
+  const formatTime = (value?: number) => formatAssistantTime(value, language);
 
   const setLegacyTitle = (value: string) => {
     if (typeof window === "undefined") return;
@@ -363,7 +363,15 @@ export function AssistantChat() {
   const handleRename = async (conversationId: string, title: string) => {
     const nextTitle = toTitle(title);
     if (!nextTitle || nextTitle.length < 2) {
-      setStatus(t("Chat title must be at least 2 characters.", "Le titre doit avoir au moins 2 caracteres."));
+      setStatus(
+        t(
+          "Chat title must be at least 2 characters.",
+          "Le titre doit avoir au moins 2 caracteres.",
+          "Der Chattitel muss mindestens 2 Zeichen haben.",
+          "El título del chat debe tener al menos 2 caracteres.",
+          "O título do chat deve ter pelo menos 2 caracteres."
+        )
+      );
       setStatusVariant("error");
       return;
     }
@@ -380,7 +388,19 @@ export function AssistantChat() {
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setStatus(data?.error || t("Unable to rename chat right now.", "Impossible de renommer le chat."));
+      setStatus(
+        localizeAssistantServerMessage(
+          data?.error,
+          language,
+          t(
+            "Unable to rename chat right now.",
+            "Impossible de renommer le chat pour le moment.",
+            "Der Chat kann momentan nicht umbenannt werden.",
+            "No se puede cambiar el nombre del chat en este momento.",
+            "Não e possivel renomear o chat neste momento."
+          )
+        )
+      );
       setStatusVariant("error");
       return;
     }
@@ -397,7 +417,19 @@ export function AssistantChat() {
     const res = await fetch(`/api/ai/conversations/${conversationId}`, { method: "DELETE" });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setStatus(data?.error || t("Unable to delete chat right now.", "Impossible de supprimer le chat."));
+      setStatus(
+        localizeAssistantServerMessage(
+          data?.error,
+          language,
+          t(
+            "Unable to delete chat right now.",
+            "Impossible de supprimer le chat pour le moment.",
+            "Der Chat kann momentan nicht gelöscht werden.",
+            "No se puede eliminar el chat en este momento.",
+            "Não e possivel eliminar o chat neste momento."
+          )
+        )
+      );
       setStatusVariant("error");
       setDeletingConversationId(null);
       return;
@@ -448,7 +480,13 @@ export function AssistantChat() {
         conversationId = created.id;
       } else {
         setStatus(
-          t("Chat history is unavailable right now. Sending without history.", "Historique indisponible. Envoi sans historique.")
+          t(
+            "Chat history is unavailable right now. Sending without history.",
+            "L'historique du chat est indisponible. Envoi sans historique.",
+            "Der Chatverlauf ist momentan nicht verfügbar. Es wird ohne Verlauf gesendet.",
+            "El historial del chat no esta disponible ahora mismo. Se enviara sin historial.",
+            "O histórico do chat não esta disponível neste momento. O envio seguira sem histórico."
+          )
         );
         setStatusVariant("error");
       }
@@ -481,26 +519,60 @@ export function AssistantChat() {
       if (!res.ok && !isStream) {
         const data = await res.json().catch(() => ({}));
         if (res.status === 401) {
-          setStatus(t("Session expired. Please sign in again.", "Session expiree. Reconnectez-vous."));
+          setStatus(
+            t(
+              "Session expired. Please sign in again.",
+              "Session expiree. Veuillez vous reconnecter.",
+              "Die Sitzung ist abgelaufen. Bitte melde dich erneut an.",
+              "La sesión ha expirado. Vuelve a iniciar sesión.",
+              "A sessão expirou. Inicia sessão novamente."
+            )
+          );
           setStatusVariant("error");
         } else if (data.type === "upgrade_required") {
           setStatus(
-            `${data.error || t("Upgrade required.", "Mise a niveau requise.")} ${t(
-              "Required plan: Pro or higher.",
-              "Plan requis: Pro ou plus."
-            )}`
+            localizeAssistantServerMessage(
+              data.error || "Upgrade required",
+              language,
+              t(
+                "Upgrade required.",
+                "Mise a niveau requise.",
+                "Upgrade erforderlich.",
+                "Se requiere una mejora del plan.",
+                "Atualizacao de plano necessária."
+              )
+            )
           );
           setStatusVariant("error");
         } else if (data.type === "limit_reached") {
           setStatus(
-            `${data.error || t("AI limit reached.", "Limite IA atteinte.")} ${t(
-              "Required plan: Pro or higher.",
-              "Plan requis: Pro ou plus."
-            )}`
+            localizeAssistantServerMessage(
+              data.reason || data.error || "AI usage limit reached for this month",
+              language,
+              t(
+                "AI usage limit reached for this month.",
+                "La limite d utilisation IA de ce mois est atteinte.",
+                "Das KI-Nutzungslimit für diesen Monat ist erreicht.",
+                "Se alcanzo el limite de uso de IA de este mes.",
+                "O limite de utilização de IA deste mes foi atingido."
+              )
+            )
           );
           setStatusVariant("error");
         } else {
-          setStatus(data.error || t("Assistant is unavailable right now.", "Assistant indisponible."));
+          setStatus(
+            localizeAssistantServerMessage(
+              data.error,
+              language,
+              t(
+                "Assistant is unavailable right now.",
+                "Assistant indisponible pour le moment.",
+                "Der Assistent ist momentan nicht verfügbar.",
+                "El asistente no esta disponible ahora mismo.",
+                "O assistente não esta disponível neste momento."
+              )
+            )
+          );
           setStatusVariant("error");
         }
         return;
@@ -535,7 +607,19 @@ export function AssistantChat() {
               nextId = payload.conversationId;
             }
             if (payload?.error) {
-              setStatus(payload.error);
+              setStatus(
+                localizeAssistantServerMessage(
+                  payload.error,
+                  language,
+                  t(
+                    "Assistant is unavailable right now.",
+                    "Assistant indisponible pour le moment.",
+                    "Der Assistent ist momentan nicht verfügbar.",
+                    "El asistente no esta disponible ahora mismo.",
+                    "O assistente não esta disponível neste momento."
+                  )
+                )
+              );
               setStatusVariant("error");
             }
             if (payload?.done) {
@@ -607,7 +691,19 @@ export function AssistantChat() {
       setInput("");
       resizeInput();
     } catch (err: any) {
-      setStatus(err?.message || t("Assistant is unavailable right now.", "Assistant indisponible."));
+      setStatus(
+        localizeAssistantServerMessage(
+          err?.message,
+          language,
+          t(
+            "Assistant is unavailable right now.",
+            "Assistant indisponible pour le moment.",
+            "Der Assistent ist momentan nicht verfügbar.",
+            "El asistente no esta disponible ahora mismo.",
+            "O assistente não esta disponível neste momento."
+          )
+        )
+      );
       setStatusVariant("error");
     } finally {
       setLoading(false);
@@ -645,7 +741,10 @@ export function AssistantChat() {
   const streamingMessage = streamingMessageId ? messages.find((m) => m.id === streamingMessageId) : null;
   const showTypingLine = loading && (!streamingMessageId || !(streamingMessage?.content || "").trim());
 
-  const formatTitle = (value: string) => (value === "New chat" ? t("New chat", "Nouveau chat") : value);
+  const formatTitle = (value: string) =>
+    value === "New chat"
+      ? t("New chat", "Nouveau chat", "Neuer Chat", "Nuevo chat", "Novo chat")
+      : value;
 
   return (
     <div className={`grid h-full gap-6 ${historyOpen ? "lg:grid-cols-[220px_1fr]" : "lg:grid-cols-[1fr]"}`}>
@@ -656,13 +755,19 @@ export function AssistantChat() {
             <div>
               <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.32em] text-muted-foreground">
                 <MessageSquare className="h-4 w-4 text-indigo-600" />
-                {t("Conversations", "Conversations")}
+                {t("Conversations", "Conversations", "Unterhaltungen", "Conversaciones", "Conversas")}
               </div>
               <p className="mt-2 text-sm font-semibold text-foreground">
-                {t("Executive history", "Historique exec")}
+                {t("Executive history", "Historique exec", "Verlaufsübersicht", "Historial ejecutivo", "Histórico executivo")}
               </p>
               <p className="mt-1 text-[11px] text-muted-foreground">
-                {t("Private, secure, and scoped to your workspace.", "Prive, securise, et limite a votre espace.")}
+                {t(
+                  "Private, secure, and scoped to your workspace.",
+                  "Prive, securise, et limite a votre espace.",
+                  "Privat, sicher und auf deinen Workspace begrenzt.",
+                  "Privado, seguro y limitado a tu espacio de trabajo.",
+                  "Privado, seguro e limitado ao teu espaco de trabalho."
+                )}
               </p>
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -673,23 +778,29 @@ export function AssistantChat() {
                 onClick={handleNewChat}
               >
                 <Plus className="mr-1 h-3 w-3" />
-                {t("New chat", "Nouveau chat")}
+                {t("New chat", "Nouveau chat", "Neuer Chat", "Nuevo chat", "Novo chat")}
               </Button>
               <button
                 type="button"
                 onClick={toggleHistory}
                 className="h-8 rounded-full border border-border/60 px-3 text-[11px] font-semibold text-foreground hover:bg-muted/30"
-                aria-label={t("Collapse history", "Reduire l'historique")}
+                aria-label={t("Collapse history", "Reduire l'historique", "Verlauf ausblenden", "Ocultar historial", "Ocultar histórico")}
               >
-                {t("Hide", "Cacher")}
+                {t("Hide", "Cacher", "Ausblenden", "Ocultar", "Ocultar")}
               </button>
             </div>
           </div>
           <div className="max-h-[calc(100vh-220px)] space-y-1 overflow-y-auto pr-1 max-lg:max-h-[calc(100vh-260px)]">
-          {loadingConversations && <div className="px-2 py-2 text-xs text-muted-foreground">{t("Loading chats...", "Chargement des chats...")}</div>}
+          {loadingConversations && <div className="px-2 py-2 text-xs text-muted-foreground">{t("Loading chats...", "Chargement des chats...", "Chats werden geladen...", "Cargando chats...", "A carregar chats...")}</div>}
           {!loadingConversations && dedupedConversations.length === 0 && (
             <div className="px-2 py-2 text-xs text-muted-foreground">
-              {t("Start a new chat to see history here.", "Demarrez un nouveau chat pour voir l'historique.")}
+              {t(
+                "Start a new chat to see history here.",
+                "Demarrez un nouveau chat pour voir l'historique.",
+                "Starte einen neuen Chat, um hier den Verlauf zu sehen.",
+                "Inicia un nuevo chat para ver aqui el historial.",
+                "Inicia um novo chat para ver aqui o histórico."
+              )}
             </div>
           )}
           {dedupedConversations.map((conversation, idx) => {
@@ -708,10 +819,10 @@ export function AssistantChat() {
                     <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="h-8 text-xs" />
                     <div className="flex items-center gap-2">
                       <Button size="sm" className="h-7 rounded-full px-3 text-[11px]" onClick={() => handleRename(conversation.id, editTitle)}>
-                        {t("Save", "Enregistrer")}
+                        {t("Save", "Enregistrer", "Speichern", "Guardar", "Guardar")}
                       </Button>
                       <Button size="sm" variant="secondary" className="h-7 rounded-full px-3 text-[11px]" onClick={() => setEditingId(null)}>
-                        {t("Cancel", "Annuler")}
+                        {t("Cancel", "Annuler", "Abbrechen", "Cancelar", "Cancelar")}
                       </Button>
                     </div>
                   </div>
@@ -736,8 +847,8 @@ export function AssistantChat() {
                       <p className="text-sm font-semibold text-foreground">{formatTitle(conversation.title)}</p>
                       <p className="text-[11px] text-muted-foreground">
                         {conversation.lastMessageAt
-                          ? formatDateDMY(new Date(conversation.lastMessageAt))
-                          : t("No messages yet", "Pas de messages")}
+                          ? formatAssistantDate(conversation.lastMessageAt, language)
+                          : t("No messages yet", "Pas de messages", "Noch keine Nachrichten", "Todavia no hay mensajes", "Ainda não ha mensagens")}
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
@@ -749,7 +860,7 @@ export function AssistantChat() {
                           setEditTitle(formatTitle(conversation.title));
                         }}
                         className="rounded-full p-1 text-muted-foreground hover:text-foreground"
-                        aria-label={t("Rename chat", "Renommer le chat")}
+                        aria-label={t("Rename chat", "Renommer le chat", "Chat umbenennen", "Renombrar chat", "Renomear chat")}
                       >
                         <PencilLine className="h-3 w-3" />
                       </button>
@@ -760,7 +871,7 @@ export function AssistantChat() {
                             setDeleteTarget(conversation);
                           }}
                           className="rounded-full p-1 text-muted-foreground hover:text-foreground"
-                          aria-label={t("Delete chat", "Supprimer le chat")}
+                          aria-label={t("Delete chat", "Supprimer le chat", "Chat loschen", "Eliminar chat", "Apagar chat")}
                       >
                         <Trash2 className="h-3 w-3" />
                       </button>
@@ -778,17 +889,17 @@ export function AssistantChat() {
             type="button"
             onClick={toggleHistory}
             className="rounded-full border border-border/60 px-3 py-2 text-[11px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground lg:hidden"
-            aria-label={t("Show history", "Afficher l'historique")}
+            aria-label={t("Show history", "Afficher l'historique", "Verlauf anzeigen", "Mostrar historial", "Mostrar histórico")}
           >
-            {t("History", "Historique")}
+            {t("History", "Historique", "Verlauf", "Historial", "Histórico")}
           </button>
           <button
             type="button"
             onClick={toggleHistory}
             className="rounded-full border border-border/60 px-3 py-2 text-[11px] uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground max-lg:hidden"
-            aria-label={t("Expand history", "Afficher l'historique")}
+            aria-label={t("Expand history", "Afficher l'historique", "Verlauf erweitern", "Ampliar historial", "Expandir histórico")}
           >
-            {t("History", "Historique")}
+            {t("History", "Historique", "Verlauf", "Historial", "Histórico")}
           </button>
         </div>
       )}
@@ -803,7 +914,7 @@ export function AssistantChat() {
             onClick={handleNewChat}
           >
             <Plus className="mr-1 h-3 w-3" />
-            {t("New chat", "Nouveau chat")}
+            {t("New chat", "Nouveau chat", "Neuer Chat", "Nuevo chat", "Novo chat")}
           </Button>
         </div>
         {status && <Alert variant={statusVariant}>{status}</Alert>}
@@ -826,25 +937,30 @@ export function AssistantChat() {
                 onClick={loadOlderMessages}
                 loading={loadingOlderMessages}
               >
-                {t("Load older messages", "Charger les anciens messages")}
+                {t("Load older messages", "Charger les anciens messages", "Altere Nachrichten laden", "Cargar mensajes anteriores", "Carregar mensagens antigas")}
               </Button>
             </div>
           ) : null}
           {messages.length === 0 && !loading && (
             <div className="flex h-full items-center justify-center">
               <div className="max-w-xl text-center">
-                <p className="text-2xl font-semibold text-foreground">{t("Welcome to Maboria AI", "Bienvenue sur Maboria IA")}</p>
+                <p className="text-2xl font-semibold text-foreground">
+                  {t("Welcome to Maboria AI", "Bienvenue sur Maboria IA", "Willkommen bei Maboria KI", "Bienvenido a Maboria IA", "Bem-vindo ao Maboria IA")}
+                </p>
                 <p className="mt-2 text-sm text-muted-foreground">
                   {t(
                     "Ask about automations, invoices, revenue, or insights. We'll help you move faster with clear next steps.",
-                    "Posez des questions sur automatisations, factures, revenus ou insights. Nous vous aidons a avancer."
+                    "Posez des questions sur automatisations, factures, revenus ou insights. Nous vous aidons a avancer.",
+                    "Frage nach Automatisierungen, Rechnungen, Umsatz oder Einblicken. Wir helfen dir mit klaren nächsten Schritten schneller voranzukommen.",
+                    "Pregunta por automatizaciones, facturas, ingresos o analiticas. Te ayudaremos a avanzar mas rapido con pasos claros.",
+                    "Pergunta sobre automações, faturas, receita ou insights. Vamos ajudar-te a avançar mais rapido com próximos passos claros."
                   )}
                 </p>
                 <div className="mt-4 flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
                   {[
-                    t("Draft a follow-up workflow", "Generer un workflow de relance"),
-                    t("Summarize weekly revenue", "Resumer les revenus de la semaine"),
-                    t("Diagnose a failed run", "Diagnostiquer un echec"),
+                    t("Draft a follow-up workflow", "Generer un workflow de relance", "Einen Folge-Workflow entwerfen", "Crear un flujo de seguimiento", "Criar um fluxo de acompanhamento"),
+                    t("Summarize weekly revenue", "Resumer les revenus de la semaine", "Wochentlichen Umsatz zusammenfassen", "Resumir los ingresos semanales", "Resumir a receita semanal"),
+                    t("Diagnose a failed run", "Diagnostiquer un echec", "Einen fehlgeschlagenen Lauf analysieren", "Diagnosticar una ejecucion fallida", "Diagnosticar uma execucao falhada"),
                   ].map((item) => (
                     <span key={item} className="rounded-full border border-border/60 px-3 py-1 text-indigo-700">
                       {item}
@@ -874,7 +990,9 @@ export function AssistantChat() {
                     >
                       {m.role === "assistant" ? renderAssistantContent(m.content) : <p className="whitespace-pre-wrap">{m.content}</p>}
                       {m.role === "assistant" && showTypingLine && streamingMessageId === m.id && !m.content && (
-                        <span className="text-xs text-muted-foreground">{t("Maboria AI is typing...", "Maboria IA ecrit...")}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {t("Maboria AI is typing...", "Maboria IA ecrit...", "Maboria KI schreibt...", "Maboria IA esta escribiendo...", "Maboria IA esta a escrever...")}
+                        </span>
                       )}
                       {m.role === "assistant" && streamingMessageId === m.id && (
                         <span className="ml-1 inline-block h-4 w-2 animate-pulse rounded-sm bg-indigo-400 align-middle" />
@@ -887,7 +1005,7 @@ export function AssistantChat() {
                           onClick={() => sendFeedback(m.id, "up")}
                           disabled={m.feedback === "up"}
                           className={`inline-flex items-center gap-1 ${m.feedback === "up" ? "text-emerald-600 font-bold" : "hover:text-foreground"}`}
-                          aria-label={t("Helpful", "Utile")}
+                          aria-label={t("Helpful", "Utile", "Hilfreich", "Util", "Util")}
                         >
                           <ThumbsUp className="h-4 w-4" />
                         </button>
@@ -896,11 +1014,11 @@ export function AssistantChat() {
                           onClick={() => sendFeedback(m.id, "down")}
                           disabled={m.feedback === "down"}
                           className={`inline-flex items-center gap-1 ${m.feedback === "down" ? "text-red-600 font-bold" : "hover:text-foreground"}`}
-                          aria-label={t("Not helpful", "Pas utile")}
+                          aria-label={t("Not helpful", "Pas utile", "Nicht hilfreich", "No util", "Não util")}
                         >
                           <ThumbsDown className="h-4 w-4" />
                         </button>
-                        {m.feedback && <span>{t("Thanks for the feedback.", "Merci pour votre retour.")}</span>}
+                        {m.feedback && <span>{t("Thanks for the feedback.", "Merci pour votre retour.", "Danke für dein Feedback.", "Gracias por tu comentario.", "Obrigado pelo teu feedback.")}</span>}
                       </div>
                     )}
                     {m.content?.trim().length > 0 && streamingMessageId !== m.id && (
@@ -922,7 +1040,13 @@ export function AssistantChat() {
                 ref={inputRef}
                 rows={3}
                 className="flex-1 resize-none rounded-2xl border border-border/60 bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-400"
-                placeholder={t("Ask about automations, invoices, revenue, or insights...", "Demandez sur automatisations, factures, revenus ou insights...")}
+                placeholder={t(
+                  "Ask about automations, invoices, revenue, or insights...",
+                  "Demandez sur automatisations, factures, revenus ou insights...",
+                  "Frage nach Automatisierungen, Rechnungen, Umsatz oder Einblicken...",
+                  "Pregunta por automatizaciones, facturas, ingresos o analiticas...",
+                  "Pergunta sobre automações, faturas, receita ou insights..."
+                )}
                 value={input}
                 onChange={(e) => {
                   setInput(e.target.value);
@@ -936,12 +1060,12 @@ export function AssistantChat() {
                 }}
               />
               <Button className="w-full rounded-full sm:w-auto" onClick={send} loading={loading}>
-                {t("Send", "Envoyer")}
+                {t("Send", "Envoyer", "Senden", "Enviar", "Enviar")}
               </Button>
             </div>
             <div className="flex flex-wrap items-center gap-5 text-[11px] text-muted-foreground">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="uppercase tracking-[0.2em]">{t("Model", "Modele")}</span>
+                <span className="uppercase tracking-[0.2em]">{t("Model", "Modele", "Modell", "Modelo", "Modelo")}</span>
                 <div className="relative" ref={modelMenuRef}>
                   <button
                     type="button"
@@ -950,7 +1074,9 @@ export function AssistantChat() {
                     aria-haspopup="listbox"
                     aria-expanded={modelMenuOpen}
                   >
-                    {model === "maboria-2" ? t("Maboria 2", "Maboria 2") : t("Maboria 1", "Maboria 1")}
+                    {model === "maboria-2"
+                      ? t("Maboria 2", "Maboria 2", "Maboria 2", "Maboria 2", "Maboria 2")
+                      : t("Maboria 1", "Maboria 1", "Maboria 1", "Maboria 1", "Maboria 1")}
                     <span className="text-[10px] text-muted-foreground">▾</span>
                   </button>
                   {modelMenuOpen && (
@@ -961,18 +1087,24 @@ export function AssistantChat() {
                       {[
                         {
                           value: "maboria-1",
-                          label: t("Maboria 1", "Maboria 1"),
+                          label: t("Maboria 1", "Maboria 1", "Maboria 1", "Maboria 1", "Maboria 1"),
                           desc: t(
                             "Fast responses. Best for quick actions and simple questions.",
-                            "Reponses rapides. Ideales pour actions rapides et questions simples."
+                            "Réponses rapides. Ideales pour actions rapides et questions simples.",
+                            "Schnelle Antworten. Am besten für schnelle Aktionen und einfache Fragen.",
+                            "Respuestas rápidas. Mejor para acciones rápidas y preguntas sencillas.",
+                            "Respostas rápidas. Melhor para ações rápidas e perguntas simples."
                           ),
                         },
                         {
                           value: "maboria-2",
-                          label: t("Maboria 2", "Maboria 2"),
+                          label: t("Maboria 2", "Maboria 2", "Maboria 2", "Maboria 2", "Maboria 2"),
                           desc: t(
                             "Deeper reasoning. Slower responses, more detailed analysis.",
-                            "Raisonnement plus profond. Reponses plus lentes, analyse detaillee."
+                            "Raisonnement plus profond. Réponses plus lentes, analyse detaillee.",
+                            "Tieferes Denken. Langsamere Antworten, detailliertere Analyse.",
+                            "Razonamiento mas profundo. Respuestas mas lentas y analisis mas detallado.",
+                            "Raciocinio mais profundo. Respostas mais lentas e analise mais detalhada."
                           ),
                         },
                       ].map((option) => (
@@ -1013,10 +1145,16 @@ export function AssistantChat() {
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2 rounded-full border border-border/40 bg-background/80 px-3 py-1 shadow-[0_6px_16px_rgba(15,23,42,0.06)]">
-                <span className="uppercase tracking-[0.2em]">{t("Style", "Style")}</span>
+                <span className="uppercase tracking-[0.2em]">{t("Style", "Style", "Stil", "Estilo", "Estilo")}</span>
                 <span
                   className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-border/40 text-muted-foreground"
-                  title={t("Brief is concise. Detailed adds steps and examples.", "Bref est concis. Detaille ajoute etapes et exemples.")}
+                  title={t(
+                    "Brief is concise. Detailed adds steps and examples.",
+                    "Bref est concis. Detaille ajoute etapes et exemples.",
+                    "Kurz ist knapp. Detailliert fugt Schritte und Beispiele hinzu.",
+                    "Breve es conciso. Detallado anade pasos y ejemplos.",
+                    "Breve e conciso. Detalhado adiciona passos e exemplos."
+                  )}
                 >
                   <Info className="h-3 w-3" />
                 </span>
@@ -1028,7 +1166,7 @@ export function AssistantChat() {
                       style === "brief" ? "bg-indigo-600 text-white" : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    {t("Brief", "Concis")}
+                    {t("Brief", "Concis", "Kurz", "Breve", "Breve")}
                   </button>
                   <button
                     type="button"
@@ -1037,15 +1175,21 @@ export function AssistantChat() {
                       style === "detailed" ? "bg-indigo-600 text-white" : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    {t("Detailed", "Detaille")}
+                    {t("Detailed", "Detaille", "Detailliert", "Detallado", "Detalhado")}
                   </button>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2 rounded-full border border-border/40 bg-background/80 px-3 py-1 shadow-[0_6px_16px_rgba(15,23,42,0.06)]">
-                <span className="uppercase tracking-[0.2em]">{t("Tone", "Ton")}</span>
+                <span className="uppercase tracking-[0.2em]">{t("Tone", "Ton", "Ton", "Tono", "Tom")}</span>
                 <span
                   className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-border/40 text-muted-foreground"
-                  title={t("Balanced is neutral. Direct is crisp. Warm is friendly.", "Equilibre est neutre. Direct est precis. Chaleureux est amical.")}
+                  title={t(
+                    "Balanced is neutral. Direct is crisp. Warm is friendly.",
+                    "Equilibre est neutre. Direct est precis. Chaleureux est amical.",
+                    "Ausgewogen ist neutral. Direkt ist klar. Warm ist freundlich.",
+                    "Equilibrado es neutral. Directo es preciso. Calido es cercano.",
+                    "Equilibrado e neutro. Direto e objetivo. Caloroso e amigavel."
+                  )}
                 >
                   <Info className="h-3 w-3" />
                 </span>
@@ -1054,16 +1198,19 @@ export function AssistantChat() {
                   value={tone}
                   onChange={(e) => savePreferences({ tone: e.target.value as AiTone })}
                 >
-                  <option value="balanced">{t("Balanced", "Equilibre")}</option>
-                  <option value="direct">{t("Direct", "Direct")}</option>
-                  <option value="warm">{t("Warm", "Chaleureux")}</option>
+                  <option value="balanced">{t("Balanced", "Equilibre", "Ausgewogen", "Equilibrado", "Equilibrado")}</option>
+                  <option value="direct">{t("Direct", "Direct", "Direkt", "Directo", "Direto")}</option>
+                  <option value="warm">{t("Warm", "Chaleureux", "Warm", "Calido", "Caloroso")}</option>
                 </select>
               </div>
             </div>
             <p className="text-[11px] text-muted-foreground">
               {t(
                 "Responses are generated automatically. Verify important details before acting.",
-                "Les reponses sont generees automatiquement. Verifiez les details avant d agir."
+                "Les réponses sont generees automatiquement. Verifiez les details avant d agir.",
+                "Antworten werden automatisch erzeugt. Prüfe wichtige Details, bevor du handelst.",
+                "Las respuestas se generan automaticamente. Verifica los detalles importantes antes de actuar.",
+                "As respostas sao geradas automaticamente. Confirma os detalhes importantes antes de agir."
               )}
             </p>
           </div>
@@ -1087,12 +1234,15 @@ export function AssistantChat() {
                 <Trash2 className="h-4 w-4" />
               </div>
               <h3 className="mt-4 text-xl font-semibold tracking-[-0.02em] text-slate-950 dark:text-white">
-                {t("Delete this chat?", "Supprimer ce chat ?")}
+                {t("Delete this chat?", "Supprimer ce chat ?", "Diesen Chat loschen?", "Eliminar este chat?", "Apagar este chat?")}
               </h3>
               <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
                 {t(
                   "This permanently removes this conversation and its saved history.",
-                  "Cette action supprime definitivement cette conversation et son historique enregistre."
+                  "Cette action supprime definitivement cette conversation et son historique enregistre.",
+                  "Dadurch werden diese Unterhaltung und ihr gespeicherter Verlauf dauerhaft entfernt.",
+                  "Esto elimina permanentemente esta conversación y su historial guardado.",
+                  "Isto remove permanentemente esta conversa e o respetivo histórico guardado."
                 )}
               </p>
               <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-white/8 dark:bg-white/[0.04]">
@@ -1105,14 +1255,14 @@ export function AssistantChat() {
                   onClick={() => setDeleteTarget(null)}
                   disabled={Boolean(deletingConversationId)}
                 >
-                  {t("Keep chat", "Garder le chat")}
+                  {t("Keep chat", "Garder le chat", "Chat behalten", "Conservar chat", "Manter chat")}
                 </Button>
                 <Button
                   className="h-10 rounded-xl bg-[linear-gradient(135deg,#f43f5e,#e11d48)] px-4 text-white shadow-[0_12px_24px_rgba(225,29,72,0.24)] hover:opacity-95"
                   onClick={handleDelete}
                   loading={deletingConversationId === deleteTarget.id}
                 >
-                  {t("Delete", "Supprimer")}
+                  {t("Delete", "Supprimer", "Loschen", "Eliminar", "Apagar")}
                 </Button>
               </div>
             </div>
@@ -1122,3 +1272,4 @@ export function AssistantChat() {
     </div>
   );
 }
+

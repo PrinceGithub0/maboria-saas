@@ -18,15 +18,18 @@ export const FLUTTERWAVE_COUNTRIES = [
 ] as const;
 export const FLUTTERWAVE_REGIONS = ["SEPA Europe"] as const;
 export const CHECKOUT_PROVIDER_VALUES = ["PAYSTACK", "FLUTTERWAVE", "STRIPE"] as const;
+export const SUBSCRIPTION_CHECKOUT_PROVIDER_VALUES = CHECKOUT_PROVIDER_VALUES;
 export const PAYOUT_PROVIDER_VALUES = ["PAYSTACK", "FLUTTERWAVE"] as const;
 
 export type CheckoutProvider = (typeof CHECKOUT_PROVIDER_VALUES)[number];
+export type SubscriptionCheckoutProvider = (typeof SUBSCRIPTION_CHECKOUT_PROVIDER_VALUES)[number];
 export type PayoutProvider = (typeof PAYOUT_PROVIDER_VALUES)[number];
 
 const DEFAULT_PROVIDER_PRIORITY: CheckoutProvider[] = ["PAYSTACK", "FLUTTERWAVE", "STRIPE"];
 
 const paystackCountrySet = new Set<string>(PAYSTACK_COUNTRIES);
 const checkoutProviderSet = new Set<string>(CHECKOUT_PROVIDER_VALUES);
+const subscriptionCheckoutProviderSet = new Set<string>(SUBSCRIPTION_CHECKOUT_PROVIDER_VALUES);
 const payoutProviderSet = new Set<string>(PAYOUT_PROVIDER_VALUES);
 
 export function normalizeCountryCode(value: string | null | undefined) {
@@ -41,6 +44,12 @@ export function isCheckoutProvider(value: string | null | undefined): value is C
 
 export function isPayoutProvider(value: string | null | undefined): value is PayoutProvider {
   return payoutProviderSet.has(String(value || "").trim().toUpperCase());
+}
+
+export function isSubscriptionCheckoutProvider(
+  value: string | null | undefined
+): value is SubscriptionCheckoutProvider {
+  return subscriptionCheckoutProviderSet.has(String(value || "").trim().toUpperCase());
 }
 
 export function formatPaymentProviderLabel(value: string | null | undefined) {
@@ -78,6 +87,14 @@ export function getClientEnabledCheckoutProviders() {
   );
 }
 
+export function getEnabledSubscriptionCheckoutProviders() {
+  return getEnabledCheckoutProviders();
+}
+
+export function getClientEnabledSubscriptionCheckoutProviders() {
+  return getClientEnabledCheckoutProviders();
+}
+
 function parseProviderPriority(raw: string | undefined) {
   const configured = String(raw || "")
     .split(",")
@@ -104,6 +121,18 @@ export function getEnabledCheckoutProviders() {
 
 export function getEnabledPayoutProviders() {
   return [...PAYOUT_PROVIDER_VALUES];
+}
+
+export function resolveSubscriptionPaymentProvider(
+  preferredProvider?: CheckoutProvider | null
+): SubscriptionCheckoutProvider {
+  return resolvePaymentProvider(null, preferredProvider);
+}
+
+export function getSubscriptionCheckoutFallbackProviders(
+  primaryProvider: SubscriptionCheckoutProvider
+) {
+  return getCheckoutFallbackProviders(primaryProvider);
 }
 
 export function resolvePaymentProvider(

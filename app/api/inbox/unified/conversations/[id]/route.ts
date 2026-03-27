@@ -107,6 +107,7 @@ export const GET = withErrorHandling(async (_req: Request, ctx: { params: Promis
         prisma.invoice.findMany({
           where: {
             userId: billingAccess.ownerUserId,
+            subscriptionId: null,
             customerId: conversation.contactId,
           },
           orderBy: { generatedAt: "desc" },
@@ -125,6 +126,7 @@ export const GET = withErrorHandling(async (_req: Request, ctx: { params: Promis
             userId: billingAccess.ownerUserId,
             invoice: {
               userId: billingAccess.ownerUserId,
+              subscriptionId: null,
               customerId: conversation.contactId,
             },
           },

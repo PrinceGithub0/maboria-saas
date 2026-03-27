@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { SessionProviderWrapper } from "@/components/providers/session-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
-import { LanguageProvider, type Language } from "@/components/providers/language-provider";
+import { LanguageProvider } from "@/components/providers/language-provider";
 import { cookies } from "next/headers";
+import { normalizeLanguage } from "@/lib/i18n";
 
 const siteUrl =
   process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
@@ -38,7 +39,7 @@ export default async function RootLayout({
 
   const htmlClass = initialResolvedTheme === "dark" ? "dark" : "";
   const languageCookie = cookieStore.get("maboria_language")?.value;
-  const initialLanguage: Language = languageCookie === "fr" ? "fr" : "en";
+  const initialLanguage = normalizeLanguage(languageCookie);
 
   return (
     <html

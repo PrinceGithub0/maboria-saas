@@ -4,8 +4,10 @@
 - `/api/automation/process-due` every 2 minutes
 - `/api/admin/automation/health` every 5 minutes
 - `/api/whatsapp/auto-close` every 15 minutes
+- `/api/subscription/process-renewals` at minute 9, 24, 39, and 54 every hour
 - `/api/automation/retention` daily at 02:17
 - `/api/automation/audit-verify` daily at 02:47
+- `/api/subscription/apply-pending-downgrades` daily at 03:07
 
 These routes accept cron authorization through:
 - `Authorization: Bearer <CRON_SECRET>`
@@ -28,6 +30,8 @@ Optional env:
 ## Manual diagnostics
 - Due-run processing summary:
   - `POST /api/automation/process-due`
+- Due subscription renewals:
+  - `POST /api/subscription/process-renewals`
 - Health snapshot:
   - `GET /api/admin/automation/health`
 - Emit health alerts:
@@ -46,3 +50,4 @@ Optional env:
 4. Inspect provider failures (`AUTOMATION_PROVIDER_RETRY_EXHAUSTED`).
 5. Verify audit chain on affected flows via `/api/admin/automation/audit`.
 6. Archive old logs only after incident closes (`/api/admin/automation/retention`).
+7. If billing lockouts appear after cycle end, run `/api/subscription/process-renewals` and inspect pending Flutterwave renewals.

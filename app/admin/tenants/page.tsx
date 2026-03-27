@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -11,13 +11,24 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLanguage } from "@/components/providers/language-provider";
+import { localizeAdminServerMessage } from "@/lib/admin/localization";
 import { formatDateDMY, formatDateTimeDMY } from "@/lib/date";
+import { LANGUAGE_LOCALES, type CompleteLocalizedText } from "@/lib/i18n";
 import type { AdminTenantListResponse } from "@/lib/admin/tenants-types";
 
 type TenantAction = {
   type: "suspend" | "reactivate";
   tenantId: string;
   tenantName: string;
+};
+
+const text = (en: string, fr: string, de: string, es: string, pt: string): CompleteLocalizedText => ({ en, fr, de, es, pt });
+
+const STATUS_LABELS: Record<string, CompleteLocalizedText> = {
+  ACTIVE: text("Active", "Actif", "Aktiv", "Activo", "Ativo"),
+  SUSPENDED: text("Suspended", "Suspendu", "Gesperrt", "Suspendido", "Suspenso"),
+  DISABLED: text("Disabled", "Desactive", "Deaktiviert", "Deshabilitado", "Desativado"),
 };
 
 const fetcher = async <T,>(url: string): Promise<T> => {
@@ -44,6 +55,7 @@ function normalizeSort(value: string) {
 
 export default function AdminTenantsPage() {
   const router = useRouter();
+  const { language, t } = useLanguage();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("all");
   const [plan, setPlan] = useState("all");
@@ -94,14 +106,14 @@ export default function AdminTenantsPage() {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(String((payload as { error?: string })?.error || "Action failed."));
+        throw new Error(String((payload as { error?: string })?.error || t("Action failed.", "Echec de l'action.", "Aktion fehlgeschlagen.", "La acción fallo.", "A ação falhou.")));
       }
       setFeedback({
         variant: "success",
         message:
           action.type === "suspend"
-            ? `Tenant "${action.tenantName}" suspended.`
-            : `Tenant "${action.tenantName}" reactivated.`,
+            ? `${t("Tenant", "Locataire", "Mandant", "Tenant", "Tenant")} "${action.tenantName}" ${t("suspended.", "suspendu.", "gesperrt.", "suspendido.", "suspenso.")}`
+            : `${t("Tenant", "Locataire", "Mandant", "Tenant", "Tenant")} "${action.tenantName}" ${t("reactivated.", "reactive.", "reaktiviert.", "reactivado.", "reativado.")}`,
       });
       setAction(null);
       setReason("");
@@ -109,7 +121,14 @@ export default function AdminTenantsPage() {
     } catch (actionError) {
       setFeedback({
         variant: "error",
-        message: actionError instanceof Error ? actionError.message : "Action failed.",
+        message:
+          actionError instanceof Error
+            ? localizeAdminServerMessage(
+                actionError.message,
+                language,
+                t("Action failed.", "Echec de l'action.", "Aktion fehlgeschlagen.", "La acción fallo.", "A ação falhou.")
+              )
+            : t("Action failed.", "Echec de l'action.", "Aktion fehlgeschlagen.", "La acción fallo.", "A ação falhou."),
       });
     } finally {
       setSaving(false);
@@ -120,7 +139,7 @@ export default function AdminTenantsPage() {
     if (!isSuperAdmin) {
       setFeedback({
         variant: "error",
-        message: "Only Super Admin accounts can suspend tenants.",
+        message: t("Only Super Admin accounts can suspend tenants.", "Seuls les comptes Super Admin peuvent suspendre des locataires.", "Nur Super-Admin-Konten koennen Mandanten sperren.", "Solo las cuentas Super Admin pueden suspender tenants.", "Apenas contas Super Admin podem suspender tenants."),
       });
       return;
     }
@@ -130,22 +149,46 @@ export default function AdminTenantsPage() {
   return (
     <div className="space-y-4 px-6 py-6 max-md:px-4 max-md:py-4">
       <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Admin</p>
-        <h1 className="text-3xl font-semibold text-foreground">Tenants</h1>
+        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">{t("Admin", "Admin", "Admin", "Admin", "Admin")}</p>
+        <h1 className="text-3xl font-semibold text-foreground">{t("Tenants", "Locataires", "Mandanten", "Tenants", "Tenants")}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Monitor workspace health, lifecycle status, and high-risk tenant signals.
+          {t("Monitor workspace health, lifecycle status, and high-risk tenant signals.", "Surveillez la sante des espaces de travail, leur cycle de vie et les signaux de risque élevé.", "Ueberwachen Sie den Zustand der Arbeitsbereiche, den Lebenszyklusstatus und Hochrisiko-Signale von Mandanten.", "Supervisa la salud del espacio de trabajo, el estado del ciclo de vida y las senales de alto riesgo del tenant.", "Monitorize a saude da area de trabalho, o estado do ciclo de vida e os sinais de alto risco do tenant.")}
         </p>
       </div>
 
-      {feedback ? <Alert variant={feedback.variant}>{feedback.message}</Alert> : null}
-      {error ? <Alert variant="error">{error.message}</Alert> : null}
+      {feedback ? (
+        <Alert variant={feedback.variant}>
+          {feedback.variant === "error"
+            ? localizeAdminServerMessage(
+                feedback.message,
+                language,
+                t("Action failed.", "Echec de l'action.", "Aktion fehlgeschlagen.", "La acción fallo.", "A ação falhou.")
+              )
+            : feedback.message}
+        </Alert>
+      ) : null}
+      {error ? (
+        <Alert variant="error">
+          {localizeAdminServerMessage(
+            error.message,
+            language,
+            t(
+              "Unable to load tenants right now.",
+              "Impossible de charger les locataires pour le moment.",
+              "Mandanten koennen derzeit nicht geladen werden.",
+              "No se pueden cargar los tenants en este momento.",
+              "Nao foi possivel carregar os tenants neste momento."
+            )
+          )}
+        </Alert>
+      ) : null}
 
       <Card>
         <div className="grid gap-3 md:grid-cols-4">
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search by workspace, owner email, or tenant ID"
+            placeholder={t("Search by workspace, owner email, or tenant ID", "Rechercher par espace de travail, e-mail du proprietaire ou ID locataire", "Nach Arbeitsbereich, Inhaber-E-Mail oder Mandanten-ID suchen", "Buscar por espacio de trabajo, correo del propietario o ID del tenant", "Pesquisar por area de trabalho, e-mail do proprietário ou ID do tenant")}
             className="md:col-span-2"
           />
           <select
@@ -153,37 +196,37 @@ export default function AdminTenantsPage() {
             onChange={(event) => setStatus(event.target.value)}
             className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground"
           >
-            <option value="all">All statuses</option>
-            <option value="ACTIVE">Active</option>
-            <option value="SUSPENDED">Suspended</option>
-            <option value="DISABLED">Disabled</option>
+            <option value="all">{t("All statuses", "Tous les statuts", "Alle Status", "Todos los estados", "Todos os estados")}</option>
+            <option value="ACTIVE">{t(STATUS_LABELS.ACTIVE)}</option>
+            <option value="SUSPENDED">{t(STATUS_LABELS.SUSPENDED)}</option>
+            <option value="DISABLED">{t(STATUS_LABELS.DISABLED)}</option>
           </select>
           <select
             value={plan}
             onChange={(event) => setPlan(event.target.value)}
             className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground"
           >
-            <option value="all">All plans</option>
-            <option value="STARTER">Starter</option>
-            <option value="PRO">Pro</option>
-            <option value="GROWTH">Growth</option>
-            <option value="BUSINESS">Business</option>
-            <option value="ENTERPRISE">Enterprise</option>
+            <option value="all">{t("All plans", "Tous les forfaits", "Alle Plaene", "Todos los planes", "Todos os planos")}</option>
+            <option value="STARTER">{t("Starter", "Starter", "Starter", "Starter", "Starter")}</option>
+            <option value="PRO">{t("Pro", "Pro", "Pro", "Pro", "Pro")}</option>
+            <option value="GROWTH">{t("Growth", "Croissance", "Growth", "Growth", "Growth")}</option>
+            <option value="BUSINESS">{t("Business", "Business", "Business", "Business", "Business")}</option>
+            <option value="ENTERPRISE">{t("Enterprise", "Enterprise", "Enterprise", "Enterprise", "Enterprise")}</option>
           </select>
           <select
             value={sort}
             onChange={(event) => setSort(event.target.value)}
             className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground"
           >
-            <option value="created_desc">Newest first</option>
-            <option value="created_asc">Oldest first</option>
-            <option value="activity_desc">Latest activity</option>
-            <option value="activity_asc">Earliest activity</option>
+            <option value="created_desc">{t("Newest first", "Plus recents d'abord", "Neueste zuerst", "Mas recientes primero", "Mais recentes primeiro")}</option>
+            <option value="created_asc">{t("Oldest first", "Plus anciens d'abord", "Aelteste zuerst", "Mas antiguos primero", "Mais antigos primeiro")}</option>
+            <option value="activity_desc">{t("Latest activity", "Activit? la plus recente", "Neueste Aktivitaet", "Actividad mas reciente", "Atividade mais recente")}</option>
+            <option value="activity_asc">{t("Earliest activity", "Activit? la plus ancienne", "Aelteste Aktivitaet", "Actividad mas antigua", "Atividade mais antiga")}</option>
           </select>
         </div>
       </Card>
 
-      <Card title="Tenant workspaces">
+      <Card title={t("Tenant workspaces", "Espaces de travail locataires", "Mandanten-Arbeitsbereiche", "Espacios de trabajo del tenant", "Areas de trabalho do tenant")}>
         {isLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 8 }).map((_, index) => (
@@ -192,34 +235,34 @@ export default function AdminTenantsPage() {
           </div>
         ) : items.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-            No tenants found for the current filters.
+            {t("No tenants found for the current filters.", "Aucun locataire trouve pour les filtres actuels.", "Keine Mandanten fuer die aktuellen Filter gefunden.", "No se encontraron tenants para los filtros actuales.", "Não foram encontrados tenants para os filtros atuais.")}
           </p>
         ) : (
           <>
-            <div className="hidden overflow-x-hidden rounded-xl border border-border/60 md:block">
+            <div className="hidden overflow-hidden rounded-xl border border-border/60 md:block">
               <table className="w-full table-fixed border-collapse text-[13px]">
                 <colgroup>
-                  <col style={{ width: "11%" }} />
+                  <col style={{ width: "12%" }} />
                   <col style={{ width: "14%" }} />
-                  <col style={{ width: "18%" }} />
+                  <col style={{ width: "17%" }} />
+                  <col style={{ width: "8%" }} />
                   <col style={{ width: "9%" }} />
-                  <col style={{ width: "10%" }} />
                   <col style={{ width: "9%" }} />
                   <col style={{ width: "10%" }} />
                   <col style={{ width: "5%" }} />
-                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "16%" }} />
                 </colgroup>
                 <thead>
-                  <tr className="bg-muted/30 text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                    <th className="px-3 py-3 font-semibold">Workspace</th>
-                    <th className="px-3 py-3 font-semibold">Tenant ID</th>
-                    <th className="px-3 py-3 font-semibold">Owner</th>
-                    <th className="px-3 py-3 font-semibold">Plan</th>
-                    <th className="px-3 py-3 font-semibold">Status</th>
-                    <th className="px-3 py-3 font-semibold">Created</th>
-                    <th className="px-3 py-3 font-semibold">Last activity</th>
-                    <th className="px-3 py-3 font-semibold">Risk</th>
-                    <th className="px-3 py-3 font-semibold">Actions</th>
+                  <tr className="bg-muted/30 text-left text-xs tracking-[0.08em] text-muted-foreground">
+                    <th className="px-3 py-3 font-semibold">{t("Workspace", "Espace de travail", "Arbeitsbereich", "Espacio de trabajo", "Area de trabalho")}</th>
+                    <th className="px-3 py-3 font-semibold">{t("Tenant ID", "ID locataire", "Mandanten-ID", "ID del tenant", "ID do tenant")}</th>
+                    <th className="px-3 py-3 font-semibold">{t("Owner", "Proprietaire", "Inhaber", "Propietario", "Proprietário")}</th>
+                    <th className="px-3 py-3 font-semibold">{t("Plan", "Forfait", "Plan", "Plan", "Plano")}</th>
+                    <th className="px-3 py-3 font-semibold">{t("Status", "Statut", "Status", "Estado", "Estado")}</th>
+                    <th className="px-3 py-3 font-semibold">{t("Created", "Cree", "Erstellt", "Creado", "Criado")}</th>
+                    <th className="px-3 py-3 font-semibold">{t("Last activity", "Derniere activité", "Aktivitat", "Ultima actividad", "Ultima atividade")}</th>
+                    <th className="px-3 py-3 font-semibold">{t("Risk", "Risque", "Risiko", "Riesgo", "Risco")}</th>
+                    <th className="px-3 py-3 font-semibold">{t("Actions", "Actions", "Aktionen", "Acciones", "Ações")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -239,11 +282,11 @@ export default function AdminTenantsPage() {
                       </td>
                       <td className="px-3 py-3 text-foreground">{tenant.plan || "-"}</td>
                       <td className="px-3 py-3">
-                        <Badge variant={badgeVariant(tenant.status)}>{tenant.status}</Badge>
+                        <Badge variant={badgeVariant(tenant.status)}>{t(STATUS_LABELS[tenant.status] || text(tenant.status, tenant.status, tenant.status, tenant.status, tenant.status))}</Badge>
                       </td>
-                      <td className="px-3 py-3 text-muted-foreground">{formatDateDMY(new Date(tenant.createdAt))}</td>
+                      <td className="px-3 py-3 text-muted-foreground">{formatDateDMY(new Date(tenant.createdAt), LANGUAGE_LOCALES[language])}</td>
                       <td className="px-3 py-3 text-muted-foreground">
-                        {tenant.lastActivityAt ? formatDateTimeDMY(new Date(tenant.lastActivityAt)) : "-"}
+                        {tenant.lastActivityAt ? formatDateTimeDMY(new Date(tenant.lastActivityAt), LANGUAGE_LOCALES[language]) : "-"}
                       </td>
                       <td className="px-3 py-3">
                         <Badge variant={tenant.riskFlags > 0 ? "warning" : "success"}>{tenant.riskFlags}</Badge>
@@ -252,7 +295,7 @@ export default function AdminTenantsPage() {
                         <div className="grid min-w-0 gap-2" onClick={(event) => event.stopPropagation()}>
                           <Link href={`/admin/tenants/${tenant.id}`} className="block">
                             <Button size="sm" variant="secondary" className="w-full">
-                              View
+                              {t("View", "Voir", "Ansehen", "Ver", "Ver")}
                             </Button>
                           </Link>
                           {tenant.status === "SUSPENDED" ? (
@@ -264,7 +307,7 @@ export default function AdminTenantsPage() {
                                 setAction({ type: "reactivate", tenantId: tenant.id, tenantName: tenant.name })
                               }
                             >
-                              Reactivate
+                              {t("Reactivate", "Reactiver", "Reaktivieren", "Reactivar", "Reativar")}
                             </Button>
                           ) : (
                             <Button
@@ -273,7 +316,7 @@ export default function AdminTenantsPage() {
                               className="w-full text-rose-600 hover:text-rose-700"
                               onClick={() => handleSuspendClick(tenant.id, tenant.name)}
                             >
-                              Suspend
+                              {t("Suspend", "Suspendre", "Sperren", "Suspender", "Suspender")}
                             </Button>
                           )}
                         </div>
@@ -297,15 +340,15 @@ export default function AdminTenantsPage() {
                       <p className="font-semibold text-foreground">{tenant.name}</p>
                       <p className="mt-1 text-xs text-muted-foreground">{tenant.owner.email}</p>
                     </div>
-                    <Badge variant={badgeVariant(tenant.status)}>{tenant.status}</Badge>
+                    <Badge variant={badgeVariant(tenant.status)}>{t(STATUS_LABELS[tenant.status] || text(tenant.status, tenant.status, tenant.status, tenant.status, tenant.status))}</Badge>
                   </div>
                   <p className="mt-2 font-mono text-[11px] text-muted-foreground">{tenant.id}</p>
                   <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                    <span>Plan: {tenant.plan || "-"}</span>
-                    <span>Risk: {tenant.riskFlags}</span>
-                    <span>Created: {formatDateDMY(new Date(tenant.createdAt))}</span>
+                    <span>{t("Plan:", "Forfait :", "Plan:", "Plan:", "Plano:")} {tenant.plan || "-"}</span>
+                    <span>{t("Risk:", "Risque :", "Risiko:", "Riesgo:", "Risco:")} {tenant.riskFlags}</span>
+                    <span>{t("Created:", "Cree :", "Erstellt:", "Creado:", "Criado:")} {formatDateDMY(new Date(tenant.createdAt), LANGUAGE_LOCALES[language])}</span>
                     <span>
-                      Last: {tenant.lastActivityAt ? formatDateDMY(new Date(tenant.lastActivityAt)) : "-"}
+                      {t("Last:", "Dernier :", "Letzte:", "Ultimo:", "Ultima:")} {tenant.lastActivityAt ? formatDateDMY(new Date(tenant.lastActivityAt), LANGUAGE_LOCALES[language]) : "-"}
                     </span>
                   </div>
                 </button>
@@ -316,7 +359,7 @@ export default function AdminTenantsPage() {
 
         <div className="mt-4 flex items-center justify-between gap-3">
           <p className="text-xs text-muted-foreground">
-            Page {pagination?.page || page} of {pagination?.totalPages || 1} • {pagination?.totalItems || 0} tenants
+            {t("Page", "Page", "Seite", "Pagina", "Pagina")} {pagination?.page || page} {t("of", "sur", "von", "de", "de")} {pagination?.totalPages || 1} | {pagination?.totalItems || 0} {t("tenants", "locataires", "Mandanten", "tenants", "tenants")}
           </p>
           <div className="flex gap-2">
             <Button
@@ -325,7 +368,7 @@ export default function AdminTenantsPage() {
               disabled={(pagination?.page || page) <= 1}
               onClick={() => setPage((prev) => Math.max(1, prev - 1))}
             >
-              Previous
+              {t("Previous", "Precedent", "Zurueck", "Anterior", "Anterior")}
             </Button>
             <Button
               size="sm"
@@ -333,7 +376,7 @@ export default function AdminTenantsPage() {
               disabled={(pagination?.page || page) >= (pagination?.totalPages || 1)}
               onClick={() => setPage((prev) => prev + 1)}
             >
-              Next
+              {t("Next", "Suivant", "Weiter", "Siguiente", "Seguinte")}
             </Button>
           </div>
         </div>
@@ -346,21 +389,21 @@ export default function AdminTenantsPage() {
           setAction(null);
           setReason("");
         }}
-        title={action?.type === "suspend" ? "Suspend tenant" : "Reactivate tenant"}
+        title={action?.type === "suspend" ? t("Suspend tenant", "Suspendre le locataire", "Mandanten sperren", "Suspender tenant", "Suspender tenant") : t("Reactivate tenant", "Reactiver le locataire", "Mandanten reaktivieren", "Reactivar tenant", "Reativar tenant")}
       >
         {action ? (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
               {action.type === "suspend"
-                ? `Suspend "${action.tenantName}"? This blocks subscriber login and API access without deleting data.`
-                : `Reactivate "${action.tenantName}"? Login and API access will be restored.`}
+                ? `${t("Suspend", "Suspendre", "Sperren", "Suspender", "Suspender")} "${action.tenantName}"? ${t("This blocks subscriber login and API access without deleting data.", "Cela bloque la connexion des abonnes et l'accès API sans supprimer les données.", "Dies blockiert die Anmeldung von Abonnenten und den API-Zugriff, ohne Daten zu loeschen.", "Esto bloquea el inicio de sesión de suscriptores y el acceso a la API sin eliminar datos.", "Isto bloqueia o inicio de sessão dos subscritores e o acesso a API sem eliminar dados.")}`
+                : `${t("Reactivate", "Reactiver", "Reaktivieren", "Reactivar", "Reativar")} "${action.tenantName}"? ${t("Login and API access will be restored.", "La connexion et l'accès API seront retablis.", "Login und API-Zugriff werden wiederhergestellt.", "Se restauraran el inicio de sesión y el acceso a la API.", "O inicio de sessão e o acesso a API serao restaurados.")}`}
             </p>
             {action.type === "suspend" ? (
               <Input
-                label="Reason (optional)"
+                label={t("Reason (optional)", "Raison (optionnelle)", "Grund (optional)", "Motivo (opcional)", "Motivo (opcional)")}
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
-                placeholder="Policy, abuse, billing escalation..."
+                placeholder={t("Policy, abuse, billing escalation...", "Politique, abus, escalation de facturation...", "Richtlinie, Missbrauch, Eskalation bei Abrechnung...", "Política, abuso, escalacion de facturación...", "Política, abuso, escalacao de faturação...")}
               />
             ) : null}
             <div className="flex justify-end gap-2">
@@ -372,10 +415,10 @@ export default function AdminTenantsPage() {
                   setReason("");
                 }}
               >
-                Cancel
+                {t("Cancel", "Annuler", "Abbrechen", "Cancelar", "Cancelar")}
               </Button>
               <Button onClick={runAction} loading={saving}>
-                {action.type === "suspend" ? "Suspend tenant" : "Reactivate tenant"}
+                {action.type === "suspend" ? t("Suspend tenant", "Suspendre le locataire", "Mandanten sperren", "Suspender tenant", "Suspender tenant") : t("Reactivate tenant", "Reactiver le locataire", "Mandanten reaktivieren", "Reactivar tenant", "Reativar tenant")}
               </Button>
             </div>
           </div>
@@ -384,3 +427,4 @@ export default function AdminTenantsPage() {
     </div>
   );
 }
+

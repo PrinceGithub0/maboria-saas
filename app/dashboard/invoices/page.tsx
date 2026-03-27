@@ -141,10 +141,10 @@ const getAdaptiveInputStyle = (value: string, maxRem = 1, minRem = 0.82, startSh
 };
 
 const heroMetricCardClass =
-  "relative flex min-h-[172px] min-w-0 flex-col items-center justify-between overflow-hidden rounded-[22px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,250,252,0.78))] px-4 py-4 text-center shadow-[0_20px_38px_-32px_rgba(15,23,42,0.22),inset_0_1px_0_rgba(255,255,255,0.82)] backdrop-blur-sm dark:border-slate-700/80 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.7),rgba(2,6,23,0.62))] dark:shadow-[0_22px_44px_-34px_rgba(2,6,23,0.82),inset_0_1px_0_rgba(255,255,255,0.03)]";
+  "relative flex min-h-[128px] min-w-0 flex-col justify-between bg-white/92 px-3 py-3 text-center transition-colors dark:bg-slate-950/72";
 
 const heroMetricLabelClass =
-  "flex min-h-[2.9rem] items-center justify-center text-center text-[0.64rem] font-semibold uppercase leading-6 tracking-[0.24em] text-slate-500 dark:text-slate-400";
+  "flex min-h-[2.1rem] items-center justify-center text-center text-[0.6rem] font-semibold uppercase leading-5 tracking-[0.22em] text-slate-500 dark:text-slate-400";
 
 const fetcher = async (url: string) => {
   const res = await fetch(url, { cache: "no-store" });
@@ -163,11 +163,61 @@ const profileFetcher = async (url: string) => {
   return { data, status: res.status };
 };
 
+function localizeInvoiceServerMessage(
+  message: string,
+  t: ReturnType<typeof useLanguage>["t"]
+) {
+  const normalized = String(message || "").trim();
+  if (!normalized) return "";
+  const translations: Record<string, string> = {
+    "Attachment encoding failed": t(
+      "Attachment encoding failed.",
+      "L encodage de la piece jointe a échoué.",
+      "Die Kodierung des Anhangs ist fehlgeschlagen.",
+      "La codificacion del archivo adjunto fallo.",
+      "A codificacao do anexo falhou."
+    ),
+    "Not found": t("Not found.", "Introuvable.", "Nicht gefunden.", "No encontrado.", "Não encontrado."),
+    "This field is required": t(
+      "This field is required.",
+      "Ce champ est requis.",
+      "Dieses Feld ist erforderlich.",
+      "Este campo es obligatorio.",
+      "Este campo e obrigatório."
+    ),
+  };
+  return translations[normalized] || "";
+}
+
+function localizeInvoiceStatus(
+  value: string,
+  t: ReturnType<typeof useLanguage>["t"]
+) {
+  const normalized = String(value || "").toUpperCase();
+  const labels: Record<string, string> = {
+    DRAFT: t("DRAFT", "BROUILLON", "ENTWURF", "BORRADOR", "RASCUNHO"),
+    SENT: t("SENT", "ENVOYEE", "GESENDET", "ENVIADA", "ENVIADA"),
+    OVERDUE: t("OVERDUE", "EN RETARD", "UBERFALLIG", "VENCIDA", "EM ATRASO"),
+    UNPAID: t("UNPAID", "IMPAYEE", "UNBEZAHLT", "IMPAGADA", "NAO PAGA"),
+    PAID: t("PAID", "PAYEE", "BEZAHLT", "PAGADA", "PAGA"),
+    REFUNDED: t("REFUNDED", "REMBOURSEE", "ERSTATTET", "REEMBOLSADA", "REEMBOLSADA"),
+    PARTIALLY_REFUNDED: t(
+      "PARTIALLY REFUNDED",
+      "PARTIELLEMENT REMBOURSEE",
+      "TEILWEISE ERSTATTET",
+      "PARCIALMENTE REEMBOLSADA",
+      "PARCIALMENTE REEMBOLSADA"
+    ),
+    CANCELED: t("CANCELED", "ANNULEE", "STORNIERT", "CANCELADA", "CANCELADA"),
+    FAILED: t("FAILED", "ECHEC", "FEHLGESCHLAGEN", "FALLIDA", "FALHOU"),
+  };
+  return labels[normalized] || normalized;
+}
+
 export default function InvoicesPage() {
   const { data: session, status: sessionStatus } = useSession();
   const searchParams = useSearchParams();
-  const { language } = useLanguage();
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const { language, t } = useLanguage();
   const todayValue = new Date().toISOString().slice(0, 10);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -324,14 +374,20 @@ export default function InvoicesPage() {
       if (!ALLOWED_INVOICE_SUPPORTING_FILE_TYPES.includes(file.type as (typeof ALLOWED_INVOICE_SUPPORTING_FILE_TYPES)[number])) {
         nextError = t(
           "Only JPG, PNG, or PDF files are supported.",
-          "Seuls les fichiers JPG, PNG, ou PDF sont acceptes."
+          "Seuls les fichiers JPG, PNG, ou PDF sont acceptes.",
+          "Nur JPG-, PNG- oder PDF-Dateien werden unterstutzt.",
+          "Solo se admiten archivos JPG, PNG o PDF.",
+          "Apenas sao suportados ficheiros JPG, PNG ou PDF."
         );
         continue;
       }
       if (file.size > 5 * 1024 * 1024) {
         nextError = t(
           "File too large. Maximum allowed is 5MB.",
-          "Fichier trop volumineux. Le maximum autorise est de 5 Mo."
+          "Fichier trop volumineux. Le maximum autorise est de 5 Mo.",
+          "Datei zu gross. Maximal 5 MB sind erlaubt.",
+          "El archivo es demasiado grande. El maximo permitido es 5 MB.",
+          "Ficheiro demasiado grande. O maximo permitido e 5 MB."
         );
         continue;
       }
@@ -348,7 +404,10 @@ export default function InvoicesPage() {
       if (nextFiles.length >= MAX_INVOICE_SUPPORTING_FILES) {
         nextError = t(
           "You can attach up to 5 supporting files.",
-          "Vous pouvez joindre jusqu a 5 fichiers d accompagnement."
+          "Vous pouvez joindre jusqu a 5 fichiers d accompagnement.",
+          "Du kannst bis zu 5 Begleitdateien anhangen.",
+          "Puedes adjuntar hasta 5 archivos de apoyo.",
+          "Pode anexar at? 5 ficheiros de apoio."
         );
         break;
       }
@@ -521,7 +580,13 @@ export default function InvoicesPage() {
 
   const profileMissing =
     businessProfile?.status === 404 || businessProfile?.data?.error === "Not found";
-  const requiredMessage = t("This field is required", "This field is required");
+  const requiredMessage = t(
+    "This field is required.",
+    "Ce champ est requis.",
+    "Dieses Feld ist erforderlich.",
+    "Este campo es obligatorio.",
+    "Este campo e obrigatório."
+  );
   const customerItems: CustomerRecord[] = useMemo(
     () => (Array.isArray(customersData?.items) ? customersData.items : []),
     [customersData?.items]
@@ -603,10 +668,13 @@ export default function InvoicesPage() {
     if (!requestedCustomer) return;
     if (requestedCustomer.status === "DISABLED") {
       setInvoiceActionStatus({
-        message:
-          language === "fr"
-            ? "Ce client est desactive. Restaurez-le avant de creer une nouvelle facture."
-            : "This customer is disabled. Restore them before creating a new invoice.",
+        message: t(
+          "This customer is disabled. Restore them before creating a new invoice.",
+          "Ce client est desactive. Restaurez-le avant de creer une nouvelle facture.",
+          "Dieser Kunde ist deaktiviert. Stelle ihn wieder her, bevor du eine neue Rechnung erstellst.",
+          "Este cliente esta desactivado. Restauralo antes de crear una nueva factura.",
+          "Este cliente esta desativado. Restaure-o antes de criar uma nova fatura."
+        ),
         variant: "error",
       });
       return;
@@ -616,7 +684,7 @@ export default function InvoicesPage() {
     setCustomerSkip(0);
     setCustomerDropdownOpen(false);
     setForm((prev) => ({ ...prev, customerId: requestedCustomer.id }));
-  }, [customerItems, form.customerId, language, requestedCustomerData, requestedCustomerId]);
+  }, [customerItems, form.customerId, requestedCustomerData, requestedCustomerId, t]);
 
   useEffect(() => {
     if (businessProfile?.data?.id) return;
@@ -704,10 +772,27 @@ export default function InvoicesPage() {
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {
-      setProfileError(json.error || t("Could not create business profile.", "Impossible de creer le profil."));
+      setProfileError(
+        (typeof json.error === "string" && localizeInvoiceServerMessage(json.error, t)) ||
+          t(
+            "Could not create business profile.",
+            "Impossible de creer le profil.",
+            "Das Unternehmensprofil konnte nicht erstellt werden.",
+            "No se pudo crear el perfil de empresa.",
+            "Não foi possivel criar o perfil da empresa."
+          )
+      );
       return;
     }
-    setProfileStatus(t("Business profile saved.", "Profil enregistre."));
+    setProfileStatus(
+      t(
+        "Business profile saved.",
+        "Profil enregistre.",
+        "Unternehmensprofil gespeichert.",
+        "Perfil de empresa guardado.",
+        "Perfil da empresa guardado."
+      )
+    );
     refreshBusinessProfile();
     if (profileLogoFile) {
       setProfileLogoUploading(true);
@@ -720,13 +805,30 @@ export default function InvoicesPage() {
         });
         const uploadData = await uploadRes.json().catch(() => ({}));
         if (!uploadRes.ok) {
-          setProfileLogoError(uploadData.error || t("Logo upload failed.", "Echec du televersement du logo."));
+          setProfileLogoError(
+            (typeof uploadData.error === "string" && localizeInvoiceServerMessage(uploadData.error, t)) ||
+              t(
+                "Logo upload failed.",
+                "Echec du télevérsement du logo.",
+                "Das Hochladen des Logos ist fehlgeschlagen.",
+                "La subida del logotipo fallo.",
+                "O carregamento do logotipo falhou."
+              )
+          );
         } else {
           setProfileLogoFile(null);
           refreshBusinessProfile();
         }
       } catch {
-        setProfileLogoError(t("Logo upload failed.", "Echec du televersement du logo."));
+        setProfileLogoError(
+          t(
+            "Logo upload failed.",
+            "Echec du télevérsement du logo.",
+            "Das Hochladen des Logos ist fehlgeschlagen.",
+            "La subida del logotipo fallo.",
+            "O carregamento do logotipo falhou."
+          )
+        );
       } finally {
         setProfileLogoUploading(false);
       }
@@ -740,12 +842,29 @@ export default function InvoicesPage() {
       const res = await fetch("/api/business-profile/logo", { method: "DELETE" });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setProfileLogoError(data.error || t("Could not remove logo.", "Impossible de supprimer le logo."));
+        setProfileLogoError(
+          (typeof data.error === "string" && localizeInvoiceServerMessage(data.error, t)) ||
+            t(
+              "Could not remove logo.",
+              "Impossible de supprimer le logo.",
+              "Das Logo konnte nicht entfernt werden.",
+              "No se pudo eliminar el logotipo.",
+              "Não foi possivel remover o logotipo."
+            )
+        );
         return;
       }
       refreshBusinessProfile();
     } catch {
-      setProfileLogoError(t("Could not remove logo.", "Impossible de supprimer le logo."));
+      setProfileLogoError(
+        t(
+          "Could not remove logo.",
+          "Impossible de supprimer le logo.",
+          "Das Logo konnte nicht entfernt werden.",
+          "No se pudo eliminar el logotipo.",
+          "Não foi possivel remover o logotipo."
+        )
+      );
     }
   };
 
@@ -779,7 +898,8 @@ export default function InvoicesPage() {
   const previewIssueDate = parseDateInput(form.issueDate) || new Date();
   const previewDueDate = form.dueDate ? parseDateInput(form.dueDate) : undefined;
   const previewBusinessName = String(
-    businessProfile?.data?.businessName || t("Your business", "Votre entreprise")
+    businessProfile?.data?.businessName ||
+      t("Your business", "Votre entreprise", "Dein Unternehmen", "Tu empresa", "Sua empresa")
   );
   const previewBusinessAddress = String(businessProfile?.data?.businessAddress || "").trim();
   const previewBillToAddress = [
@@ -809,20 +929,7 @@ export default function InvoicesPage() {
     return normalized;
   };
   const translateStatus = (value: string) => {
-    const normalized = String(value || "").toUpperCase();
-    if (language !== "fr") return normalized;
-    const map: Record<string, string> = {
-      DRAFT: "BROUILLON",
-      SENT: "ENVOYEE",
-      OVERDUE: "RETARD",
-      UNPAID: "IMPAYE",
-      PAID: "PAYEE",
-      REFUNDED: "REMBOURSEE",
-      PARTIALLY_REFUNDED: "PARTIELLEMENT REMBOURSEE",
-      CANCELED: "ANNULEE",
-      FAILED: "ECHEC",
-    };
-    return map[normalized] || normalized;
+    return localizeInvoiceStatus(value, t);
   };
   const statusBadgeClass = (value: string) => {
     const normalized = getDisplayStatus(value).toUpperCase();
@@ -858,16 +965,37 @@ export default function InvoicesPage() {
   const invoiceHistorySummaryLabel =
     pagedInvoiceTotal > 0
       ? pagedInvoiceTotal === 1
-        ? t("1 invoice", "1 facture")
+        ? t("1 invoice", "1 facture", "1 Rechnung", "1 factura", "1 fatura")
         : totalInvoicePages <= 1
-          ? t(`${pagedInvoiceTotal} invoices`, `${pagedInvoiceTotal} factures`)
+          ? t(
+              `${pagedInvoiceTotal} invoices`,
+              `${pagedInvoiceTotal} factures`,
+              `${pagedInvoiceTotal} Rechnungen`,
+              `${pagedInvoiceTotal} facturas`,
+              `${pagedInvoiceTotal} faturas`
+            )
           : t(
               `Showing ${pageStart}-${pageEnd} of ${pagedInvoiceTotal} invoices`,
-              `Affichage ${pageStart}-${pageEnd} sur ${pagedInvoiceTotal} factures`
+              `Affichage ${pageStart}-${pageEnd} sur ${pagedInvoiceTotal} factures`,
+              `${pageStart}-${pageEnd} von ${pagedInvoiceTotal} Rechnungen`,
+              `Mostrando ${pageStart}-${pageEnd} de ${pagedInvoiceTotal} facturas`,
+              `A mostrar ${pageStart}-${pageEnd} de ${pagedInvoiceTotal} faturas`
             )
       : debouncedQuery
-        ? t("No invoices match this search.", "Aucune facture ne correspond a cette recherche.")
-        : t("No invoices available.", "Aucune facture disponible.");
+        ? t(
+            "No invoices match this search.",
+            "Aucune facture ne correspond a cette recherche.",
+            "Keine Rechnungen entsprechen dieser Suche.",
+            "Ninguna factura coincide con esta busqueda.",
+            "Nenhuma fatura corresponde a esta pesquisa."
+          )
+        : t(
+            "No invoices available.",
+            "Aucune facture disponible.",
+            "Keine Rechnungen verfügbar.",
+            "No hay facturas disponibles.",
+            "Nenhuma fatura disponível."
+          );
 
   useEffect(() => {
     if (invoicesError) return;
@@ -926,7 +1054,16 @@ export default function InvoicesPage() {
     e.preventDefault();
     const customerId = editingInvoice?.customerId ?? editingInvoice?.customer?.id ?? "";
     if (!customerId) {
-      setEditStatus({ message: t("Customer not found for update.", "Client introuvable pour mise a jour."), variant: "error" });
+      setEditStatus({
+        message: t(
+          "Customer not found for update.",
+          "Client introuvable pour mise a jour.",
+          "Kunde für die Aktualisierung nicht gefunden.",
+          "No se encontro el cliente para actualizar.",
+          "Cliente não encontrado para atualizacao."
+        ),
+        variant: "error",
+      });
       return;
     }
     setSavingEdit(true);
@@ -949,17 +1086,43 @@ export default function InvoicesPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setEditStatus({
-          message: data?.error || t("Could not update customer details.", "Impossible de mettre a jour le client."),
+          message:
+            (typeof data?.error === "string" && localizeInvoiceServerMessage(data.error, t)) ||
+            t(
+              "Could not update customer details.",
+              "Impossible de mettre a jour le client.",
+              "Kundendaten konnten nicht aktualisiert werden.",
+              "No se pudieron actualizar los datos del cliente.",
+              "Não foi possivel atualizar os dados do cliente."
+            ),
           variant: "error",
         });
         return;
       }
-      setEditStatus({ message: t("Customer details updated.", "Details client mis a jour."), variant: "success" });
+      setEditStatus({
+        message: t(
+          "Customer details updated.",
+          "Details client mis ? jour.",
+          "Kundendaten aktualisiert.",
+          "Datos del cliente actualizados.",
+          "Dados do cliente atualizados."
+        ),
+        variant: "success",
+      });
       mutate();
       setEditOpen(false);
       setEditingInvoice(null);
     } catch {
-      setEditStatus({ message: t("Could not update customer details.", "Impossible de mettre a jour le client."), variant: "error" });
+      setEditStatus({
+        message: t(
+          "Could not update customer details.",
+          "Impossible de mettre a jour le client.",
+          "Kundendaten konnten nicht aktualisiert werden.",
+          "No se pudieron actualizar los datos del cliente.",
+          "Não foi possivel atualizar os dados do cliente."
+        ),
+        variant: "error",
+      });
     } finally {
       setSavingEdit(false);
     }
@@ -971,7 +1134,13 @@ export default function InvoicesPage() {
     const customerId = String(invoice?.customerId || "");
     if (!customerId) {
       setStatus({
-        message: t("Customer is required.", "Le client est requis."),
+        message: t(
+          "Customer is required.",
+          "Le client est requis.",
+          "Kunde ist erforderlich.",
+          "El cliente es obligatorio.",
+          "O cliente e obrigatório."
+        ),
         variant: "error",
       });
       return;
@@ -991,15 +1160,35 @@ export default function InvoicesPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setStatus({
-          message: data?.error || t("Could not send invoice.", "Impossible d envoyer la facture."),
+          message:
+            (typeof data?.error === "string" && localizeInvoiceServerMessage(data.error, t)) ||
+            t(
+              "Could not send invoice.",
+              "Impossible d envoyer la facture.",
+              "Rechnung konnte nicht gesendet werden.",
+              "No se pudo enviar la factura.",
+              "Não foi possivel enviar a fatura."
+            ),
           variant: "error",
         });
       } else {
-        setStatus({ message: t("Invoice sent.", "Facture envoyee."), variant: "success" });
+        setStatus({
+          message: t("Invoice sent.", "Facture envoyee.", "Rechnung gesendet.", "Factura enviada.", "Fatura enviada."),
+          variant: "success",
+        });
         mutate();
       }
     } catch {
-      setStatus({ message: t("Could not send invoice.", "Impossible d envoyer la facture."), variant: "error" });
+      setStatus({
+        message: t(
+          "Could not send invoice.",
+          "Impossible d envoyer la facture.",
+          "Rechnung konnte nicht gesendet werden.",
+          "No se pudo enviar la factura.",
+          "Não foi possivel enviar a fatura."
+        ),
+        variant: "error",
+      });
     } finally {
       setSendingId(null);
     }
@@ -1020,16 +1209,39 @@ export default function InvoicesPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setStatus({
-          message: data?.error || t("Could not delete draft invoice.", "Impossible de supprimer le brouillon."),
+          message:
+            (typeof data?.error === "string" && localizeInvoiceServerMessage(data.error, t)) ||
+            t(
+              "Could not delete draft invoice.",
+              "Impossible de supprimer le brouillon.",
+              "Rechnungsentwurf konnte nicht gelöscht werden.",
+              "No se pudo eliminar el borrador de factura.",
+              "Não foi possivel eliminar o rascunho da fatura."
+            ),
           variant: "error",
         });
         return;
       }
-      setStatus({ message: t("Draft invoice deleted.", "Brouillon supprime."), variant: "success" });
+      setStatus({
+        message: t(
+          "Draft invoice deleted.",
+          "Brouillon supprime.",
+          "Rechnungsentwurf gelöscht.",
+          "Borrador de factura eliminado.",
+          "Rascunho da fatura eliminado."
+        ),
+        variant: "success",
+      });
       mutate();
     } catch {
       setStatus({
-        message: t("Could not delete draft invoice.", "Impossible de supprimer le brouillon."),
+        message: t(
+          "Could not delete draft invoice.",
+          "Impossible de supprimer le brouillon.",
+          "Rechnungsentwurf konnte nicht gelöscht werden.",
+          "No se pudo eliminar el borrador de factura.",
+          "Não foi possivel eliminar o rascunho da fatura."
+        ),
         variant: "error",
       });
     } finally {
@@ -1047,7 +1259,13 @@ export default function InvoicesPage() {
     setInvoiceActionStatus(null);
     if (!form.customerId) {
       setInvoiceActionStatus({
-        message: t("Customer is required.", "Le client est requis."),
+        message: t(
+          "Customer is required.",
+          "Le client est requis.",
+          "Kunde ist erforderlich.",
+          "El cliente es obligatorio.",
+          "O cliente e obrigatório."
+        ),
         variant: "error",
       });
       return;
@@ -1074,7 +1292,13 @@ export default function InvoicesPage() {
     const issueDateParsed = form.issueDate ? parseDateInput(form.issueDate) : null;
     if (form.issueDate && !issueDateParsed) {
       setInvoiceActionStatus({
-        message: t("Issue date must be in DD/MM/YYYY format.", "Date d emission au format JJ/MM/AAAA."),
+        message: t(
+          "Issue date must be in DD/MM/YYYY format.",
+          "Date d emission au format JJ/MM/AAAA.",
+          "Das Ausstellungsdatum muss im Format TT/MM/JJJJ sein.",
+          "La fecha de emision debe tener el formato DD/MM/AAAA.",
+          "A data de emissao deve estar no formato DD/MM/AAAA."
+        ),
         variant: "error",
       });
       return;
@@ -1082,7 +1306,13 @@ export default function InvoicesPage() {
     const dueDateParsed = form.dueDate ? parseDateInput(form.dueDate) : null;
     if (form.dueDate && !dueDateParsed) {
       setInvoiceActionStatus({
-        message: t("Due date must be in DD/MM/YYYY format.", "Date d echeance au format JJ/MM/AAAA."),
+        message: t(
+          "Due date must be in DD/MM/YYYY format.",
+          "Date d echeance au format JJ/MM/AAAA.",
+          "Das Falligkeitsdatum muss im Format TT/MM/JJJJ sein.",
+          "La fecha de vencimiento debe tener el formato DD/MM/AAAA.",
+          "A data de vencimento deve estar no formato DD/MM/AAAA."
+        ),
         variant: "error",
       });
       return;
@@ -1118,14 +1348,36 @@ export default function InvoicesPage() {
           : null;
         if (json.type === "upgrade_required" || json.type === "limit_reached") {
           setInvoiceActionStatus({
-            message: `${json.reason || t("Upgrade required.", "Mise a niveau requise.")}${
-              required ? ` ${t("Required plan:", "Plan requis :")} ${required}.` : ""
+            message: `${json.reason || t(
+              "Upgrade required.",
+              "Mise a niveau requise.",
+              "Upgrade erforderlich.",
+              "Actualización requerida.",
+              "Atualizacao necessária."
+            )}${
+              required
+                ? ` ${t(
+                    "Required plan:",
+                    "Plan requis :",
+                    "Erforderlicher Plan:",
+                    "Plan requerido:",
+                    "Plano necessario:"
+                  )} ${required}.`
+                : ""
             }`,
             variant: "error",
           });
         } else {
           setInvoiceActionStatus({
-            message: json.error || t("Could not create invoice.", "Impossible de creer la facture."),
+            message:
+              (typeof json.error === "string" && localizeInvoiceServerMessage(json.error, t)) ||
+              t(
+                "Could not create invoice.",
+                "Impossible de creer la facture.",
+                "Rechnung konnte nicht erstellt werden.",
+                "No se pudo crear la factura.",
+                "Não foi possivel criar a fatura."
+              ),
             variant: "error",
           });
         }
@@ -1136,16 +1388,31 @@ export default function InvoicesPage() {
             message: isInvoiceNumberDraft(form.invoiceNumber)
               ? t(
                   `Invoice generated as ${savedNumber}.`,
-                  `Facture generee sous le numero ${savedNumber}.`
+                  `Facture generee sous le numero ${savedNumber}.`,
+                  `Rechnung wurde als ${savedNumber} erstellt.`,
+                  `La factura se genero como ${savedNumber}.`,
+                  `A fatura foi gerada como ${savedNumber}.`
                 )
               : t(
                   `Invoice number already existed. Saved as ${savedNumber}.`,
-                  `Numero deja utilise. Enregistre comme ${savedNumber}.`
+                  `Numero deja utilise. Enregistre comme ${savedNumber}.`,
+                  `Die Rechnungsnummer existierte bereits. Als ${savedNumber} gespeichert.`,
+                  `El numero de factura ya existia. Se guardo como ${savedNumber}.`,
+                  `O numero da fatura ja existia. Guardada como ${savedNumber}.`
                 ),
             variant: "success",
           });
         } else {
-          setInvoiceActionStatus({ message: t("Invoice generated.", "Facture generee."), variant: "success" });
+          setInvoiceActionStatus({
+            message: t(
+              "Invoice generated.",
+              "Facture generee.",
+              "Rechnung erstellt.",
+              "Factura generada.",
+              "Fatura gerada."
+            ),
+            variant: "success",
+          });
         }
         mutate();
         const nextCurrency = preferredInvoiceCurrency;
@@ -1160,7 +1427,13 @@ export default function InvoicesPage() {
       }
     } catch {
       setInvoiceActionStatus({
-        message: t("Could not create invoice. Please try again.", "Impossible de creer la facture. Reessayez."),
+        message: t(
+          "Could not create invoice. Please try again.",
+          "Impossible de creer la facture. Reessayez.",
+          "Rechnung konnte nicht erstellt werden. Bitte versuche es erneut.",
+          "No se pudo crear la factura. Intentalo de nuevo.",
+          "Não foi possivel criar a fatura. Tente novamente."
+        ),
         variant: "error",
       });
     } finally {
@@ -1187,7 +1460,10 @@ export default function InvoicesPage() {
       setStatus({
         message: t(
           "Name, email, delivery method, address, city, state, and country are required. Phone is required for WhatsApp delivery.",
-          "Nom, email, mode de livraison, adresse, ville, etat et pays sont requis. Le telephone est requis pour WhatsApp."
+          "Nom, email, mode de livraison, adresse, ville, etat et pays sont requis. Le telephone est requis pour WhatsApp.",
+          "Name, E-Mail, Zustellmethode, Adresse, Stadt, Bundesland und Land sind erforderlich. Für die WhatsApp-Zustellung ist eine Telefonnummer erforderlich.",
+          "Nombre, correo, método de entrega, direccion, ciudad, estado y pais son obligatorios. El telefono es obligatorio para la entrega por WhatsApp.",
+          "Nome, email, método de entrega, endereco, cidade, estado e pais sao obrigatorios. O telefone e obrigatório para entrega por WhatsApp."
         ),
         variant: "error",
       });
@@ -1206,7 +1482,15 @@ export default function InvoicesPage() {
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         setStatus({
-          message: payload?.error || t("Could not create customer.", "Impossible de creer le client."),
+          message:
+            (typeof payload?.error === "string" && localizeInvoiceServerMessage(payload.error, t)) ||
+            t(
+              "Could not create customer.",
+              "Impossible de creer le client.",
+              "Kunde konnte nicht erstellt werden.",
+              "No se pudo crear el cliente.",
+              "Não foi possivel criar o cliente."
+            ),
           variant: "error",
         });
         return;
@@ -1232,7 +1516,13 @@ export default function InvoicesPage() {
       await refreshCustomers();
     } catch {
       setStatus({
-        message: t("Could not create customer.", "Impossible de creer le client."),
+        message: t(
+          "Could not create customer.",
+          "Impossible de creer le client.",
+          "Kunde konnte nicht erstellt werden.",
+          "No se pudo crear el cliente.",
+          "Não foi possivel criar o cliente."
+        ),
         variant: "error",
       });
     } finally {
@@ -1246,144 +1536,152 @@ export default function InvoicesPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-[1200px] space-y-8 max-md:space-y-6">
-      <section className="relative overflow-hidden rounded-[32px] border border-slate-200/80 bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.12),transparent_28%),radial-gradient(circle_at_82%_18%,rgba(14,165,233,0.12),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.94))] p-6 shadow-[0_28px_70px_-42px_rgba(15,23,42,0.32)] sm:p-8 dark:border-slate-800/80 dark:bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.18),transparent_28%),radial-gradient(circle_at_82%_18%,rgba(56,189,248,0.14),transparent_24%),linear-gradient(180deg,rgba(2,6,23,0.96),rgba(15,23,42,0.9))] dark:shadow-[0_32px_80px_-46px_rgba(2,6,23,0.95)]">
+    <div className="mx-auto w-full max-w-[1160px] space-y-7 max-md:space-y-5">
+      <section className="relative overflow-hidden rounded-[28px] border border-slate-200/80 bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.1),transparent_26%),radial-gradient(circle_at_82%_18%,rgba(14,165,233,0.1),transparent_22%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.94))] p-5 shadow-[0_22px_56px_-40px_rgba(15,23,42,0.26)] sm:p-6 dark:border-slate-800/80 dark:bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.16),transparent_26%),radial-gradient(circle_at_82%_18%,rgba(56,189,248,0.12),transparent_22%),linear-gradient(180deg,rgba(2,6,23,0.96),rgba(15,23,42,0.9))] dark:shadow-[0_26px_64px_-42px_rgba(2,6,23,0.92)]">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.22),transparent_32%,transparent_70%,rgba(255,255,255,0.1))] dark:bg-[linear-gradient(135deg,rgba(255,255,255,0.04),transparent_30%,transparent_70%,rgba(148,163,184,0.04))]" />
-        <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.18fr)_minmax(320px,360px)] lg:items-start">
-          <div className="min-w-0 flex-1 space-y-5">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="inline-flex items-center rounded-full border border-indigo-200/80 bg-indigo-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.26em] text-indigo-700 dark:border-indigo-400/20 dark:bg-indigo-500/10 dark:text-indigo-200">
-                {t("Invoices", "Factures")}
+        <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1.28fr)_332px] lg:items-start">
+          <div className="min-w-0 flex-1 space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center rounded-full border border-indigo-200/80 bg-indigo-50 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.24em] text-indigo-700 dark:border-indigo-400/20 dark:bg-indigo-500/10 dark:text-indigo-200">
+                {t("Invoices", "Factures", "Rechnungen", "Facturas", "Faturas")}
               </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/85 px-2 py-1.5 text-[0.72rem] font-medium tracking-[0.01em] text-slate-600 dark:border-slate-700/80 dark:bg-slate-900/70 dark:text-slate-300">
-                <span className="pl-1">{t("Default currency", "Devise par defaut")}</span>
-                <span className="inline-flex min-w-[3.5rem] items-center justify-center gap-1.5 rounded-full border border-indigo-200/80 bg-indigo-50 px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-indigo-700 dark:border-indigo-400/20 dark:bg-indigo-500/10 dark:text-indigo-200">
+              <span className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/88 px-2 py-1 text-[0.7rem] font-medium tracking-[0.01em] text-slate-600 dark:border-slate-700/80 dark:bg-slate-900/70 dark:text-slate-300">
+                <span className="pl-1">{t("Default currency", "Devise par defaut", "Standardwährung", "Moneda predeterminada", "Moeda predefinida")}</span>
+                <span className="inline-flex min-w-[3.35rem] items-center justify-center gap-1.5 rounded-full border border-indigo-200/80 bg-indigo-50 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-indigo-700 dark:border-indigo-400/20 dark:bg-indigo-500/10 dark:text-indigo-200">
                   {preferredInvoiceCurrencyFlag ? <span className="text-[0.9rem] leading-none">{preferredInvoiceCurrencyFlag}</span> : null}
                   {preferredInvoiceCurrency}
                 </span>
               </span>
             </div>
-            <div className="space-y-4">
-              <h1 className="max-w-[9.4ch] text-[2.55rem] font-semibold leading-[0.92] tracking-[-0.055em] text-slate-950 sm:text-[3.08rem] xl:text-[3.22rem] dark:text-slate-50">
-                {t("Invoice Generator", "Generateur de factures")}
+            <div className="space-y-3">
+              <h1 className="max-w-[9.8ch] text-[2.1rem] font-semibold leading-[0.9] tracking-[-0.055em] text-slate-950 sm:text-[2.55rem] xl:text-[2.8rem] dark:text-slate-50">
+                {t("Invoice Generator", "Generateur de factures", "Rechnungsgenerator", "Generador de facturas", "Gerador de faturas")}
               </h1>
-              <p className="max-w-[46rem] text-[1.02rem] leading-7 text-slate-600 dark:text-slate-300">
+              <p className="max-w-[42rem] text-[0.95rem] leading-6 text-slate-600 dark:text-slate-300">
                 {t(
                   "Create, manage, and send polished invoices from one focused workspace.",
-                  "Creez, gerez et envoyez des factures elegantes depuis un espace de travail unique."
+                  "Creez, gerez et envoyez des factures elegantes depuis un espace de travail unique.",
+                  "Erstelle, verwalte und versende professionelle Rechnungen in einem fokussierten Arbeitsbereich.",
+                  "Crea, gestiona y envia facturas profesionales desde un unico espacio de trabajo.",
+                  "Crie, gira e envie faturas profissionais a partir de um unico espaco de trabalho."
                 )}
               </p>
             </div>
-            <div className="grid gap-3.5 pt-1 sm:grid-cols-2 xl:grid-cols-4 sm:max-w-[860px]">
+            <div className="overflow-hidden rounded-[24px] border border-slate-200/80 bg-white/68 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.18)] backdrop-blur-sm dark:border-slate-700/80 dark:bg-slate-950/38 dark:shadow-[0_18px_44px_-36px_rgba(2,6,23,0.85)]">
+              <div className="grid gap-px bg-slate-200/80 sm:grid-cols-2 xl:grid-cols-4 dark:bg-slate-800/80">
               <div className={heroMetricCardClass}>
-                <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(79,70,229,0.45),transparent)]" />
+                <div className="pointer-events-none absolute inset-x-3 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(79,70,229,0.4),transparent)]" />
                 <p className={heroMetricLabelClass}>
-                  {t("Total invoices", "Total factures")}
+                  {t("Total invoices", "Total factures", "Rechnungen gesamt", "Total de facturas", "Total de faturas")}
                 </p>
                 <p
                   className={getSingleLineAmountClass(
                     String(invoiceStats.total),
-                    "mt-3 max-w-full overflow-hidden whitespace-nowrap text-center font-semibold tracking-[-0.04em] text-slate-950 dark:text-slate-50"
+                    "mt-2 max-w-full overflow-hidden whitespace-nowrap text-center font-semibold tracking-[-0.04em] text-slate-950 dark:text-slate-50"
                   )}
-                  style={getSingleLineAmountStyle(String(invoiceStats.total), 2.05, 1.05, 5, 0.12)}
+                  style={getSingleLineAmountStyle(String(invoiceStats.total), 1.7, 0.98, 5, 0.1)}
                 >
                   {invoiceStats.total}
                 </p>
               </div>
               <div className={heroMetricCardClass}>
-                <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(99,102,241,0.38),transparent)]" />
+                <div className="pointer-events-none absolute inset-x-3 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(99,102,241,0.34),transparent)]" />
                 <p className={heroMetricLabelClass}>
-                  {t("Drafts", "Brouillons")}
+                  {t("Drafts", "Brouillons", "Entwurfe", "Borradores", "Rascunhos")}
                 </p>
                 <p
                   className={getSingleLineAmountClass(
                     String(invoiceStats.drafts),
-                    "mt-3 max-w-full overflow-hidden whitespace-nowrap text-center font-semibold tracking-[-0.04em] text-slate-950 dark:text-slate-50"
+                    "mt-2 max-w-full overflow-hidden whitespace-nowrap text-center font-semibold tracking-[-0.04em] text-slate-950 dark:text-slate-50"
                   )}
-                  style={getSingleLineAmountStyle(String(invoiceStats.drafts), 2.05, 1.05, 5, 0.12)}
+                  style={getSingleLineAmountStyle(String(invoiceStats.drafts), 1.7, 0.98, 5, 0.1)}
                 >
                   {invoiceStats.drafts}
                 </p>
               </div>
               <div className={heroMetricCardClass}>
-                <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(245,158,11,0.42),transparent)]" />
+                <div className="pointer-events-none absolute inset-x-3 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(245,158,11,0.38),transparent)]" />
                 <p className={heroMetricLabelClass}>
-                  {t("Unpaid", "Impayees")}
+                  {t("Unpaid", "Impayees", "Unbezahlt", "Pendientes de pago", "Por pagar")}
                 </p>
                 <p
                   className={getSingleLineAmountClass(
                     String(invoiceStats.unpaid),
-                    "mt-3 max-w-full overflow-hidden whitespace-nowrap text-center font-semibold tracking-[-0.04em] text-slate-950 dark:text-slate-50"
+                    "mt-2 max-w-full overflow-hidden whitespace-nowrap text-center font-semibold tracking-[-0.04em] text-slate-950 dark:text-slate-50"
                   )}
-                  style={getSingleLineAmountStyle(String(invoiceStats.unpaid), 2.05, 1.05, 5, 0.12)}
+                  style={getSingleLineAmountStyle(String(invoiceStats.unpaid), 1.7, 0.98, 5, 0.1)}
                 >
                   {invoiceStats.unpaid}
                 </p>
               </div>
               <div className={heroMetricCardClass}>
-                <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(239,68,68,0.42),transparent)]" />
+                <div className="pointer-events-none absolute inset-x-3 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(239,68,68,0.38),transparent)]" />
                 <p className={heroMetricLabelClass}>
-                  {t("Overdue", "En retard")}
+                  {t("Overdue", "En retard", "überfällig", "Vencidas", "Em atraso")}
                 </p>
                 <p
                   className={getSingleLineAmountClass(
                     String(invoiceStats.overdue),
-                    "mt-3 max-w-full overflow-hidden whitespace-nowrap text-center font-semibold tracking-[-0.04em] text-slate-950 dark:text-slate-50"
+                    "mt-2 max-w-full overflow-hidden whitespace-nowrap text-center font-semibold tracking-[-0.04em] text-slate-950 dark:text-slate-50"
                   )}
-                  style={getSingleLineAmountStyle(String(invoiceStats.overdue), 2.05, 1.05, 5, 0.12)}
+                  style={getSingleLineAmountStyle(String(invoiceStats.overdue), 1.7, 0.98, 5, 0.1)}
                 >
                   {invoiceStats.overdue}
                 </p>
               </div>
             </div>
+            </div>
           </div>
-          <div className="w-full max-w-[360px] rounded-[28px] border border-slate-200/80 bg-white/78 p-4 shadow-[0_24px_50px_-34px_rgba(15,23,42,0.38)] backdrop-blur-sm dark:border-slate-700/80 dark:bg-slate-950/62 dark:shadow-[0_28px_56px_-34px_rgba(2,6,23,0.95)]">
-            <div className="space-y-4">
+          <div className="w-full max-w-[332px] rounded-[24px] border border-slate-200/80 bg-white/82 p-3.5 shadow-[0_20px_42px_-32px_rgba(15,23,42,0.3)] backdrop-blur-sm dark:border-slate-700/80 dark:bg-slate-950/62 dark:shadow-[0_24px_48px_-34px_rgba(2,6,23,0.95)]">
+            <div className="space-y-3.5">
               <div className="space-y-2">
-                <p className="inline-flex items-center rounded-full border border-slate-200/80 bg-slate-50/85 px-3 py-1 text-[0.66rem] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:border-slate-700/80 dark:bg-slate-900/75 dark:text-slate-400">
-                  {t("Workspace", "Espace de travail")}
+                <p className="inline-flex items-center rounded-full border border-slate-200/80 bg-slate-50/85 px-3 py-1 text-[0.64rem] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:border-slate-700/80 dark:bg-slate-900/75 dark:text-slate-400">
+                  {t("Workspace", "Espace de travail", "Arbeitsbereich", "Espacio de trabajo", "Espaco de trabalho")}
                 </p>
-                <p className="text-[1.22rem] font-semibold leading-[1.05] tracking-[-0.04em] text-slate-950 dark:text-slate-50">
-                  {t("Start a fresh invoice or jump into history.", "Creez une nouvelle facture ou ouvrez l historique.")}
+                <p className="text-[1.02rem] font-semibold leading-[1.08] tracking-[-0.03em] text-slate-950 dark:text-slate-50 sm:text-[1.08rem]">
+                  {t("Start a fresh invoice or jump into history.", "Creez une nouvelle facture ou ouvrez l'historique.", "Starte eine neue Rechnung oder wechsle in den Verlauf.", "Empieza una factura nueva o ve al historial.", "Comece uma nova fatura ou avance para o histórico.")}
                 </p>
-                <p className="text-[0.92rem] leading-6 text-slate-600 dark:text-slate-300">
+                <p className="text-[0.87rem] leading-6 text-slate-600 dark:text-slate-300">
                   {t(
                     "Everything updates live while you build, so totals, customer details, and delivery settings stay in sync.",
-                    "Tout se met a jour en direct pendant la creation pour garder les totaux, le client et les reglages d envoi parfaitement synchronises."
+                    "Tout se met a jour en direct pendant la creation pour garder les totaux, le client et les reglages d envoi parfaitement synchronises.",
+                    "Alles wird wahrend der Erstellung live aktualisiert, damit Summen, Kundendaten und Zustelleinstellungen synchron bleiben.",
+                    "Todo se actualiza en vivo mientras trabajas, para que totales, datos del cliente y ajustes de entrega permanezcan sincronizados.",
+                    "Tudo se atualiza em tempo real enquanto cria, para manter totais, dados do cliente e definições de entrega sincronizados."
                   )}
                 </p>
               </div>
-              <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="flex flex-col gap-2.5 sm:flex-row">
                 <Button
                   onClick={handleNewInvoice}
-                  className="h-12 flex-1 rounded-2xl bg-[linear-gradient(135deg,#6657ff_0%,#5547f0_48%,#4338ca_100%)] text-[0.98rem] font-semibold text-white shadow-[0_24px_50px_-24px_rgba(79,70,229,0.88)] ring-1 ring-white/10 hover:bg-[linear-gradient(135deg,#7163ff_0%,#5f51f4_48%,#4b3fd4_100%)]"
+                  className="h-11 flex-1 rounded-[18px] bg-[linear-gradient(135deg,#6657ff_0%,#5547f0_48%,#4338ca_100%)] px-4 text-[0.94rem] font-semibold text-white shadow-[0_18px_38px_-22px_rgba(79,70,229,0.82)] ring-1 ring-white/10 hover:bg-[linear-gradient(135deg,#7163ff_0%,#5f51f4_48%,#4b3fd4_100%)]"
                 >
-                  {t("+ New Invoice", "+ Nouvelle facture")}
+                  {t("+ New Invoice", "+ Nouvelle facture", "+ Neue Rechnung", "+ Nueva factura", "+ Nova fatura")}
                 </Button>
                 <a href="#invoice-history" className="sm:flex-1">
                   <Button
                     variant="secondary"
-                    className="h-12 w-full rounded-2xl border border-slate-300/90 bg-slate-50 text-[0.98rem] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] dark:hover:bg-slate-800"
+                    className="h-11 w-full rounded-[18px] border border-slate-300/90 bg-slate-50 px-4 text-[0.94rem] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] dark:hover:bg-slate-800"
                   >
-                    {t("View history", "Voir l historique")}
+                    {t("View history", "Voir l'historique", "Verlauf ansehen", "Ver historial", "Ver histórico")}
                   </Button>
                 </a>
               </div>
-              <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-2 dark:border-slate-800 dark:bg-slate-900/75">
-                <div className="rounded-[1rem] bg-white/90 px-3 py-2 text-center dark:bg-slate-950/80">
-                  <p className="text-[0.62rem] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
-                    {t("Live preview", "Apercu direct")}
+              <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[20px] border border-slate-200/80 bg-slate-200/80 dark:border-slate-800 dark:bg-slate-800">
+                <div className="bg-white/92 px-3 py-2 text-center dark:bg-slate-950/84">
+                  <p className="text-[0.58rem] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                    {t("Live preview", "Apercu direct", "Live-Vorschau", "Vista previa en vivo", "Pre-visualizacao ao vivo")}
                   </p>
-                  <p className="mt-1 text-sm font-semibold tracking-[-0.02em] text-slate-950 dark:text-slate-50">
-                    {t("Always on", "Toujours visible")}
+                  <p className="mt-1 text-[0.94rem] font-semibold tracking-[-0.02em] text-slate-950 dark:text-slate-50">
+                    {t("Always on", "Toujours visible", "Immer aktiv", "Siempre activo", "Sempre ativo")}
                   </p>
                 </div>
-                <div className="rounded-[1rem] bg-white/90 px-3 py-2 text-center dark:bg-slate-950/80">
-                  <p className="text-[0.62rem] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
-                    {t("Delivery", "Envoi")}
+                <div className="bg-white/92 px-3 py-2 text-center dark:bg-slate-950/84">
+                  <p className="text-[0.58rem] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                    {t("Delivery", "Envoi", "Zustellung", "Entrega", "Entrega")}
                   </p>
-                  <p className="mt-1 text-sm font-semibold tracking-[-0.02em] text-slate-950 dark:text-slate-50">
-                    {t("Ready to send", "Pret a envoyer")}
+                  <p className="mt-1 text-[0.94rem] font-semibold tracking-[-0.02em] text-slate-950 dark:text-slate-50">
+                    {t("Ready to send", "Pret a envoyer", "Bereit zum Senden", "Lista para enviar", "Pronta para enviar")}
                   </p>
                 </div>
               </div>
@@ -1399,18 +1697,21 @@ export default function InvoicesPage() {
         ) : null}
       </section>
       {profileMissing ? (
-        <Card title={t("Business profile required", "Profil requis")}>
+        <Card title={t("Business profile required", "Profil requis", "Unternehmensprofil erforderlich", "Se requiere perfil de empresa", "Perfil da empresa obrigatório")}>
           {profileStatus ? (
             <TransientAlert variant="success" onDismiss={() => setProfileStatus(null)}>
               {profileStatus}
             </TransientAlert>
           ) : null}
           {profileError && <Alert variant="error">{profileError}</Alert>}
-          {profileLogoError && <Alert variant="error">{profileLogoError}</Alert>}
+            {profileLogoError && <Alert variant="error">{profileLogoError}</Alert>}
           <p className="text-sm text-muted-foreground">
             {t(
               "Add your business profile before creating invoices.",
-              "Ajoutez votre profil avant de creer des factures."
+              "Ajoutez votre profil avant de creer des factures.",
+              "Füge dein Unternehmensprofil hinzu, bevor du Rechnungen erstellst.",
+              "Agrega tu perfil de empresa antes de crear facturas.",
+              "Adicione o perfil da sua empresa antes de criar faturas."
             )}
           </p>
           <form
@@ -1418,7 +1719,7 @@ export default function InvoicesPage() {
             onSubmit={createBusinessProfile}
           >
             <Input
-              label={t("Business name", "Nom de l entreprise")}
+              label={t("Business name", "Nom de l entreprise", "Unternehmensname", "Nombre de la empresa", "Nome da empresa")}
               value={profileForm.businessName}
               onChange={(e) => setProfileForm({ ...profileForm, businessName: e.target.value })}
               onFocus={(e) => {
@@ -1428,14 +1729,14 @@ export default function InvoicesPage() {
               required
             />
             <CountrySelect
-              label={t("Country", "Pays")}
+              label={t("Country", "Pays", "Land", "Pais", "Pais")}
               value={profileForm.country}
-              locale={language === "fr" ? "fr" : "en"}
+              locale={language}
               required
               onChange={(value) => setProfileForm({ ...profileForm, country: value })}
             />
             <label className="flex flex-col gap-1 text-sm text-foreground">
-              {t("Default currency", "Devise par defaut")}
+              {t("Default currency", "Devise par defaut", "Standardwährung", "Moneda predeterminada", "Moeda predefinida")}
               <select
                 value={profileForm.defaultCurrency}
                 onChange={(e) => setProfileForm({ ...profileForm, defaultCurrency: e.target.value })}
@@ -1449,43 +1750,43 @@ export default function InvoicesPage() {
               </select>
             </label>
             <Input
-              label={t("Business email", "Email entreprise")}
+              label={t("Business email", "Email entreprise", "Unternehmens-E-Mail", "Correo de la empresa", "Email da empresa")}
               type="email"
               value={profileForm.businessEmail}
               onChange={(e) => setProfileForm({ ...profileForm, businessEmail: e.target.value })}
               required
             />
             <PhoneInput
-              label={t("Business phone", "Telephone entreprise")}
+              label={t("Business phone", "Telephone entreprise", "Unternehmenstelefon", "Telefono de la empresa", "Telefone da empresa")}
               value={profileForm.businessPhone}
               required
-              locale={language === "fr" ? "fr" : "en"}
+              locale={language}
               onChange={(value) => setProfileForm({ ...profileForm, businessPhone: value })}
             />
             <Input
-              label={t("Street address", "Adresse")}
+              label={t("Street address", "Adresse", "Strassenadresse", "Direccion", "Endereco")}
               value={profileForm.streetAddress}
               onChange={(e) => setProfileForm({ ...profileForm, streetAddress: e.target.value })}
               required
             />
             <Input
-              label={t("City", "Ville")}
+              label={t("City", "Ville", "Stadt", "Ciudad", "Cidade")}
               value={profileForm.city}
               onChange={(e) => setProfileForm({ ...profileForm, city: e.target.value })}
               required
             />
             <Input
-              label={t("Postal code / ZIP (optional)", "Code postal / ZIP (optionnel)")}
+              label={t("Postal code / ZIP (optional)", "Code postal / ZIP (optionnel)", "Postleitzahl / ZIP (optional)", "Código postal / ZIP (opcional)", "Código postal / ZIP (opcional)")}
               value={profileForm.postalCode}
               onChange={(e) => setProfileForm({ ...profileForm, postalCode: e.target.value })}
             />
             <label className="col-span-2 flex flex-col gap-1 text-sm text-foreground max-md:order-9 max-md:col-span-1 md:col-span-1">
               <span className="flex items-center gap-2">
-                {t("Business logo (optional)", "Logo entreprise (optionnel)")}
+                {t("Business logo (optional)", "Logo entreprise (optionnel)", "Unternehmenslogo (optional)", "Logo de la empresa (opcional)", "Logotipo da empresa (opcional)")}
                 <span ref={profileLogoInfoRef} className="relative">
                   <button
                     type="button"
-                    aria-label={t("Logo upload info", "Infos televersement logo")}
+                    aria-label={t("Logo upload info", "Infos télevérsement logo", "Info zum Logo-Upload", "Información sobre la carga del logo", "Informações sobre o envio do logotipo")}
                     onClick={(event) => {
                       event.stopPropagation();
                       setProfileLogoInfoOpen((open) => !open);
@@ -1499,8 +1800,8 @@ export default function InvoicesPage() {
                       profileLogoInfoOpen ? "opacity-100" : "pointer-events-none opacity-0"
                     }`}
                   >
-                    <div>{t("Accepted formats: PNG, JPG, SVG", "Formats acceptes : PNG, JPG, SVG")}</div>
-                    <div>{t("Max size: 2MB", "Taille max : 2MB")}</div>
+                    <div>{t("Accepted formats: PNG, JPG, SVG", "Formats acceptes : PNG, JPG, SVG", "Akzeptierte Formate: PNG, JPG, SVG", "Formatos aceptados: PNG, JPG, SVG", "Formatos aceites: PNG, JPG, SVG")}</div>
+                    <div>{t("Max size: 2MB", "Taille max : 2MB", "Maximale Grosse: 2 MB", "Tamano maximo: 2 MB", "Tamanho maximo: 2 MB")}</div>
                   </div>
               </span>
             </span>
@@ -1519,7 +1820,7 @@ export default function InvoicesPage() {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={profileLogoPreviewUrl}
-                      alt={t("Business logo preview", "Apercu du logo")}
+                      alt={t("Business logo preview", "Apercu du logo", "Vorschau des Unternehmenslogos", "Vista previa del logo de la empresa", "Pre-visualizacao do logotipo da empresa")}
                       className="h-full w-full object-contain"
                     />
                   </div>
@@ -1529,14 +1830,14 @@ export default function InvoicesPage() {
                       onClick={() => profileLogoInputRef.current?.click()}
                       className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-foreground"
                     >
-                      {t("Change logo", "Modifier le logo")}
+                      {t("Change logo", "Modifier le logo", "Logo andern", "Cambiar logo", "Alterar logotipo")}
                     </button>
                     <button
                       type="button"
                       onClick={removeProfileLogo}
                       className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-foreground"
                     >
-                      {t("Remove logo", "Supprimer le logo")}
+                      {t("Remove logo", "Supprimer le logo", "Logo entfernen", "Eliminar logo", "Remover logotipo")}
                     </button>
                   </div>
                 </div>
@@ -1545,14 +1846,14 @@ export default function InvoicesPage() {
           </label>
             <div className="space-y-1 max-md:order-8">
               <Input
-                label={t("Tax ID (optional)", "ID fiscal (optionnel)")}
+                label={t("Tax ID (optional)", "ID fiscal (optionnel)", "Steuer-ID (optional)", "ID fiscal (opcional)", "NIF (opcional)")}
                 value={profileForm.taxId}
                 onChange={(e) => setProfileForm({ ...profileForm, taxId: e.target.value })}
               />
             </div>
             <div className="col-span-2 max-md:col-span-1 max-md:order-10">
               <Button type="submit" className="max-md:w-full">
-                {t("Save business profile", "Enregistrer le profil")}
+                {t("Save business profile", "Enregistrer le profil", "Unternehmensprofil speichern", "Guardar perfil de empresa", "Guardar perfil da empresa")}
               </Button>
             </div>
           </form>
@@ -1561,18 +1862,18 @@ export default function InvoicesPage() {
         <div className="grid gap-7 sm:grid-cols-[minmax(0,1.2fr)_minmax(240px,0.86fr)] md:gap-8 md:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.92fr)] lg:gap-10 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.95fr)] xl:grid-cols-[minmax(0,1.6fr)_minmax(360px,1fr)]">
           <div className="min-w-0 space-y-6">
             <Card
-              title={<span className="text-base font-semibold">{t("Create invoice", "Creer une facture")}</span>}
+              title={<span className="text-base font-semibold">{t("Create invoice", "Creer une facture", "Rechnung erstellen", "Crear factura", "Criar fatura")}</span>}
               className="min-w-0 shadow-sm"
             >
               <form className="grid grid-cols-2 gap-x-4 gap-y-8 max-md:grid-cols-1 max-md:gap-4" onSubmit={createInvoice}>
             <Input
-              label={t("Invoice number", "Numero de facture")}
+              label={t("Invoice number", "Numero de facture", "Rechnungsnummer", "Numero de factura", "Numero da fatura")}
               value={form.invoiceNumber}
               onChange={(e) => setForm({ ...form, invoiceNumber: e.target.value })}
             />
             <div className="col-span-2 space-y-2 max-md:col-span-1">
               <label className="mb-2 block text-sm font-medium text-foreground">
-                {t("Customer", "Client")} *
+                {t("Customer", "Client", "Kunde", "Cliente", "Cliente")} *
               </label>
               <div className="space-y-2">
                 {selectedCustomer && !customerDropdownOpen ? (
@@ -1592,7 +1893,7 @@ export default function InvoicesPage() {
                           className="h-9 rounded-full border border-slate-300/90 bg-slate-50 px-4 text-xs font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] hover:bg-slate-100 dark:border-slate-600/80 dark:bg-slate-900 dark:text-slate-100 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] dark:hover:bg-slate-800"
                           onClick={beginCustomerChange}
                         >
-                          {t("Change", "Changer")}
+                          {t("Change", "Changer", "Andern", "Cambiar", "Alterar")}
                         </Button>
                         <Button
                           type="button"
@@ -1600,7 +1901,7 @@ export default function InvoicesPage() {
                           className="h-9 rounded-full px-3 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-50"
                           onClick={openCreateCustomerModal}
                         >
-                          {t("New customer", "Nouveau client")}
+                          {t("New customer", "Nouveau client", "Neuer Kunde", "Nuevo cliente", "Novo cliente")}
                         </Button>
                       </div>
                     </div>
@@ -1610,7 +1911,7 @@ export default function InvoicesPage() {
                     <div className="flex-1">
                       <input
                         ref={customerInputRef}
-                        placeholder={t("Search and select customer", "Rechercher et selectionner un client")}
+                        placeholder={t("Search and select customer", "Rechercher et selectionner un client", "Kunden suchen und auswählen", "Buscar y seleccionar cliente", "Pesquisar e selecionar cliente")}
                         value={customerQuery}
                         onFocus={() => {
                           setCustomerSkip(0);
@@ -1640,7 +1941,7 @@ export default function InvoicesPage() {
                       className="h-11 shrink-0 whitespace-nowrap text-muted-foreground max-sm:w-full"
                       onClick={openCreateCustomerModal}
                     >
-                      {t("+ Add New Customer", "+ Ajouter client")}
+                      {t("+ Add New Customer", "+ Ajouter client", "+ Neuen Kunden hinzufügen", "+ Anadir cliente", "+ Adicionar cliente")}
                     </Button>
                   </div>
                 )}
@@ -1675,13 +1976,13 @@ export default function InvoicesPage() {
                             onClick={() => setCustomerSkip((current) => current + 20)}
                             className="m-2 w-[calc(100%-16px)] rounded-lg border border-border px-3 py-2 text-xs font-semibold text-indigo-600 transition hover:bg-indigo-50 dark:text-indigo-300 dark:hover:bg-indigo-500/10"
                           >
-                            {t("Load more customers", "Charger plus de clients")}
+                            {t("Load more customers", "Charger plus de clients", "Mehr Kunden laden", "Cargar mas clientes", "Carregar mais clientes")}
                           </button>
                         ) : null}
                       </>
                     ) : (
                       <p className="px-3 py-2 text-xs text-muted-foreground">
-                        {t("No customers found.", "Aucun client trouve.")}
+                        {t("No customers found.", "Aucun client trouve.", "Keine Kunden gefunden.", "No se encontraron clientes.", "Nenhum cliente encontrado.")}
                       </p>
                     )}
                   </div>
@@ -1689,12 +1990,12 @@ export default function InvoicesPage() {
               </div>
               {!selectedCustomer ? (
                 <p className="mt-1.5 text-[13px] text-muted-foreground">
-                  {t("Select a customer to continue.", "Selectionnez un client pour continuer.")}
+                  {t("Select a customer to continue.", "Sélectionnez un client pour continuer.", "Wähle einen Kunden, um fortzufahren.", "Selecciona un cliente para continuar.", "Selecione um cliente para continuar.")}
                 </p>
               ) : null}
             </div>
             <label className="flex flex-col gap-1 text-sm text-foreground">
-              {t("Issue date", "Date d emission")}
+              {t("Issue date", "Date d emission", "Ausstellungsdatum", "Fecha de emision", "Data de emissao")}
               <input
                 type="date"
                 value={form.issueDate}
@@ -1704,7 +2005,7 @@ export default function InvoicesPage() {
             </label>
             <div className="space-y-2">
               <label className="flex flex-col gap-1 text-sm text-foreground">
-                {t("Due date", "Date d echeance")}
+                {t("Due date", "Date d echeance", "Falligkeitsdatum", "Fecha de vencimiento", "Data de vencimento")}
                 <input
                   type="date"
                   value={form.dueDate}
@@ -1720,16 +2021,16 @@ export default function InvoicesPage() {
                     onClick={() => setDueDateFromIssueDate(days)}
                     className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted/40"
                   >
-                    {t(`+${days} days`, `+${days} jours`)}
+                    {t(`+${days} days`, `+${days} jours`, `+${days} Tage`, `+${days} dias`, `+${days} dias`)}
                   </button>
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">
-                {t("Set when payment is expected.", "Definissez la date de paiement attendue.")}
+                {t("Set when payment is expected.", "Definissez la date de paiement attendue.", "Lege fest, wann die Zahlung erwartet wird.", "Define cuando se espera el pago.", "Defina quando o pagamento e esperado.")}
               </p>
             </div>
             <label className="flex flex-col gap-1 text-sm text-foreground">
-              {t("Currency", "Devise")}
+              {t("Currency", "Devise", "Währung", "Moneda", "Moeda")}
               <select
                 value={form.currency}
                 onChange={(e) => {
@@ -1746,22 +2047,22 @@ export default function InvoicesPage() {
               </select>
             </label>
             <Input
-              label={t("PO number (optional)", "Numero BC (optionnel)")}
+              label={t("PO number (optional)", "Numero BC (optionnel)", "Bestellnummer (optional)", "Numero de orden de compra (opcional)", "Numero da ordem de compra (opcional)")}
               value={form.poNumber}
               onChange={(e) => setForm({ ...form, poNumber: e.target.value })}
-              placeholder={t("Purchase order", "Bon de commande")}
+              placeholder={t("Purchase order", "Bon de commande", "Bestellung", "Orden de compra", "Ordem de compra")}
             />
             <div className="col-span-2 min-w-0 max-md:col-span-1">
               <div className="min-w-0 rounded-2xl border border-border bg-muted/10 p-6">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-base font-semibold text-foreground">{t("Line items", "Articles")}</p>
+                  <p className="text-base font-semibold text-foreground">{t("Line items", "Articles", "Positionen", "Partidas", "Itens")}</p>
                   <Button
                     type="button"
                     variant="secondary"
                     className="h-11"
                     onClick={() => appendLineItem({ focus: true })}
                   >
-                    {t("+ Add item", "+ Ajouter")}
+                    {t("+ Add item", "+ Ajouter", "+ Position hinzufügen", "+ Anadir item", "+ Adicionar item")}
                   </Button>
                 </div>
 
@@ -1777,7 +2078,7 @@ export default function InvoicesPage() {
                         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
                           <label className="flex min-w-0 flex-col gap-1.5 text-sm text-foreground">
                             <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                              {t("Description", "Description")}
+                              {t("Description", "Description", "Beschreibung", "Descripcion", "Descricao")}
                             </span>
                             <textarea
                               ref={(node) => {
@@ -1785,7 +2086,7 @@ export default function InvoicesPage() {
                                 autoResizeDescription(node);
                               }}
                               value={item.name}
-                              placeholder={t("Item details", "Details de l article")}
+                              placeholder={t("Item details", "Details de l article", "Artikeldetails", "Detalles del item", "Detalhes do item")}
                               onChange={(e) =>
                                 setForm((prev) => {
                                   const next = [...prev.items];
@@ -1811,7 +2112,7 @@ export default function InvoicesPage() {
                           <div className="flex justify-end lg:pt-7">
                             <button
                               type="button"
-                              aria-label={t("Remove line item", "Supprimer la ligne")}
+                              aria-label={t("Remove line item", "Supprimer la ligne", "Position entfernen", "Eliminar linea", "Remover item")}
                               className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground transition hover:border-rose-200 hover:text-rose-600 dark:hover:border-rose-500/40"
                               onClick={() =>
                                 setForm((prev) => {
@@ -1829,7 +2130,7 @@ export default function InvoicesPage() {
                         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-[88px_minmax(0,1.05fr)_96px_minmax(0,1.15fr)]">
                           <label className="flex min-w-0 flex-col gap-1.5 text-sm text-foreground">
                             <span className="text-center text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                              {t("Qty", "Qt")}
+                              {t("Qty", "Qt", "Menge", "Cant.", "Qtd.")}
                             </span>
                             <input
                               type="number"
@@ -1848,7 +2149,7 @@ export default function InvoicesPage() {
                           </label>
                           <label className="flex min-w-0 flex-col gap-1.5 text-sm text-foreground">
                             <span className="text-center text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                              {t("Unit price", "Prix unitaire")}
+                              {t("Unit price", "Prix unitaire", "Einzelpreis", "Precio unitario", "Preco unitario")}
                             </span>
                             <input
                               type="number"
@@ -1897,7 +2198,7 @@ export default function InvoicesPage() {
                           </label>
                           <div className="min-w-0 space-y-1.5">
                             <p className="text-center text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                              {t("VAT", "TVA")}
+                              {t("VAT", "TVA", "MwSt.", "IVA", "IVA")}
                             </p>
                             <div className="flex h-11 items-center justify-center rounded-xl border border-border bg-background px-3 text-sm font-semibold text-foreground">
                               {showDraftTax
@@ -1907,7 +2208,7 @@ export default function InvoicesPage() {
                           </div>
                           <div className="min-w-0 space-y-1.5">
                             <p className="text-center text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                              {t("Line total", "Total ligne")}
+                              {t("Line total", "Total ligne", "Positionssumme", "Total de linea", "Total da linha")}
                             </p>
                             <div
                               className="flex min-h-11 items-center justify-center overflow-hidden whitespace-nowrap rounded-xl border border-border bg-muted/40 px-3 py-2 text-center font-semibold tabular-nums leading-none text-foreground"
@@ -1926,7 +2227,7 @@ export default function InvoicesPage() {
                   <div className="w-full max-w-[440px] rounded-xl border border-border bg-muted/30 p-6 text-sm text-foreground">
                     <div className="space-y-3">
                     <div className="flex items-start justify-between gap-4">
-                      <span className="text-sm font-medium text-muted-foreground">{t("Subtotal", "Sous-total")}</span>
+                      <span className="text-sm font-medium text-muted-foreground">{t("Subtotal", "Sous-total", "Zwischensumme", "Subtotal", "Subtotal")}</span>
                       <span className="min-w-0 max-w-[65%] text-right text-sm font-medium tabular-nums leading-tight text-muted-foreground break-all">
                         {formatCurrencyWithCode(draftTotals.subtotal, form.currency)}
                       </span>
@@ -1934,7 +2235,7 @@ export default function InvoicesPage() {
                     {showDraftTax ? (
                       <div className="flex items-start justify-between gap-4">
                         <span className="text-sm font-medium text-muted-foreground">
-                          {t("VAT", "TVA")} ({draftVatRateLabel}%)
+                          {t("VAT", "TVA", "MwSt.", "IVA", "IVA")} ({draftVatRateLabel}%)
                         </span>
                         <span className="min-w-0 max-w-[65%] text-right text-sm font-medium tabular-nums leading-tight text-muted-foreground break-all">
                           {formatCurrencyWithCode(draftTotals.taxAmount, form.currency)}
@@ -1942,7 +2243,7 @@ export default function InvoicesPage() {
                       </div>
                     ) : null}
                     <div className="flex items-start justify-between gap-4 border-t border-border/70 pt-3">
-                      <span className="text-[1.15rem] font-bold text-foreground">{t("Total Due", "Total du")}</span>
+                      <span className="text-[1.15rem] font-bold text-foreground">{t("Total Due", "Total du", "Gesamtbetrag fallig", "Total adeudado", "Total em divida")}</span>
                       <span
                         className={getSingleLineAmountClass(
                           formattedDraftTotalWithCode,
@@ -1960,7 +2261,7 @@ export default function InvoicesPage() {
             </div>
                 <div className="col-span-2 max-md:col-span-1">
                   <Textarea
-                    label={t("Note to customer (optional)", "Note au client (optionnel)")}
+                    label={t("Note to customer (optional)", "Note au client (optionnel)", "Notiz für den Kunden (optional)", "Nota para el cliente (opcional)", "Nota para o cliente (opcional)")}
                     value={form.note}
                     onChange={(e) => setForm({ ...form, note: e.target.value })}
                   />
@@ -1975,19 +2276,22 @@ export default function InvoicesPage() {
                         <div className="min-w-0 space-y-2">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-indigo-600/80 dark:text-indigo-300/90">
-                              {t("Delivery package", "Pack d envoi")}
+                              {t("Delivery package", "Pack d envoi", "Versandpaket", "Paquete de entrega", "Pacote de entrega")}
                             </p>
                             <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-                              {t("Optional", "Optionnel")}
+                              {t("Optional", "Optionnel", "Optional", "Opcional", "Opcional")}
                             </span>
                           </div>
                           <p className="text-lg font-semibold tracking-tight text-slate-950 dark:text-slate-50">
-                            {t("Supporting files", "Fichiers d accompagnement")}
+                            {t("Supporting files", "Fichiers d accompagnement", "Begleitdateien", "Archivos adjuntos", "Ficheiros de apoio")}
                           </p>
                           <p className="max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
                             {t(
                               "Attach up to 5 JPG, PNG, or PDF files to send alongside the invoice PDF. These files are delivered with the invoice package, but never appear on the invoice itself.",
-                              "Ajoutez jusqu a 5 fichiers JPG, PNG, ou PDF a envoyer avec le PDF de la facture. Ces fichiers sont transmis avec l envoi, mais n apparaissent jamais sur la facture elle-meme."
+                              "Ajoutez jusqu a 5 fichiers JPG, PNG, ou PDF a envoyer avec le PDF de la facture. Ces fichiers sont transmis avec l envoi, mais n apparaissent jamais sur la facture elle-meme.",
+                              "Füge bis zu 5 JPG-, PNG- oder PDF-Dateien hinzu, die zusammen mit dem Rechnungs-PDF gesendet werden. Diese Dateien werden mit dem Rechnungspaket zugestellt, erscheinen aber nie auf der Rechnung selbst.",
+                              "Adjunta hasta 5 archivos JPG, PNG o PDF para enviarlos junto con el PDF de la factura. Estos archivos se entregan con el paquete de factura, pero nunca aparecen en la factura.",
+                              "Anexa at? 5 ficheiros JPG, PNG ou PDF para enviar com o PDF da fatura. Estes ficheiros sao entregues com o pacote da fatura, mas nunca aparecem na propria fatura."
                             )}
                           </p>
                         </div>
@@ -2006,16 +2310,16 @@ export default function InvoicesPage() {
                         onClick={() => supportingFilesInputRef.current?.click()}
                       >
                         <Paperclip className="mr-2 h-4 w-4" />
-                        {supportingFiles.length > 0
-                          ? t("Add more files", "Ajouter d autres fichiers")
-                          : t("Add supporting files", "Ajouter des fichiers")}
+                      {supportingFiles.length > 0
+                          ? t("Add more files", "Ajouter d autres fichiers", "Weitere Dateien hinzufügen", "Anadir mas archivos", "Adicionar mais ficheiros")
+                          : t("Add supporting files", "Ajouter des fichiers", "Begleitdateien hinzufügen", "Anadir archivos adjuntos", "Adicionar ficheiros de apoio")}
                       </Button>
                     </div>
                     {supportingFiles.length > 0 ? (
                       <div className="border-t border-slate-200/80 bg-slate-50/80 px-6 py-5 dark:border-slate-700/80 dark:bg-slate-900/50">
                         <div className="mb-3 flex items-center justify-between gap-3">
                           <p className="text-[0.72rem] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-                            {t("Attached now", "Ajoutes")}
+                            {t("Attached now", "Ajoutes", "Jetzt angehangt", "Adjuntados ahora", "Anexados agora")}
                           </p>
                           <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[0.68rem] font-semibold text-white dark:bg-slate-100 dark:text-slate-900">
                             {supportingFiles.length}/{MAX_INVOICE_SUPPORTING_FILES}
@@ -2039,7 +2343,7 @@ export default function InvoicesPage() {
                             <button
                               type="button"
                               className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-rose-500/40 dark:hover:bg-rose-500/10 dark:hover:text-rose-300"
-                              aria-label={t("Remove file", "Supprimer le fichier")}
+                              aria-label={t("Remove file", "Supprimer le fichier", "Datei entfernen", "Eliminar archivo", "Remover ficheiro")}
                               onClick={() => {
                                 setSupportingFiles((current) =>
                                   current.filter(
@@ -2063,14 +2367,20 @@ export default function InvoicesPage() {
                     ) : null}
                     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200/80 bg-slate-50/85 px-6 py-4 text-xs dark:border-slate-700/80 dark:bg-slate-900/80">
                       <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
-                        {t("Maximum 5 files, 5MB each.", "Maximum 5 fichiers, 5 Mo chacun.")}
+                        {t("Maximum 5 files, 5MB each.", "Maximum 5 fichiers, 5 Mo chacun.", "Maximal 5 Dateien, je 5 MB.", "Maximo 5 archivos, 5 MB cada uno.", "Maximo de 5 ficheiros, 5 MB cada um.")}
                       </span>
                       <span className="rounded-full border border-indigo-200/80 bg-indigo-50 px-3 py-1.5 font-semibold text-indigo-700 dark:border-indigo-400/30 dark:bg-indigo-500/12 dark:text-indigo-200">
                         {selectedCustomer?.deliveryPreference === "WHATSAPP"
-                          ? t("Delivered by WhatsApp document messages.", "Envoyes via des documents WhatsApp.")
+                          ? t(
+                              "Delivered by WhatsApp document messages.",
+                              "Envoyes via des documents WhatsApp.",
+                              "Wird per WhatsApp-Dokumentnachricht zugestellt.",
+                              "Se entrega mediante mensajes de documento de WhatsApp.",
+                              "Entregue por mensagens de documento do WhatsApp."
+                            )
                           : selectedCustomer?.deliveryPreference === "BOTH"
-                            ? t("Delivered by email and WhatsApp.", "Envoyes par email et WhatsApp.")
-                            : t("Delivered with the invoice email.", "Envoyes avec l email de facture.")}
+                            ? t("Delivered by email and WhatsApp.", "Envoyes par email et WhatsApp.", "Wird per E-Mail und WhatsApp zugestellt.", "Se entrega por correo y WhatsApp.", "Entregue por email e WhatsApp.")
+                            : t("Delivered with the invoice email.", "Envoyes avec l email de facture.", "Wird mit der Rechnungs-E-Mail zugestellt.", "Se entrega con el correo de la factura.", "Entregue com o email da fatura.")}
                       </span>
                     </div>
                     {supportingFilesError ? (
@@ -2096,16 +2406,19 @@ export default function InvoicesPage() {
               <div className="flex flex-wrap items-center justify-between gap-5 px-1 py-1">
                 <div className="min-w-0 flex-1 space-y-2">
                   <div className="inline-flex items-center rounded-full border border-indigo-200/80 bg-indigo-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-indigo-700 dark:border-indigo-400/20 dark:bg-indigo-500/10 dark:text-indigo-200">
-                    {t("Final step", "Etape finale")}
+                          {t("Final step", "Etape finale", "Letzter Schritt", "Paso final", "Etapa final")}
                   </div>
                   <div className="space-y-1">
                     <p className="text-lg font-semibold tracking-tight text-slate-950 dark:text-slate-50">
-                      {t("Finalize this invoice", "Finaliser cette facture")}
+                            {t("Finalize this invoice", "Finaliser cette facture", "Diese Rechnung abschliessen", "Finalizar esta factura", "Finalizar esta fatura")}
                     </p>
                     <p className="max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300">
                       {t(
                         "Save it as a draft for later or send it now to your customer.",
-                        "Enregistrez-la en brouillon pour plus tard ou envoyez-la maintenant a votre client."
+                        "Enregistrez-la en brouillon pour plus tard ou envoyez-la maintenant a votre client.",
+                        "Speichere sie als Entwurf für spater oder sende sie jetzt an deinen Kunden.",
+                        "Guardala como borrador para mas tarde o enviala ahora a tu cliente.",
+                        "Guarde-a como rascunho para mais tarde ou envie-a agora ao seu cliente."
                       )}
                     </p>
                   </div>
@@ -2119,7 +2432,7 @@ export default function InvoicesPage() {
                     disabled={submittingInvoiceStatus !== null}
                     onClick={() => createInvoiceWithStatus("DRAFT")}
                   >
-                    {t("Save Draft", "Enregistrer brouillon")}
+                            {t("Save Draft", "Enregistrer brouillon", "Entwurf speichern", "Guardar borrador", "Guardar rascunho")}
                   </Button>
                   <Button
                     type="button"
@@ -2128,7 +2441,7 @@ export default function InvoicesPage() {
                     disabled={submittingInvoiceStatus !== null}
                     onClick={() => createInvoiceWithStatus("SENT")}
                   >
-                    {t("Save & Send", "Enregistrer et envoyer")}
+                            {t("Save & Send", "Enregistrer et envoyer", "Speichern und senden", "Guardar y enviar", "Guardar e enviar")}
                   </Button>
                 </div>
               </div>
@@ -2137,11 +2450,11 @@ export default function InvoicesPage() {
           </div>
 
           <Card
-            title={<span className="text-[1.02rem] font-semibold tracking-tight">{t("Live invoice preview", "Apercu en direct")}</span>}
+              title={<span className="text-[1.02rem] font-semibold tracking-tight">{t("Live invoice preview", "Apercu en direct", "Live-Rechnungsvorschau", "Vista previa de la factura", "Pre-visualizacao da fatura")}</span>}
             className="h-fit shadow-sm sm:sticky sm:top-20 sm:self-start md:top-24"
           >
             <p className="mb-5 text-[0.78rem] font-medium tracking-[0.01em] text-muted-foreground">
-              {t("Preview updates as you edit.", "L apercu se met a jour en direct.")}
+                    {t("Preview updates as you edit.", "L apercu se met a jour en direct.", "Die Vorschau wird wahrend der Bearbeitung aktualisiert.", "La vista previa se actualiza mientras editas.", "A pre-visualizacao atualiza enquanto edita.")}
             </p>
             <div className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white/95 shadow-[0_26px_60px_-42px_rgba(15,23,42,0.25)] dark:border-slate-700/80 dark:bg-slate-950/90 dark:shadow-[0_32px_70px_-42px_rgba(2,6,23,0.8)]">
               <InvoicePreview
@@ -2152,7 +2465,7 @@ export default function InvoicesPage() {
                 dueDate={previewDueDate}
                 currency={form.currency}
                 items={form.items.map((item) => ({
-                  name: item.name.trim() || t("Untitled item", "Article sans nom"),
+                    name: item.name.trim() || t("Untitled item", "Article sans nom", "Unbenannter Artikel", "Item sin nombre", "Item sem nome"),
                   quantity: item.quantity,
                   price: item.price,
                 }))}
@@ -2179,7 +2492,7 @@ export default function InvoicesPage() {
                         taxId: selectedCustomer.taxId || null,
                       }
                     : {
-                        name: t("Customer name", "Nom du client"),
+                          name: t("Customer name", "Nom du client", "Kundenname", "Nombre del cliente", "Nome do cliente"),
                         email: null,
                         address: null,
                         companyName: null,
@@ -2195,12 +2508,12 @@ export default function InvoicesPage() {
       )}
       <Card
         id="invoice-history"
-        title={<span className="text-base font-semibold">{t("History", "Historique")}</span>}
+        title={<span className="text-base font-semibold">{t("History", "Historique", "Verlauf", "Historial", "Histórico")}</span>}
         actions={
           <div className="flex flex-wrap items-center gap-3">
             <input
               suppressHydrationWarning
-              placeholder={t("Search invoices", "Rechercher des factures")}
+              placeholder={t("Search invoices", "Rechercher des factures", "Rechnungen suchen", "Buscar facturas", "Pesquisar faturas")}
               className="w-56 rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground max-md:w-full"
               value={query}
               onChange={(e) => {
@@ -2213,16 +2526,24 @@ export default function InvoicesPage() {
       >
         {invoicesError && (
           <Alert variant="error">
-            {(invoicesError as any)?.data?.reason ||
-              (invoicesError as any)?.data?.error ||
-              t("Unable to load invoices.", "Impossible de charger les factures.")}
+            {(typeof (invoicesError as any)?.data?.reason === "string" &&
+              localizeInvoiceServerMessage((invoicesError as any).data.reason, t)) ||
+              (typeof (invoicesError as any)?.data?.error === "string" &&
+                localizeInvoiceServerMessage((invoicesError as any).data.error, t)) ||
+              t(
+                "Unable to load invoices.",
+                "Impossible de charger les factures.",
+                "Rechnungen konnten nicht geladen werden.",
+                "No se pudieron cargar las facturas.",
+                "Não foi possivel carregar as faturas."
+              )}
           </Alert>
         )}
         {showEmptyState ? (
           <EmptyState
-            title={t("No invoices yet", "Aucune facture")}
-            description={t("Create your first invoice and it will appear here.", "Creez votre premiere facture ici.")}
-            actionLabel={t("Create invoice", "Creer une facture")}
+            title={t("No invoices yet", "Aucune facture", "Noch keine Rechnungen", "Todavia no hay facturas", "Ainda não existem faturas")}
+            description={t("Create your first invoice and it will appear here.", "Creez votre premiere facture ici.", "Erstelle deine erste Rechnung und sie erscheint hier.", "Crea tu primera factura y aparecera aqui.", "Crie a sua primeira fatura e ela aparecera aqui.")}
+            actionLabel={t("Create invoice", "Creer une facture", "Rechnung erstellen", "Crear factura", "Criar fatura")}
             onAction={scrollToCreate}
           />
         ) : (
@@ -2231,10 +2552,10 @@ export default function InvoicesPage() {
               data={filteredInvoices}
               keyExtractor={(row: any) => row.id || row.invoiceNumber}
               columns={[
-              { key: "invoiceNumber", label: t("Invoice Number", "Numero de facture"), align: "left" },
+              { key: "invoiceNumber", label: t("Invoice Number", "Numero de facture", "Rechnungsnummer", "Numero de factura", "Numero da fatura"), align: "left" },
               {
                 key: "customer",
-                label: t("Customer", "Client"),
+                label: t("Customer", "Client", "Kunde", "Cliente", "Cliente"),
                 align: "center",
                 render: (row: any) =>
                   String(
@@ -2246,13 +2567,13 @@ export default function InvoicesPage() {
               },
               {
                 key: "currency",
-                label: t("Currency", "Devise"),
+                label: t("Currency", "Devise", "Währung", "Moneda", "Moeda"),
                 align: "center",
                 render: (row: any) => String(row.currency || "").toUpperCase(),
               },
               {
                 key: "status",
-                label: t("Status", "Statut"),
+                label: t("Status", "Statut", "Status", "Estado", "Estado"),
                 align: "center",
                 render: (row: any) => (
                   <span
@@ -2266,13 +2587,13 @@ export default function InvoicesPage() {
               },
               {
                 key: "total",
-                label: t("Total", "Total"),
+                label: t("Total", "Total", "Gesamt", "Total", "Total"),
                 align: "center",
                 render: (row: any) => formatCurrency(Number(row.total || 0), row.currency),
               },
               {
                 key: "id",
-                label: t("Actions", "Actions"),
+                label: t("Actions", "Actions", "Aktionen", "Acciones", "Ações"),
                 align: "center",
                 render: (row: any) => {
                   const invoiceId = row?.id ?? row?.invoiceNumber;
@@ -2292,10 +2613,10 @@ export default function InvoicesPage() {
                           className="inline-flex h-9 items-center gap-2 rounded-full border border-indigo-200/80 bg-indigo-50/80 px-3.5 text-sm font-semibold text-indigo-700 shadow-[0_12px_30px_-24px_rgba(79,70,229,0.85)] transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-800"
                         >
                           <Eye className="h-4 w-4" />
-                          {t("View", "Voir")}
+                          {t("View", "Voir", "Ansehen", "Ver", "Ver")}
                         </Link>
                       ) : (
-                        <span className="text-sm font-medium text-muted-foreground">{t("View", "Voir")}</span>
+                        <span className="text-sm font-medium text-muted-foreground">{t("View", "Voir", "Ansehen", "Ver", "Ver")}</span>
                       )}
                       {isDraft ? (
                         <div data-invoice-menu className={`relative ${menuOpen ? "z-30" : ""}`}>
@@ -2313,7 +2634,7 @@ export default function InvoicesPage() {
                             }
                             aria-expanded={menuOpen}
                             aria-haspopup="menu"
-                            aria-label={t("Draft actions", "Actions du brouillon")}
+                            aria-label={t("Draft actions", "Actions du brouillon", "Entwurfsaktionen", "Acciones del borrador", "Ações do rascunho")}
                           >
                             <MoreHorizontal className="h-4.5 w-4.5" />
                           </button>
@@ -2323,7 +2644,7 @@ export default function InvoicesPage() {
                               className="absolute bottom-full right-0 z-40 mb-2 w-56 rounded-[1.35rem] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))] p-2 shadow-[0_28px_65px_-32px_rgba(15,23,42,0.55)] backdrop-blur"
                             >
                               <p className="px-3 pb-2 pt-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                                {t("Draft actions", "Actions du brouillon")}
+                                {t("Draft actions", "Actions du brouillon", "Entwurfsaktionen", "Acciones del borrador", "Ações do rascunho")}
                               </p>
                               <button
                                 type="button"
@@ -2337,7 +2658,7 @@ export default function InvoicesPage() {
                                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
                                   <PencilLine className="h-4 w-4" />
                                 </span>
-                                {t("Edit draft", "Modifier")}
+                                {t("Edit draft", "Modifier", "Entwurf bearbeiten", "Editar borrador", "Editar rascunho")}
                               </button>
                               <button
                                 type="button"
@@ -2352,7 +2673,7 @@ export default function InvoicesPage() {
                                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
                                   <Send className="h-4 w-4" />
                                 </span>
-                                {sendingId === row?.id ? t("Sending...", "Envoi...") : t("Send now", "Envoyer")}
+                                {sendingId === row?.id ? t("Sending...", "Envoi...", "Wird gesendet...", "Enviando...", "A enviar...") : t("Send now", "Envoyer", "Jetzt senden", "Enviar ahora", "Enviar agora")}
                               </button>
                               <button
                                 type="button"
@@ -2368,8 +2689,8 @@ export default function InvoicesPage() {
                                   <Trash2 className="h-4 w-4" />
                                 </span>
                                 {deletingInvoiceId === row?.id
-                                  ? t("Deleting...", "Suppression...")
-                                  : t("Delete draft", "Supprimer")}
+                                  ? t("Deleting...", "Suppression...", "Wird gelöscht...", "Eliminando...", "A eliminar...")
+                                  : t("Delete draft", "Supprimer", "Entwurf loschen", "Eliminar borrador", "Eliminar rascunho")}
                               </button>
                             </div>
                           ) : null}
@@ -2383,7 +2704,7 @@ export default function InvoicesPage() {
                             onClick={() => openEditCustomer(row)}
                             className="text-sm font-medium text-slate-600 hover:text-slate-700"
                           >
-                            {t("Edit", "Modifier")}
+                            {t("Edit", "Modifier", "Bearbeiten", "Editar", "Editar")}
                           </button>
                           <span className="text-muted-foreground">·</span>
                           <button
@@ -2392,7 +2713,7 @@ export default function InvoicesPage() {
                             disabled={sendingId === row?.id || deletingInvoiceId === row?.id}
                             className="text-sm font-medium text-emerald-700 hover:text-emerald-600 disabled:opacity-50"
                           >
-                            {sendingId === row?.id ? t("Sending...", "Envoi...") : t("Send", "Envoyer")}
+                            {sendingId === row?.id ? t("Sending...", "Envoi...", "Wird gesendet...", "Enviando...", "A enviar...") : t("Send", "Envoyer", "Senden", "Enviar", "Enviar")}
                           </button>
                           <span className="text-muted-foreground">·</span>
                           <button
@@ -2401,7 +2722,7 @@ export default function InvoicesPage() {
                             disabled={deletingInvoiceId === row?.id || sendingId === row?.id}
                             className="text-sm font-medium text-rose-700 hover:text-rose-600 disabled:opacity-50"
                           >
-                            {deletingInvoiceId === row?.id ? t("Deleting...", "Suppression...") : t("Delete", "Supprimer")}
+                            {deletingInvoiceId === row?.id ? t("Deleting...", "Suppression...", "Wird gelöscht...", "Eliminando...", "A eliminar...") : t("Delete", "Supprimer", "Loschen", "Eliminar", "Eliminar")}
                           </button>
                         </>
                       ) : null}
@@ -2427,7 +2748,7 @@ export default function InvoicesPage() {
                     type="button"
                     onClick={() => setInvoicePage((prev) => Math.max(0, prev - 1))}
                     disabled={!canGoToPreviousPage}
-                    aria-label={t("Previous page", "Page precedente")}
+                    aria-label={t("Previous page", "Page précédente", "Vorherige Seite", "Pagina anterior", "Pagina anterior")}
                     className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-45"
                   >
                     <ChevronLeft className="h-4 w-4" />
@@ -2439,7 +2760,7 @@ export default function InvoicesPage() {
                     type="button"
                     onClick={() => setInvoicePage((prev) => prev + 1)}
                     disabled={!canGoToNextPage}
-                    aria-label={t("Next page", "Page suivante")}
+                    aria-label={t("Next page", "Page suivante", "Nächste Seite", "Pagina siguiente", "Pagina seguinte")}
                     className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-45"
                   >
                     <ChevronRight className="h-4 w-4" />
@@ -2463,7 +2784,7 @@ export default function InvoicesPage() {
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-2">
               <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-rose-700/80">
-                {t("Permanent action", "Action permanente")}
+                {t("Permanent action", "Action permanente", "Dauerhafte Aktion", "Acción permanente", "Ação permanente")}
               </p>
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(160deg,#ff3b6b,#e11d48)] text-white shadow-[0_16px_35px_-18px_rgba(225,29,72,0.9)]">
@@ -2471,12 +2792,15 @@ export default function InvoicesPage() {
                 </div>
                 <div>
                   <p className="text-[1.55rem] font-semibold leading-tight text-foreground">
-                    {t("Delete draft invoice?", "Supprimer le brouillon ?")}
+                    {t("Delete draft invoice?", "Supprimer le brouillon ?", "Entwurfsrechnung loschen?", "Eliminar factura en borrador?", "Eliminar fatura em rascunho?")}
                   </p>
                   <p className="mt-1 text-sm leading-6 text-muted-foreground">
                     {t(
                       "This removes the draft permanently from your invoice history.",
-                      "Cette action supprime definitivement le brouillon de votre historique."
+                      "Cette action supprime definitivement le brouillon de votre historique.",
+                      "Dadurch wird der Entwurf dauerhaft aus deinem Rechnungsverlauf entfernt.",
+                      "Esto elimina el borrador de forma permanente del historial de facturas.",
+                      "Isto remove permanentemente o rascunho do histórico de faturas."
                     )}
                   </p>
                 </div>
@@ -2484,7 +2808,7 @@ export default function InvoicesPage() {
             </div>
             <button
               type="button"
-              aria-label={t("Close", "Fermer")}
+              aria-label={t("Close", "Fermer", "Schliessen", "Cerrar", "Fechar")}
               onClick={() => {
                 if (deletingInvoiceId) return;
                 setDeleteCandidate(null);
@@ -2498,16 +2822,16 @@ export default function InvoicesPage() {
           <div className="rounded-[1.5rem] border border-border/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.4)]">
             <div className="flex items-center justify-between gap-3">
               <p className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                {t("Draft summary", "Resume du brouillon")}
+                {t("Draft summary", "Resume du brouillon", "Entwurfszusammenfassung", "Resumen del borrador", "Resumo do rascunho")}
               </p>
               <div className="rounded-full border border-rose-200/80 bg-rose-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-rose-700">
-                {t("Draft only", "Brouillon")}
+                {t("Draft only", "Brouillon", "Nur Entwurf", "Solo borrador", "Apenas rascunho")}
               </div>
             </div>
             <div className="mt-4 grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
               <div className="min-w-0">
                 <p className="truncate text-[1.15rem] font-semibold tracking-tight text-foreground">
-                  {String(deleteCandidate?.invoiceNumber || t("Draft invoice", "Brouillon"))}
+                  {String(deleteCandidate?.invoiceNumber || t("Draft invoice", "Brouillon", "Entwurfsrechnung", "Factura en borrador", "Fatura em rascunho"))}
                 </p>
                 <p className="mt-1 truncate text-sm text-muted-foreground">
                   {String(
@@ -2519,7 +2843,7 @@ export default function InvoicesPage() {
                 </p>
               </div>
               <p className="text-xs font-medium text-muted-foreground">
-                {t("This action cannot be undone.", "Cette action est irreversible.")}
+                {t("This action cannot be undone.", "Cette action est irreversible.", "Diese Aktion kann nicht ruckgangig gemacht werden.", "Esta acción no se puede deshacer.", "Esta ação não pode ser desfeita.")}
               </p>
             </div>
           </div>
@@ -2532,7 +2856,7 @@ export default function InvoicesPage() {
               disabled={Boolean(deletingInvoiceId)}
               onClick={() => setDeleteCandidate(null)}
             >
-              {t("Cancel", "Annuler")}
+              {t("Cancel", "Annuler", "Abbrechen", "Cancelar", "Cancelar")}
             </Button>
             <Button
               type="button"
@@ -2541,7 +2865,7 @@ export default function InvoicesPage() {
               loading={Boolean(deletingInvoiceId)}
               onClick={confirmDeleteDraft}
             >
-              {t("Delete Draft", "Supprimer le brouillon")}
+              {t("Delete Draft", "Supprimer le brouillon", "Entwurf loschen", "Eliminar borrador", "Eliminar rascunho")}
             </Button>
           </div>
         </div>
@@ -2562,22 +2886,25 @@ export default function InvoicesPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-indigo-600/80 dark:text-indigo-300/90">
-                  {t("Customer profile", "Profil client")}
+                  {t("Customer profile", "Profil client", "Kundenprofil", "Perfil del cliente", "Perfil do cliente")}
                 </p>
                 <h3 className="mt-1 text-[1.7rem] font-semibold tracking-tight text-foreground">
-                  {t("Add New Customer", "Ajouter un client")}
+                  {t("Add New Customer", "Ajouter un client", "Neuen Kunden hinzufügen", "Anadir cliente", "Adicionar cliente")}
                 </h3>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {t(
-                    "Create a complete customer record for invoices and payment follow-up.",
-                    "Creez une fiche client complete pour la facturation et le suivi des paiements."
-                  )}
+                    {t(
+                      "Create a complete customer record for invoices and payment follow-up.",
+                      "Creez une fiche client complete pour la facturation et le suivi des paiements.",
+                      "Erstelle einen vollständigen Kundendatensatz für Rechnungen und Zahlungsnachverfolgung.",
+                      "Crea un registro completo del cliente para facturas y seguimiento de pagos.",
+                      "Crie um registo completo do cliente para faturas e acompanhamento de pagamentos."
+                    )}
                 </p>
               </div>
             </div>
             <button
               type="button"
-              aria-label={t("Close", "Fermer")}
+              aria-label={t("Close", "Fermer", "Schliessen", "Cerrar", "Fechar")}
               onClick={() => setCustomerModalOpen(false)}
               className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-border/70 bg-white/85 text-muted-foreground shadow-[0_18px_36px_-30px_rgba(15,23,42,0.55)] transition hover:border-slate-300 hover:text-foreground dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-300 dark:shadow-[0_18px_36px_-30px_rgba(0,0,0,0.8)] dark:hover:border-slate-500 dark:hover:text-slate-100"
             >
@@ -2593,12 +2920,12 @@ export default function InvoicesPage() {
           <div>
             <Input
               className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 text-[15px] leading-tight shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
-              label={t("Name", "Nom")}
+              label={t("Name", "Nom", "Name", "Nombre", "Nome")}
               value={newCustomerForm.name}
               onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, name: event.target.value }))}
               style={getAdaptiveInputStyle(newCustomerForm.name, 1, 0.8, 18, 0.018)}
               required
-              placeholder={t("Customer name", "Nom du client")}
+              placeholder={t("Customer name", "Nom du client", "Kundenname", "Nombre del cliente", "Nome do cliente")}
               autoComplete="off"
               spellCheck={false}
               formNoValidate={false}
@@ -2607,20 +2934,20 @@ export default function InvoicesPage() {
           <div>
             <Input
               className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 text-[15px] leading-tight shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
-              label={t("Email", "Email")}
+              label={t("Email", "Email", "E-Mail", "Correo", "Email")}
               type="email"
               value={newCustomerForm.email}
               onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, email: event.target.value }))}
               style={getAdaptiveInputStyle(newCustomerForm.email, 1, 0.78, 18, 0.018)}
               required
-              placeholder={t("customer@email.com", "client@email.com")}
+              placeholder={t("customer@email.com", "client@email.com", "kunde@email.com", "cliente@email.com", "cliente@email.com")}
             />
           </div>
           <div>
             <PhoneInput
-              label={t("Phone", "Telephone")}
+              label={t("Phone", "Telephone", "Telefon", "Telefono", "Telefone")}
               value={newCustomerForm.phone}
-              locale={language === "fr" ? "fr" : "en"}
+              locale={language}
               defaultCountry={preferredCustomerCountry || "US"}
               onChange={(value) => setNewCustomerForm((prev) => ({ ...prev, phone: value }))}
               required={
@@ -2631,7 +2958,7 @@ export default function InvoicesPage() {
             />
           </div>
           <label className="flex flex-col gap-1 text-sm text-foreground dark:text-slate-200">
-            <span className="font-medium">{t("Delivery method", "Mode de livraison")} *</span>
+            <span className="font-medium">{t("Delivery method", "Mode de livraison", "Zustellmethode", "Método de entrega", "Método de entrega")} *</span>
             <select
               value={newCustomerForm.deliveryPreference}
               onChange={(event) =>
@@ -2640,36 +2967,36 @@ export default function InvoicesPage() {
               required
               className="h-12 rounded-2xl border border-border/80 bg-white/85 px-4 text-foreground shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] focus:border-indigo-400 focus:outline-none dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
             >
-              <option value="">{t("Choose a method", "Choisir un mode")}</option>
-              <option value="EMAIL">Email</option>
-              <option value="WHATSAPP">WhatsApp</option>
-              <option value="BOTH">{t("Both", "Les deux")}</option>
+              <option value="">{t("Choose a method", "Choisir un mode", "Methode auswählen", "Elegir un método", "Escolher um método")}</option>
+              <option value="EMAIL">{t("Email", "Email", "E-Mail", "Correo", "Email")}</option>
+              <option value="WHATSAPP">{t("WhatsApp", "WhatsApp", "WhatsApp", "WhatsApp", "WhatsApp")}</option>
+              <option value="BOTH">{t("Both", "Les deux", "Beide", "Ambos", "Ambos")}</option>
             </select>
           </label>
           <div>
             <Input
               className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 text-[15px] leading-tight shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
-              label={t("Address", "Adresse")}
+              label={t("Address", "Adresse", "Adresse", "Direccion", "Endereco")}
               value={newCustomerForm.addressLine1}
               onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, addressLine1: event.target.value }))}
               style={getAdaptiveInputStyle(newCustomerForm.addressLine1, 1, 0.78, 20, 0.017)}
               required
-              placeholder={t("Street address", "Adresse postale")}
+              placeholder={t("Street address", "Adresse postale", "Strassenadresse", "Direccion postal", "Endereco postal")}
             />
           </div>
           <div>
             <Input
               className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
-              label={t("Tax ID (optional)", "Numero fiscal (optionnel)")}
+              label={t("Tax ID (optional)", "Numero fiscal (optionnel)", "Steuer-ID (optional)", "ID fiscal (opcional)", "NIF (opcional)")}
               value={newCustomerForm.taxId}
               onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, taxId: event.target.value }))}
-              placeholder={t("Tax or VAT ID", "Numero fiscal ou TVA")}
+              placeholder={t("Tax or VAT ID", "Numero fiscal ou TVA", "Steuer- oder MwSt.-ID", "ID fiscal o IVA", "NIF ou IVA")}
             />
           </div>
           <div>
             <Input
               className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 text-[15px] leading-tight shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
-              label={t("City", "Ville")}
+              label={t("City", "Ville", "Stadt", "Ciudad", "Cidade")}
               value={newCustomerForm.city}
               onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, city: event.target.value }))}
               style={getAdaptiveInputStyle(newCustomerForm.city, 1, 0.82, 16, 0.02)}
@@ -2679,7 +3006,7 @@ export default function InvoicesPage() {
           <div>
             <Input
               className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 text-[15px] leading-tight shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
-              label={t("State", "Etat")}
+              label={t("State", "Etat", "Bundesland", "Estado", "Estado")}
               value={newCustomerForm.state}
               onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, state: event.target.value }))}
               style={getAdaptiveInputStyle(newCustomerForm.state, 1, 0.82, 16, 0.02)}
@@ -2689,17 +3016,17 @@ export default function InvoicesPage() {
           <div>
             <Input
               className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
-              label={t("Postal code", "Code postal")}
+              label={t("Postal code", "Code postal", "Postleitzahl", "Código postal", "Código postal")}
               value={newCustomerForm.postalCode}
               onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, postalCode: event.target.value }))}
-              placeholder={t("ZIP / postal code", "Code ZIP / postal")}
+              placeholder={t("ZIP / postal code", "Code ZIP / postal", "ZIP / Postleitzahl", "ZIP / código postal", "ZIP / código postal")}
             />
           </div>
           <div>
             <CountrySelect
-              label={t("Country", "Pays")}
+              label={t("Country", "Pays", "Land", "Pais", "Pais")}
               value={newCustomerForm.country}
-              locale={language === "fr" ? "fr" : "en"}
+              locale={language}
               onChange={(value) => setNewCustomerForm((prev) => ({ ...prev, country: value }))}
               required
               triggerClassName="h-12 rounded-2xl border-border/80 bg-white/85 px-4 shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
@@ -2707,9 +3034,9 @@ export default function InvoicesPage() {
           </div>
           <div className="flex flex-col gap-4 border-t border-border/60 pt-5 dark:border-slate-800 lg:col-span-2 lg:flex-row lg:items-center lg:justify-between">
             <p className="text-sm text-muted-foreground dark:text-slate-400">
-              <span className="font-semibold text-foreground dark:text-slate-100">{t("Required fields", "Champs requis")}</span>
+              <span className="font-semibold text-foreground dark:text-slate-100">{t("Required fields", "Champs requis", "Pflichtfelder", "Campos obligatorios", "Campos obrigatorios")}</span>
               <span className="ml-2">
-                {t("must be completed before saving.", "doivent etre remplis avant l enregistrement.")}
+                {t("must be completed before saving.", "doivent être remplis avant l enregistrement.", "müssen vor dem Speichern ausgefullt werden.", "deben completarse antes de guardar.", "devem ser preenchidos antes de guardar.")}
               </span>
             </p>
             <div className="flex items-center justify-end gap-3 whitespace-nowrap">
@@ -2719,14 +3046,14 @@ export default function InvoicesPage() {
                 className="h-12 min-w-[136px] rounded-2xl border-slate-300 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(241,245,249,0.92))] px-6 text-[15px] font-semibold text-slate-700 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.45)] hover:border-slate-400 hover:bg-[linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,0.96))] hover:text-slate-900 dark:border-slate-700 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.98),rgba(15,23,42,0.9))] dark:text-slate-200 dark:shadow-[0_18px_40px_-30px_rgba(0,0,0,0.82)] dark:hover:border-slate-500 dark:hover:bg-[linear-gradient(180deg,rgba(17,24,39,1),rgba(15,23,42,0.94))] dark:hover:text-slate-100"
                 onClick={() => setCustomerModalOpen(false)}
               >
-                {t("Cancel", "Annuler")}
+                {t("Cancel", "Annuler", "Abbrechen", "Cancelar", "Cancelar")}
               </Button>
               <Button
                 type="submit"
                 loading={creatingCustomer}
                 className="h-12 min-w-[208px] rounded-2xl border border-indigo-400/30 bg-[linear-gradient(135deg,#6657ff_0%,#5547f0_48%,#4338ca_100%)] px-7 text-[15px] font-semibold text-white shadow-[0_24px_54px_-20px_rgba(79,70,229,0.95)] ring-1 ring-white/10 hover:bg-[linear-gradient(135deg,#7163ff_0%,#5f51f4_48%,#4b3fd4_100%)]"
               >
-                {t("Save customer", "Enregistrer client")}
+                {t("Save customer", "Enregistrer client", "Kunden speichern", "Guardar cliente", "Guardar cliente")}
               </Button>
             </div>
           </div>
@@ -2736,7 +3063,7 @@ export default function InvoicesPage() {
       <Modal
         open={editOpen}
         onClose={() => setEditOpen(false)}
-        title={t("Edit customer details", "Modifier les details client")}
+        title={t("Edit customer details", "Modifier les details client", "Kundendaten bearbeiten", "Editar datos del cliente", "Editar dados do cliente")}
       >
         <form className="space-y-4" onSubmit={saveCustomerDetails}>
           {editStatus ? (
@@ -2745,48 +3072,48 @@ export default function InvoicesPage() {
             </TransientAlert>
           ) : null}
           <Input
-            label={t("Customer name", "Nom du client")}
+            label={t("Customer name", "Nom du client", "Kundenname", "Nombre del cliente", "Nome do cliente")}
             value={editForm.customerName}
             onChange={(e) => setEditForm({ ...editForm, customerName: e.target.value })}
           />
           <Input
-            label={t("Customer email", "Email client")}
+            label={t("Customer email", "Email client", "Kunden-E-Mail", "Correo del cliente", "Email do cliente")}
             type="email"
             value={editForm.customerEmail}
             onChange={(e) => setEditForm({ ...editForm, customerEmail: e.target.value })}
           />
           <Input
-            label={t("Tax ID (optional)", "Numero fiscal (optionnel)")}
+            label={t("Tax ID (optional)", "Numero fiscal (optionnel)", "Steuer-ID (optional)", "ID fiscal (opcional)", "NIF (opcional)")}
             value={editForm.customerTaxId}
             onChange={(e) => setEditForm({ ...editForm, customerTaxId: e.target.value })}
           />
           <Input
-            label={t("Street address", "Adresse")}
+            label={t("Street address", "Adresse", "Strassenadresse", "Direccion", "Endereco")}
             value={editForm.customerStreet}
             onChange={(e) => setEditForm({ ...editForm, customerStreet: e.target.value })}
           />
           <Input
-            label={t("City", "Ville")}
+            label={t("City", "Ville", "Stadt", "Ciudad", "Cidade")}
             value={editForm.customerCity}
             onChange={(e) => setEditForm({ ...editForm, customerCity: e.target.value })}
           />
           <Input
-            label={t("Postal code / ZIP (optional)", "Code postal (optionnel)")}
+            label={t("Postal code / ZIP (optional)", "Code postal (optionnel)", "Postleitzahl / ZIP (optional)", "Código postal / ZIP (opcional)", "Código postal / ZIP (opcional)")}
             value={editForm.customerPostalCode}
             onChange={(e) => setEditForm({ ...editForm, customerPostalCode: e.target.value })}
           />
-          <CountrySelect
-            label={t("Country", "Pays")}
-            value={editForm.customerCountry}
-            locale={language === "fr" ? "fr" : "en"}
-            onChange={(value) => setEditForm({ ...editForm, customerCountry: value })}
-          />
+            <CountrySelect
+              label={t("Country", "Pays", "Land", "Pais", "Pais")}
+              value={editForm.customerCountry}
+              locale={language}
+              onChange={(value) => setEditForm({ ...editForm, customerCountry: value })}
+            />
           <div className="flex flex-wrap items-center justify-end gap-3">
             <Button type="button" variant="secondary" onClick={() => setEditOpen(false)}>
-              {t("Cancel", "Annuler")}
+              {t("Cancel", "Annuler", "Abbrechen", "Cancelar", "Cancelar")}
             </Button>
             <Button type="submit" loading={savingEdit}>
-              {t("Save changes", "Enregistrer")}
+              {t("Save changes", "Enregistrer", "Änderungen speichern", "Guardar cambios", "Guardar alteracoes")}
             </Button>
           </div>
         </form>

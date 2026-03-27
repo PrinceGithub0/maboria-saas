@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { withErrorHandling } from "@/lib/api-handler";
 import { assertRateLimit } from "@/lib/rate-limit";
 import { log } from "@/lib/logger";
-import { requireNoImpersonationMode, requireVerifiedPlatformAdminAccess } from "@/lib/admin/admin-rbac";
+import { requireVerifiedPlatformAdminAccess } from "@/lib/admin/admin-rbac";
 import { createPlatformUser, listAdminUsers, toHttpError } from "@/lib/admin/users";
 
 const createUserSchema = z.object({

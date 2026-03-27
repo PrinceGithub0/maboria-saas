@@ -23,6 +23,7 @@ import { formatCurrency } from "@/lib/currency";
 import { useLanguage } from "@/components/providers/language-provider";
 import { formatBusinessAddress, hasRequiredAddress, parseBusinessAddress } from "@/lib/address";
 import { getAccessibleSettingsTab, resolveRequestedSettingsTab, type SettingsTab } from "@/lib/dashboard/settings-tabs";
+import type { LocalizedText } from "@/lib/i18n";
 import {
   MIN_PASSWORD_LENGTH,
   PASSWORD_MIN_LENGTH_ERROR,
@@ -40,8 +41,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { language } = useLanguage();
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const { language, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
   const [tabStateReady, setTabStateReady] = useState(false);
   const [pendingTab, setPendingTab] = useState<SettingsTab | null>(null);
@@ -189,35 +189,35 @@ export default function SettingsPage() {
     canReadPayoutSettings ? "/api/merchant-account" : null,
     profileFetcher
   );
-  const payoutBankError = payoutBanks?.error ? String(payoutBanks.error) : null;
+  const payoutBankError = payoutBanks?.error ? localizeSettingsServerMessage(payoutBanks.error) : null;
   const payoutBranchList = useMemo(() => payoutBranches?.branches || [], [payoutBranches?.branches]);
-  const payoutBranchError = payoutBranches?.error ? String(payoutBranches.error) : null;
+  const payoutBranchError = payoutBranches?.error ? localizeSettingsServerMessage(payoutBranches.error) : null;
   const payoutConnected = Boolean(merchantAccountRes?.status === 200 && merchantAccountRes?.data?.id);
   const businessProfileReadError =
     canReadBusinessSettings &&
     businessProfileResponse?.status !== undefined &&
     ![200, 404].includes(businessProfileResponse.status)
-      ? String(
-          businessProfileResponse?.data?.error ||
-            t("Business settings are currently unavailable.", "Les parametres entreprise sont indisponibles.")
+      ? localizeSettingsServerMessage(
+          businessProfileResponse?.data?.error,
+          t("Business settings are currently unavailable.", "Les paramêtres entreprise sont indisponibles.")
         )
       : null;
   const lateFeeReadError =
     canReadBusinessSettings &&
     lateFeeSettingsResponse?.status !== undefined &&
     ![200, 404].includes(lateFeeSettingsResponse.status)
-      ? String(
-          lateFeeSettingsResponse?.data?.error ||
-            t("Late fee settings are currently unavailable.", "Les parametres de frais de retard sont indisponibles.")
+      ? localizeSettingsServerMessage(
+          lateFeeSettingsResponse?.data?.error,
+          t("Late fee settings are currently unavailable.", "Les paramêtres de frais de retard sont indisponibles.")
         )
       : null;
   const payoutReadError =
     canReadPayoutSettings &&
     merchantAccountRes?.status !== undefined &&
     ![200, 404].includes(merchantAccountRes.status)
-      ? String(
-          merchantAccountRes?.data?.error ||
-            t("Payout settings are currently unavailable.", "Les parametres de paiement sont indisponibles.")
+      ? localizeSettingsServerMessage(
+          merchantAccountRes?.data?.error,
+          t("Payout settings are currently unavailable.", "Les paramêtres de paiement sont indisponibles.")
         )
       : null;
   const businessSettingsUnavailable = Boolean(businessProfileReadError || lateFeeReadError);
@@ -231,7 +231,27 @@ export default function SettingsPage() {
   }));
   const requiredMessage = t("This field is required", "Ce champ est requis");
   const formatRequiredFieldMessage = (label: string) =>
-    t(`${label} is required.`, `${label} est requis.`);
+    t({
+      en: `${label} is required.`,
+      fr: `${label} est requis.`,
+      de: `${label} ist erforderlich.`,
+      es: `Se requiere ${label}.`,
+      pt: `${label} e obrigatorio.`,
+    });
+  const passwordMinLengthHelperText = t({
+    en: PASSWORD_MIN_LENGTH_HELPER_TEXT,
+    fr: `Minimum ${MIN_PASSWORD_LENGTH} caracteres.`,
+    de: `Mindestens ${MIN_PASSWORD_LENGTH} Zeichen.`,
+    es: `Minimo ${MIN_PASSWORD_LENGTH} caracteres.`,
+    pt: `Minimo de ${MIN_PASSWORD_LENGTH} caracteres.`,
+  });
+  const passwordMinLengthError = t({
+    en: PASSWORD_MIN_LENGTH_ERROR,
+    fr: `Le mot de passe doit comporter au moins ${MIN_PASSWORD_LENGTH} caracteres.`,
+    de: `Das Passwort muss mindestens ${MIN_PASSWORD_LENGTH} Zeichen lang sein.`,
+    es: `La contrasena debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`,
+    pt: `A palavra-passe deve ter pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`,
+  });
   const payoutFieldLabels: Record<PayoutFieldKey, string> = {
     accountName: t("Account holder name", "Nom du titulaire"),
     bankCode: t("Bank", "Banque"),
@@ -242,6 +262,336 @@ export default function SettingsPage() {
     routingNumber: t("Routing number", "Numero d acheminement"),
     sortCode: t("Sort code", "Code guichet"),
   };
+  const settingsServerMessages: Record<string, LocalizedText> = {
+    Unauthorized: {
+      en: "Unauthorized",
+      fr: "Non autorise",
+      de: "Nicht autorisiert",
+      es: "No autorizado",
+      pt: "Não autorizado",
+    },
+    "Not found": {
+      en: "Not found",
+      fr: "Introuvable",
+      de: "Nicht gefunden",
+      es: "No encontrado",
+      pt: "Não encontrado",
+    },
+    "Organization access denied.": {
+      en: "Organization access denied.",
+      fr: "Accès à l'organisation refuse.",
+      de: "Zugriff auf die Organisation verweigert.",
+      es: "Acceso a la organización denegado.",
+      pt: "Acesso a organização negado.",
+    },
+    "Organization access has been disabled.": {
+      en: "Organization access has been disabled.",
+      fr: "L accès à l'organisation a ?t? desactive.",
+      de: "Der Zugriff auf die Organisation wurde deaktiviert.",
+      es: "El acceso a la organización ha sido desactivado.",
+      pt: "O acesso a organização foi desativado.",
+    },
+    "Organization access is suspended.": {
+      en: "Organization access is suspended.",
+      fr: "L accès à l'organisation est suspendu.",
+      de: "Der Zugriff auf die Organisation ist ausgesetzt.",
+      es: "El acceso a la organización esta suspendido.",
+      pt: "O acesso a organização esta suspenso.",
+    },
+    "Organization subscription inactive. Please renew billing.": {
+      en: "Organization subscription inactive. Please renew billing.",
+      fr: "L abonnement de l'organisation est inactif. Veuillez renouveler la facturation.",
+      de: "Das Organisationsabonnement ist inaktiv. Bitte erneuere die Abrechnung.",
+      es: "La suscripción de la organización esta inactiva. Renueva la facturación.",
+      pt: "A assinatura da organização esta inativa. Renove a faturação.",
+    },
+    "Organization subscription inactive. Please contact the organization owner.": {
+      en: "Organization subscription inactive. Please contact the organization owner.",
+      fr: "L abonnement de l'organisation est inactif. Veuillez contacter le proprietaire de l'organisation.",
+      de: "Das Organisationsabonnement ist inaktiv. Bitte kontaktiere den Eigentümer der Organisation.",
+      es: "La suscripción de la organización esta inactiva. Ponte en contacto con el propietario de la organización.",
+      pt: "A assinatura da organização esta inativa. Contacte o proprietário da organização.",
+    },
+    "You do not have permission for this action.": {
+      en: "You do not have permission for this action.",
+      fr: "Vous n'avez pas l autorisation pour cette action.",
+      de: "Du hast keine Berechtigung für diese Aktion.",
+      es: "No tienes permiso para esta acción.",
+      pt: "Não tem permissao para esta ação.",
+    },
+    "BusinessProfile model not available. Run `npx prisma generate` and restart.": {
+      en: "Business profile is temporarily unavailable. Please try again shortly.",
+      fr: "Le profil entreprise est temporairement indisponible. Reessayez sous peu.",
+      de: "Das Unternehmensprofil ist vorübergehend nicht verfügbar. Bitte versuche es in Kurze erneut.",
+      es: "El perfil de empresa no esta disponible temporalmente. Intentalo de nuevo en breve.",
+      pt: "O perfil da empresa esta temporariamente indisponivel. Tente novamente em breve.",
+    },
+    "Business profile already exists": {
+      en: "Business profile already exists.",
+      fr: "Le profil entreprise existe déjà.",
+      de: "Das Unternehmensprofil existiert bereits.",
+      es: "El perfil de la empresa ya existe.",
+      pt: "O perfil da empresa ja existe.",
+    },
+    "Business profile not found": {
+      en: "Business profile not found.",
+      fr: "Profil entreprise introuvable.",
+      de: "Unternehmensprofil nicht gefunden.",
+      es: "No se encontro el perfil de la empresa.",
+      pt: "Perfil da empresa não encontrado.",
+    },
+    "Invalid country code": {
+      en: "Invalid country code.",
+      fr: "Code pays invalide.",
+      de: "Ungültiger Landercode.",
+      es: "Código de pais no valido.",
+      pt: "Código de pais invalido.",
+    },
+    "Unsupported currency": {
+      en: "Unsupported currency.",
+      fr: "Devise non prise en charge.",
+      de: "Nicht unterstutzte Währung.",
+      es: "Moneda no admitida.",
+      pt: "Moeda não suportada.",
+    },
+    "Invalid VAT rate": {
+      en: "Invalid VAT rate.",
+      fr: "Taux de TVA invalide.",
+      de: "Ungültiger MwSt.-Satz.",
+      es: "Tipo de IVA no valido.",
+      pt: "Taxa de IVA invalida.",
+    },
+    "No updates provided": {
+      en: "No updates provided.",
+      fr: "Aucune modification fournie.",
+      de: "Keine Änderungen angegeben.",
+      es: "No se proporcionaron cambios.",
+      pt: "Não foram fornecidas alteracoes.",
+    },
+    "Invalid late fee settings payload.": {
+      en: "Invalid late fee settings payload.",
+      fr: "Charge utile de frais de retard invalide.",
+      de: "Ungültige Nutzlast für Mahngebühren.",
+      es: "Carga util de recargos por demora no valida.",
+      pt: "Carga de configuração de taxa de atraso invalida.",
+    },
+    "Recurring late fee interval is required.": {
+      en: "Recurring late fee interval is required.",
+      fr: "L intervalle recurrent des frais de retard est requis.",
+      de: "Ein wiederkehrendes Mahngebührenintervall ist erforderlich.",
+      es: "Se requiere un intervalo recurrente para el recargo.",
+      pt: "E necessario um intervalo recorrente para a taxa de atraso.",
+    },
+    "Late fee policy text is required when late fee is enabled.": {
+      en: "Late fee policy text is required when late fee is enabled.",
+      fr: "Le texte de politique de frais de retard est requis lorsque les frais de retard sont actives.",
+      de: "Ein Text zur Mahngebührenrichtlinie ist erforderlich, wenn Mahngebühren aktiviert sind.",
+      es: "Se requiere el texto de la política de recargos cuando el recargo esta activado.",
+      pt: "O texto da política de taxa de atraso e obrigatório quando a taxa esta ativada.",
+    },
+    "Invalid late fee settings values.": {
+      en: "Invalid late fee settings values.",
+      fr: "Valeurs des frais de retard invalides.",
+      de: "Ungültige Werte für Mahngebühren.",
+      es: "Valores de recargos por demora no validos.",
+      pt: "Valores de taxa de atraso invalidos.",
+    },
+    "Unable to save late fee settings.": {
+      en: "Unable to save late fee settings.",
+      fr: "Impossible d enregistrer les frais de retard.",
+      de: "Die Mahngebühreneinstellungen konnten nicht gespeichert werden.",
+      es: "No se pudo guardar la configuración de recargos.",
+      pt: "Não foi possivel guardar a configuração das taxas de atraso.",
+    },
+    "Logo file missing": {
+      en: "Logo file missing.",
+      fr: "Fichier logo manquant.",
+      de: "Logodatei fehlt.",
+      es: "Falta el archivo del logo.",
+      pt: "Falta o ficheiro do logotipo.",
+    },
+    "Unsupported file type": {
+      en: "Unsupported file type.",
+      fr: "Type de fichier non pris en charge.",
+      de: "Dateityp wird nicht unterstutzt.",
+      es: "Tipo de archivo no admitido.",
+      pt: "Tipo de ficheiro não suportado.",
+    },
+    "File too large. Maximum logo size is 2 MB. Please upload smaller file.": {
+      en: "File too large. Maximum logo size is 2 MB. Please upload smaller file.",
+      fr: "Fichier trop volumineux. La taille maximale du logo est de 2 Mo. Veuillez télevérser un fichier plus petit.",
+      de: "Datei zu gross. Die maximale Logogrosse betragt 2 MB. Bitte lade eine kleinere Datei hoch.",
+      es: "Archivo demasiado grande. El tamano maximo del logo es de 2 MB. Sube un archivo mas pequeno.",
+      pt: "Ficheiro demasiado grande. O tamanho maximo do logotipo e 2 MB. Carregue um ficheiro mais pequeno.",
+    },
+    "Paystack is not supported for SEPA payouts.": {
+      en: "Paystack is not supported for SEPA payouts.",
+      fr: "Paystack n est pas pris en charge pour les paiements SEPA.",
+      de: "Paystack wird für SEPA-Auszahlungen nicht unterstutzt.",
+      es: "Paystack no es compatible con cobros SEPA.",
+      pt: "A Paystack não e suportada para recebimentos SEPA.",
+    },
+    "At least one payout account is required.": {
+      en: "At least one payout account is required.",
+      fr: "Au moins un compte de paiement est requis.",
+      de: "Mindestens ein Auszahlungskonto ist erforderlich.",
+      es: "Se requiere al menos una cuenta de cobro.",
+      pt: "E necessária pelo menos uma conta de recebimento.",
+    },
+    "Invalid provider": {
+      en: "Invalid provider.",
+      fr: "Fournisseur invalide.",
+      de: "Ungültiger Anbieter.",
+      es: "Proveedor no valido.",
+      pt: "Fornecedor invalido.",
+    },
+    "Payout setup is not supported for this provider.": {
+      en: "Payout setup is not supported for this provider.",
+      fr: "La configuration de paiement n est pas prise en charge pour ce fournisseur.",
+      de: "Die Auszahlungseinrichtung wird für diesen Anbieter nicht unterstutzt.",
+      es: "La configuración de cobro no esta disponible para este proveedor.",
+      pt: "A configuração de recebimento não e suportada para este fornecedor.",
+    },
+    "Account holder name is required.": {
+      en: "Account holder name is required.",
+      fr: "Le nom du titulaire du compte est requis.",
+      de: "Der Name des Kontoinhabers ist erforderlich.",
+      es: "El nombre del titular es obligatorio.",
+      pt: "O nome do titular da conta e obrigatório.",
+    },
+    "Bank selection is required.": {
+      en: "Bank selection is required.",
+      fr: "La selection de la banque est requise.",
+      de: "Die Auswahl einer Bank ist erforderlich.",
+      es: "La seleccion del banco es obligatoria.",
+      pt: "A selecao do banco e obrigatoria.",
+    },
+    "Please enter a valid IBAN.": {
+      en: "Please enter a valid IBAN.",
+      fr: "Veuillez saisir un IBAN valide.",
+      de: "Bitte gib eine gültige IBAN ein.",
+      es: "Introduce un IBAN valido.",
+      pt: "Introduza um IBAN valido.",
+    },
+    "BIC / SWIFT is required for this payout route.": {
+      en: "BIC / SWIFT is required for this payout route.",
+      fr: "Le BIC / SWIFT est requis pour ce mode de paiement.",
+      de: "BIC / SWIFT ist für diesen Auszahlungsweg erforderlich.",
+      es: "El BIC / SWIFT es obligatorio para esta via de cobro.",
+      pt: "O BIC / SWIFT e obrigatório para esta rota de recebimento.",
+    },
+    "Branch code is required for this payout route.": {
+      en: "Branch code is required for this payout route.",
+      fr: "Le code agence est requis pour ce mode de paiement.",
+      de: "Ein Filialcode ist für diesen Auszahlungsweg erforderlich.",
+      es: "El código de sucursal es obligatorio para esta via de cobro.",
+      pt: "O código da agencia e obrigatório para esta rota de recebimento.",
+    },
+    "Routing number is required for this payout route.": {
+      en: "Routing number is required for this payout route.",
+      fr: "Le numero d acheminement est requis pour ce mode de paiement.",
+      de: "Eine Routing-Nummer ist für diesen Auszahlungsweg erforderlich.",
+      es: "El numero de ruta es obligatorio para esta via de cobro.",
+      pt: "O numero de encaminhamento e obrigatório para esta rota de recebimento.",
+    },
+    "Sort code is required for this payout route.": {
+      en: "Sort code is required for this payout route.",
+      fr: "Le code guichet est requis pour ce mode de paiement.",
+      de: "Ein Sort Code ist für diesen Auszahlungsweg erforderlich.",
+      es: "El código bancario es obligatorio para esta via de cobro.",
+      pt: "O código bancario e obrigatório para esta rota de recebimento.",
+    },
+    "SEPA payouts use IBAN and BIC / SWIFT only.": {
+      en: "SEPA payouts use IBAN and BIC / SWIFT only.",
+      fr: "Les paiements SEPA utilisent uniquement l IBAN et le BIC / SWIFT.",
+      de: "SEPA-Auszahlungen verwenden nur IBAN und BIC / SWIFT.",
+      es: "Los cobros SEPA usan solo IBAN y BIC / SWIFT.",
+      pt: "Os recebimentos SEPA usam apenas IBAN e BIC / SWIFT.",
+    },
+    "IBAN is only allowed for EUR SEPA payouts.": {
+      en: "IBAN is only allowed for EUR SEPA payouts.",
+      fr: "L IBAN n est autorise que pour les paiements SEPA en EUR.",
+      de: "IBAN ist nur für EUR-SEPA-Auszahlungen zulassig.",
+      es: "El IBAN solo esta permitido para cobros SEPA en EUR.",
+      pt: "O IBAN so e permitido para recebimentos SEPA em EUR.",
+    },
+    "Paystack subaccount creation failed.": {
+      en: "Paystack subaccount creation failed.",
+      fr: "La creation du sous-compte Paystack a échoué.",
+      de: "Die Erstellung des Paystack-Unterkontos ist fehlgeschlagen.",
+      es: "Fallo la creacion de la subcuenta de Paystack.",
+      pt: "Falhou a criacao da subconta da Paystack.",
+    },
+    "Flutterwave subaccount creation failed.": {
+      en: "Flutterwave subaccount creation failed.",
+      fr: "La creation du sous-compte Flutterwave a échoué.",
+      de: "Die Erstellung des Flutterwave-Unterkontos ist fehlgeschlagen.",
+      es: "Fallo la creacion de la subcuenta de Flutterwave.",
+      pt: "Falhou a criacao da subconta da Flutterwave.",
+    },
+    "Bank ID is required.": {
+      en: "Bank ID is required.",
+      fr: "L ID de la banque est requis.",
+      de: "Eine Bank-ID ist erforderlich.",
+      es: "El ID del banco es obligatorio.",
+      pt: "O ID do banco e obrigatório.",
+    },
+    "Invalid code": {
+      en: "Invalid code.",
+      fr: "Code invalide.",
+      de: "Ungültiger Code.",
+      es: "Código no valido.",
+      pt: "Código invalido.",
+    },
+    "2FA code is required": {
+      en: "2FA code is required.",
+      fr: "Le code 2FA est requis.",
+      de: "Ein 2FA-Code ist erforderlich.",
+      es: "El código 2FA es obligatorio.",
+      pt: "O código 2FA e obrigatório.",
+    },
+    "Start setup first": {
+      en: "Start setup first.",
+      fr: "Demarrez d'abord la configuration.",
+      de: "Starte zuerst die Einrichtung.",
+      es: "Inicia primero la configuración.",
+      pt: "Inicie primeiro a configuração.",
+    },
+    "2FA setup is invalid. Restart setup.": {
+      en: "2FA setup is invalid. Restart setup.",
+      fr: "La configuration 2FA est invalide. Redemarrez la configuration.",
+      de: "Die 2FA-Einrichtung ist ungültig. Starte die Einrichtung erneut.",
+      es: "La configuración de 2FA no es valida. Reinicia la configuración.",
+      pt: "A configuração de 2FA e invalida. Reinicie a configuração.",
+    },
+    "2FA code or backup code is required": {
+      en: "2FA code or backup code is required.",
+      fr: "Le code 2FA ou un code de secours est requis.",
+      de: "Ein 2FA-Code oder Backup-Code ist erforderlich.",
+      es: "Se requiere el código 2FA o un código de respaldo.",
+      pt: "E necessario um código 2FA ou um código de reserva.",
+    },
+  };
+  function localizeSettingsServerMessage(message: unknown, fallback?: string | null) {
+    const normalized = String(message || "").trim();
+    if (!normalized) return fallback || "";
+    const translated = settingsServerMessages[normalized];
+    return translated ? t(translated) : normalized || fallback || "";
+  }
+  const settingsPreviewDueDate = t({
+    en: "Jan 1",
+    fr: "1 janv.",
+    de: "1. Jan.",
+    es: "1 ene.",
+    pt: "1 jan.",
+  });
+  const disable2faPlaceholder = t({
+    en: "123456 or ABCDE-F1234",
+    fr: "123456 ou ABCDE-F1234",
+    de: "123456 oder ABCDE-F1234",
+    es: "123456 o ABCDE-F1234",
+    pt: "123456 ou ABCDE-F1234",
+  });
 
   const markDirty = (tab: SettingsTab) => {
     setDirtyTabs((prev) => (prev[tab] ? prev : { ...prev, [tab]: true }));
@@ -565,10 +915,12 @@ export default function SettingsPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setProfileError(data.error || t("Could not update profile.", "Impossible de mettre a jour le profil."));
+        setProfileError(
+          localizeSettingsServerMessage(data.error, t("Could not update profile.", "Impossible de mettre a jour le profil."))
+        );
         return;
       }
-      setProfileStatus(t("Profile updated.", "Profil mis a jour."));
+      setProfileStatus(t("Profile updated.", "Profil mis ? jour."));
       if (data?.name || data?.email) {
         setProfile({ name: data?.name || profile.name, email: data?.email || profile.email });
       }
@@ -590,7 +942,7 @@ export default function SettingsPage() {
       passwords.password.length < MIN_PASSWORD_LENGTH ||
       passwords.confirm.length < MIN_PASSWORD_LENGTH
     ) {
-      setPasswordError(PASSWORD_MIN_LENGTH_ERROR);
+      setPasswordError(passwordMinLengthError);
       return;
     }
     setPasswordSaving(true);
@@ -602,10 +954,15 @@ export default function SettingsPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setPasswordError(data.error || t("Could not update password.", "Impossible de mettre a jour le mot de passe."));
+        setPasswordError(
+          localizeSettingsServerMessage(
+            data.error,
+            t("Could not update password.", "Impossible de mettre a jour le mot de passe.")
+          )
+        );
         return;
       }
-      setPasswordStatus(t("Password updated.", "Mot de passe mis a jour."));
+      setPasswordStatus(t("Password updated.", "Mot de passe mis ? jour."));
       setPasswords({ password: "", confirm: "" });
       setCurrentPassword("");
       clearDirty("security");
@@ -626,7 +983,9 @@ export default function SettingsPage() {
       const res = await fetch("/api/auth/2fa/totp", { method: "POST" });
       const data = await res.json();
       if (!res.ok) {
-        setStatus(data.error || t("Could not start 2FA setup.", "Impossible de demarrer la 2FA."));
+        setStatus(
+          localizeSettingsServerMessage(data.error, t("Could not start 2FA setup.", "Impossible de demarrer la 2FA."))
+        );
         return;
       }
       setSetup({ secret: data.secret, uri: data.uri, qr: data.qr });
@@ -646,7 +1005,9 @@ export default function SettingsPage() {
       const res = await fetch("/api/auth/2fa/totp", { method: "PUT", body: JSON.stringify({ code: otp }) });
       const data = await res.json();
       if (!res.ok) {
-        setStatus(data.error || t("Could not enable 2FA.", "Impossible d activer la 2FA."));
+        setStatus(
+          localizeSettingsServerMessage(data.error, t("Could not enable 2FA.", "Impossible d activer la 2FA."))
+        );
         return;
       }
       setSetup(null);
@@ -674,7 +1035,9 @@ export default function SettingsPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setStatus(data.error || t("Could not disable 2FA.", "Impossible de desactiver la 2FA."));
+        setStatus(
+          localizeSettingsServerMessage(data.error, t("Could not disable 2FA.", "Impossible de desactiver la 2FA."))
+        );
         return;
       }
       setDisableCode("");
@@ -726,7 +1089,7 @@ export default function SettingsPage() {
       const lateFeeValue = Number(lateFeeForm.lateFeeValue);
       const graceDays = Number(lateFeeForm.gracePeriodDays);
       if (!Number.isFinite(lateFeeValue) || lateFeeValue <= 0) {
-        setBusinessError(t("Late fee value must be greater than zero.", "La valeur des frais de retard doit etre superieure a zero."));
+        setBusinessError(t("Late fee value must be greater than zero.", "La valeur des frais de retard doit être superieure a zero."));
         return;
       }
       if (lateFeeForm.lateFeeType === "percentage" && lateFeeValue > 100) {
@@ -734,20 +1097,20 @@ export default function SettingsPage() {
         return;
       }
       if (!Number.isFinite(graceDays) || graceDays < 0) {
-        setBusinessError(t("Grace period must be zero or greater.", "La periode de grace doit etre egale ou superieure a zero."));
+        setBusinessError(t("Grace period must be zero or greater.", "La periode de grace doit être egale ou superieure a zero."));
         return;
       }
       if (lateFeeForm.lateFeeMode === "recurring") {
         const intervalDays = Number(lateFeeForm.lateFeeIntervalDays);
         if (!Number.isFinite(intervalDays) || intervalDays < 1) {
-          setBusinessError(t("Recurring interval must be at least 1 day.", "L intervalle recurrent doit etre d au moins 1 jour."));
+          setBusinessError(t("Recurring interval must be at least 1 day.", "L intervalle recurrent doit être d au moins 1 jour."));
           return;
         }
       }
       if (String(lateFeeForm.maxLateFeeApplications).trim()) {
         const maxApplications = Number(lateFeeForm.maxLateFeeApplications);
         if (!Number.isFinite(maxApplications) || maxApplications < 1) {
-          setBusinessError(t("Maximum applications must be at least 1.", "Le maximum d applications doit etre d au moins 1."));
+          setBusinessError(t("Maximum applications must be at least 1.", "Le maximum d applications doit être d au moins 1."));
           return;
         }
       }
@@ -817,7 +1180,12 @@ export default function SettingsPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setBusinessError(data.error || t("Could not save business profile.", "Impossible d enregistrer le profil entreprise."));
+        setBusinessError(
+          localizeSettingsServerMessage(
+            data.error,
+            t("Could not save business profile.", "Impossible d enregistrer le profil entreprise.")
+          )
+        );
         return;
       }
       await refreshBusinessProfile();
@@ -830,14 +1198,14 @@ export default function SettingsPage() {
       if (!lateFeeRes.ok) {
         setBusinessStatus(
           businessExists
-            ? t("Business profile updated.", "Profil entreprise mis a jour.")
+            ? t("Business profile updated.", "Profil entreprise mis ? jour.")
             : t("Business profile saved.", "Profil entreprise enregistre.")
         );
         setBusinessError(
-          lateFeeData.error ||
+          localizeSettingsServerMessage(lateFeeData.error) ||
             t(
               "Business profile saved, but late fee settings could not be saved.",
-              "Le profil entreprise est enregistre, mais les parametres de frais de retard n ont pas pu etre enregistres."
+              "Le profil entreprise est enregistre, mais les paramêtres de frais de retard n'ont pas pu être enregistres."
             )
         );
         return;
@@ -845,7 +1213,7 @@ export default function SettingsPage() {
       await refreshLateFeeSettings();
       setBusinessStatus(
         businessExists
-          ? t("Business profile updated.", "Profil entreprise mis a jour.")
+          ? t("Business profile updated.", "Profil entreprise mis ? jour.")
           : t("Business profile saved.", "Profil entreprise enregistre.")
       );
       let logoUploadFailed = false;
@@ -861,14 +1229,16 @@ export default function SettingsPage() {
           const uploadData = await uploadRes.json().catch(() => ({}));
           if (!uploadRes.ok) {
             logoUploadFailed = true;
-            setLogoError(uploadData.error || t("Logo upload failed.", "Echec du televersement du logo."));
+            setLogoError(
+              localizeSettingsServerMessage(uploadData.error, t("Logo upload failed.", "Echec du télevérsement du logo."))
+            );
           } else {
             setLogoFile(null);
             await refreshBusinessProfile();
           }
         } catch {
           logoUploadFailed = true;
-          setLogoError(t("Logo upload failed.", "Echec du televersement du logo."));
+          setLogoError(t("Logo upload failed.", "Echec du télevérsement du logo."));
         } finally {
           setLogoUploading(false);
         }
@@ -892,7 +1262,9 @@ export default function SettingsPage() {
       const res = await fetch("/api/business-profile/logo", { method: "DELETE" });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setLogoError(data.error || t("Could not remove logo.", "Impossible de supprimer le logo."));
+        setLogoError(
+          localizeSettingsServerMessage(data.error, t("Could not remove logo.", "Impossible de supprimer le logo."))
+        );
         return;
       }
       refreshBusinessProfile();
@@ -1011,7 +1383,12 @@ export default function SettingsPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setPayoutError(data.error || t("Could not create payout account.", "Impossible de creer le compte de paiement."));
+        setPayoutError(
+          localizeSettingsServerMessage(
+            data.error,
+            t("Could not create payout account.", "Impossible de creer le compte de paiement.")
+          )
+        );
         return;
       }
       setPayoutStatus(t("Payout account created.", "Compte de paiement cree."));
@@ -1076,21 +1453,21 @@ export default function SettingsPage() {
     : !Number.isFinite(lateFeeValueNumber)
       ? t("Late fee value is required.", "La valeur des frais de retard est requise.")
       : lateFeeForm.lateFeeType === "percentage" && lateFeeValueNumber <= 0
-        ? t("Percentage must be greater than 0.", "Le pourcentage doit etre superieur a 0.")
+        ? t("Percentage must be greater than 0.", "Le pourcentage doit être superieur a 0.")
         : lateFeeForm.lateFeeType === "percentage" && lateFeeValueNumber > 100
           ? t("Percentage cannot exceed 100.", "Le pourcentage ne peut pas depasser 100.")
           : lateFeeForm.lateFeeType === "flat" && lateFeeValueNumber <= 0
-            ? t("Flat amount must be greater than 0.", "Le montant fixe doit etre superieur a 0.")
+            ? t("Flat amount must be greater than 0.", "Le montant fixe doit être superieur a 0.")
             : "";
   const gracePeriodError = !lateFeeForm.lateFeeEnabled
     ? ""
     : !Number.isFinite(gracePeriodDaysNumber) || gracePeriodDaysNumber < 0
-      ? t("Grace period must be 0 or higher.", "La periode de grace doit etre superieure ou egale a 0.")
+      ? t("Grace period must be 0 or higher.", "La periode de grace doit être superieure ou egale a 0.")
       : "";
   const intervalDaysError =
     lateFeeForm.lateFeeEnabled && lateFeeForm.lateFeeMode === "recurring"
       ? !Number.isFinite(intervalDaysNumber) || intervalDaysNumber < 1
-        ? t("Recurring interval must be at least 1 day.", "L intervalle recurrent doit etre d au moins 1 jour.")
+        ? t("Recurring interval must be at least 1 day.", "L intervalle recurrent doit être d au moins 1 jour.")
         : ""
       : "";
   const maxApplicationsError =
@@ -1098,7 +1475,7 @@ export default function SettingsPage() {
     lateFeeForm.lateFeeMode === "recurring" &&
     String(lateFeeForm.maxLateFeeApplications).trim()
       ? !Number.isFinite(maxApplicationsNumber) || maxApplicationsNumber < 1
-        ? t("Maximum applications must be at least 1.", "Le maximum d applications doit etre d au moins 1.")
+        ? t("Maximum applications must be at least 1.", "Le maximum d applications doit être d au moins 1.")
         : ""
       : "";
   const lateFeeValidationError =
@@ -1155,33 +1532,33 @@ export default function SettingsPage() {
       ) : null}
       <div>
         <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
-          {t("Settings", "Parametres")}
+          {t("Settings", "Paramêtres")}
         </p>
-        <h1 className="text-3xl font-semibold text-foreground">{t("Settings", "Parametres")}</h1>
+        <h1 className="text-3xl font-semibold text-foreground">{t("Settings", "Paramêtres")}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {t(
             "Manage your account details, security and business information.",
-            "Gerez les details du compte, la securite et les informations entreprise."
+            "Gerez les details du compte, la sécurité et les informations entreprise."
           )}
         </p>
       </div>
       {!tabStateReady ? (
-        <Card title={t("Loading settings", "Chargement des parametres")}>
+        <Card title={t("Loading settings", "Chargement des paramêtres")}>
           <p className="text-sm text-muted-foreground">
             {t(
               "Preparing your settings workspace.",
-              "Preparation de votre espace de parametres."
+              "Preparation de votre espace de paramêtres."
             )}
           </p>
         </Card>
       ) : (
       <>
-      <div role="tablist" aria-label={t("Settings sections", "Sections des parametres")} className="flex gap-2 overflow-x-auto border-b border-border pb-3">
+      <div role="tablist" aria-label={t("Settings sections", "Sections des paramêtres")} className="flex gap-2 overflow-x-auto border-b border-border pb-3">
         {[
           { key: "profile", label: t("Profile", "Profil") },
           ...(canReadBusinessSettings ? [{ key: "business", label: t("Business", "Entreprise") }] : []),
           ...(canReadPayoutSettings ? [{ key: "payout", label: t("Payout", "Paiement") }] : []),
-          { key: "security", label: t("Security", "Securite") },
+          { key: "security", label: t("Security", "Sécurité") },
         ].map((tab) => {
           const selected = activeTab === tab.key;
           return (
@@ -1257,7 +1634,7 @@ export default function SettingsPage() {
         {businessProfileReadError ? <Alert variant="error">{businessProfileReadError}</Alert> : null}
         {lateFeeReadError ? <Alert variant="error">{lateFeeReadError}</Alert> : null}
         {!canEditBusinessSettings ? (
-          <Alert variant="info">{t("You have read-only access for organization settings.", "Acces en lecture seule pour les parametres organisation.")}</Alert>
+          <Alert variant="info">{t("You have read-only access for organization settings.", "Accès en lecture seule pour les paramêtres organisation.")}</Alert>
         ) : null}
         <fieldset disabled={businessFormDisabled} className="grid grid-cols-2 gap-4 max-md:grid-cols-1 max-md:gap-3">
           <div className="col-span-2 border-b border-border pb-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground max-md:col-span-1">
@@ -1272,7 +1649,7 @@ export default function SettingsPage() {
           <CountrySelect
             label={t("Country", "Pays")}
             value={businessForm.country}
-            locale={language === "fr" ? "fr" : "en"}
+                    locale={language}
             required
             onChange={(value) => updateBusinessField("country", value)}
           />
@@ -1301,7 +1678,7 @@ export default function SettingsPage() {
             label={t("Business phone", "Telephone entreprise")}
             value={businessForm.businessPhone}
             required
-            locale={language === "fr" ? "fr" : "en"}
+                    locale={language}
             onChange={(value) => updateBusinessField("businessPhone", value)}
           />
           <div className="col-span-2 border-b border-border pb-2 pt-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground max-md:col-span-1">
@@ -1325,7 +1702,7 @@ export default function SettingsPage() {
             onChange={(e) => updateBusinessField("postalCode", e.target.value)}
           />
           <div className="col-span-2 border-b border-border pb-2 pt-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground max-md:col-span-1">
-            {t("Tax settings", "Parametres fiscaux")}
+            {t("Tax settings", "Paramêtres fiscaux")}
           </div>
           <div className="col-span-2 rounded-xl border border-border bg-muted/30 p-4 max-md:col-span-1">
             <div className="flex items-center justify-between gap-3">
@@ -1383,12 +1760,12 @@ export default function SettingsPage() {
           <div className="col-span-2 flex items-center justify-between gap-3 border-b border-border pb-2 pt-2 max-md:col-span-1">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                {t("Late Fee Settings", "Parametres des frais de retard")}
+                {t("Late Fee Settings", "Paramêtres des frais de retard")}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 {t(
                   "These rules apply to all invoices created under this account unless overridden per customer.",
-                  "Ces regles s appliquent a toutes les factures de ce compte, sauf remplacement par client."
+                  "Ces règles s appliquent a toutes les factures de ce compte, sauf remplacement par client."
                 )}
               </p>
             </div>
@@ -1592,7 +1969,7 @@ export default function SettingsPage() {
                 <p className="mb-2 font-medium text-foreground">{t("Example Preview", "Exemple")}</p>
                 <p className="text-muted-foreground">
                   {t("Invoice", "Facture")}: {formatCurrency(previewBaseAmount, businessForm.defaultCurrency)} |{" "}
-                  {t("Due", "Echeance")}: Jan 1 | {t("Unpaid after", "Impayee apres")}{" "}
+                  {t("Due", "Echeance")}: {settingsPreviewDueDate} | {t("Unpaid after", "Impayee apres")}{" "}
                   {Number.isFinite(gracePeriodDaysNumber) && gracePeriodDaysNumber >= 0
                     ? gracePeriodDaysNumber
                     : 0}{" "}
@@ -1611,7 +1988,7 @@ export default function SettingsPage() {
               <span ref={logoInfoRef} className="relative">
                 <button
                   type="button"
-                  aria-label={t("Logo upload info", "Infos televersement logo")}
+                  aria-label={t("Logo upload info", "Infos télevérsement logo")}
                   onClick={(event) => {
                     event.stopPropagation();
                     setLogoInfoOpen((open) => !open);
@@ -1648,7 +2025,7 @@ export default function SettingsPage() {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={logoPreviewUrl}
-                      alt={t("Business logo preview", "Apercu du logo")}
+                      alt={t("Business logo preview", "Aperçu du logo")}
                       className="h-full w-full object-contain"
                     />
                   </div>
@@ -1699,7 +2076,7 @@ export default function SettingsPage() {
         <p className="text-xs text-muted-foreground">
           {t(
             "Payout details are used for invoice settlements.",
-            "Les details de paiement sont utilises pour les reglements de factures."
+            "Les details de paiement sont utilises pour les règlements de factures."
           )}
         </p>
         <div
@@ -1733,7 +2110,7 @@ export default function SettingsPage() {
           {payoutError && <div className="mt-3"><Alert variant="error">{payoutError}</Alert></div>}
           {payoutReadError ? <div className="mt-3"><Alert variant="error">{payoutReadError}</Alert></div> : null}
           {!canEditPayoutSettings ? (
-            <div className="mt-3"><Alert variant="info">{t("You have read-only access for payout settings.", "Acces en lecture seule pour les parametres de paiement.")}</Alert></div>
+            <div className="mt-3"><Alert variant="info">{t("You have read-only access for payout settings.", "Accès en lecture seule pour les paramêtres de paiement.")}</Alert></div>
           ) : null}
           <div className="mt-4 grid grid-cols-2 gap-4 max-md:grid-cols-1 max-md:gap-3">
             <label className="flex flex-col gap-1 text-sm text-foreground">
@@ -1815,7 +2192,7 @@ export default function SettingsPage() {
                 <span className="text-xs text-amber-600">
                   {t(
                     "We could not load branch options automatically. You can still enter the branch code manually.",
-                    "Nous n avons pas pu charger les agences automatiquement. Vous pouvez toujours saisir le code agence manuellement."
+                    "Nous n'avons pas pu charger les agences automatiquement. Vous pouvez toujours saisir le code agence manuellement."
                   )}
                 </span>
               ) : null}
@@ -1985,7 +2362,7 @@ export default function SettingsPage() {
               required
               onChange={(e) => updatePasswordField("password", e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">{PASSWORD_MIN_LENGTH_HELPER_TEXT}</p>
+            <p className="text-xs text-muted-foreground">{passwordMinLengthHelperText}</p>
           </div>
           <Input
             label={t("Confirm password", "Confirmer le mot de passe")}
@@ -2068,7 +2445,13 @@ export default function SettingsPage() {
                   <div className="mb-3 flex items-center justify-center">
                     <Image
                       src={setup.qr}
-                      alt="Authenticator setup QR code"
+                      alt={t({
+                        en: "Authenticator setup QR code",
+                        fr: "Code QR de configuration de l authentificateur",
+                        de: "QR-Code für die Einrichtung der Authenticator-App",
+                        es: "Código QR de configuración del autenticador",
+                        pt: "Código QR de configuração da aplicacao autenticadora",
+                      })}
                       width={176}
                       height={176}
                       className="h-44 w-44 rounded-xl border border-border bg-white p-2"
@@ -2118,7 +2501,7 @@ export default function SettingsPage() {
                     setDisableCode(e.target.value);
                     markDirty("security");
                   }}
-                  placeholder="123456 or ABCDE-F1234"
+                  placeholder={disable2faPlaceholder}
                 />
                 <Button
                   variant="secondary"

@@ -1,6 +1,8 @@
+import type { Language } from "@/lib/i18n";
+
 type TranslateInput = {
   message: string;
-  language: "en" | "fr";
+  language: Language;
 };
 
 const statusMap: Record<string, string> = {
@@ -14,13 +16,13 @@ export function translateNotificationMessage({ message, language }: TranslateInp
   const trimmed = message.trim();
 
   if (trimmed === "Paystack payment failed") {
-    return "Paiement Paystack echoue";
+    return "Paiement Paystack échoué";
   }
   if (trimmed === "Flutterwave payment failed") {
-    return "Paiement Flutterwave echoue";
+    return "Paiement Flutterwave échoué";
   }
   if (trimmed === "We could not process your payment. Please update your billing details.") {
-    return "Nous n avons pas pu traiter votre paiement. Veuillez mettre a jour vos informations de facturation.";
+    return "Nous n'avons pas pu traiter votre paiement. Veuillez mettre a jour vos informations de facturation.";
   }
 
   const automationMatch = trimmed.match(/^Automation (.+) finished with (.+)$/);

@@ -10,7 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLanguage } from "@/components/providers/language-provider";
+import { localizeAdminServerMessage, localizeAdminStatus } from "@/lib/admin/localization";
 import { formatDateTimeDMY } from "@/lib/date";
+import { LANGUAGE_LOCALES } from "@/lib/i18n";
 
 type TicketStatus = "OPEN" | "PENDING" | "RESOLVED";
 type TicketPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
@@ -59,26 +62,9 @@ type ApiListResponse = {
 
 type ApiAgentsResponse = { items: Agent[] };
 
-const STATUS_OPTIONS: Array<{ value: "ALL" | TicketStatus; label: string }> = [
-  { value: "ALL", label: "All" },
-  { value: "OPEN", label: "Open" },
-  { value: "PENDING", label: "Pending" },
-  { value: "RESOLVED", label: "Resolved" },
-];
-
-const PRIORITY_OPTIONS: Array<{ value: "ALL" | TicketPriority; label: string }> = [
-  { value: "ALL", label: "All" },
-  { value: "LOW", label: "Low" },
-  { value: "MEDIUM", label: "Medium" },
-  { value: "HIGH", label: "High" },
-  { value: "URGENT", label: "Urgent" },
-];
-
-const SORT_OPTIONS = [
-  { value: "NEWEST", label: "Newest" },
-  { value: "OLDEST", label: "Oldest" },
-  { value: "LAST_UPDATED", label: "Last updated" },
-] as const;
+const STATUS_OPTIONS = ["ALL", "OPEN", "PENDING", "RESOLVED"] as const;
+const PRIORITY_OPTIONS = ["ALL", "LOW", "MEDIUM", "HIGH", "URGENT"] as const;
+const SORT_OPTIONS = ["NEWEST", "OLDEST", "LAST_UPDATED"] as const;
 
 const FILTER_SELECT_CLASS =
   "h-10 rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-foreground transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-border dark:bg-background";
@@ -113,7 +99,7 @@ function normalizeAssigned(value: string | null): string {
   return "all";
 }
 
-function normalizeSort(value: string | null): (typeof SORT_OPTIONS)[number]["value"] {
+function normalizeSort(value: string | null): (typeof SORT_OPTIONS)[number] {
   const normalized = String(value || "NEWEST").toUpperCase();
   if (normalized === "OLDEST" || normalized === "LAST_UPDATED") return normalized;
   return "NEWEST";
@@ -138,6 +124,7 @@ function statusIndicatorColor(status: TicketStatus) {
 }
 
 export default function AdminSupportPage() {
+  const { language, t } = useLanguage();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -145,7 +132,7 @@ export default function AdminSupportPage() {
   const [status, setStatus] = useState<"ALL" | TicketStatus>(() => normalizeStatus(searchParams.get("status")));
   const [priority, setPriority] = useState<"ALL" | TicketPriority>(() => normalizePriority(searchParams.get("priority")));
   const [assigned, setAssigned] = useState<string>(() => normalizeAssigned(searchParams.get("assignee")));
-  const [sort, setSort] = useState<(typeof SORT_OPTIONS)[number]["value"]>(() => normalizeSort(searchParams.get("sort")));
+  const [sort, setSort] = useState<(typeof SORT_OPTIONS)[number]>(() => normalizeSort(searchParams.get("sort")));
   const [page, setPage] = useState<number>(() => normalizePage(searchParams.get("page")));
   const [searchInput, setSearchInput] = useState<string>(() => String(searchParams.get("search") || ""));
   const [search, setSearch] = useState<string>(() => String(searchParams.get("search") || "").trim());
@@ -209,47 +196,83 @@ export default function AdminSupportPage() {
     setPage(1);
   };
 
-  const onSortChange = (value: (typeof SORT_OPTIONS)[number]["value"]) => {
+  const onSortChange = (value: (typeof SORT_OPTIONS)[number]) => {
     setSort(value);
     setPage(1);
   };
 
   const hasFilterOrSearch =
     status !== "ALL" || priority !== "ALL" || assigned !== "all" || sort !== "NEWEST" || search.length > 0;
+  const statusOptions = STATUS_OPTIONS.map((value) => ({
+    value,
+    label: value === "ALL" ? t("All", "Tous", "Alle", "Todos", "Todos") : localizeAdminStatus(value, language),
+  }));
+  const priorityLabel = (value: "ALL" | TicketPriority) => {
+    if (value === "ALL") return t("All", "Tous", "Alle", "Todos", "Todos");
+    if (value === "LOW") return t("Low", "Bas", "Niedrig", "Baja", "Baixa");
+    if (value === "MEDIUM") return t("Medium", "Moyen", "Mittel", "Media", "Media");
+    if (value === "HIGH") return t("High", "Eleve", "Hoch", "Alta", "Alta");
+    return t("Urgent", "Urgent", "Dringend", "Urgente", "Urgente");
+  };
+  const priorityOptions = PRIORITY_OPTIONS.map((value) => ({ value, label: priorityLabel(value) }));
+  const sortLabel = (value: (typeof SORT_OPTIONS)[number]) => {
+    if (value === "OLDEST") return t("Oldest", "Plus ancien", "Alteste", "Mas antiguo", "Mais antigo");
+    if (value === "LAST_UPDATED") return t("Last updated", "Derniere mise a jour", "Zuletzt aktualisiert", "Ultima actualizacion", "Ultima atualizacao");
+    return t("Newest", "Plus recent", "Neueste", "Mas reciente", "Mais recente");
+  };
+  const sortOptions = SORT_OPTIONS.map((value) => ({ value, label: sortLabel(value) }));
 
   return (
     <div className="mx-auto w-full max-w-[1280px] space-y-4 overflow-x-hidden px-6 py-4">
       <header>
-        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Admin Support</p>
-        <h1 className="text-3xl font-semibold text-foreground">Support Tickets</h1>
+        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">
+          {t("Admin Support", "Support admin", "Admin-Support", "Soporte admin", "Suporte admin")}
+        </p>
+        <h1 className="text-3xl font-semibold text-foreground">
+          {t("Support Tickets", "Tickets de support", "Support-Tickets", "Tickets de soporte", "Tickets de suporte")}
+        </h1>
       </header>
 
-      {error ? <Alert variant="error">{String(error.message || "Failed to load support tickets.")}</Alert> : null}
+      {error ? (
+        <Alert variant="error">
+          {localizeAdminServerMessage(
+            error.message,
+            language,
+            t(
+                "Failed to load support tickets.",
+                "Impossible de charger les tickets de support.",
+                "Support-Tickets konnten nicht geladen werden.",
+                "No se pudieron cargar los tickets de soporte.",
+                "Não foi possivel carregar os tickets de suporte."
+              )
+          )}
+        </Alert>
+      ) : null}
 
       <section className="rounded-lg border border-gray-200 bg-white dark:border-border dark:bg-card">
         <div className="sticky top-0 z-10 border-b border-gray-100 bg-white px-4 py-3 dark:border-border dark:bg-card">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm font-semibold text-foreground">
-              Tickets {pagination ? `(${pagination.total})` : ""}
+              {t("Tickets", "Tickets", "Tickets", "Tickets", "Tickets")} {pagination ? `(${pagination.total})` : ""}
             </p>
             <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-200">
-              {unreadTotal} unread
+              {unreadTotal} {t("unread", "non lus", "ungelesen", "sin leer", "por ler")}
             </span>
           </div>
           <div className="grid gap-2 lg:grid-cols-[minmax(220px,1fr)_180px_180px_220px_150px]">
             <Input
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search tickets"
-              aria-label="Search support tickets"
+              placeholder={t("Search tickets", "Rechercher des tickets", "Tickets suchen", "Buscar tickets", "Pesquisar tickets")}
+              aria-label={t("Search support tickets", "Rechercher des tickets de support", "Support-Tickets suchen", "Buscar tickets de soporte", "Pesquisar tickets de suporte")}
             />
             <select
               value={status}
               onChange={(event) => onStatusChange(event.target.value as "ALL" | TicketStatus)}
               className={FILTER_SELECT_CLASS}
-              aria-label="Filter by status"
+              aria-label={t("Filter by status", "Filtrer par statut", "Nach Status filtern", "Filtrar por estado", "Filtrar por estado")}
             >
-              {STATUS_OPTIONS.map((option) => (
+              {statusOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -259,9 +282,9 @@ export default function AdminSupportPage() {
               value={priority}
               onChange={(event) => onPriorityChange(event.target.value as "ALL" | TicketPriority)}
               className={FILTER_SELECT_CLASS}
-              aria-label="Filter by priority"
+              aria-label={t("Filter by priority", "Filtrer par priorité", "Nach Prioritat filtern", "Filtrar por prioridad", "Filtrar por prioridade")}
             >
-              {PRIORITY_OPTIONS.map((option) => (
+              {priorityOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -271,11 +294,11 @@ export default function AdminSupportPage() {
               value={assigned}
               onChange={(event) => onAssigneeChange(event.target.value)}
               className={FILTER_SELECT_CLASS}
-              aria-label="Filter by assignee"
+              aria-label={t("Filter by assignee", "Filtrer par responsable", "Nach Bearbeiter filtern", "Filtrar por asignado", "Filtrar por responsavel")}
             >
-              <option value="all">All assignees</option>
-              <option value="me">Me</option>
-              <option value="unassigned">Unassigned</option>
+              <option value="all">{t("All assignees", "Tous les responsables", "Alle Bearbeiter", "Todos los asignados", "Todos os responsaveis")}</option>
+              <option value="me">{t("Me", "Moi", "Ich", "Yo", "Eu")}</option>
+              <option value="unassigned">{t("Unassigned", "Non assigne", "Nicht zugewiesen", "Sin asignar", "Não atribuido")}</option>
               {agents.map((agent) => (
                 <option key={agent.id} value={`user:${agent.id}`}>
                   {agent.name || agent.email}
@@ -284,11 +307,11 @@ export default function AdminSupportPage() {
             </select>
             <select
               value={sort}
-              onChange={(event) => onSortChange(event.target.value as (typeof SORT_OPTIONS)[number]["value"])}
+              onChange={(event) => onSortChange(event.target.value as (typeof SORT_OPTIONS)[number])}
               className={FILTER_SELECT_CLASS}
-              aria-label="Sort support tickets"
+              aria-label={t("Sort support tickets", "Trier les tickets de support", "Support-Tickets sortieren", "Ordenar tickets de soporte", "Ordenar tickets de suporte")}
             >
-              {SORT_OPTIONS.map((option) => (
+              {sortOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -310,13 +333,35 @@ export default function AdminSupportPage() {
           ) : tickets.length === 0 ? (
             <div className="px-6 py-10 text-center">
               <p className="text-sm text-gray-500 dark:text-muted-foreground">
-                {hasFilterOrSearch ? "No tickets match your filters." : "No support tickets yet."}
+                {hasFilterOrSearch
+                  ? t(
+                      "No tickets match your filters.",
+                      "Aucun ticket ne correspond a vos filtres.",
+                      "Keine Tickets entsprechen deinen Filtern.",
+                      "Ningun ticket coincide con tus filtros.",
+                      "Nenhum ticket corresponde aos seus filtros."
+                    )
+                  : t(
+                      "No support tickets yet.",
+                      "Aucun ticket de support pour le moment.",
+                      "Noch keine Support-Tickets.",
+                      "Todavia no hay tickets de soporte.",
+                      "Ainda não existem tickets de suporte."
+                    )}
               </p>
             </div>
           ) : (
             tickets.map((ticket) => {
               const requester = ticket.subscriber.name || ticket.subscriber.email;
-              const preview = ticket.latestMessagePreview || "No message preview available.";
+              const preview =
+                ticket.latestMessagePreview ||
+                t(
+                  "No message preview available.",
+                  "Aucun apercu du message disponible.",
+                  "Keine Nachrichtenvorschau verfuegbar.",
+                  "No hay vista previa del mensaje.",
+                  "Nenhuma pre-visualizacao da mensagem disponivel."
+                );
               const rowHref = `/admin/support/tickets/${ticket.id}${queryString ? `?${queryString}` : ""}`;
               return (
                 <Link
@@ -342,14 +387,14 @@ export default function AdminSupportPage() {
                     </div>
                     <div className="flex shrink-0 items-center gap-2 text-xs">
                         <Badge variant={statusBadgeVariant(ticket.status)} className="px-2 py-0.5">
-                          {ticket.status.toLowerCase()}
+                          {localizeAdminStatus(ticket.status, language)}
                         </Badge>
-                      <span className="uppercase tracking-wide text-muted-foreground">{ticket.priority.toLowerCase()}</span>
-                      <span className="text-muted-foreground">{formatDateTimeDMY(new Date(ticket.lastActivityAt))}</span>
+                      <span className="uppercase tracking-wide text-muted-foreground">{priorityLabel(ticket.priority)}</span>
+                      <span className="text-muted-foreground">{formatDateTimeDMY(new Date(ticket.lastActivityAt), LANGUAGE_LOCALES[language])}</span>
                       <span className="text-muted-foreground">
                         {ticket.assignedAdmin
                           ? ticket.assignedAdmin.name || ticket.assignedAdmin.email
-                          : "Unassigned"}
+                          : t("Unassigned", "Non assigne", "Nicht zugewiesen", "Sin asignar", "Não atribuido")}
                       </span>
                     </div>
                   </div>
@@ -361,7 +406,7 @@ export default function AdminSupportPage() {
 
         <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3 dark:border-border/70">
           <p className="text-xs text-muted-foreground">
-            Page {pagination?.page || 1} of {pagination?.totalPages || 1}
+            {t("Page", "Page", "Seite", "Pagina", "Pagina")} {pagination?.page || 1} {t("of", "sur", "von", "de", "de")} {pagination?.totalPages || 1}
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -369,18 +414,18 @@ export default function AdminSupportPage() {
               size="sm"
               disabled={!pagination?.hasPreviousPage}
               onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-              aria-label="Previous support tickets page"
+              aria-label={t("Previous support tickets page", "Page précédente des tickets", "Vorherige Support-Ticket-Seite", "Pagina anterior de tickets de soporte", "Pagina anterior dos tickets de suporte")}
             >
-              Previous
+              {t("Previous", "Precedent", "Zurück", "Anterior", "Anterior")}
             </Button>
             <Button
               variant="secondary"
               size="sm"
               disabled={!pagination?.hasNextPage}
               onClick={() => setPage((prev) => prev + 1)}
-              aria-label="Next support tickets page"
+              aria-label={t("Next support tickets page", "Page suivante des tickets", "Nächste Support-Ticket-Seite", "Pagina siguiente de tickets de soporte", "Pagina seguinte dos tickets de suporte")}
             >
-              Next
+              {t("Next", "Suivant", "Weiter", "Siguiente", "Seguinte")}
             </Button>
           </div>
         </div>

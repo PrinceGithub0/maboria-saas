@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/lib/auth";
@@ -8,6 +9,7 @@ import { billingEmail, billingMailto } from "@/lib/billing/contact";
 import { requireBillingAccess } from "@/lib/permissions";
 import { PaymentsLedgerPage } from "@/components/billing/payments-ledger-page";
 import { Alert } from "@/components/ui/alert";
+import { getLocalizedText, normalizeLanguage } from "@/lib/i18n";
 
 type SearchParams = {
   range?: string;
@@ -23,6 +25,10 @@ export default async function BillingPaymentsPage({
 }: {
   searchParams?: Promise<SearchParams>;
 }) {
+  const cookieStore = await cookies();
+  const language = normalizeLanguage(cookieStore.get("maboria_language")?.value);
+  const t = (en: string, fr?: string, de?: string, es?: string, pt?: string) =>
+    getLocalizedText({ en, fr, de, es, pt }, language);
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     redirect("/login");
@@ -32,7 +38,7 @@ export default async function BillingPaymentsPage({
   if (!access.ok) {
     return (
       <div className="mx-auto w-full max-w-[1280px] space-y-4 pb-6">
-        <Alert variant="error">Access denied.</Alert>
+        <Alert variant="error">{t("Access denied.", "Accès refuse.", "Zugriff verweigert.", "Acceso denegado.", "Acesso negado.")}</Alert>
       </div>
     );
   }
@@ -45,7 +51,7 @@ export default async function BillingPaymentsPage({
   if (!entitlement.ok) {
     return (
       <div className="mx-auto w-full max-w-[1280px] space-y-4 pb-6">
-        <Alert variant="error">{entitlement.reason || "Upgrade required to view payments."}</Alert>
+        <Alert variant="error">{entitlement.reason || t("Upgrade required to view payments.", "Mise a niveau requise pour voir les paiements.", "Upgrade erforderlich, um Zahlungen zu sehen.", "Se requiere una mejora para ver los pagos.", "Atualizacao necessária para ver os pagamentos.")}</Alert>
       </div>
     );
   }
@@ -66,7 +72,7 @@ export default async function BillingPaymentsPage({
     <div className="mx-auto w-full max-w-[1280px] space-y-4 pb-6">
       <PaymentsLedgerPage initialData={initialData} initialStatus={params?.status || "all"} initialQuery={params?.q || ""} />
       <p className="text-sm text-slate-500 dark:text-slate-400">
-        Billing questions?{" "}
+        {t("Billing questions? ", "Questions de facturation ? ", "Fragen zur Abrechnung? ", "Preguntas de facturación? ", "Duvidas de faturação? ")}
         <a href={billingMailto} className="font-medium text-slate-700 hover:underline dark:text-slate-200">
           {billingEmail}
         </a>

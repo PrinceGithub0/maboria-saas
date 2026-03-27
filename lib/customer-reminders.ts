@@ -11,6 +11,7 @@ import { env } from "@/lib/env";
 import { assertRateLimit } from "@/lib/rate-limit";
 import { getOrCreateSubscriberSetting, toLateFeeSettingsSnapshot } from "@/lib/subscriber-settings";
 import { applyLateFee, type LateFeeResult } from "@/lib/late-fee";
+import { getVisibleCustomerWhere } from "@/lib/customers";
 
 const REMINDER_PER_INVOICE_PER_DAY_LIMIT = 3;
 const DEFAULT_COOLDOWN_MINUTES = 10;
@@ -129,9 +130,10 @@ export async function sendCustomerReminder(input: {
   automationId?: string;
 }) {
   const now = new Date();
+  const visibilityWhere = await getVisibleCustomerWhere(input.userId);
   const [customer, invoiceCandidates] = await Promise.all([
     prisma.customer.findFirst({
-      where: { id: input.customerId, userId: input.userId, deletedAt: null },
+      where: { ...visibilityWhere, id: input.customerId, userId: input.userId, deletedAt: null },
       select: {
         id: true,
         name: true,
@@ -144,6 +146,7 @@ export async function sendCustomerReminder(input: {
     prisma.invoice.findMany({
       where: {
         userId: input.userId,
+        subscriptionId: null,
         customerId: input.customerId,
         status: { in: ["OVERDUE", "SENT"] },
       },

@@ -8,10 +8,10 @@ import { Alert } from "@/components/ui/alert";
 import { TransientAlert } from "@/components/ui/transient-alert";
 import { useState } from "react";
 import { useLanguage } from "@/components/providers/language-provider";
+import { contactSalesEmail, contactSalesMailto } from "@/lib/sales/contact";
 
 export default function ContactPage() {
-  const { language } = useLanguage();
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const { t } = useLanguage();
   const [form, setForm] = useState({ name: "", email: "", company: "", message: "" });
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +37,7 @@ export default function ContactPage() {
       setError(data.error);
       return;
     }
-    setStatus(t("Message sent. We will respond shortly.", "Message envoye. Reponse rapide."));
+    setStatus(t("Message sent. We will respond shortly.", "Message envoye. Réponse rapide."));
     setForm({ name: "", email: "", company: "", message: "" });
   };
   return (
@@ -49,9 +49,9 @@ export default function ContactPage() {
           </p>
           <h1 className="text-4xl font-semibold text-foreground">{t("Contact Maboria", "Contacter Maboria")}</h1>
           <p className="text-muted-foreground">
-            {t("Fast responses from our team. You can also email us at ", "Reponse rapide de notre equipe. Email : ")}
-            <a className="text-indigo-500 hover:text-indigo-400" href="mailto:info@maboria.com">
-              info@maboria.com
+            {t("Fast responses from our team. You can also email us at ", "Réponse rapide de notre équipe. Email : ")}
+            <a className="text-indigo-500 hover:text-indigo-400" href={contactSalesMailto}>
+              {contactSalesEmail}
             </a>
             .
           </p>

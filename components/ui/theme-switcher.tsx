@@ -5,21 +5,21 @@ import clsx from "clsx";
 import { Check, Monitor, Moon, Sun } from "lucide-react";
 import { useTheme, type ThemePreference } from "@/components/providers/theme-provider";
 import { useLanguage } from "@/components/providers/language-provider";
+import { getLocalizedText, type LocalizedText } from "@/lib/i18n";
 
 const options: Array<{
   value: ThemePreference;
-  label: { en: string; fr: string };
+  label: LocalizedText;
   icon: React.ComponentType<{ className?: string }>;
 }> = [
-  { value: "light", label: { en: "Light", fr: "Clair" }, icon: Sun },
-  { value: "dark", label: { en: "Dark", fr: "Sombre" }, icon: Moon },
-  { value: "system", label: { en: "System", fr: "Systeme" }, icon: Monitor },
+  { value: "light", label: { en: "Light", fr: "Clair", de: "Hell", es: "Claro", pt: "Claro" }, icon: Sun },
+  { value: "dark", label: { en: "Dark", fr: "Sombre", de: "Dunkel", es: "Oscuro", pt: "Escuro" }, icon: Moon },
+  { value: "system", label: { en: "System", fr: "Systeme", de: "System", es: "Sistema", pt: "Sistema" }, icon: Monitor },
 ];
 
 export function ThemeSwitcher() {
   const { theme, resolvedTheme, setTheme } = useTheme();
-  const { language } = useLanguage();
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const { language, t } = useLanguage();
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
 
@@ -47,7 +47,7 @@ export function ThemeSwitcher() {
     <div ref={wrapperRef} className="relative z-[60]">
       <button
         type="button"
-        aria-label="Theme"
+        aria-label={t("Theme", "Theme")}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
@@ -59,7 +59,7 @@ export function ThemeSwitcher() {
       {open && (
         <div
           role="menu"
-          aria-label="Theme menu"
+          aria-label={t("Theme menu", "Menu du theme")}
           className="absolute right-0 mt-2 w-44 overflow-hidden rounded-xl border border-border bg-card shadow-xl z-50"
         >
           <div className="px-3 py-2 text-xs font-semibold text-muted-foreground">
@@ -86,7 +86,7 @@ export function ThemeSwitcher() {
                 >
                   <span className="flex items-center gap-2">
                     <Icon className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-foreground">{opt.label[language]}</span>
+                    <span className="text-foreground">{getLocalizedText(opt.label, language)}</span>
                   </span>
                   {active && <Check className="h-4 w-4 text-indigo-500" />}
                 </button>

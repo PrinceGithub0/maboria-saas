@@ -4,7 +4,6 @@ import { prisma } from "../prisma";
 import { env } from "../env";
 import { log } from "../logger";
 import { notifyPaymentSucceeded } from "../whatsapp";
-import { maybeSendSubscriptionReceipt } from "../subscription-receipt";
 import { recordInvoicePayment } from "../invoice-payments";
 import type { BillingInterval } from "../pricing";
 import { finalizeSubscriptionPayment } from "./subscription";
@@ -298,23 +297,6 @@ export async function recordFlutterwavePayment(data: any) {
     });
     if (!finalized?.payment) {
       return;
-    }
-    try {
-      await maybeSendSubscriptionReceipt({
-        paymentId: finalized.payment.id,
-        userId: resolvedUserId,
-        amount,
-        currency,
-        provider: "FLUTTERWAVE",
-        reference,
-        paidAt: finalized.payment.createdAt,
-        plan: finalized.plan,
-        interval: finalized.interval,
-        paymentMethod,
-        verified,
-      });
-    } catch (error: any) {
-      log("error", "flutterwave_receipt_failed", { userId: resolvedUserId, reference, error: error.message });
     }
     try {
       await notifyPaymentSucceeded({

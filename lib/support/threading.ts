@@ -193,7 +193,7 @@ async function pauseSupportSlaForPending(
   if (sla.resolutionStatus === "RUNNING") {
     updateData.resolutionStatus = "PAUSED";
     updateData.resolutionPausedAt = input.at;
-    metricsPaused.push("resolution");
+    metricsPaused.push("résolution");
   }
 
   if (!Object.keys(updateData).length) return;
@@ -242,7 +242,7 @@ async function resumeSupportSlaForOpen(
     if (sla.resolutionDueAt) {
       updateData.resolutionDueAt = new Date(sla.resolutionDueAt.getTime() + deltaSeconds * 1000);
     }
-    metricsResumed.push("resolution");
+    metricsResumed.push("résolution");
   }
 
   if (!Object.keys(updateData).length) return;
@@ -280,7 +280,7 @@ async function stopSupportSlaForResolved(
   if (sla.resolutionStatus !== "MET" && sla.resolutionStatus !== "BREACHED") {
     updateData.resolutionStatus = "MET";
     updateData.resolutionMetAt = input.at;
-    metricsMet.push("resolution");
+    metricsMet.push("résolution");
   }
   if (sla.firstResponseStatus === "RUNNING" || sla.firstResponseStatus === "PAUSED") {
     updateData.firstResponseStatus = "STOPPED";
@@ -367,7 +367,7 @@ async function restartSupportSlaForReopen(
     actorAdminId: input.actorUserId ?? null,
     eventType: "SLA_RESUMED",
     createdAt: input.at,
-    metadata: { reason: "reopened", metrics: ["nextResponse", "resolution"] },
+    metadata: { reason: "reopened", metrics: ["nextResponse", "résolution"] },
   });
 }
 
@@ -454,7 +454,7 @@ async function markSupportSlaBreachesOnRead(
   ) {
     updateData.resolutionStatus = "BREACHED";
     updateData.resolutionBreachedAt = now;
-    breachedMetrics.push("resolution");
+    breachedMetrics.push("résolution");
   }
 
   if (!Object.keys(updateData).length) return sla;

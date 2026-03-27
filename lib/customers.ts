@@ -1,5 +1,7 @@
 import "server-only";
 
+import { Prisma } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 
 export const MAX_CUSTOMER_PAGE_SIZE = 100;
@@ -10,6 +12,27 @@ export function normalizeCustomerEmail(email: string) {
 
 export function buildPlaceholderCustomerEmail(seed: string) {
   return `unknown+${seed}@placeholder.local`.toLowerCase();
+}
+
+export async function getVisibleCustomerWhere(userId: string): Promise<Prisma.CustomerWhereInput> {
+  const owner = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  });
+  const ownerEmail = normalizeCustomerEmail(String(owner?.email || ""));
+  if (!ownerEmail) {
+    return {};
+  }
+
+  return {
+    NOT: {
+      AND: [
+        { email: ownerEmail },
+        { invoices: { some: { subscriptionId: { not: null } } } },
+        { invoices: { none: { subscriptionId: null } } },
+      ],
+    },
+  };
 }
 
 type UpsertCustomerInput = {
@@ -72,8 +95,10 @@ export async function createOrGetCustomer(input: UpsertCustomerInput) {
 }
 
 export async function assertOwnedActiveCustomer(input: { userId: string; customerId: string }) {
+  const visibilityWhere = await getVisibleCustomerWhere(input.userId);
   const customer = await prisma.customer.findFirst({
     where: {
+      ...visibilityWhere,
       id: input.customerId,
       userId: input.userId,
       deletedAt: null,
@@ -93,7 +118,9 @@ export async function listCustomers(input: {
   const take = Math.min(MAX_CUSTOMER_PAGE_SIZE, Math.max(1, Number(input.take || 20)));
   const skip = Math.max(0, Number(input.skip || 0));
 
+  const visibilityWhere = await getVisibleCustomerWhere(input.userId);
   const where = {
+    ...visibilityWhere,
     userId: input.userId,
     deletedAt: null as Date | null,
     status: "ACTIVE" as const,

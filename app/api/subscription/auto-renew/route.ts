@@ -54,11 +54,13 @@ export const POST = withErrorHandling(async (req: Request) => {
     select: {
       provider: true,
       providerCustomerId: true,
+      providerPaymentMethodData: true,
     },
   });
   const management = deriveSubscriptionManagement({
     provider: orgSub?.provider ?? null,
     providerCustomerId: orgSub?.providerCustomerId ?? null,
+    hasReusablePaymentMethod: Boolean(orgSub?.providerPaymentMethodData),
     stateSource: orgSub ? "org_subscription" : "none",
   });
   if (!management.canManageAutoRenewInApp && management.billingMode === "provider_portal") {

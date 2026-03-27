@@ -28,10 +28,10 @@ function buildCsv(metrics: Awaited<ReturnType<typeof getAdminEngineMetrics>>) {
   rows.push(["Revenue", "Churned Revenue USD", metrics.revenue.mrrMovement.churnedRevenueUsd, "Current range"].map(csvEscape).join(","));
   rows.push(["Revenue", "Downgrade Revenue USD", metrics.revenue.mrrMovement.downgradeRevenueUsd, "Current range"].map(csvEscape).join(","));
   rows.push(["Revenue", "Net MRR Change USD", metrics.revenue.mrrMovement.netChangeUsd, "Current range"].map(csvEscape).join(","));
-  rows.push(["Churn & Retention", "Subscribers at Risk", metrics.churnRetention.subscribersAtRisk, "Current"].map(csvEscape).join(","));
-  rows.push(["Churn & Retention", "Voluntary Churn %", metrics.churnRetention.voluntaryChurnRate30d, "Last 30 days"].map(csvEscape).join(","));
-  rows.push(["Churn & Retention", "Involuntary Churn %", metrics.churnRetention.involuntaryChurnRate30d, "Payment failures"].map(csvEscape).join(","));
-  rows.push(["Churn & Retention", "Retention Rate %", metrics.churnRetention.retentionRate30d, "Last 30 days"].map(csvEscape).join(","));
+  rows.push(["Churn & Rétention", "Subscribers at Risk", metrics.churnRetention.subscribersAtRisk, "Current"].map(csvEscape).join(","));
+  rows.push(["Churn & Rétention", "Voluntary Churn %", metrics.churnRetention.voluntaryChurnRate30d, "Last 30 days"].map(csvEscape).join(","));
+  rows.push(["Churn & Rétention", "Involuntary Churn %", metrics.churnRetention.involuntaryChurnRate30d, "Payment failures"].map(csvEscape).join(","));
+  rows.push(["Churn & Rétention", "Rétention Rate %", metrics.churnRetention.retentionRate30d, "Last 30 days"].map(csvEscape).join(","));
   rows.push(["Payment Health", "Failed Charges (7d)", metrics.paymentHealth.failedCharges7d, "Last 7 days"].map(csvEscape).join(","));
   rows.push(["Payment Health", "Retry Success Rate %", metrics.paymentHealth.retrySuccessRate7d, "Last 7 days"].map(csvEscape).join(","));
   rows.push(["Payment Health", "Retry Success Rate Delta %", metrics.paymentHealth.retrySuccessRateDelta.deltaPercent, "Vs previous period"].map(csvEscape).join(","));

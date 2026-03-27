@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useLanguage } from "@/components/providers/language-provider";
 
 export function Announcement({ message }: { message?: string }) {
+  const { t } = useLanguage();
   const [dismissedMessage, setDismissedMessage] = useState<string | null>(null);
   if (!message || dismissedMessage === message) return null;
 
@@ -12,11 +14,10 @@ export function Announcement({ message }: { message?: string }) {
       <button
         className="text-indigo-800 hover:text-indigo-950 dark:text-indigo-200 dark:hover:text-indigo-50"
         onClick={() => setDismissedMessage(message)}
-        aria-label="Dismiss announcement"
+        aria-label={t("Dismiss announcement", "Ignorer l annonce", "Ankundigung schliessen", "Descartar anuncio", "Fechar anuncio")}
       >
         &times;
       </button>
     </div>
   );
 }
-

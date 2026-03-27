@@ -9,6 +9,13 @@ import { formatCurrency } from "./currency";
 import { formatDateDMY } from "./date";
 import { STANDARD_VAT_RATE } from "./vat";
 
+export const SUPPORTED_SUBSCRIPTION_RECEIPT_PROVIDERS = ["PAYSTACK", "FLUTTERWAVE", "STRIPE"] as const;
+export type SupportedSubscriptionReceiptProvider = (typeof SUPPORTED_SUBSCRIPTION_RECEIPT_PROVIDERS)[number];
+
+export function isSubscriptionReceiptProvider(value: unknown): value is SupportedSubscriptionReceiptProvider {
+  return SUPPORTED_SUBSCRIPTION_RECEIPT_PROVIDERS.includes(String(value || "").toUpperCase() as SupportedSubscriptionReceiptProvider);
+}
+
 const interFontPath = path.join(process.cwd(), "assets", "fonts", "Inter.ttf");
 const logoPath = path.join(process.cwd(), "public", "branding", "Maboria Company logo.png");
 
@@ -62,7 +69,7 @@ export function buildSubscriptionReceiptPdfBuffer(input: {
   customerName?: string | null;
   customerEmail?: string | null;
   customerCompany?: string | null;
-  provider: "PAYSTACK" | "FLUTTERWAVE";
+  provider: SupportedSubscriptionReceiptProvider;
   paymentMethod?: string | null;
   reference?: string | null;
   interval: "monthly" | "yearly";
@@ -324,7 +331,7 @@ export async function maybeSendSubscriptionReceipt({
   userId: string;
   amount: number;
   currency: string;
-  provider: "PAYSTACK" | "FLUTTERWAVE";
+  provider: SupportedSubscriptionReceiptProvider;
   reference?: string | null;
   paidAt: Date;
   plan?: string | null;

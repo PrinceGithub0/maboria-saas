@@ -16,7 +16,7 @@ const toDateBeforeDays = (days: number) => new Date(Date.now() - days * 24 * 60 
 
 const readRetentionMeta = (output: unknown) => {
   if (!output || typeof output !== "object" || Array.isArray(output)) return {};
-  const retention = (output as Record<string, unknown>)["retention"];
+  const retention = (output as Record<string, unknown>).retention;
   if (!retention || typeof retention !== "object" || Array.isArray(retention)) return {};
   return retention as Record<string, unknown>;
 };

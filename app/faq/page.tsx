@@ -10,17 +10,26 @@ export default function FAQPage() {
           className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300"
           en="Help"
           fr="Aide"
+          de="Hilfe"
+          es="Ayuda"
+          pt="Ajuda"
         />
         <LangText
           as="h1"
           className="text-3xl font-semibold text-foreground"
           en="Frequently asked questions"
           fr="Questions frequentes"
+          de="Haufig gestellte Fragen"
+          es="Preguntas frecuentes"
+          pt="Perguntas frequentes"
         />
         <p className="mt-1 text-sm text-muted-foreground">
           <LangText
             en="Answers based on what Maboria supports today."
-            fr="Reponses basees sur ce que Maboria supporte aujourd hui."
+            fr="Réponses basees sur ce que Maboria supporte aujourd hui."
+            de="Antworten basierend auf dem, was Maboria heute unterstutzt."
+            es="Respuestas basadas en lo que Maboria admite hoy."
+            pt="Respostas com base no que a Maboria suporta hoje."
           />
         </p>
       </div>

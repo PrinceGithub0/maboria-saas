@@ -8,8 +8,11 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight, Download, Search, X } from "lucide-react";
 
 import { formatCurrency } from "@/lib/currency";
+import { localizeAdminServerMessage } from "@/lib/admin/localization";
 import { rangeToQuery, type GlobalDateRange } from "@/lib/shared/date-range";
 import type { PaymentsLedgerResult, LedgerRow } from "@/lib/billing/payments-ledger";
+import { LANGUAGE_LOCALES } from "@/lib/i18n";
+import { useLanguage } from "@/components/providers/language-provider";
 
 const fetcher = async (url: string) => {
   const response = await fetch(url, { cache: "no-store" });
@@ -63,6 +66,8 @@ export function PaymentsLedgerPage({
   initialQuery: string;
 }) {
   const router = useRouter();
+  const { language, t } = useLanguage();
+  const locale = LANGUAGE_LOCALES[language];
   const [range, setRange] = useState<GlobalDateRange>(initialData.dateRange);
   const [status, setStatus] = useState(initialStatus || "all");
   const [searchInput, setSearchInput] = useState(initialQuery || "");
@@ -125,6 +130,16 @@ export function PaymentsLedgerPage({
   const canNext = page < totalPages;
 
   const hasFilters = status !== "all" || Boolean(search);
+  const formatDate = (value: string) => new Intl.DateTimeFormat(locale).format(new Date(value));
+  const formatDateTime = (value: string) =>
+    new Intl.DateTimeFormat(locale, {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(new Date(value));
 
   const exportHref = useMemo(() => {
     const query = rangeToQuery(range, {
@@ -169,7 +184,14 @@ export function PaymentsLedgerPage({
     } catch (error) {
       setRefundStatus({
         type: "error",
-        message: error instanceof Error ? error.message : "Refund request failed.",
+        message:
+          error instanceof Error
+            ? localizeAdminServerMessage(
+                error.message,
+                language,
+                t("Refund request failed.", "La demande de remboursement a echoue.", "Rueckerstattungsanfrage fehlgeschlagen.", "La solicitud de reembolso fallo.", "O pedido de reembolso falhou.")
+              )
+            : t("Refund request failed.", "La demande de remboursement a echoue.", "Rueckerstattungsanfrage fehlgeschlagen.", "La solicitud de reembolso fallo.", "O pedido de reembolso falhou."),
       });
     } finally {
       setRefundLoading(false);
@@ -181,8 +203,8 @@ export function PaymentsLedgerPage({
       <section className="border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-50">Payments</h1>
-            <p className="text-sm text-slate-600 dark:text-slate-300">All customer payments for selected period</p>
+            <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-50">{t("Payments", "Paiements", "Zahlungen", "Pagos", "Pagamentos")}</h1>
+            <p className="text-sm text-slate-600 dark:text-slate-300">{t("All customer payments for selected period", "Tous les paiements clients pour la periode selectionnee", "Alle Kundenzahlungen für den ausgewahlten Zeitraum", "Todos los pagos de clientes del periodo seleccionado", "Todos os pagamentos de clientes do periodo selecionado")}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <select
@@ -193,10 +215,10 @@ export function PaymentsLedgerPage({
               }}
               className="h-9 rounded border border-slate-300 bg-white px-3 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             >
-              <option value="today">Today</option>
-              <option value="last7">Last 7 Days</option>
-              <option value="last30">Last 30 Days</option>
-              <option value="custom">Custom</option>
+              <option value="today">{t("Today", "Aujourd'hui", "Heute", "Hoy", "Hoje")}</option>
+              <option value="last7">{t("Last 7 Days", "7 derniers jours", "Letzte 7 Tage", "Ultimos 7 dias", "Ultimos 7 dias")}</option>
+              <option value="last30">{t("Last 30 Days", "30 derniers jours", "Letzte 30 Tage", "Ultimos 30 dias", "Ultimos 30 dias")}</option>
+              <option value="custom">{t("Custom", "Personnalise", "Benutzerdefiniert", "Personalizado", "Personalizado")}</option>
             </select>
             {range.key === "custom" ? (
               <div className="inline-flex items-center gap-2">
@@ -228,7 +250,7 @@ export function PaymentsLedgerPage({
                   setSearchInput(event.target.value);
                   setPage(1);
                 }}
-                placeholder="Search customer or invoice"
+                placeholder={t("Search customer or invoice", "Rechercher un client ou une facture", "Kunde oder Rechnung suchen", "Buscar cliente o factura", "Pesquisar cliente ou fatura")}
                 className="h-9 w-56 rounded border border-slate-300 bg-white pl-8 pr-3 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
               />
             </label>
@@ -237,7 +259,7 @@ export function PaymentsLedgerPage({
               className="inline-flex h-9 items-center gap-2 rounded border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             >
               <Download className="h-4 w-4" />
-              Export CSV
+              {t("Export CSV", "Exporter CSV", "CSV exportieren", "Exportar CSV", "Exportar CSV")}
             </a>
           </div>
         </div>
@@ -245,25 +267,25 @@ export function PaymentsLedgerPage({
 
       {!hasConnectedSubaccount ? (
         <section className="border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300">
-          Payment subaccount not connected. Confirm payout setup in Settings to collect new invoice payments.
+          {t("Payment subaccount not connected. Confirm payout setup in Settings to collect new invoice payments.", "Le sous-compte de paiement n'est pas connecte. Confirmez la configuration des virements dans les paramêtres pour collecter de nouveaux paiements de facture.", "Das Zahlungsunterkonto ist nicht verbunden. Bestatige die Auszahlungseinrichtung in den Einstellungen, um neue Rechnungszahlungen einzuziehen.", "La subcuenta de pago no esta conectada. Confirma la configuración de cobros en Ajustes para recibir nuevos pagos de facturas.", "A subconta de pagamento não esta ligada. Confirme a configuração de recebimentos nas Definições para recolher novos pagamentos de faturas.")}
         </section>
       ) : null}
 
       <section className="grid gap-3 md:grid-cols-4">
         <article className="border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900">
-          <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Total Collected</p>
+          <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t("Total Collected", "Total collecte", "Insgesamt eingezogen", "Total cobrado", "Total cobrado")}</p>
           <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-50">{formatCurrency(summary.totalCollected, summaryCurrency)}</p>
         </article>
         <article className="border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900">
-          <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Successful</p>
+          <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t("Successful", "Reussis", "Erfolgreich", "Correctos", "Bem-sucedidos")}</p>
           <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-50">{summary.successfulCount}</p>
         </article>
         <article className="border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900">
-          <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Failed</p>
+          <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t("Failed", "Echoues", "Fehlgeschlagen", "Fallidos", "Falhados")}</p>
           <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-50">{summary.failedCount}</p>
         </article>
         <article className="border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900">
-          <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Refunded</p>
+          <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t("Refunded", "Rembourses", "Erstattet", "Reembolsados", "Reembolsados")}</p>
           <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-50">{summary.refundedCount}</p>
         </article>
       </section>
@@ -271,7 +293,7 @@ export function PaymentsLedgerPage({
       <section className="border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700">
           <div className="flex items-center gap-2">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Status</label>
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{t("Status", "Statut", "Status", "Estado", "Estado")}</label>
             <select
               value={status}
               onChange={(event) => {
@@ -280,19 +302,19 @@ export function PaymentsLedgerPage({
               }}
               className="h-8 rounded border border-slate-300 bg-white px-2 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             >
-              <option value="all">All</option>
-              <option value="paid">Paid</option>
-              <option value="failed">Failed</option>
-              <option value="refunded">Refunded</option>
-              <option value="pending">Pending</option>
+              <option value="all">{t("All", "Tous", "Alle", "Todos", "Todos")}</option>
+              <option value="paid">{t("Paid", "Paye", "Bezahlt", "Pagado", "Pago")}</option>
+              <option value="failed">{t("Failed", "échoué", "Fehlgeschlagen", "Fallido", "Falhado")}</option>
+              <option value="refunded">{t("Refunded", "Rembourse", "Erstattet", "Reembolsado", "Reembolsado")}</option>
+              <option value="pending">{t("Pending", "En attente", "Ausstehend", "Pendiente", "Pendente")}</option>
             </select>
           </div>
-          <span className="text-xs text-slate-500 dark:text-slate-400">Newest first</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400">{t("Newest first", "Plus recent d'abord", "Neueste zuerst", "Mas recientes primero", "Mais recentes primeiro")}</span>
         </div>
 
         {error ? (
           <div className="px-4 py-6 text-sm text-amber-700 dark:text-amber-300">
-            Live data temporarily unavailable. Showing last updated state.
+            {t("Live data temporarily unavailable. Showing last updated state.", "Les données en direct sont temporairement indisponibles. Affichage du dernier etat connu.", "Live-Daten sind vorübergehend nicht verfügbar. Letzter bekannter Stand wird angezeigt.", "Los datos en vivo no estan disponibles temporalmente. Se muestra el ultimo estado conocido.", "Os dados em tempo real estão temporariamente indisponiveis. A mostrar o ultimo estado conhecido.")}
           </div>
         ) : null}
 
@@ -300,14 +322,14 @@ export function PaymentsLedgerPage({
           <table className="min-w-full text-center">
             <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400">
               <tr>
-                <th className="px-4 py-3 text-center">Date</th>
-                <th className="px-4 py-3 text-center">Customer</th>
-                <th className="px-4 py-3 text-center">Contact</th>
-                <th className="px-4 py-3 text-center">Invoice #</th>
-                <th className="px-4 py-3 text-center">Amount</th>
-                <th className="px-4 py-3 text-center">Method</th>
-                <th className="px-4 py-3 text-center">Status</th>
-                <th className="px-4 py-3 text-center">Reference ID</th>
+                <th className="px-4 py-3 text-center">{t("Date", "Date", "Datum", "Fecha", "Data")}</th>
+                <th className="px-4 py-3 text-center">{t("Customer", "Client", "Kunde", "Cliente", "Cliente")}</th>
+                <th className="px-4 py-3 text-center">{t("Contact", "Contact", "Kontakt", "Contacto", "Contacto")}</th>
+                <th className="px-4 py-3 text-center">{t("Invoice #", "Facture #", "Rechnung #", "Factura #", "Fatura #")}</th>
+                <th className="px-4 py-3 text-center">{t("Amount", "Montant", "Betrag", "Importe", "Montante")}</th>
+                <th className="px-4 py-3 text-center">{t("Method", "Methode", "Methode", "Método", "Método")}</th>
+                <th className="px-4 py-3 text-center">{t("Status", "Statut", "Status", "Estado", "Estado")}</th>
+                <th className="px-4 py-3 text-center">{t("Reference ID", "ID de reference", "Referenz-ID", "ID de referencia", "ID de referencia")}</th>
               </tr>
             </thead>
             <tbody>
@@ -327,7 +349,7 @@ export function PaymentsLedgerPage({
                   <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
                     {hasFilters ? (
                       <div className="space-y-2">
-                        <p>No payments match your filters.</p>
+                        <p>{t("No payments match your filters.", "Aucun paiement ne correspond a vos filtres.", "Keine Zahlungen entsprechen deinen Filtern.", "Ningun pago coincide con tus filtros.", "Nenhum pagamento corresponde aos seus filtros.")}</p>
                         <button
                           type="button"
                           className="inline-flex rounded border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-200"
@@ -338,11 +360,11 @@ export function PaymentsLedgerPage({
                             setPage(1);
                           }}
                         >
-                          Clear filters
+                          {t("Clear filters", "Effacer les filtres", "Filter zurücksetzen", "Limpiar filtros", "Limpar filtros")}
                         </button>
                       </div>
                     ) : (
-                      "No billing activity yet."
+                      t("No billing activity yet.", "Aucune activité de facturation pour le moment.", "Noch keine Abrechnungsaktivität.", "Aún no hay actividad de facturación.", "Ainda não ha atividade de faturação.")
                     )}
                   </td>
                 </tr>
@@ -353,7 +375,7 @@ export function PaymentsLedgerPage({
                   onClick={() => setSelectedRow(row)}
                   className="cursor-pointer border-b border-slate-100 text-sm text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-950/80"
                 >
-                  <td className="px-4 py-3 text-center">{new Date(row.createdAt).toLocaleDateString("en-GB")}</td>
+                  <td className="px-4 py-3 text-center">{formatDate(row.createdAt)}</td>
                   <td className="px-4 py-3 text-center">{row.customerName}</td>
                   <td className="px-4 py-3 text-center">{row.customerContact}</td>
                   <td className="px-4 py-3 text-center">{row.invoiceNumber}</td>
@@ -373,7 +395,7 @@ export function PaymentsLedgerPage({
 
         <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 dark:border-slate-700">
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Page {page} of {totalPages}
+            {t("Page", "Page", "Seite", "Pagina", "Pagina")} {page} {t("of", "sur", "von", "de", "de")} {totalPages}
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -401,71 +423,71 @@ export function PaymentsLedgerPage({
           <button type="button" className="absolute inset-0 bg-slate-900/35" onClick={() => setSelectedRow(null)} />
           <aside className="absolute inset-y-0 right-0 w-full max-w-md border-l border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50">Payment Details</h3>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50">{t("Payment Details", "Details du paiement", "Zahlungsdetails", "Detalles del pago", "Detalhes do pagamento")}</h3>
               <button type="button" onClick={() => setSelectedRow(null)} className="rounded border border-slate-300 p-1.5 text-slate-600 dark:border-slate-700 dark:text-slate-300">
                 <X className="h-4 w-4" />
               </button>
             </div>
             <dl className="mt-4 space-y-3 text-sm">
               <div>
-                <dt className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Customer</dt>
+                <dt className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t("Customer", "Client", "Kunde", "Cliente", "Cliente")}</dt>
                 <dd className="mt-1 font-medium text-slate-900 dark:text-slate-50">{selectedRow.customerName}</dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Contact</dt>
+                <dt className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t("Contact", "Contact", "Kontakt", "Contacto", "Contacto")}</dt>
                 <dd className="mt-1 text-slate-700 dark:text-slate-200">{selectedRow.customerContact}</dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Invoice</dt>
+                <dt className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t("Invoice", "Facture", "Rechnung", "Factura", "Fatura")}</dt>
                 <dd className="mt-1 text-slate-700 dark:text-slate-200">{selectedRow.invoiceNumber}</dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Amount</dt>
+                <dt className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t("Amount", "Montant", "Betrag", "Importe", "Montante")}</dt>
                 <dd className="mt-1 text-slate-700 dark:text-slate-200">{formatCurrency(selectedRow.amount, selectedRow.currency)}</dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Method</dt>
+                <dt className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t("Method", "Methode", "Methode", "Método", "Método")}</dt>
                 <dd className="mt-1 text-slate-700 dark:text-slate-200">{selectedRow.method}</dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Status</dt>
+                <dt className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t("Status", "Statut", "Status", "Estado", "Estado")}</dt>
                 <dd className="mt-1 text-slate-700 dark:text-slate-200">{selectedRow.status}</dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Refund status</dt>
+                <dt className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t("Refund status", "Statut du remboursement", "Erstattungsstatus", "Estado del reembolso", "Estado do reembolso")}</dt>
                 <dd className="mt-1 text-slate-700 dark:text-slate-200">
                   {selectedRow.refundState === "completed"
-                    ? "Refunded"
+                    ? t("Refunded", "Rembourse", "Erstattet", "Reembolsado", "Reembolsado")
                     : selectedRow.refundState === "pending"
-                      ? "Refund in progress"
-                      : "Not refunded"}
+                      ? t("Refund in progress", "Remboursement en cours", "Erstattung in Bearbeitung", "Reembolso en curso", "Reembolso em curso")
+                      : t("Not refunded", "Non rembourse", "Nicht erstattet", "No reembolsado", "Não reembolsado")}
                 </dd>
               </div>
               {selectedRow.refundedAmount > 0 ? (
                 <div>
-                  <dt className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Refunded amount</dt>
+                  <dt className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t("Refunded amount", "Montant rembourse", "Erstatteter Betrag", "Importe reembolsado", "Montante reembolsado")}</dt>
                   <dd className="mt-1 text-slate-700 dark:text-slate-200">
                     {formatCurrency(selectedRow.refundedAmount, selectedRow.currency)}
                   </dd>
                 </div>
               ) : null}
               <div>
-                <dt className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Timestamp</dt>
-                <dd className="mt-1 text-slate-700 dark:text-slate-200">{new Date(selectedRow.createdAt).toLocaleString("en-GB")}</dd>
+                <dt className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t("Timestamp", "Horodatage", "Zeitstempel", "Marca temporal", "Data e hora")}</dt>
+                <dd className="mt-1 text-slate-700 dark:text-slate-200">{formatDateTime(selectedRow.createdAt)}</dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Reference ID</dt>
+                <dt className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t("Reference ID", "ID de reference", "Referenz-ID", "ID de referencia", "ID de referencia")}</dt>
                 <dd className="mt-1 font-mono text-xs text-slate-700 dark:text-slate-200">{selectedRow.reference}</dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Receipt</dt>
+                <dt className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t("Receipt", "Recu", "Beleg", "Recibo", "Recibo")}</dt>
                 <dd className="mt-1">
                   {selectedRow.receiptUrl ? (
                     <Link href={selectedRow.receiptUrl} className="text-sm font-semibold text-blue-700 hover:underline dark:text-blue-400">
-                      Open receipt
+                      {t("Open receipt", "Ouvrir le recu", "Beleg öffnen", "Abrir recibo", "Abrir recibo")}
                     </Link>
                   ) : (
-                    <span className="text-slate-500 dark:text-slate-400">Not available</span>
+                    <span className="text-slate-500 dark:text-slate-400">{t("Not available", "Indisponible", "Nicht verfügbar", "No disponible", "Indisponivel")}</span>
                   )}
                 </dd>
               </div>
@@ -473,9 +495,9 @@ export function PaymentsLedgerPage({
             {selectedRow.canRefund || selectedRow.refundState === "pending" || refundStatus ? (
               <div className="mt-6 space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-950">
                 <div>
-                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">Refund customer</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">{t("Refund customer", "Rembourser le client", "Kunden erstatten", "Reembolsar al cliente", "Reembolsar cliente")}</p>
                   <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                    Full refund only. Money is returned by the payment provider and the ledger updates after confirmation.
+                    {t("Full refund only. Money is returned by the payment provider and the ledger updates after confirmation.", "Remboursement total uniquement. L'argent est renvoye par le fournisseur de paiement et le registre se met a jour apres confirmation.", "Nur vollständige Erstattung. Das Geld wird vom Zahlungsanbieter zurückgesendet und das Ledger wird nach Bestätigung aktualisiert.", "Solo reembolso completo. El dinero lo devuelve el proveedor de pago y el registro se actualiza tras la confirmacion.", "Apenas reembolso total. O dinheiro e devolvido pelo fornecedor de pagamento e o registo atualiza-se após confirmacao.")}
                   </p>
                 </div>
                 {selectedRow.canRefund ? (
@@ -484,7 +506,7 @@ export function PaymentsLedgerPage({
                       value={refundReason}
                       onChange={(event) => setRefundReason(event.target.value)}
                       rows={3}
-                      placeholder="Optional reason shown in refund metadata"
+                      placeholder={t("Optional reason shown in refund metadata", "Raison facultative affichee dans les metadonnees du remboursement", "Optionale Begründung in den Erstattungsmetadaten", "Motivo opcional mostrado en los metadatos del reembolso", "Motivo opcional mostrado nos metadados do reembolso")}
                       className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                     />
                     <button
@@ -493,13 +515,13 @@ export function PaymentsLedgerPage({
                       disabled={refundLoading}
                       className="inline-flex h-10 items-center justify-center rounded bg-rose-600 px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {refundLoading ? "Requesting refund..." : "Issue full refund"}
+                      {refundLoading ? t("Requesting refund...", "Remboursement en cours...", "Erstattung wird angefordert...", "Solicitando reembolso...", "A solicitar reembolso...") : t("Issue full refund", "Effectuer le remboursement total", "Vollständige Erstattung auslosen", "Emitir reembolso completo", "Emitir reembolso total")}
                     </button>
                   </>
                 ) : null}
                 {selectedRow.refundState === "pending" ? (
                   <p className="text-sm text-amber-700 dark:text-amber-300">
-                    Refund requested. Waiting for provider confirmation.
+                    {t("Refund requested. Waiting for provider confirmation.", "Remboursement demande. En attente de confirmation du fournisseur.", "Erstattung angefordert. Warte auf Bestätigung des Anbieters.", "Reembolso solicitado. Esperando la confirmacion del proveedor.", "Reembolso solicitado. A aguardar confirmacao do fornecedor.")}
                   </p>
                 ) : null}
                 {refundStatus ? (

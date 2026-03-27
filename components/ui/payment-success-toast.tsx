@@ -1,20 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Toast } from "@/components/ui/toast";
 import { formatCurrency } from "@/lib/currency";
 import { useLanguage } from "@/components/providers/language-provider";
+import { LANGUAGE_LOCALES } from "@/lib/i18n";
 
 export function PaymentSuccessToast() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { language } = useLanguage();
-  const t = useCallback((en: string, fr: string) => (language === "fr" ? fr : en), [language]);
+  const { language, t } = useLanguage();
+  const locale = LANGUAGE_LOCALES[language];
   const handledRef = useRef(false);
   const [show, setShow] = useState(false);
   const [message, setMessage] = useState<React.ReactNode>(
-    t("Payment confirmed. Your plan is now active.", "Paiement confirme. Votre plan est actif.")
+    t(
+      "Payment confirmed. Your plan is now active.",
+      "Paiement confirme. Votre plan est actif.",
+      "Zahlung bestatigt. Dein Tarif ist jetzt aktiv.",
+      "Pago confirmado. Tu plan ya esta activo.",
+      "Pagamento confirmado. O seu plano esta agora ativo."
+    )
   );
 
   useEffect(() => {
@@ -47,17 +54,34 @@ export function PaymentSuccessToast() {
       const amount = amountRaw ? Number(amountRaw) : null;
       const paid =
         currency && amount !== null && Number.isFinite(amount)
-          ? formatCurrency(amount, currency)
+          ? formatCurrency(amount, currency, { locale })
           : null;
       setMessage(
         <div className="space-y-0.5">
-          <p className="font-medium">{t("Payment Successful", "Paiement reussi")}</p>
+          <p className="font-medium">
+            {t(
+              "Payment successful",
+              "Paiement reussi",
+              "Zahlung erfolgreich",
+              "Pago correcto",
+              "Pagamento bem-sucedido"
+            )}
+          </p>
           <p className="text-xs text-muted-foreground">
             {paid
-              ? t(`You paid ${paid} to Maboria`, `Vous avez paye ${paid} a Maboria`)
+              ? t(
+                  `You paid ${paid} to Maboria`,
+                  `Vous avez paye ${paid} a Maboria`,
+                  `Du hast ${paid} an Maboria bezahlt`,
+                  `Has pagado ${paid} a Maboria`,
+                  `Pagaste ${paid} a Maboria`
+                )
               : t(
-                  `Your ${provider || "payment"} was successful.`,
-                  `Votre ${provider || "paiement"} est reussi.`
+                  "Your payment was successful.",
+                  "Votre paiement est reussi.",
+                  "Deine Zahlung war erfolgreich.",
+                  "Tu pago se ha realizado correctamente.",
+                  "O seu pagamento foi bem-sucedido."
                 )}
           </p>
         </div>
@@ -82,7 +106,7 @@ export function PaymentSuccessToast() {
       router.replace("/dashboard", { scroll: false });
       return () => clearTimeout(timer);
     }
-  }, [searchParams, router, t]);
+  }, [locale, searchParams, router, t]);
 
   return <Toast message={message} show={show} />;
 }

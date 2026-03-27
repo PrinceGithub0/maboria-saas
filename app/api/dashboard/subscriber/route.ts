@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     requireActiveSubscription: true,
   });
   if (!access.ok) {
-    return NextResponse.json({ error: access.message }, { status: access.status });
+    return NextResponse.json({ error: access.message, code: access.code }, { status: access.status });
   }
 
   const { searchParams } = new URL(request.url);

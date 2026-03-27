@@ -1,9 +1,10 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LangText } from "@/components/ui/lang-text";
+import { resolveLocalizedText } from "@/lib/i18n";
 
 export default function AboutPage() {
-  const t = (en: string, fr: string) => <LangText en={en} fr={fr} />;
+  const t = (en: string, fr: string) => <LangText {...resolveLocalizedText({ en, fr })} />;
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-5xl px-6 py-16 space-y-8 max-md:mx-0 max-md:w-full max-md:max-w-none">

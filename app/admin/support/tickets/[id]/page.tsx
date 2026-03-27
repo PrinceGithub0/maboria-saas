@@ -13,7 +13,10 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { useLanguage } from "@/components/providers/language-provider";
+import { formatAdminIdentifierLabel, localizeAdminActionLabel, localizeAdminServerMessage, localizeAdminStatus } from "@/lib/admin/localization";
 import { formatDateTimeDMY } from "@/lib/date";
+import { LANGUAGE_LOCALES } from "@/lib/i18n";
 import { getReplyAssignmentDecision } from "@/lib/support/reply-assignment";
 
 type TicketStatus = "OPEN" | "PENDING" | "RESOLVED";
@@ -140,11 +143,6 @@ const COMPOSER_MIN_HEIGHT = 120;
 const COMPOSER_MAX_HEIGHT = 260;
 const FEEDBACK_VISIBLE_MS = 10_000;
 const EMOJI_OPTIONS = ["\u{1F642}", "\u{1F44D}", "\u{1F64F}", "\u{2705}", "\u{1F389}", "\u{1F440}", "\u{26A0}\u{FE0F}", "\u{1F680}"];
-const DRAFT_SNIPPETS = {
-  greeting: "Hi there,\n\n",
-  closing: "\n\nThanks,\nSupport Team",
-};
-
 const fetcher = async <T,>(url: string): Promise<T> => {
   const response = await fetch(url, { cache: "no-store" });
   const json = await response.json().catch(() => ({}));
@@ -174,14 +172,19 @@ function deliveryBadgeClass(status?: ThreadEntry["deliveryStatus"]) {
   return "border border-amber-200 bg-amber-50 text-amber-700";
 }
 
-function formatSlaLabel(metric: { status: string; dueAt: string | null; metAt: string | null; breachedAt: string | null }) {
-  if (metric.metAt) return `Met ${formatDateTimeDMY(new Date(metric.metAt))}`;
-  if (metric.breachedAt) return `Breached ${formatDateTimeDMY(new Date(metric.breachedAt))}`;
-  if (metric.dueAt) return `Due ${formatDateTimeDMY(new Date(metric.dueAt))}`;
-  return "No SLA timestamp";
+function formatSlaLabel(
+  metric: { status: string; dueAt: string | null; metAt: string | null; breachedAt: string | null },
+  locale: string,
+  t: (en: string, fr?: string, de?: string, es?: string, pt?: string) => string
+) {
+  if (metric.metAt) return `${t("Met", "Respecte", "Eingehalten", "Cumplido", "Cumprido")} ${formatDateTimeDMY(new Date(metric.metAt), locale)}`;
+  if (metric.breachedAt) return `${t("Breached", "Depasse", "Verletzt", "Incumplido", "Violado")} ${formatDateTimeDMY(new Date(metric.breachedAt), locale)}`;
+  if (metric.dueAt) return `${t("Due", "Echeance", "Faellig", "Vence", "Vence")} ${formatDateTimeDMY(new Date(metric.dueAt), locale)}`;
+  return t("No SLA timestamp", "Aucun horodatage SLA", "Kein SLA-Zeitstempel", "Sin marca de tiempo SLA", "Sem registo temporal de SLA");
 }
 
 export default function AdminSupportTicketDetailPage() {
+  const { language, t } = useLanguage();
   const { data: session } = useSession();
   const { mutate: mutateCache } = useSWRConfig();
   const params = useParams<{ id: string }>();
@@ -250,17 +253,28 @@ export default function AdminSupportTicketDetailPage() {
     });
   }, [timelineData]);
 
+  const draftSnippets = {
+    greeting: t("Hi there,\n\n", "Bonjour,\n\n", "Hallo,\n\n", "Hola,\n\n", "Ola,\n\n"),
+    closing: t("\n\nThanks,\nSupport Team", "\n\nMerci,\néquipe support", "\n\nDanke,\nSupport-Team", "\n\nGracias,\nEquipo de soporte", "\n\nObrigado,\nEquipa de suporte"),
+  };
   const takeoverAssigneeName =
-    ticket?.assignedAdmin?.name || ticket?.assignedAdmin?.email || ticket?.assignedAdminId || "another admin";
+    ticket?.assignedAdmin?.name ||
+    ticket?.assignedAdmin?.email ||
+    ticket?.assignedAdminId ||
+    t("another admin", "un autre admin", "ein anderer Admin", "otro admin", "outro admin");
   const resolvedAssigneeId = (optimisticAssigneeId ?? ticket?.assignedAdminId) || null;
 
   const resolveAssigneeName = (assigneeId: string | null) => {
-    if (!assigneeId) return "Unassigned";
+    if (!assigneeId) return t("Unassigned", "Non assigne", "Nicht zugewiesen", "Sin asignar", "Não atribuido");
     if (ticket?.assignedAdmin?.id === assigneeId) {
-      return ticket.assignedAdmin.name || ticket.assignedAdmin.email || "Unassigned";
+      return (
+        ticket.assignedAdmin.name ||
+        ticket.assignedAdmin.email ||
+        t("Unassigned", "Non assigne", "Nicht zugewiesen", "Sin asignar", "Não atribuido")
+      );
     }
     const agent = agents.find((item) => item.id === assigneeId);
-    return agent?.name || agent?.email || "Selected admin";
+    return agent?.name || agent?.email || t("Selected admin", "Admin selectionne", "Ausgewahlter Admin", "Admin seleccionado", "Admin selecionado");
   };
 
   const supportListKeyFilter = (key: unknown) =>
@@ -411,9 +425,9 @@ export default function AdminSupportTicketDetailPage() {
 
   const handleMoreMenuAction = (action: "greeting" | "closing" | "clear") => {
     if (action === "greeting") {
-      insertIntoDraftAtCursor(DRAFT_SNIPPETS.greeting);
+      insertIntoDraftAtCursor(draftSnippets.greeting);
     } else if (action === "closing") {
-      insertIntoDraftAtCursor(DRAFT_SNIPPETS.closing);
+      insertIntoDraftAtCursor(draftSnippets.closing);
     } else {
       updateComposerDraft("");
     }
@@ -753,19 +767,23 @@ export default function AdminSupportTicketDetailPage() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <Link href={backHref} className="text-sm font-medium text-indigo-600 hover:underline">
-                &larr; Back to tickets
+                &larr; {t("Back to tickets", "Retour aux tickets", "Zurück zu den Tickets", "Volver a los tickets", "Voltar aos tickets")}
               </Link>
-              <p className="mt-2 text-xs uppercase tracking-[0.2em] text-indigo-600">ADMIN SUPPORT</p>
+              <p className="mt-2 text-xs uppercase tracking-[0.2em] text-indigo-600">
+                {t("ADMIN SUPPORT", "SUPPORT ADMIN", "ADMIN-SUPPORT", "SOPORTE ADMIN", "SUPORTE ADMIN")}
+              </p>
               <div className="mt-2 flex flex-wrap items-center gap-3">
-                <h1 className="text-3xl font-semibold text-foreground">{ticket?.subject || "Ticket detail"}</h1>
+                <h1 className="text-3xl font-semibold text-foreground">
+                  {ticket?.subject || t("Ticket detail", "Detail du ticket", "Ticketdetails", "Detalle del ticket", "Detalhe do ticket")}
+                </h1>
                 {ticket ? (
                   <Badge variant="default" className="rounded-full px-3 py-1 text-sm">
-                    #TKT-{ticket.id.slice(-8).toUpperCase()}
+                    {`#TKT-${ticket.id.slice(-8).toUpperCase()}`}
                   </Badge>
                 ) : null}
                 {ticket ? (
                   <Badge variant={statusBadgeVariant(ticket.status)} className="rounded-full px-3 py-1 text-sm">
-                    {ticket.status.toLowerCase()}
+                    {localizeAdminStatus(ticket.status, language)}
                   </Badge>
                 ) : null}
               </div>
@@ -775,7 +793,7 @@ export default function AdminSupportTicketDetailPage() {
               disabled={!ticket || ticket.status === "RESOLVED" || saving === "status"}
               onClick={() => void setStatus("RESOLVED")}
             >
-              Mark Resolved
+              {t("Mark Resolved", "Marquer comme résolu", "Als gelöst markieren", "Marcar como resuelto", "Marcar como resolvido")}
             </Button>
           </div>
         </header>
@@ -783,7 +801,21 @@ export default function AdminSupportTicketDetailPage() {
         {feedback ? (
           <Alert variant={feedback.variant} className="relative z-20">
             <div className="flex items-center justify-between gap-3">
-              <span>{feedback.message}</span>
+              <span>
+                {feedback.variant === "error"
+                  ? localizeAdminServerMessage(
+                      feedback.message,
+                      language,
+                      t(
+                        "Support action failed.",
+                        "L'action de support a echoue.",
+                        "Support-Aktion fehlgeschlagen.",
+                        "La accion de soporte fallo.",
+                        "A acao de suporte falhou."
+                      )
+                    )
+                  : feedback.message}
+              </span>
               {feedback.undoAvailable && assignmentUndo ? (
                 <Button
                   variant="danger"
@@ -791,7 +823,9 @@ export default function AdminSupportTicketDetailPage() {
                   onClick={() => void undoAssignmentChange()}
                   disabled={undoProcessing}
                 >
-                  {undoProcessing ? "Undoing..." : "Undo"}
+                  {undoProcessing
+                    ? t("Undoing...", "Annulation...", "Wird ruckgangig gemacht...", "Deshaciendo...", "A desfazer...")
+                    : t("Undo", "Annuler", "Ruckgangig", "Deshacer", "Desfazer")}
                 </Button>
               ) : null}
             </div>
@@ -799,7 +833,17 @@ export default function AdminSupportTicketDetailPage() {
         ) : null}
         {error ? (
           <Alert variant="error" className="relative z-20">
-            {String(error.message || "Failed to load ticket detail.")}
+            {localizeAdminServerMessage(
+              error.message,
+              language,
+              t(
+                  "Failed to load ticket detail.",
+                  "Impossible de charger le detail du ticket.",
+                  "Ticketdetails konnten nicht geladen werden.",
+                  "No se pudo cargar el detalle del ticket.",
+                  "Não foi possivel carregar o detalhe do ticket."
+                )
+            )}
           </Alert>
         ) : null}
 
@@ -816,7 +860,9 @@ export default function AdminSupportTicketDetailPage() {
                   <Skeleton className="ml-auto h-16 w-3/5 rounded-2xl" />
                 </div>
               ) : ticket.threadEntries.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No messages yet.</p>
+                <p className="text-sm text-muted-foreground">
+                  {t("No messages yet.", "Aucun message pour le moment.", "Noch keine Nachrichten.", "Todavia no hay mensajes.", "Ainda não existem mensagens.")}
+                </p>
               ) : (
                 <div className="relative pl-12">
                   <div className="absolute bottom-0 left-5 top-0 w-px bg-border" />
@@ -848,13 +894,13 @@ export default function AdminSupportTicketDetailPage() {
                               <span className="font-semibold text-foreground">{entry.author.name}</span>
                               {isNote ? (
                                 <Badge variant="default" className="rounded-full px-2 py-0.5 text-[11px]">
-                                  Internal Note
+                                  {t("Internal Note", "Note interne", "Interne Notiz", "Nota interna", "Nota interna")}
                                 </Badge>
                               ) : null}
                             </div>
                             <div className="flex items-center gap-3 text-muted-foreground">
-                              <span>{formatDateTimeDMY(new Date(entry.createdAt))}</span>
-                              {isAdminMessage ? <span>Seen</span> : null}
+                              <span>{formatDateTimeDMY(new Date(entry.createdAt), LANGUAGE_LOCALES[language])}</span>
+                              {isAdminMessage ? <span>{t("Seen", "Vu", "Gesehen", "Visto", "Visto")}</span> : null}
                             </div>
                           </div>
                           <p className="whitespace-pre-wrap break-words text-base leading-relaxed text-foreground">{entry.body}</p>
@@ -862,7 +908,7 @@ export default function AdminSupportTicketDetailPage() {
                             <div className="mt-3 space-y-1">
                               {entry.attachments.map((attachment, index) => (
                                 <p key={`${entry.id}-a-${attachment.id || index}`} className="text-xs text-muted-foreground">
-                                  Attachment:{" "}
+                                  {t("Attachment:", "Piece jointe :", "Anhang:", "Adjunto:", "Anexo:")}{" "}
                                   {attachment.id ? (
                                     <a
                                       href={`/api/admin/support/tickets/${encodeURIComponent(ticket.id)}/attachments/${encodeURIComponent(attachment.id)}`}
@@ -870,10 +916,10 @@ export default function AdminSupportTicketDetailPage() {
                                       rel="noreferrer"
                                       className="font-medium text-indigo-600 underline decoration-indigo-200 underline-offset-4 hover:text-indigo-500 dark:text-indigo-300"
                                     >
-                                      {attachment.filename || "file"}
+                                      {attachment.filename || t("file", "fichier", "Datei", "archivo", "ficheiro")}
                                     </a>
                                   ) : (
-                                    attachment.filename || "file"
+                                    attachment.filename || t("file", "fichier", "Datei", "archivo", "ficheiro")
                                   )}
                                 </p>
                               ))}
@@ -887,7 +933,43 @@ export default function AdminSupportTicketDetailPage() {
                                   deliveryBadgeClass(entry.deliveryStatus)
                                 )}
                               >
-                                {entry.deliveryStatus.toLowerCase()}
+                                {t(
+                                  entry.deliveryStatus === "FAILED"
+                                    ? "Failed"
+                                    : entry.deliveryStatus === "DELIVERED"
+                                      ? "Delivered"
+                                      : entry.deliveryStatus === "SENT"
+                                        ? "Sent"
+                                        : "Queued",
+                                  entry.deliveryStatus === "FAILED"
+                                    ? "Echoue"
+                                    : entry.deliveryStatus === "DELIVERED"
+                                      ? "Livre"
+                                      : entry.deliveryStatus === "SENT"
+                                        ? "Envoye"
+                                        : "En file",
+                                  entry.deliveryStatus === "FAILED"
+                                    ? "Fehlgeschlagen"
+                                    : entry.deliveryStatus === "DELIVERED"
+                                      ? "Zugestellt"
+                                      : entry.deliveryStatus === "SENT"
+                                        ? "Gesendet"
+                                        : "In Warteschlange",
+                                  entry.deliveryStatus === "FAILED"
+                                    ? "Fallido"
+                                    : entry.deliveryStatus === "DELIVERED"
+                                      ? "Entregado"
+                                      : entry.deliveryStatus === "SENT"
+                                        ? "Enviado"
+                                        : "En cola",
+                                  entry.deliveryStatus === "FAILED"
+                                    ? "Falhado"
+                                    : entry.deliveryStatus === "DELIVERED"
+                                      ? "Entregue"
+                                      : entry.deliveryStatus === "SENT"
+                                        ? "Enviado"
+                                        : "Em fila"
+                                )}
                               </span>
                             ) : null}
                           </div>
@@ -911,7 +993,7 @@ export default function AdminSupportTicketDetailPage() {
                     )}
                     onClick={() => setComposerMode("reply")}
                   >
-                    Reply
+                    {t("Reply", "Repondre", "Antworten", "Responder", "Responder")}
                   </button>
                   <button
                     type="button"
@@ -921,7 +1003,7 @@ export default function AdminSupportTicketDetailPage() {
                     )}
                     onClick={() => setComposerMode("note")}
                   >
-                    Internal Note
+                    {t("Internal Note", "Note interne", "Interne Notiz", "Nota interna", "Nota interna")}
                   </button>
                 </div>
 
@@ -939,9 +1021,9 @@ export default function AdminSupportTicketDetailPage() {
                             type="button"
                             className="text-rose-700 hover:underline"
                             onClick={() => removeReplyAttachment(index)}
-                            aria-label={`Remove attachment ${file.name}`}
+                            aria-label={`${t("Remove attachment", "Supprimer la piece jointe", "Anhang entfernen", "Eliminar adjunto", "Remover anexo")} ${file.name}`}
                           >
-                            Remove
+                            {t("Remove", "Supprimer", "Entfernen", "Eliminar", "Remover")}
                           </button>
                         </span>
                       ))}
@@ -969,8 +1051,16 @@ export default function AdminSupportTicketDetailPage() {
                     }
                   }}
                   onKeyDown={handleComposerKeyDown}
-                  placeholder={composerMode === "reply" ? "Write your reply..." : "Write an internal note..."}
-                  aria-label={composerMode === "reply" ? "Reply to subscriber" : "Add internal note"}
+                  placeholder={
+                    composerMode === "reply"
+                      ? t("Write your reply...", "Ecrivez votre réponse...", "Schreibe deine Antwort...", "Escribe tu respuesta...", "Escreva a sua resposta...")
+                      : t("Write an internal note...", "Ecrivez une note interne...", "Interne Notiz schreiben...", "Escribe una nota interna...", "Escreva uma nota interna...")
+                  }
+                  aria-label={
+                    composerMode === "reply"
+                      ? t("Reply to subscriber", "Repondre a l abonne", "Dem Abonnenten antworten", "Responder al suscriptor", "Responder ao subscritor")
+                      : t("Add internal note", "Ajouter une note interne", "Interne Notiz hinzufügen", "Agregar nota interna", "Adicionar nota interna")
+                  }
                 />
 
                 <div className="flex items-center justify-between">
@@ -991,7 +1081,7 @@ export default function AdminSupportTicketDetailPage() {
                     <button
                       type="button"
                       className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-foreground hover:bg-muted"
-                      aria-label="Emoji"
+                      aria-label={t("Emoji", "Emoji", "Emoji", "Emoji", "Emoji")}
                       onClick={() => {
                         setShowEmojiPicker((prev) => !prev);
                         setShowMoreMenu(false);
@@ -1002,7 +1092,7 @@ export default function AdminSupportTicketDetailPage() {
                     <button
                       type="button"
                       className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-foreground hover:bg-muted"
-                      aria-label="More options"
+                      aria-label={t("More options", "Plus d options", "Weitere Optionen", "Mas opciones", "Mais opcoes")}
                       onClick={() => {
                         setShowMoreMenu((prev) => !prev);
                         setShowEmojiPicker(false);
@@ -1035,21 +1125,21 @@ export default function AdminSupportTicketDetailPage() {
                           className="block w-full rounded-lg px-3 py-2 text-left text-sm text-foreground hover:bg-muted"
                           onClick={() => handleMoreMenuAction("greeting")}
                         >
-                          Insert greeting
+                          {t("Insert greeting", "Inserer une salutation", "Begrussung einfügen", "Insertar saludo", "Inserir saudacao")}
                         </button>
                         <button
                           type="button"
                           className="block w-full rounded-lg px-3 py-2 text-left text-sm text-foreground hover:bg-muted"
                           onClick={() => handleMoreMenuAction("closing")}
                         >
-                          Insert closing
+                          {t("Insert closing", "Inserer une formule finale", "Abschluss einfügen", "Insertar cierre", "Inserir despedida")}
                         </button>
                         <button
                           type="button"
                           className="block w-full rounded-lg px-3 py-2 text-left text-sm text-rose-700 hover:bg-rose-50"
                           onClick={() => handleMoreMenuAction("clear")}
                         >
-                          Clear draft
+                          {t("Clear draft", "Effacer le brouillon", "Entwurf leeren", "Borrar borrador", "Limpar rascunho")}
                         </button>
                       </div>
                     ) : null}
@@ -1065,11 +1155,11 @@ export default function AdminSupportTicketDetailPage() {
                   >
                     {composerMode === "reply"
                       ? saving === "reply"
-                        ? "Sending..."
-                        : "Send Reply"
+                        ? t("Sending...", "Envoi...", "Wird gesendet...", "Enviando...", "A enviar...")
+                        : t("Send Reply", "Envoyer la réponse", "Antwort senden", "Enviar respuesta", "Enviar resposta")
                       : saving === "note"
-                        ? "Saving..."
-                        : "Add Note"}
+                        ? t("Saving...", "Enregistrement...", "Wird gespeichert...", "Guardando...", "A guardar...")
+                        : t("Add Note", "Ajouter une note", "Notiz hinzufügen", "Agregar nota", "Adicionar nota")}
                   </Button>
                 </div>
               </div>
@@ -1086,45 +1176,53 @@ export default function AdminSupportTicketDetailPage() {
             ) : (
               <div className="space-y-5">
                 <div className="space-y-1">
-                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Status</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                    {t("Status", "Statut", "Status", "Estado", "Estado")}
+                  </p>
                   <Badge variant={statusBadgeVariant(ticket.status)} className="px-2 py-0.5">
-                    {ticket.status.toLowerCase()}
+                    {localizeAdminStatus(ticket.status, language)}
                   </Badge>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Status</label>
+                  <label className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                    {t("Status", "Statut", "Status", "Estado", "Estado")}
+                  </label>
                   <select
                     value={ticket.status}
                     onChange={(event) => void setStatus(event.target.value as TicketStatus)}
                     disabled={saving === "status"}
                     className={FILTER_SELECT_CLASS}
-                    aria-label="Update ticket status"
+                    aria-label={t("Update ticket status", "Mettre a jour le statut du ticket", "Ticketstatus aktualisieren", "Actualizar estado del ticket", "Atualizar estado do ticket")}
                   >
-                    <option value="OPEN">Open</option>
-                    <option value="PENDING">Pending</option>
-                    <option value="RESOLVED">Resolved</option>
+                    <option value="OPEN">{t("Open", "Ouvert", "Offen", "Abierto", "Aberto")}</option>
+                    <option value="PENDING">{t("Pending", "En attente", "Ausstehend", "Pendiente", "Pendente")}</option>
+                    <option value="RESOLVED">{t("Resolved", "Résolu", "Gelöst", "Resuelto", "Resolvido")}</option>
                   </select>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Priority</label>
+                  <label className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                    {t("Priority", "Priorit?", "Prioritat", "Prioridad", "Prioridade")}
+                  </label>
                   <select
                     value={ticket.priority}
                     onChange={(event) => void setPriority(event.target.value as TicketPriority)}
                     disabled={saving === "priority"}
                     className={FILTER_SELECT_CLASS}
-                    aria-label="Update ticket priority"
+                    aria-label={t("Update ticket priority", "Mettre a jour la priorité du ticket", "Ticketprioritat aktualisieren", "Actualizar prioridad del ticket", "Atualizar prioridade do ticket")}
                   >
-                    <option value="LOW">Low</option>
-                    <option value="MEDIUM">Medium</option>
-                    <option value="HIGH">High</option>
-                    <option value="URGENT">Urgent</option>
+                    <option value="LOW">{t("Low", "Bas", "Niedrig", "Baja", "Baixa")}</option>
+                    <option value="MEDIUM">{t("Medium", "Moyen", "Mittel", "Media", "Media")}</option>
+                    <option value="HIGH">{t("High", "Eleve", "Hoch", "Alta", "Alta")}</option>
+                    <option value="URGENT">{t("Urgent", "Urgent", "Dringend", "Urgente", "Urgente")}</option>
                   </select>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Assignee</label>
+                  <label className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                    {t("Assignee", "Responsable", "Bearbeiter", "Asignado", "Responsavel")}
+                  </label>
                   <select
                     value={resolvedAssigneeId || ""}
                     onChange={(event) =>
@@ -1135,9 +1233,9 @@ export default function AdminSupportTicketDetailPage() {
                     }
                     disabled={saving === "assign"}
                     className={FILTER_SELECT_CLASS}
-                    aria-label="Assign ticket"
+                    aria-label={t("Assign ticket", "Assigner le ticket", "Ticket zuweisen", "Asignar ticket", "Atribuir ticket")}
                   >
-                    <option value="">Unassigned</option>
+                    <option value="">{t("Unassigned", "Non assigne", "Nicht zugewiesen", "Sin asignar", "Não atribuido")}</option>
                     {agents.map((agent) => (
                       <option key={agent.id} value={agent.id}>
                         {agent.name || agent.email}
@@ -1147,10 +1245,15 @@ export default function AdminSupportTicketDetailPage() {
                 </div>
 
                 <div className="space-y-1 border-t border-border/70 pt-4 text-sm">
-                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Ticket metadata</p>
-                  <p className="text-muted-foreground">Updated {formatDateTimeDMY(new Date(ticket.lastActivityAt))}</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                    {t("Ticket metadata", "Metadonnees du ticket", "Ticket-Metadaten", "Metadatos del ticket", "Metadados do ticket")}
+                  </p>
                   <p className="text-muted-foreground">
-                    First response {ticket.firstResponseAt ? formatDateTimeDMY(new Date(ticket.firstResponseAt)) : "Pending"}
+                    {t("Updated", "Mis a jour", "Aktualisiert", "Actualizado", "Atualizado")} {formatDateTimeDMY(new Date(ticket.lastActivityAt), LANGUAGE_LOCALES[language])}
+                  </p>
+                  <p className="text-muted-foreground">
+                    {t("First response", "Premiere réponse", "Erste Antwort", "Primera respuesta", "Primeira resposta")}{" "}
+                    {ticket.firstResponseAt ? formatDateTimeDMY(new Date(ticket.firstResponseAt), LANGUAGE_LOCALES[language]) : t("Pending", "En attente", "Ausstehend", "Pendiente", "Pendente")}
                   </p>
                 </div>
 
@@ -1171,39 +1274,43 @@ export default function AdminSupportTicketDetailPage() {
                   {ticket.sla ? (
                     <div className="space-y-2 text-sm">
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-muted-foreground">First Response</span>
+                        <span className="text-muted-foreground">{t("First Response", "Premiere réponse", "Erste Antwort", "Primera respuesta", "Primeira resposta")}</span>
                         <span className="text-right text-foreground">
                           {ticket.sla.firstResponse.status}
                           <br />
                           <span className="text-xs text-muted-foreground">
-                            {formatSlaLabel(ticket.sla.firstResponse)}
+                            {formatSlaLabel(ticket.sla.firstResponse, LANGUAGE_LOCALES[language], t)}
                           </span>
                         </span>
                       </div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-muted-foreground">Next Response</span>
+                        <span className="text-muted-foreground">{t("Next Response", "Réponse suivante", "Nächste Antwort", "Siguiente respuesta", "Resposta seguinte")}</span>
                         <span className="text-right text-foreground">
                           {ticket.sla.nextResponse.status}
                           <br />
-                          <span className="text-xs text-muted-foreground">{formatSlaLabel(ticket.sla.nextResponse)}</span>
+                          <span className="text-xs text-muted-foreground">{formatSlaLabel(ticket.sla.nextResponse, LANGUAGE_LOCALES[language], t)}</span>
                         </span>
                       </div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-muted-foreground">Resolution</span>
+                        <span className="text-muted-foreground">{t("Résolution", "Résolution", "Lösung", "Résolucion", "Résolucao")}</span>
                         <span className="text-right text-foreground">
                           {ticket.sla.resolution.status}
                           <br />
-                          <span className="text-xs text-muted-foreground">{formatSlaLabel(ticket.sla.resolution)}</span>
+                          <span className="text-xs text-muted-foreground">{formatSlaLabel(ticket.sla.resolution, LANGUAGE_LOCALES[language], t)}</span>
                         </span>
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">SLA not available.</p>
+                    <p className="text-sm text-muted-foreground">
+                      {t("SLA not available.", "SLA indisponible.", "SLA nicht verfügbar.", "SLA no disponible.", "SLA indisponivel.")}
+                    </p>
                   )}
                 </div>
 
                 <div className="space-y-3 border-t border-border/70 pt-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Customer</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                    {t("Customer", "Client", "Kunde", "Cliente", "Cliente")}
+                  </p>
                   <div className="rounded-2xl border border-border p-4">
                     <div className="mb-3 flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-muted text-sm font-semibold text-foreground">
@@ -1211,7 +1318,7 @@ export default function AdminSupportTicketDetailPage() {
                       </div>
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-foreground">
-                          {ticket.subscriber.name || "Customer"}
+                          {ticket.subscriber.name || t("Customer", "Client", "Kunde", "Cliente", "Cliente")}
                         </p>
                         <p className="truncate text-xs text-muted-foreground">
                           {ticket.subscriber.publicId || ticket.subscriber.id}
@@ -1223,23 +1330,29 @@ export default function AdminSupportTicketDetailPage() {
                       href={`/admin/users?search=${encodeURIComponent(ticket.subscriber.email)}&openEmail=${encodeURIComponent(ticket.subscriber.email)}`}
                       className="mt-3 inline-flex rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-background"
                     >
-                      View Profile
+                      {t("View Profile", "Voir le profil", "Profil anzeigen", "Ver perfil", "Ver perfil")}
                     </Link>
                   </div>
                 </div>
 
                 <div className="space-y-2 border-t border-border/70 pt-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Timeline</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                    {t("Timeline", "Chronologie", "Zeitachse", "Cronologia", "Cronologia")}
+                  </p>
                   <div className="max-h-64 divide-y divide-border/70 overflow-y-auto">
                     {timelineLoading && timelineItems.length === 0 ? (
                       <Skeleton className="h-12 w-full rounded" />
                     ) : timelineItems.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No timeline events yet.</p>
+                      <p className="text-sm text-muted-foreground">
+                        {t("No timeline events yet.", "Aucun evenement de chronologie pour le moment.", "Noch keine Zeitleistenereignisse.", "Todavia no hay eventos en la cronologia.", "Ainda não existem eventos na cronologia.")}
+                      </p>
                     ) : (
                       timelineItems.map((event) => (
                         <div key={event.id} className="py-2">
-                          <p className="text-xs font-semibold text-foreground">{event.eventType}</p>
-                          <p className="text-xs text-muted-foreground">{formatDateTimeDMY(new Date(event.createdAt))}</p>
+                          <p className="text-xs font-semibold text-foreground">
+                            {localizeAdminActionLabel(event.eventType, language, formatAdminIdentifierLabel(event.eventType))}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{formatDateTimeDMY(new Date(event.createdAt), LANGUAGE_LOCALES[language])}</p>
                         </div>
                       ))
                     )}
@@ -1251,7 +1364,7 @@ export default function AdminSupportTicketDetailPage() {
                       onClick={() => setTimelinePage((prev) => prev + 1)}
                       disabled={timelineLoading}
                     >
-                      Load more
+                      {t("Load more", "Charger plus", "Mehr laden", "Cargar mas", "Carregar mais")}
                     </Button>
                   ) : null}
                 </div>
@@ -1266,19 +1379,20 @@ export default function AdminSupportTicketDetailPage() {
             if (saving === "reply") return;
             setShowTakeoverConfirm(false);
           }}
-          title="Take over this ticket?"
+          title={t("Take over this ticket?", "Reprendre ce ticket ?", "Dieses Ticket übernehmen?", "Tomar este ticket?", "Assumir este ticket?")}
         >
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              This ticket is assigned to <span className="font-semibold text-foreground">{takeoverAssigneeName}</span>.
-              Sending a reply will reassign it to you.
+              {t("This ticket is assigned to", "Ce ticket est assigne a", "Dieses Ticket ist zugewiesen an", "Este ticket esta asignado a", "Este ticket esta atribuido a")}{" "}
+              <span className="font-semibold text-foreground">{takeoverAssigneeName}</span>.{" "}
+              {t("Sending a reply will reassign it to you.", "Envoyer une réponse vous le reattribuera.", "Wenn du antwortest, wird es dir neu zugewiesen.", "Enviar una respuesta lo reasignara a ti.", "Enviar uma resposta vai reatribui-lo a si.")}
             </p>
             <div className="flex justify-end gap-2">
               <Button variant="secondary" onClick={() => setShowTakeoverConfirm(false)} disabled={saving === "reply"}>
-                Cancel
+                {t("Cancel", "Annuler", "Abbrechen", "Cancelar", "Cancelar")}
               </Button>
               <Button onClick={() => void sendReply(true)} loading={saving === "reply"}>
-                Take Over &amp; Send
+                {t("Take Over & Send", "Reprendre et envoyer", "übernehmen und senden", "Tomar y enviar", "Assumir e enviar")}
               </Button>
             </div>
           </div>

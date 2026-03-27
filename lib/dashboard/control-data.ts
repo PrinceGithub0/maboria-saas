@@ -251,10 +251,15 @@ export async function getInfrastructureDashboardData(
       where: { userId: options.userId, status: "SUCCEEDED", createdAt: { gte: rangeStart, lte: rangeEnd } },
     }),
     prisma.invoice.count({
-      where: { userId: options.userId, generatedAt: { gte: rangeStart, lte: rangeEnd } },
+      where: { userId: options.userId, subscriptionId: null, generatedAt: { gte: rangeStart, lte: rangeEnd } },
     }),
     prisma.invoice.count({
-      where: { userId: options.userId, status: "OVERDUE", generatedAt: { gte: rangeStart, lte: rangeEnd } },
+      where: {
+        userId: options.userId,
+        subscriptionId: null,
+        status: "OVERDUE",
+        generatedAt: { gte: rangeStart, lte: rangeEnd },
+      },
     }),
     prisma.automationRun.count({
       where: buildAutomationRunWhere(automationScope, { runStatus: "FAILED", createdAt: { gte: oneHourAgo } }),
@@ -295,7 +300,7 @@ export async function getInfrastructureDashboardData(
       take: 40,
     }),
     prisma.invoice.findMany({
-      where: { userId: options.userId, generatedAt: { gte: rangeStart, lte: rangeEnd } },
+      where: { userId: options.userId, subscriptionId: null, generatedAt: { gte: rangeStart, lte: rangeEnd } },
       select: { id: true, invoiceNumber: true, status: true, generatedAt: true, metadata: true },
       orderBy: { generatedAt: "desc" },
       take: 40,

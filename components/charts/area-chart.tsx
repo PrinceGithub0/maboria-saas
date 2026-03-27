@@ -10,6 +10,8 @@ import {
   YAxis,
 } from "recharts";
 import clsx from "clsx";
+import { useLanguage } from "@/components/providers/language-provider";
+import { LANGUAGE_LOCALES } from "@/lib/i18n";
 
 type Props = {
   data: { name: string; value: number }[];
@@ -36,6 +38,8 @@ export function MiniAreaChart({
   xAxisMinTickGap,
   xAxisTickFormatter,
 }: Props) {
+  const { language, t } = useLanguage();
+  const locale = LANGUAGE_LOCALES[language];
   const angle = xAxisAngle ?? (forceAllTicks ? -35 : 0);
   const height = xAxisHeight ?? 40;
   const fontSize = xAxisTickFontSize ?? 10;
@@ -60,7 +64,8 @@ export function MiniAreaChart({
           {label || "--"}
         </p>
         <p className="mt-1 whitespace-nowrap text-sm font-semibold text-foreground tabular-nums">
-          Value: {Number.isFinite(value) ? value.toLocaleString() : "--"}
+          {t("Value", "Valeur", "Wert", "Valor", "Valor")}:{" "}
+          {Number.isFinite(value) ? value.toLocaleString(locale) : "--"}
         </p>
       </div>
     );

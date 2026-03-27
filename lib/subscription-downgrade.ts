@@ -8,6 +8,8 @@ import { clampAnchorDay } from "@/lib/usage/cycle";
 import {
   OrgBillingInterval,
   OrgSubscriptionStatus,
+  PaymentProvider,
+  Prisma,
   SubscriptionPlan,
   SubscriptionStatus,
 } from "@prisma/client";
@@ -71,21 +73,80 @@ function sortSubscriptionsByFreshness<T extends {
 function matchesOrgSubscriptionShape(
   subscription: {
     plan: SubscriptionPlan;
-    provider: import("@prisma/client").PaymentProvider | null;
+    provider: PaymentProvider | null;
     interval: string | null;
   },
   orgSubscription: {
     planId: SubscriptionPlan;
-    provider: import("@prisma/client").PaymentProvider | null;
+    provider: PaymentProvider | null;
     billingInterval: OrgBillingInterval;
   }
 ) {
   const interval = mapOrgBillingIntervalToSubscriptionInterval(orgSubscription.billingInterval);
   return (
     subscription.plan === orgSubscription.planId &&
-    subscription.provider === orgSubscription.provider &&
+    (orgSubscription.provider ? subscription.provider === orgSubscription.provider : true) &&
     subscription.interval === interval
   );
+}
+
+async function resolveOrgSubscriptionProviderFallback(input: {
+  tx: Prisma.TransactionClient;
+  userId: string;
+  orgSubscription: {
+    provider: PaymentProvider | null;
+  };
+  existingLinkedSubscription: {
+    provider: PaymentProvider | null;
+    lastPaymentProvider: PaymentProvider | null;
+  } | null;
+  subscriptions: Array<{
+    provider: PaymentProvider | null;
+    lastPaymentProvider: PaymentProvider | null;
+    plan: SubscriptionPlan;
+    interval: string | null;
+  }>;
+  targetPlan: SubscriptionPlan;
+  targetInterval: "monthly" | "yearly";
+}) {
+  if (input.orgSubscription.provider) return input.orgSubscription.provider;
+
+  const linkedProvider =
+    input.existingLinkedSubscription?.provider ?? input.existingLinkedSubscription?.lastPaymentProvider ?? null;
+  if (linkedProvider) return linkedProvider;
+
+  const matchingActiveProvider =
+    input.subscriptions.find(
+      (subscription) =>
+        subscription.plan === input.targetPlan &&
+        subscription.interval === input.targetInterval &&
+        (subscription.provider || subscription.lastPaymentProvider)
+    ) ?? null;
+  if (matchingActiveProvider?.provider || matchingActiveProvider?.lastPaymentProvider) {
+    return matchingActiveProvider.provider ?? matchingActiveProvider.lastPaymentProvider ?? null;
+  }
+
+  const recentSubscriptionProvider =
+    input.subscriptions.find((subscription) => subscription.provider || subscription.lastPaymentProvider) ?? null;
+  if (recentSubscriptionProvider?.provider || recentSubscriptionProvider?.lastPaymentProvider) {
+    return recentSubscriptionProvider.provider ?? recentSubscriptionProvider.lastPaymentProvider ?? null;
+  }
+
+  const latestSuccessfulPayment = await input.tx.payment.findFirst({
+    where: {
+      userId: input.userId,
+      status: "SUCCEEDED",
+      provider: { in: ["FLUTTERWAVE", "PAYSTACK", "STRIPE"] },
+      OR: [
+        { metadata: { path: ["type"], equals: "subscription_payment" } },
+        { metadata: { path: ["type"], equals: "checkout_session" } },
+      ],
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    select: { provider: true },
+  });
+
+  return latestSuccessfulPayment?.provider ?? null;
 }
 
 export async function findCurrentSubscription(userId: string) {
@@ -158,8 +219,33 @@ export async function ensureCurrentSubscriptionForOrg(userId: string, orgId: str
     const existingLinkedSubscription = orgSubscription.providerSubscriptionId
       ? await tx.subscription.findUnique({
           where: { id: orgSubscription.providerSubscriptionId },
+          select: {
+            id: true,
+            userId: true,
+            provider: true,
+            lastPaymentProvider: true,
+          },
         })
       : null;
+    const resolvedProvider = await resolveOrgSubscriptionProviderFallback({
+      tx,
+      userId,
+      orgSubscription,
+      existingLinkedSubscription,
+      subscriptions,
+      targetPlan: orgSubscription.planId,
+      targetInterval: bridgedInterval,
+    });
+
+    if (resolvedProvider && orgSubscription.provider !== resolvedProvider) {
+      await tx.orgSubscription.update({
+        where: { orgId },
+        data: {
+          provider: resolvedProvider,
+        },
+      });
+      orgSubscription.provider = resolvedProvider;
+    }
 
     if (existingLinkedSubscription?.userId === userId) {
       return tx.subscription.update({
@@ -424,6 +510,7 @@ export async function applyPendingDowngrades(now = new Date()) {
               currentCycleStartAt: true,
               currentCycleEndAt: true,
               providerCustomerId: true,
+              providerPaymentMethodData: true,
             },
           },
         },
@@ -432,6 +519,7 @@ export async function applyPendingDowngrades(now = new Date()) {
       const management = deriveSubscriptionManagement({
         provider: sub.provider ?? business?.orgSubscription?.provider ?? null,
         providerCustomerId: business?.orgSubscription?.providerCustomerId ?? null,
+        hasReusablePaymentMethod: Boolean(business?.orgSubscription?.providerPaymentMethodData),
         stateSource: business?.orgSubscription ? "org_subscription" : "subscription",
       });
 

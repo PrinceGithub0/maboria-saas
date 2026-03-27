@@ -3,8 +3,8 @@ import "server-only";
 import {
   OrgBillingInterval,
   OrgSubscriptionStatus,
+  Prisma,
   type PaymentProvider,
-  type Prisma,
   type SubscriptionPlan,
 } from "@prisma/client";
 
@@ -17,9 +17,11 @@ import {
 } from "../invoice-number";
 import { prisma } from "../prisma";
 import { emitSystemEvent } from "../system-events";
-import { addCalendarMonthUtcKeepingTime, clampAnchorDay } from "../usage/cycle";
+import { clampAnchorDay } from "../usage/cycle";
 import { getPlanPriceForInterval, type BillingInterval } from "../pricing";
 import { isAllowedCurrency, isProviderCurrency, normalizeCurrency } from "./currency-allowlist";
+import { extractFlutterwaveStoredPaymentMethod } from "./flutterwave-recurring";
+import { isSubscriptionReceiptProvider, maybeSendSubscriptionReceipt } from "../subscription-receipt";
 import {
   buildBillingPeriodWindow,
   normalizeBillingInterval,
@@ -333,6 +335,8 @@ export async function finalizeSubscriptionPayment({
             currentPeriodEnd,
             autoRenew: true,
             cancelAtPeriodEnd: false,
+            lastPaymentReference: reference,
+            lastPaymentProvider: provider,
           },
         });
         subscriptionId = created.id;
@@ -352,6 +356,8 @@ export async function finalizeSubscriptionPayment({
             cancelAtPeriodEnd: false,
             pendingPlan: null,
             pendingEffectiveAt: null,
+            lastPaymentReference: reference,
+            lastPaymentProvider: provider,
           },
         });
         subscriptionId = sourceSubscription.id;
@@ -369,6 +375,8 @@ export async function finalizeSubscriptionPayment({
             currentPeriodEnd,
             autoRenew: true,
             cancelAtPeriodEnd: false,
+            lastPaymentReference: reference,
+            lastPaymentProvider: provider,
           },
         });
         subscriptionId = created.id;
@@ -470,13 +478,22 @@ export async function finalizeSubscriptionPayment({
               activationTimestamp: true,
               currentCycleStartAt: true,
               currentCycleEndAt: true,
+              providerPaymentMethodData: true,
             },
           },
         },
       });
       if (business) {
-        const cycleStartAt = business.orgSubscription?.currentCycleStartAt ?? paidAt;
-        const cycleEndAt = business.orgSubscription?.currentCycleEndAt ?? addCalendarMonthUtcKeepingTime(paidAt, 1);
+        const storedFlutterwaveMethod =
+          provider === "FLUTTERWAVE"
+            ? extractFlutterwaveStoredPaymentMethod(rawPayload || null)
+            : null;
+        const providerPaymentMethodData =
+          provider === "FLUTTERWAVE"
+            ? ((storedFlutterwaveMethod ??
+                business.orgSubscription?.providerPaymentMethodData ??
+                Prisma.JsonNull) as Prisma.InputJsonValue | typeof Prisma.JsonNull)
+            : Prisma.JsonNull;
         await tx.orgSubscription.upsert({
           where: { orgId: business.id },
           update: {
@@ -485,7 +502,10 @@ export async function finalizeSubscriptionPayment({
             billingInterval: mapIntervalToOrgBillingInterval(resolvedInterval),
             provider,
             providerSubscriptionId: subscriptionId,
+            providerPaymentMethodData,
             paidThroughAt: renewalDate,
+            currentCycleStartAt: currentPeriodStart,
+            currentCycleEndAt: currentPeriodEnd,
             apiAccessEnabled: normalizedPlan === "ENTERPRISE",
           },
           create: {
@@ -496,11 +516,12 @@ export async function finalizeSubscriptionPayment({
             provider,
             providerCustomerId: null,
             providerSubscriptionId: subscriptionId,
+            providerPaymentMethodData,
             paidThroughAt: renewalDate,
-            usageCycleAnchorDay: clampAnchorDay(cycleStartAt.getUTCDate()),
+            usageCycleAnchorDay: clampAnchorDay(currentPeriodStart.getUTCDate()),
             activationTimestamp: business.orgSubscription?.activationTimestamp ?? paidAt,
-            currentCycleStartAt: cycleStartAt,
-            currentCycleEndAt: cycleEndAt,
+            currentCycleStartAt: currentPeriodStart,
+            currentCycleEndAt: currentPeriodEnd,
             apiAccessEnabled: normalizedPlan === "ENTERPRISE",
           },
         });
@@ -562,6 +583,8 @@ export async function finalizeSubscriptionPayment({
           currentPeriodEnd,
           autoRenew: true,
           cancelAtPeriodEnd: false,
+          lastPaymentReference: reference,
+          lastPaymentProvider: provider,
         },
       });
     } else {
@@ -578,6 +601,8 @@ export async function finalizeSubscriptionPayment({
           currentPeriodEnd,
           autoRenew: true,
           cancelAtPeriodEnd: false,
+          lastPaymentReference: reference,
+          lastPaymentProvider: provider,
         },
       });
       subscriptionId = created.id;
@@ -626,13 +651,22 @@ export async function finalizeSubscriptionPayment({
             activationTimestamp: true,
             currentCycleStartAt: true,
             currentCycleEndAt: true,
+            providerPaymentMethodData: true,
           },
         },
       },
     });
     if (business) {
-      const cycleStartAt = business.orgSubscription?.currentCycleStartAt ?? paidAt;
-      const cycleEndAt = business.orgSubscription?.currentCycleEndAt ?? addCalendarMonthUtcKeepingTime(paidAt, 1);
+      const storedFlutterwaveMethod =
+        provider === "FLUTTERWAVE"
+          ? extractFlutterwaveStoredPaymentMethod(rawPayload || null)
+          : null;
+      const providerPaymentMethodData =
+        provider === "FLUTTERWAVE"
+          ? ((storedFlutterwaveMethod ??
+              business.orgSubscription?.providerPaymentMethodData ??
+              Prisma.JsonNull) as Prisma.InputJsonValue | typeof Prisma.JsonNull)
+          : Prisma.JsonNull;
       await tx.orgSubscription.upsert({
         where: { orgId: business.id },
         update: {
@@ -641,7 +675,10 @@ export async function finalizeSubscriptionPayment({
           billingInterval: mapIntervalToOrgBillingInterval(resolvedInterval),
           provider,
           providerSubscriptionId: subscriptionId,
+          providerPaymentMethodData,
           paidThroughAt: renewalDate,
+          currentCycleStartAt: currentPeriodStart,
+          currentCycleEndAt: currentPeriodEnd,
           apiAccessEnabled: normalizedPlan === "ENTERPRISE",
         },
         create: {
@@ -652,11 +689,12 @@ export async function finalizeSubscriptionPayment({
           provider,
           providerCustomerId: null,
           providerSubscriptionId: subscriptionId,
+          providerPaymentMethodData,
           paidThroughAt: renewalDate,
-          usageCycleAnchorDay: clampAnchorDay(cycleStartAt.getUTCDate()),
+          usageCycleAnchorDay: clampAnchorDay(currentPeriodStart.getUTCDate()),
           activationTimestamp: business.orgSubscription?.activationTimestamp ?? paidAt,
-          currentCycleStartAt: cycleStartAt,
-          currentCycleEndAt: cycleEndAt,
+          currentCycleStartAt: currentPeriodStart,
+          currentCycleEndAt: currentPeriodEnd,
           apiAccessEnabled: normalizedPlan === "ENTERPRISE",
         },
       });
@@ -719,6 +757,31 @@ export async function finalizeSubscriptionPayment({
       action: result.action,
     },
   });
+
+  if (isSubscriptionReceiptProvider(provider)) {
+    try {
+      await maybeSendSubscriptionReceipt({
+        paymentId: result.payment.id,
+        userId,
+        amount,
+        currency: normalizedCurrency,
+        provider,
+        reference,
+        paidAt,
+        plan: resolvedPlan,
+        interval: result.interval,
+        paymentMethod,
+        verified: true,
+      });
+    } catch (error: any) {
+      log("error", "subscription_receipt_failed", {
+        userId,
+        reference,
+        provider,
+        error: error?.message || "Unknown receipt error",
+      });
+    }
+  }
 
   return { ...result, plan: resolvedPlan, interval: result.interval, paidAt };
 }

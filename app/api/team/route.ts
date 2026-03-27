@@ -232,6 +232,7 @@ export async function GET() {
             id: entry.id,
             actionType: entry.actionType || entry.action,
             createdAt: entry.createdAt,
+            metadata,
             actor: {
               id: entry.user?.id || null,
               name: entry.user?.name || null,

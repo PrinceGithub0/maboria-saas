@@ -18,6 +18,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useLanguage } from "@/components/providers/language-provider";
+import { LANGUAGE_LOCALES } from "@/lib/i18n";
 
 type RunRecord = {
   id: string;
@@ -56,13 +57,6 @@ const asObj = (v: unknown): Record<string, any> =>
 const asLogs = (v: unknown): RunLog[] => (Array.isArray(v) ? (v as RunLog[]) : []);
 const norm = (v?: string | null) => String(v || "").trim().toUpperCase();
 
-const statusLabel = (s: string) => {
-  if (s === "SUCCESS") return "Completed";
-  if (s === "FAILED") return "Failed";
-  if (s === "RUNNING") return "In progress";
-  return "Pending";
-};
-
 const statusTone = (s: string) => {
   if (s === "SUCCESS") return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300";
   if (s === "FAILED") return "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-300";
@@ -77,15 +71,6 @@ const statusIcon = (s: string) => {
   return Clock3;
 };
 
-const formatDateTime = (value?: string | null) => {
-  if (!value) return "--";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "--";
-  const date = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(d);
-  const time = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
-  return `${date}, ${time}`;
-};
-
 const formatDuration = (start?: string | null, end?: string | null, status?: string | null) => {
   if (!start) return "--";
   const a = new Date(start).getTime();
@@ -97,35 +82,6 @@ const formatDuration = (start?: string | null, end?: string | null, status?: str
   const m = Math.floor(ms / 60000);
   const s = Math.floor((ms % 60000) / 1000);
   return `${m}m ${String(s).padStart(2, "0")}s`;
-};
-
-const stepLabel = (v?: string | null) => {
-  const raw = String(v || "").trim();
-  if (!raw) return "Step";
-  return raw.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-};
-
-const contextForRun = (run: RunRecord) => {
-  const input = asObj(run.input);
-  const invoice = asObj(input.invoice);
-  const payment = asObj(input.payment);
-  const customer = asObj(input.customer);
-  const event = String(input.event || run.trigger || run.source || "System").toLowerCase();
-  const eventMap: Record<string, string> = {
-    invoice_status: "Invoice status changed",
-    "invoice.status.changed": "Invoice status changed",
-    "payment.verified": "Payment confirmed",
-    manual: "Manual start",
-    webhook: "Webhook event",
-    schedule: "Scheduled start",
-    system: "System event",
-  };
-  return {
-    startedBy: eventMap[event] || String(input.event || run.trigger || run.source || "System"),
-    customer: String(customer.name || customer.email || invoice.customerName || input.customerName || "--"),
-    invoice: String(invoice.invoiceNumber || input.invoiceNumber || invoice.id || input.invoiceId || "--"),
-    paymentReference: String(payment.reference || input.reference || input.paymentReference || "--"),
-  };
 };
 
 function Sparkline({ values, color }: { values: number[]; color: string }) {
@@ -147,9 +103,63 @@ function Sparkline({ values, color }: { values: number[]; color: string }) {
 }
 
 export default function AutomationOperationsPage() {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
+  const locale = LANGUAGE_LOCALES[language];
+  const statusLabel = useCallback((s: string) => {
+    if (s === "SUCCESS") return t("Completed", "Terminee", "Abgeschlossen", "Completada", "Concluida");
+    if (s === "FAILED") return t("Failed", "Echouee", "Fehlgeschlagen", "Fallida", "Falhou");
+    if (s === "RUNNING") return t("In progress", "En cours", "In Bearbeitung", "En curso", "Em curso");
+    return t("Pending", "En attente", "Ausstehend", "Pendiente", "Pendente");
+  }, [t]);
+  const formatDateTime = useCallback((value?: string | null) => {
+    if (!value) return "--";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "--";
+    const date = new Intl.DateTimeFormat(locale, { day: "2-digit", month: "short", year: "numeric" }).format(d);
+    const time = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
+    return `${date}, ${time}`;
+  }, [locale]);
+  const stepLabel = useCallback((v?: string | null) => {
+    const raw = String(v || "").trim();
+    if (!raw) return t("Step", "Etape", "Schritt", "Paso", "Passo");
+    return raw.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  }, [t]);
+  const localizeOpsMessage = (message?: string | null) => {
+    const raw = String(message || "").trim();
+    const mapped: Record<string, string> = {
+      "Unable to retry this automation.": t("Unable to retry this automation.", "Impossible de relancer cette automatisation.", "Diese Automatisierung kann nicht erneut ausgeführt werden.", "No se puede volver a ejecutar esta automatización.", "Não foi possivel repetir esta automação."),
+      "Automation retry started.": t("Automation retry started.", "Relance de l automatisation demarree.", "Die Wiederholung der Automatisierung wurde gestartet.", "Se inicio el reintento de la automatización.", "Foi iniciado o novo processamento da automação."),
+      "Network error. Please try again.": t("Network error. Please try again.", "Erreur reseau. Reessayez.", "Netzwerkfehler. Bitte versuche es erneut.", "Error de red. Intentalo de nuevo.", "Erro de rede. Tente novamente."),
+      "Failed step retry started.": t("Failed step retry started.", "Relance de l etape en echec demarree.", "Die Wiederholung des fehlgeschlagenen Schritts wurde gestartet.", "Se inicio el reintento del paso fallido.", "Foi iniciado o novo processamento do passo falhado."),
+      "Unable to retry this step.": t("Unable to retry this step.", "Impossible de relancer cette etape.", "Dieser Schritt kann nicht erneut ausgeführt werden.", "No se puede volver a ejecutar este paso.", "Não foi possivel repetir este passo."),
+      "Activity ID copied.": t("Activity ID copied.", "ID d activité copie.", "Aktivitäts-ID kopiert.", "ID de actividad copiado.", "ID da atividade copiado."),
+      "Automation ID copied.": t("Automation ID copied.", "ID d automatisation copie.", "Automatisierungs-ID kopiert.", "ID de automatización copiado.", "ID da automação copiado."),
+    };
+    return mapped[raw] || raw;
+  };
+  const contextForRun = useCallback((run: RunRecord) => {
+    const input = asObj(run.input);
+    const invoice = asObj(input.invoice);
+    const payment = asObj(input.payment);
+    const customer = asObj(input.customer);
+    const event = String(input.event || run.trigger || run.source || "System").toLowerCase();
+    const eventMap: Record<string, string> = {
+      invoice_status: t("Invoice status changed", "Statut de facture modifie", "Rechnungsstatus geändert", "Estado de factura cambiado", "Estado da fatura alterado"),
+      "invoice.status.changed": t("Invoice status changed", "Statut de facture modifie", "Rechnungsstatus geändert", "Estado de factura cambiado", "Estado da fatura alterado"),
+      "payment.verified": t("Payment confirmed", "Paiement confirme", "Zahlung bestatigt", "Pago confirmado", "Pagamento confirmado"),
+      manual: t("Manual start", "Demarrage manuel", "Manueller Start", "Inicio manual", "Inicio manual"),
+      webhook: t("Webhook event", "Evenement webhook", "Webhook-Ereignis", "Evento webhook", "Evento webhook"),
+      schedule: t("Scheduled start", "Demarrage planifie", "Geplanter Start", "Inicio programado", "Inicio agendado"),
+      system: t("System event", "Evenement systeme", "Systemereignis", "Evento del sistema", "Evento do sistema"),
+    };
+    return {
+      startedBy: eventMap[event] || String(input.event || run.trigger || run.source || t("System", "Systeme", "System", "Sistema", "Sistema")),
+      customer: String(customer.name || customer.email || invoice.customerName || input.customerName || "--"),
+      invoice: String(invoice.invoiceNumber || input.invoiceNumber || invoice.id || input.invoiceId || "--"),
+      paymentReference: String(payment.reference || input.reference || input.paymentReference || "--"),
+    };
+  }, [t]);
   const searchParams = useSearchParams();
-  const t = useCallback((en: string, fr: string) => (language === "fr" ? fr : en), [language]);
   const { data, mutate, error } = useSWR<RunRecord[]>("/api/automation/runs", fetcher, {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
@@ -302,8 +312,8 @@ export default function AutomationOperationsPage() {
       const title = String(run.flow?.title || "").trim();
       if (title) set.add(title);
     });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [runs]);
+    return Array.from(set).sort((a, b) => a.localeCompare(b, locale));
+  }, [runs, locale]);
 
   const filteredRuns = useMemo(() => {
     const a = startDate ? new Date(`${startDate}T00:00:00`).getTime() : null;
@@ -331,7 +341,7 @@ export default function AutomationOperationsPage() {
           .toLowerCase();
         return hay.includes(query);
       });
-  }, [runs, statusFilter, automationFilter, startDate, endDate, query]);
+  }, [runs, statusFilter, automationFilter, startDate, endDate, query, contextForRun]);
 
   const useVirtual = filteredRuns.length > 100;
   const baseRuns = useVirtual ? filteredRuns : filteredRuns.slice(0, visibleCount);
@@ -363,7 +373,7 @@ export default function AutomationOperationsPage() {
         message: String(log.error || log.reason || (typeof log.result === "string" ? log.result : "")),
       };
     });
-  }, [selectedRun]);
+  }, [selectedRun, stepLabel]);
 
   const completedToday = useMemo(() => {
     const start = new Date(new Date().toDateString()).getTime();
@@ -444,7 +454,6 @@ export default function AutomationOperationsPage() {
   );
 
   const system = failedLastHour > 0 ? "incident" : pendingCount > 0 || retriesPending > 0 ? "degraded" : "healthy";
-  const systemLabel = system === "incident" ? "Incident Detected" : system === "degraded" ? "Degraded" : "Healthy";
   const systemTone =
     system === "incident"
       ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-300"
@@ -453,9 +462,33 @@ export default function AutomationOperationsPage() {
         : "border-emerald-300 bg-emerald-100 text-emerald-900 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300";
 
   const alerts = [
-    failedLastHour > 0 ? `${failedLastHour} automations failed in the last hour` : "",
-    whatsappDelay > 0 ? "WhatsApp delivery delays detected" : "",
-    retriesPending > 0 ? `${retriesPending} retries pending` : "",
+    failedLastHour > 0
+      ? t(
+          `${failedLastHour} automations failed in the last hour`,
+          `${failedLastHour} automatisations ont echoue au cours de la derniere heure`,
+          `${failedLastHour} Automatisierungen sind in der letzten Stunde fehlgeschlagen`,
+          `${failedLastHour} automatizaciones fallaron en la ultima hora`,
+          `${failedLastHour} automacoes falharam na ultima hora`
+        )
+      : "",
+    whatsappDelay > 0
+      ? t(
+          "WhatsApp delivery delays detected",
+          "Retards de livraison WhatsApp detectes",
+          "WhatsApp-Zustellverzogerungen erkannt",
+          "Se detectaron retrasos de entrega en WhatsApp",
+          "Foram detetados atrasos de entrega no WhatsApp"
+        )
+      : "",
+    retriesPending > 0
+      ? t(
+          `${retriesPending} retries pending`,
+          `${retriesPending} nouvelles tentatives en attente`,
+          `${retriesPending} Wiederholungen ausstehend`,
+          `${retriesPending} reintentos pendientes`,
+          `${retriesPending} novas tentativas pendentes`
+        )
+      : "",
   ].filter(Boolean);
 
   const clearFilters = () => {
@@ -485,14 +518,14 @@ export default function AutomationOperationsPage() {
       });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setNotice({ type: "error", message: String(payload?.reason || payload?.error || "Unable to retry this automation.") });
+        setNotice({ type: "error", message: localizeOpsMessage(String(payload?.reason || payload?.error || "Unable to retry this automation.")) });
       } else {
-        setNotice({ type: "success", message: "Automation retry started." });
+        setNotice({ type: "success", message: localizeOpsMessage("Automation retry started.") });
         setConfirmRetryId(null);
         await refreshNow();
       }
     } catch {
-      setNotice({ type: "error", message: "Network error. Please try again." });
+      setNotice({ type: "error", message: localizeOpsMessage("Network error. Please try again.") });
     } finally {
       setRetrying(false);
     }
@@ -509,7 +542,7 @@ export default function AutomationOperationsPage() {
       });
       const payload = await res.json().catch(() => ({}));
       if (res.ok) {
-        setNotice({ type: "success", message: "Failed step retry started." });
+        setNotice({ type: "success", message: localizeOpsMessage("Failed step retry started.") });
         await refreshNow();
         return;
       }
@@ -519,10 +552,10 @@ export default function AutomationOperationsPage() {
       }
       setNotice({
         type: "error",
-        message: String(payload?.reason || payload?.error || "Unable to retry this step."),
+        message: localizeOpsMessage(String(payload?.reason || payload?.error || "Unable to retry this step.")),
       });
     } catch {
-      setNotice({ type: "error", message: "Network error. Please try again." });
+      setNotice({ type: "error", message: localizeOpsMessage("Network error. Please try again.") });
     } finally {
       setRetrying(false);
     }
@@ -540,29 +573,29 @@ export default function AutomationOperationsPage() {
               <Icon className={clsx("h-4 w-4", status === "RUNNING" ? "animate-spin" : "")} />
             </span>
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{run.flow?.title || "Untitled automation"}</p>
-              <p className="text-xs text-slate-600 dark:text-slate-300">Started by: {info.startedBy}</p>
+              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{run.flow?.title || t("Untitled automation", "Automatisation sans titre", "Unbenannte Automatisierung", "Automatización sin título", "Automação sem título")}</p>
+              <p className="text-xs text-slate-600 dark:text-slate-300">{t("Started by", "Demarree par", "Gestartet von", "Iniciada por", "Iniciada por")}: {info.startedBy}</p>
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
-                <span>Customer: {info.customer}</span>
-                <span>Invoice: {info.invoice}</span>
+                <span>{t("Customer", "Client", "Kunde", "Cliente", "Cliente")}: {info.customer}</span>
+                <span>{t("Invoice", "Facture", "Rechnung", "Factura", "Fatura")}: {info.invoice}</span>
               </div>
             </div>
           </div>
           <div className="grid gap-1 text-xs text-slate-600 dark:text-slate-300 sm:grid-cols-3 lg:grid-cols-1">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Started</p>
+              <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">{t("Started", "Demarree", "Gestartet", "Iniciada", "Iniciada")}</p>
               <p className="mt-0.5 text-sm text-slate-800 dark:text-slate-100">{formatDateTime(run.startedAt || run.createdAt)}</p>
             </div>
             <div>
-              <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Duration</p>
+              <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">{t("Duration", "Durée", "Dauer", "Duración", "Duracao")}</p>
               <p className="mt-0.5 text-sm text-slate-800 dark:text-slate-100">{formatDuration(run.startedAt || run.createdAt, run.completedAt, run.runStatus)}</p>
             </div>
           </div>
           <div className="flex items-start justify-end gap-2">
             <span className={clsx("inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold", statusTone(status))}>{statusLabel(status)}</span>
-            <button type="button" onClick={() => { setSelectedRunId(run.id); setDrawerOpen(true); }} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800">View Details</button>
+            <button type="button" onClick={() => { setSelectedRunId(run.id); setDrawerOpen(true); }} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800">{t("View Details", "Voir les details", "Details anzeigen", "Ver detalles", "Ver detalhes")}</button>
             {status === "FAILED" ? (
-              <button type="button" onClick={() => void retryFailedStep(run)} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">Retry</button>
+              <button type="button" onClick={() => void retryFailedStep(run)} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">{t("Retry", "Relancer", "Erneut versuchen", "Reintentar", "Tentar novamente")}</button>
             ) : null}
             <div className="relative">
               <button type="button" onClick={() => setMenuOpenId(menuOpenId === run.id ? null : run.id)} className="rounded-lg border border-slate-300 p-1.5 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
@@ -570,11 +603,11 @@ export default function AutomationOperationsPage() {
               </button>
               {menuOpenId === run.id ? (
                 <div className="absolute right-0 top-9 z-20 w-40 rounded-lg border border-slate-200 bg-white p-1 shadow-xl">
-                  <button type="button" onClick={() => { navigator.clipboard.writeText(run.id); setNotice({ type: "success", message: "Activity ID copied." }); setMenuOpenId(null); }} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-100">
-                    <Copy className="h-3.5 w-3.5" />Copy activity ID
+                  <button type="button" onClick={() => { navigator.clipboard.writeText(run.id); setNotice({ type: "success", message: localizeOpsMessage("Activity ID copied.") }); setMenuOpenId(null); }} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-100">
+                    <Copy className="h-3.5 w-3.5" />{t("Copy activity ID", "Copier l ID d activité", "Aktivitäts-ID kopieren", "Copiar ID de actividad", "Copiar ID da atividade")}
                   </button>
-                  <button type="button" onClick={() => { navigator.clipboard.writeText(run.flowId); setNotice({ type: "success", message: "Automation ID copied." }); setMenuOpenId(null); }} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-100">
-                    <Copy className="h-3.5 w-3.5" />Copy automation ID
+                  <button type="button" onClick={() => { navigator.clipboard.writeText(run.flowId); setNotice({ type: "success", message: localizeOpsMessage("Automation ID copied.") }); setMenuOpenId(null); }} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-100">
+                    <Copy className="h-3.5 w-3.5" />{t("Copy automation ID", "Copier l ID d automatisation", "Automatisierungs-ID kopieren", "Copiar ID de automatización", "Copiar ID da automação")}
                   </button>
                 </div>
               ) : null}
@@ -585,23 +618,68 @@ export default function AutomationOperationsPage() {
     );
   };
 
+  const headerTitle =
+    language === "de"
+      ? "Automationsbetrieb"
+      : language === "es"
+        ? "Operaciones automaticas"
+        : t("Automation Operations", "Operations d automatisation", "Automatisierungsoperationen", "Operaciones de automatización", "Operações de automação");
+
+  const headerDescription =
+    language === "de"
+      ? "überwache den Status, prüfe Probleme und starte Schritte neu."
+      : language === "es"
+        ? "Supervisa el estado, revisa problemas y repite pasos fallidos."
+        : t(
+            "Monitor automation health, investigate issues, and replay failed steps.",
+            "Surveillez la sante, investiguez les echecs et relancez les etapes.",
+            "überwache die Gesundheit der Automatisierungen, untersuche Probleme und starte fehlgeschlagene Schritte erneut.",
+            "Supervisa la salud de la automatización, investiga problemas y vuelve a ejecutar pasos fallidos.",
+            "Monitorize a saude da automação, investigue problemas e repita passos falhados."
+          );
+
+  const autoRefreshLabel =
+    language === "de" || language === "es"
+      ? "Auto-refresh"
+      : t("Auto-refresh", "Actualisation auto", "Automatisch aktualisieren", "Actualización automatica", "Atualizacao automatica");
+
+  const toggleAutoRefreshLabel =
+    language === "de"
+      ? "Auto-refresh umschalten"
+      : language === "es"
+        ? "Alternar auto-refresh"
+        : t("Toggle auto-refresh", "Basculer l actualisation auto", "Automatische Aktualisierung umschalten", "Alternar actualización automatica", "Alternar atualizacao automatica");
+
+  const refreshLabel = language === "de" || language === "es" ? "Refresh" : t("Refresh", "Actualiser", "Aktualisieren", "Actualizar", "Atualizar");
+
+  const lastUpdatedLabel =
+    language === "de"
+      ? "Aktualisiert"
+      : language === "es"
+        ? "Actualizado"
+        : t("Last updated", "Derniere mise a jour", "Zuletzt aktualisiert", "Ultima actualizacion", "Ultima atualizacao");
+
+  const systemHealthyLabel =
+    language === "de"
+      ? "System OK"
+      : language === "es"
+        ? "Sistema OK"
+        : t("System healthy", "Systeme sain", "System gesund", "Sistema saludable", "Sistema saudavel");
+
   return (
     <div className="space-y-6">
       <header className="space-y-3">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{t("Automation", "Automatisation")}</p>
-            <h1 className="text-3xl font-semibold text-slate-900 dark:text-slate-50">
-              {t("Automation Operations", "Operations d automatisation")}
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{t("Automation", "Automatisation", "Automatisierung", "Automatización", "Automação")}</p>
+            <h1 className="text-3xl font-semibold leading-tight text-slate-900 [overflow-wrap:anywhere] dark:text-slate-50">
+              {headerTitle}
             </h1>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-              {t(
-                "Monitor automation health, investigate issues, and replay failed steps.",
-                "Surveillez la sante, investiguez les echecs et relancez les etapes."
-              )}
+              {headerDescription}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 xl:ml-6 xl:shrink-0 xl:flex-nowrap">
             <span className={clsx("inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold", systemTone)}>
               <span
                 className={clsx(
@@ -609,15 +687,15 @@ export default function AutomationOperationsPage() {
                   system === "healthy" ? "bg-emerald-500" : system === "degraded" ? "bg-amber-500" : "bg-rose-500"
                 )}
               />
-              {systemLabel}
+              {system === "incident" ? t("Incident Detected", "Incident detecte", "Vorfall erkannt", "Incidente detectado", "Incidente detetado") : system === "degraded" ? t("Degraded", "Degrade", "Beeintrachtigt", "Degradado", "Degradado") : t("Healthy", "Sain", "Gesund", "Saludable", "Saudavel")}
             </span>
             <div className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-1.5 dark:border-slate-700 dark:bg-slate-900">
-              <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">Auto-refresh</span>
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{autoRefreshLabel}</span>
               <button
                 type="button"
                 role="switch"
                 aria-checked={autoRefresh}
-                aria-label="Toggle auto-refresh"
+                aria-label={toggleAutoRefreshLabel}
                 onClick={() => setAutoRefresh((v) => !v)}
                 className={clsx(
                   "relative inline-flex h-5 w-9 items-center rounded-full transition",
@@ -639,16 +717,16 @@ export default function AutomationOperationsPage() {
               className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
             >
               <RefreshCw className={clsx("h-3.5 w-3.5", isRefreshing && "animate-spin")} />
-              Refresh
+              {refreshLabel}
             </button>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-          <p>{lastRefreshed ? `Last updated ${formatDateTime(lastRefreshed)}` : "Live data"}</p>
+          <p>{lastRefreshed ? `${lastUpdatedLabel} ${formatDateTime(lastRefreshed)}` : t("Live data", "Données en direct", "Live-Daten", "Datos en directo", "Dados em direto")}</p>
           {!alerts.length ? (
             <p className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/70 bg-emerald-50 px-2 py-1 font-medium text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300">
               <ShieldCheck className="h-3.5 w-3.5" />
-              System healthy
+              {systemHealthyLabel}
             </p>
           ) : null}
         </div>
@@ -684,35 +762,35 @@ export default function AutomationOperationsPage() {
       ) : null}
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <article className="rounded-xl border border-emerald-100 bg-white p-4 shadow-sm dark:border-emerald-400/20 dark:bg-slate-900">
-          <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Completed Today</p>
+        <article className="min-w-0 rounded-xl border border-emerald-100 bg-white p-4 shadow-sm dark:border-emerald-400/20 dark:bg-slate-900">
+          <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400 [overflow-wrap:anywhere]">{t("Completed Today", "Terminees aujourd hui", "Heute abgeschlossen", "Completadas hoy", "Concluidas hoje")}</p>
           <p className="mt-2 text-3xl font-semibold text-slate-900 dark:text-slate-50">{completedToday}</p>
-          <div className="mt-2 flex items-center justify-between">
-            <span className="text-xs text-slate-500 dark:text-slate-400">7-day trend</span>
+          <div className="mt-2 flex min-w-0 items-center justify-between gap-3">
+            <span className="min-w-0 text-xs text-slate-500 dark:text-slate-400">{t("7-day trend", "Tendance sur 7 jours", "7-Tage-Trend", "Tendencia de 7 dias", "Tendencia de 7 dias")}</span>
             <Sparkline values={series.done} color="#16a34a" />
           </div>
         </article>
-        <article className="rounded-xl border border-rose-100 bg-white p-4 shadow-sm dark:border-rose-400/20 dark:bg-slate-900">
-          <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Failed Today</p>
+        <article className="min-w-0 rounded-xl border border-rose-100 bg-white p-4 shadow-sm dark:border-rose-400/20 dark:bg-slate-900">
+          <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400 [overflow-wrap:anywhere]">{t("Failed Today", "Echouees aujourd hui", "Heute fehlgeschlagen", "Fallidas hoy", "Falhadas hoje")}</p>
           <p className="mt-2 text-3xl font-semibold text-slate-900 dark:text-slate-50">{failedToday}</p>
-          <div className="mt-2 flex items-center justify-between">
-            <span className="text-xs text-slate-500 dark:text-slate-400">7-day trend</span>
+          <div className="mt-2 flex min-w-0 items-center justify-between gap-3">
+            <span className="min-w-0 text-xs text-slate-500 dark:text-slate-400">{t("7-day trend", "Tendance sur 7 jours", "7-Tage-Trend", "Tendencia de 7 dias", "Tendencia de 7 dias")}</span>
             <Sparkline values={series.fail} color="#e11d48" />
           </div>
         </article>
-        <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-          <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Pending</p>
+        <article className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400 [overflow-wrap:anywhere]">{t("Pending", "En attente", "Ausstehend", "Pendiente", "Pendente")}</p>
           <p className="mt-2 text-3xl font-semibold text-slate-900 dark:text-slate-50">{pendingCount}</p>
-          <div className="mt-2 flex items-center justify-between">
-            <span className="text-xs text-slate-500 dark:text-slate-400">7-day trend</span>
+          <div className="mt-2 flex min-w-0 items-center justify-between gap-3">
+            <span className="min-w-0 text-xs text-slate-500 dark:text-slate-400">{t("7-day trend", "Tendance sur 7 jours", "7-Tage-Trend", "Tendencia de 7 dias", "Tendencia de 7 dias")}</span>
             <Sparkline values={series.pend} color="#d97706" />
           </div>
         </article>
-        <article className="rounded-xl border border-blue-100 bg-white p-4 shadow-sm dark:border-blue-400/20 dark:bg-slate-900">
-          <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Average Duration</p>
+        <article className="min-w-0 rounded-xl border border-blue-100 bg-white p-4 shadow-sm dark:border-blue-400/20 dark:bg-slate-900">
+          <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400 [overflow-wrap:anywhere]">{t("Average Duration", "Durée moyenne", "Durchschnittliche Dauer", "Duración media", "Duracao media")}</p>
           <p className="mt-2 text-3xl font-semibold text-slate-900 dark:text-slate-50">{avgDuration}</p>
-          <div className="mt-2 flex items-center justify-between">
-            <span className="text-xs text-slate-500 dark:text-slate-400">7-day trend</span>
+          <div className="mt-2 flex min-w-0 items-center justify-between gap-3">
+            <span className="min-w-0 text-xs text-slate-500 dark:text-slate-400">{t("7-day trend", "Tendance sur 7 jours", "7-Tage-Trend", "Tendencia de 7 dias", "Tendencia de 7 dias")}</span>
             <Sparkline values={series.dur} color="#2563eb" />
           </div>
         </article>
@@ -720,19 +798,19 @@ export default function AutomationOperationsPage() {
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <div className="flex items-center justify-between lg:hidden">
-          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Filters</h2>
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{t("Filters", "Filtres", "Filter", "Filtros", "Filtros")}</h2>
           <button
             type="button"
             onClick={() => setMobileFiltersOpen((v) => !v)}
             className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-200"
           >
             <ChevronDown className={clsx("h-3.5 w-3.5 transition", mobileFiltersOpen ? "rotate-180" : "")} />
-            {mobileFiltersOpen ? "Hide" : "Show"}
+            {mobileFiltersOpen ? t("Hide", "Masquer", "Ausblenden", "Ocultar", "Ocultar") : t("Show", "Afficher", "Anzeigen", "Mostrar", "Mostrar")}
           </button>
         </div>
         <div
           className={clsx(
-            "mt-3 grid gap-3 lg:mt-0 lg:grid-cols-[minmax(220px,2fr)_170px_220px_360px]",
+            "mt-3 grid gap-3 lg:mt-0 lg:grid-cols-[minmax(0,2fr)_minmax(0,170px)_minmax(0,220px)_minmax(0,360px)]",
             !mobileFiltersOpen && "hidden lg:grid"
           )}
         >
@@ -740,33 +818,33 @@ export default function AutomationOperationsPage() {
             type="search"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search automations, customer, invoice"
-            className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-500 focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
+            placeholder={t("Search automations, customer, invoice", "Rechercher automatisation, client, facture", "Automatisierung, Kunde, Rechnung suchen", "Buscar automatización, cliente, factura", "Pesquisar automação, cliente, fatura")}
+            className="min-w-0 h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-500 focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
           />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            className="min-w-0 h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
           >
-            <option value="all">All statuses</option>
-            <option value="SUCCESS">Completed</option>
-            <option value="FAILED">Failed</option>
-            <option value="RUNNING">In progress</option>
-            <option value="PENDING">Pending</option>
+            <option value="all">{t("All statuses", "Tous les statuts", "Alle Status", "Todos los estados", "Todos os estados")}</option>
+            <option value="SUCCESS">{t("Completed", "Terminee", "Abgeschlossen", "Completada", "Concluida")}</option>
+            <option value="FAILED">{t("Failed", "Echouee", "Fehlgeschlagen", "Fallida", "Falhou")}</option>
+            <option value="RUNNING">{t("In progress", "En cours", "In Bearbeitung", "En curso", "Em curso")}</option>
+            <option value="PENDING">{t("Pending", "En attente", "Ausstehend", "Pendiente", "Pendente")}</option>
           </select>
           <select
             value={automationFilter}
             onChange={(e) => setAutomationFilter(e.target.value)}
-            className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+            className="min-w-0 h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
           >
-            <option value="all">All automations</option>
+            <option value="all">{t("All automations", "Toutes les automatisations", "Alle Automatisierungen", "Todas las automatizaciones", "Todas as automações")}</option>
             {flowOptions.map((f) => (
               <option key={f} value={f}>
                 {f}
               </option>
             ))}
           </select>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="min-w-0 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <input
               type="date"
               value={startDate}
@@ -786,22 +864,32 @@ export default function AutomationOperationsPage() {
       <section className="space-y-3">
         {isInitialLoading ? (
           <div className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-            Loading automation operations...
+            {t("Loading automation operations...", "Chargement des operations d automatisation...", "Automatisierungsvorgange werden geladen...", "Cargando operaciónes de automatización...", "A carregar operações de automação...")}
+          </div>
+        ) : error ? (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-10 text-center text-sm text-rose-700 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-300">
+            {t(
+              "Unable to load automation operations. Please try again.",
+              "Impossible de charger les operations d automatisation. Reessayez.",
+              "Automatisierungsoperationen konnten nicht geladen werden. Bitte versuche es erneut.",
+              "No se pudieron cargar las operaciónes de automatización. Intentalo de nuevo.",
+              "Não foi possivel carregar as operações de automação. Tente novamente."
+            )}
           </div>
         ) : !runs.length ? (
           <div className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center dark:border-slate-700 dark:bg-slate-900">
-            <p className="text-lg font-semibold text-slate-900 dark:text-slate-50">No automation activity yet.</p>
-            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">When automations begin running, they will appear here.</p>
+            <p className="text-lg font-semibold text-slate-900 dark:text-slate-50">{t("No automation activity yet.", "Aucune activité d automatisation pour l instant.", "Noch keine Automatisierungsaktivität.", "Aún no hay actividad de automatización.", "Ainda não ha atividade de automação.")}</p>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{t("When automations begin running, they will appear here.", "Lorsque les automatisations commenceront a s executer, elles apparaitront ici.", "Sobald Automatisierungen laufen, erscheinen sie hier.", "Cuando las automatizaciones empiecen a ejecutarse, apareceran aqui.", "Quando as automações comecarem a executar, aparecerao aqui.")}</p>
           </div>
         ) : !filteredRuns.length ? (
           <div className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center dark:border-slate-700 dark:bg-slate-900">
-            <p className="text-lg font-semibold text-slate-900 dark:text-slate-50">No automation activity matches your filters.</p>
+            <p className="text-lg font-semibold text-slate-900 dark:text-slate-50">{t("No automation activity matches your filters.", "Aucune activité d automatisation ne correspond a vos filtres.", "Keine Automatisierungsaktivität entspricht deinen Filtern.", "Ninguna actividad de automatización coincide con tus filtros.", "Nenhuma atividade de automação corresponde aos seus filtros.")}</p>
             <button
               type="button"
               onClick={clearFilters}
               className="mt-3 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
             >
-              Clear Filters
+              {t("Clear Filters", "Effacer les filtres", "Filter zurücksetzen", "Borrar filtros", "Limpar filtros")}
             </button>
           </div>
         ) : useVirtual ? (
@@ -832,14 +920,14 @@ export default function AutomationOperationsPage() {
             type="button"
             className="absolute inset-0 bg-slate-900/40"
             onClick={() => setDrawerOpen(false)}
-            aria-label="Close details"
+            aria-label={t("Close details", "Fermer les details", "Details schliessen", "Cerrar detalles", "Fechar detalhes")}
           />
           <aside className="absolute inset-x-0 bottom-0 top-12 overflow-y-auto rounded-t-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900 md:inset-y-0 md:left-auto md:right-0 md:top-0 md:w-[560px] md:rounded-none md:rounded-l-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Run Overview</p>
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{t("Run Overview", "Vue d ensemble de l execution", "Laufübersicht", "Resumen de la ejecucion", "Visao geral da execucao")}</p>
                 <h2 className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-50">
-                  {selectedRun.flow?.title || "Untitled automation"}
+                  {selectedRun.flow?.title || t("Untitled automation", "Automatisation sans titre", "Unbenannte Automatisierung", "Automatización sin título", "Automação sem título")}
                 </h2>
               </div>
               <button
@@ -857,33 +945,33 @@ export default function AutomationOperationsPage() {
               return (
                 <div className="mt-4 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 sm:grid-cols-2">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Status</p>
+                    <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">{t("Status", "Statut", "Status", "Estado", "Estado")}</p>
                     <span className={clsx("mt-1 inline-flex rounded-full border px-2 py-1 text-xs font-semibold", statusTone(status))}>
                       {statusLabel(status)}
                     </span>
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Start Event</p>
+                    <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">{t("Start Event", "Evenement de depart", "Startereignis", "Evento de inicio", "Evento inicial")}</p>
                     <p className="mt-1 font-medium text-slate-900 dark:text-slate-50">{info.startedBy}</p>
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Customer</p>
+                    <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">{t("Customer", "Client", "Kunde", "Cliente", "Cliente")}</p>
                     <p className="mt-1 font-medium text-slate-900 dark:text-slate-50">{info.customer}</p>
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Invoice</p>
+                    <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">{t("Invoice", "Facture", "Rechnung", "Factura", "Fatura")}</p>
                     <p className="mt-1 font-medium text-slate-900 dark:text-slate-50">{info.invoice}</p>
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Payment Reference</p>
+                    <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">{t("Payment Reference", "Reference de paiement", "Zahlungsreferenz", "Referencia de pago", "Referencia de pagamento")}</p>
                     <p className="mt-1 font-medium text-slate-900 dark:text-slate-50">{info.paymentReference}</p>
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Started</p>
+                    <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">{t("Started", "Demarree", "Gestartet", "Iniciada", "Iniciada")}</p>
                     <p className="mt-1 font-medium text-slate-900 dark:text-slate-50">{formatDateTime(selectedRun.startedAt || selectedRun.createdAt)}</p>
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Duration</p>
+                    <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">{t("Duration", "Durée", "Dauer", "Duración", "Duracao")}</p>
                     <p className="mt-1 font-medium text-slate-900 dark:text-slate-50">
                       {formatDuration(selectedRun.startedAt || selectedRun.createdAt, selectedRun.completedAt, selectedRun.runStatus)}
                     </p>
@@ -893,7 +981,7 @@ export default function AutomationOperationsPage() {
             })()}
 
             <div className="mt-6">
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Step Timeline</h3>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{t("Step Timeline", "Chronologie des etapes", "Schrittverlauf", "Linea de tiempo de pasos", "Cronologia dos passos")}</h3>
               <div className="mt-3 space-y-3">
                 {timeline.length ? (
                   timeline.map((item, idx) => (
@@ -920,7 +1008,7 @@ export default function AutomationOperationsPage() {
                           </span>
                           <div>
                             <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                              Step {idx + 1} - {item.step}
+                              {t("Step", "Etape", "Schritt", "Paso", "Passo")} {idx + 1} - {item.step}
                             </p>
                             <p className="text-xs text-slate-500 dark:text-slate-400">
                               {item.timestamp ? formatDateTime(item.timestamp) : "--"} - {item.duration}
@@ -937,7 +1025,7 @@ export default function AutomationOperationsPage() {
                                 : "bg-amber-100 text-amber-700"
                           )}
                         >
-                          {item.status}
+                          {item.status === "success" ? t("Success", "Succes", "Erfolg", "Exito", "Sucesso") : item.status === "failed" ? t("Failed", "Echec", "Fehlgeschlagen", "Fallido", "Falhou") : t("Pending", "En attente", "Ausstehend", "Pendiente", "Pendente")}
                         </span>
                       </div>
                       {item.message ? <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">{item.message}</p> : null}
@@ -945,7 +1033,7 @@ export default function AutomationOperationsPage() {
                   ))
                 ) : (
                   <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
-                    No step timeline available for this run.
+                    {t("No step timeline available for this run.", "Aucune chronologie d etapes disponible pour cette execution.", "Kein Schrittverlauf für diese Ausfuhrung verfügbar.", "No hay linea de tiempo de pasos para esta ejecucion.", "Não ha cronologia de passos para esta execucao.")}
                   </div>
                 )}
               </div>
@@ -960,12 +1048,12 @@ export default function AutomationOperationsPage() {
             type="button"
             className="absolute inset-0 bg-slate-900/40"
             onClick={() => setConfirmRetryId(null)}
-            aria-label="Close retry confirmation"
+            aria-label={t("Close retry confirmation", "Fermer la confirmation de relance", "Bestätigung für erneuten Lauf schliessen", "Cerrar confirmacion de reintento", "Fechar confirmacao de repeticao")}
           />
           <div className="absolute left-1/2 top-1/2 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50">Confirm Full Run Retry</h3>
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50">{t("Confirm Full Run Retry", "Confirmer la relance complete", "Vollständigen erneuten Lauf bestätigen", "Confirmar reintento completo", "Confirmar repeticao completa")}</h3>
             <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-              This retry will start the full automation again from the beginning.
+              {t("This retry will start the full automation again from the beginning.", "Cette relance redemarrera l automatisation complete depuis le debut.", "Dieser erneute Lauf startet die komplette Automatisierung erneut von Anfang an.", "Este reintento iniciara toda la automatización de nuevo desde el principio.", "Esta repeticao iniciara toda a automação novamente desde o inicio.")}
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button
@@ -973,7 +1061,7 @@ export default function AutomationOperationsPage() {
                 onClick={() => setConfirmRetryId(null)}
                 className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
               >
-                Cancel
+                {t("Cancel", "Annuler", "Abbrechen", "Cancelar", "Cancelar")}
               </button>
               <button
                 type="button"
@@ -984,7 +1072,7 @@ export default function AutomationOperationsPage() {
                 }}
                 className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {retrying ? "Retrying..." : "Retry full run"}
+                {retrying ? t("Retrying...", "Relance...", "Wird erneut ausgeführt...", "Reintentando...", "A repetir...") : t("Retry full run", "Relancer l execution complete", "Gesamten Lauf erneut ausfuhren", "Reintentar ejecucion completa", "Repetir execucao completa")}
               </button>
             </div>
           </div>

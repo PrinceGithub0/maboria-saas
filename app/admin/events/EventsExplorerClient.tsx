@@ -9,7 +9,16 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useLanguage } from "@/components/providers/language-provider";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  formatAdminIdentifierLabel,
+  localizeAdminLogMessage,
+  localizeAdminServerMessage,
+  localizeAdminSeverity,
+  localizeAdminSource,
+} from "@/lib/admin/localization";
+import { LANGUAGE_LOCALES } from "@/lib/i18n";
 
 type ActorRole = "SUPER_ADMIN" | "OPS_ADMIN";
 type EventSeverity = "INFO" | "WARNING" | "CRITICAL";
@@ -80,8 +89,8 @@ function parseInputDate(value: string) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function formatStamp(iso: string) {
-  return new Date(iso).toLocaleString("en-GB", {
+function formatStamp(iso: string, locale: string) {
+  return new Date(iso).toLocaleString(locale, {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -102,6 +111,7 @@ function metadataJson(value: Record<string, unknown>) {
 }
 
 export default function EventsExplorerClient({ actorRole }: { actorRole: ActorRole }) {
+  const { language, t } = useLanguage();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -294,17 +304,17 @@ export default function EventsExplorerClient({ actorRole }: { actorRole: ActorRo
 
   const hasActiveFilters = Boolean(q || severity || source || eventType || tenantId || userId || entityId || from || to);
   const activeFilters = [
-    severity ? { label: severity, clear: () => setSeverity("") } : null,
-    source ? { label: source, clear: () => setSource("") } : null,
-    eventType ? { label: eventType, clear: () => setEventType("") } : null,
-    tenantId ? { label: `Tenant ${tenantId}`, clear: () => setTenantId("") } : null,
-    userId ? { label: `User ${userId}`, clear: () => setUserId("") } : null,
-    entityId ? { label: `Entity ${entityId}`, clear: () => setEntityId("") } : null,
-    q ? { label: `Search ${q}`, clear: () => { setQ(""); setQInput(""); } } : null,
-    preset !== "custom" ? { label: preset === "24h" ? "Last 24h" : preset === "7d" ? "Last 7d" : "Last 30d", clear: () => applyPreset("7d") } : null,
+    severity ? { label: localizeAdminSeverity(severity, language), clear: () => setSeverity("") } : null,
+    source ? { label: localizeAdminSource(source, language), clear: () => setSource("") } : null,
+    eventType ? { label: localizeAdminLogMessage(eventType.replace(/_/g, " "), language, formatAdminIdentifierLabel(eventType)) , clear: () => setEventType("") } : null,
+    tenantId ? { label: `${t("Tenant", "Locataire", "Mandant", "Tenant", "Tenant")} ${tenantId}`, clear: () => setTenantId("") } : null,
+    userId ? { label: `${t("User", "Utilisateur", "Benutzer", "Usuario", "Utilizador")} ${userId}`, clear: () => setUserId("") } : null,
+    entityId ? { label: `${t("Entity", "Entite", "Entitaet", "Entidad", "Entidade")} ${entityId}`, clear: () => setEntityId("") } : null,
+    q ? { label: `${t("Search", "Recherche", "Suche", "Buscar", "Pesquisar")} ${q}`, clear: () => { setQ(""); setQInput(""); } } : null,
+    preset !== "custom" ? { label: preset === "24h" ? t("Last 24h", "Dernieres 24h", "Letzte 24h", "Ultimas 24h", "Ultimas 24h") : preset === "7d" ? t("Last 7d", "Derniers 7j", "Letzte 7T", "Ultimos 7d", "Ultimos 7d") : t("Last 30d", "Derniers 30j", "Letzte 30T", "Ultimos 30d", "Ultimos 30d"), clear: () => applyPreset("7d") } : null,
     preset === "custom" && (from || to)
       ? {
-          label: "Custom range",
+          label: t("Custom range", "Plage personnalisee", "Benutzerdefinierter Bereich", "Rango personalizado", "Intervalo personalizado"),
           clear: () => {
             const nextRange = rangeForPreset("7d");
             setPreset("7d");
@@ -354,8 +364,8 @@ export default function EventsExplorerClient({ actorRole }: { actorRole: ActorRo
     <div className="mx-auto w-full max-w-[1480px] space-y-4 px-6 py-5">
       <header className="space-y-2">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Events Explorer</h1>
-          <p className="text-sm text-muted-foreground">Search system activity across tenants and users</p>
+          <h1 className="text-2xl font-semibold text-foreground">{t("Events Explorer", "Explorateur d'evenements", "Ereignis-Explorer", "Explorador de eventos", "Explorador de eventos")}</h1>
+          <p className="text-sm text-muted-foreground">{t("Search system activity across tenants and users", "Rechercher l'activité systeme sur tous les locataires et utilisateurs", "Systemaktivitaet ueber Mandanten und Benutzer hinweg durchsuchen", "Buscar actividad del sistema entre tenants y usuarios", "Pesquisar atividade do sistema entre tenants e utilizadores")}</p>
         </div>
       </header>
 
@@ -369,7 +379,7 @@ export default function EventsExplorerClient({ actorRole }: { actorRole: ActorRo
               setPage(1);
               setCursorStack([""]);
             }}
-            placeholder="Search: invoice_1023, payment_failed, user@email.com, tenant:workspace_1023"
+            placeholder={t("Search: invoice_1023, payment_failed, user@email.com, tenant:workspace_1023", "Recherche : invoice_1023, payment_failed, user@email.com, tenant:workspace_1023", "Suche: invoice_1023, payment_failed, user@email.com, tenant:workspace_1023", "Buscar: invoice_1023, payment_failed, user@email.com, tenant:workspace_1023", "Pesquisar: invoice_1023, payment_failed, user@email.com, tenant:workspace_1023")}
             className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-indigo-400 focus:outline-none"
           />
           <div className="flex flex-wrap items-center gap-2">
@@ -392,29 +402,29 @@ export default function EventsExplorerClient({ actorRole }: { actorRole: ActorRo
 
         <div className="flex flex-wrap items-center gap-2">
           <select value={severity} onChange={(event) => { setSeverity(event.target.value); setPage(1); setCursorStack([""]); }} className="h-10 rounded-md border border-border/70 bg-background px-3 text-sm">
-            <option value="">All severities</option>
-            <option value="INFO">Info</option>
-            <option value="WARNING">Warning</option>
-            <option value="CRITICAL">Critical</option>
+            <option value="">{t("All severities", "Toutes les severites", "Alle Schweregrade", "Todas las severidades", "Todas as severidades")}</option>
+            <option value="INFO">{t("Info", "Info", "Info", "Info", "Info")}</option>
+            <option value="WARNING">{t("Warning", "Alerte", "Warnung", "Advertencia", "Aviso")}</option>
+            <option value="CRITICAL">{t("Critical", "Critique", "Kritisch", "Critico", "Critico")}</option>
           </select>
           <select value={source} onChange={(event) => { setSource(event.target.value); setPage(1); setCursorStack([""]); }} className="h-10 rounded-md border border-border/70 bg-background px-3 text-sm">
-            <option value="">All sources</option>
-            <option value="AUTH">Auth</option>
-            <option value="BILLING">Billing</option>
-            <option value="AUTOMATION">Automation</option>
-            <option value="INBOX">Inbox</option>
-            <option value="SUPPORT">Support</option>
-            <option value="SYSTEM">System</option>
+            <option value="">{t("All sources", "Toutes les sources", "Alle Quellen", "Todas las fuentes", "Todas as origens")}</option>
+            <option value="AUTH">{t("Auth", "Auth", "Auth", "Auth", "Auth")}</option>
+            <option value="BILLING">{t("Billing", "Facturation", "Abrechnung", "Facturación", "Faturação")}</option>
+            <option value="AUTOMATION">{t("Automation", "Automatisation", "Automatisierung", "Automatización", "Automação")}</option>
+            <option value="INBOX">{t("Inbox", "Boite de reception", "Posteingang", "Bandeja de entrada", "Caixa de entrada")}</option>
+            <option value="SUPPORT">{t("Support", "Support", "Support", "Soporte", "Suporte")}</option>
+            <option value="SYSTEM">{t("System", "Systeme", "System", "Sistema", "Sistema")}</option>
           </select>
           <select value={preset} onChange={(event) => applyPreset(event.target.value as TimePreset)} className="h-10 rounded-md border border-border/70 bg-background px-3 text-sm">
-            <option value="24h">Last 24h</option>
-            <option value="7d">Last 7d</option>
-            <option value="30d">Last 30d</option>
-            <option value="custom">Custom</option>
+            <option value="24h">{t("Last 24h", "Dernieres 24h", "Letzte 24h", "Ultimas 24h", "Ultimas 24h")}</option>
+            <option value="7d">{t("Last 7d", "Derniers 7j", "Letzte 7T", "Ultimos 7d", "Ultimos 7d")}</option>
+            <option value="30d">{t("Last 30d", "Derniers 30j", "Letzte 30T", "Ultimos 30d", "Ultimos 30d")}</option>
+            <option value="custom">{t("Custom", "Personnalise", "Benutzerdefiniert", "Personalizado", "Personalizado")}</option>
           </select>
           {actorRole === "SUPER_ADMIN" ? (
             <select value={tenantId} onChange={(event) => { setTenantId(event.target.value); setPage(1); setCursorStack([""]); }} className="h-10 min-w-[220px] rounded-md border border-border/70 bg-background px-3 text-sm">
-              <option value="">All tenants</option>
+              <option value="">{t("All tenants", "Tous les locataires", "Alle Mandanten", "Todos los tenants", "Todos os tenants")}</option>
               {groupedTenantOptions.map((tenant) => (
                 <option key={tenant.value} value={tenant.value}>
                   {tenant.name}
@@ -423,7 +433,7 @@ export default function EventsExplorerClient({ actorRole }: { actorRole: ActorRo
             </select>
           ) : null}
           <Button variant="ghost" size="sm" onClick={resetFilters} disabled={!hasActiveFilters}>
-            Clear filters
+            {t("Clear filters", "Effacer les filtres", "Filter loeschen", "Limpiar filtros", "Limpar filtros")}
           </Button>
         </div>
 
@@ -452,10 +462,22 @@ export default function EventsExplorerClient({ actorRole }: { actorRole: ActorRo
 
       {error ? (
         <div className="space-y-2">
-          <Alert variant="error">Unable to load events. Try again.</Alert>
-          <p className="text-sm text-muted-foreground">{error.message}</p>
+          <Alert variant="error">{t("Unable to load events. Try again.", "Impossible de charger les evenements. Reessayez.", "Ereignisse konnten nicht geladen werden. Erneut versuchen.", "No se pudieron cargar los eventos. Intenta de nuevo.", "Não foi possivel carregar os eventos. Tente novamente.")}</Alert>
+          <p className="text-sm text-muted-foreground">
+            {localizeAdminServerMessage(
+              error.message,
+              language,
+              t(
+                "The events request did not complete.",
+                "La requete des evenements n'a pas abouti.",
+                "Die Ereignisanfrage konnte nicht abgeschlossen werden.",
+                "La solicitud de eventos no se pudo completar.",
+                "O pedido de eventos nao foi concluido."
+              )
+            )}
+          </p>
           <Button variant="secondary" size="sm" onClick={() => void mutate()}>
-            Retry
+            {t("Retry", "Reessayer", "Erneut versuchen", "Reintentar", "Tentar novamente")}
           </Button>
         </div>
       ) : null}
@@ -463,7 +485,7 @@ export default function EventsExplorerClient({ actorRole }: { actorRole: ActorRo
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_420px]">
         <div className="min-h-[640px] overflow-hidden rounded-xl border border-border/60 bg-card">
           <div className="border-b border-border/60 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Results
+            {t("Results", "Resultats", "Ergebnisse", "Resultados", "Resultados")}
           </div>
           {isLoading ? (
             <div className="space-y-2 p-4">
@@ -473,8 +495,8 @@ export default function EventsExplorerClient({ actorRole }: { actorRole: ActorRo
             </div>
           ) : rows.length === 0 ? (
             <div className="flex min-h-[420px] flex-col items-center justify-center px-6 text-center">
-              <p className="text-sm text-foreground">No results found.</p>
-              <p className="mt-2 text-sm text-muted-foreground">Try `payment_failed`, `invoice_1023`, or a user email.</p>
+              <p className="text-sm text-foreground">{t("No results found.", "Aucun resultat trouve.", "Keine Ergebnisse gefunden.", "No se encontraron resultados.", "Não foram encontrados resultados.")}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{t("Try `payment_failed`, `invoice_1023`, or a user email.", "Essayez `payment_failed`, `invoice_1023` ou un e-mail utilisateur.", "Versuchen Sie `payment_failed`, `invoice_1023` oder eine Benutzer-E-Mail.", "Prueba `payment_failed`, `invoice_1023` o un correo de usuario.", "Tente `payment_failed`, `invoice_1023` ou um e-mail de utilizador.")}</p>
             </div>
           ) : (
             <div className="divide-y divide-border/50">
@@ -496,9 +518,9 @@ export default function EventsExplorerClient({ actorRole }: { actorRole: ActorRo
                     )}
                   />
                   <div className="min-w-0 flex-1 space-y-1">
-                    <p className="truncate text-sm font-medium text-foreground">{row.message}</p>
+                    <p className="truncate text-sm font-medium text-foreground">{localizeAdminLogMessage(row.message, language, row.message)}</p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {formatStamp(row.createdAt)} / {row.source} / {row.eventType} / {row.tenant?.name || "Platform"} / {row.user?.email || "system"}
+                      {formatStamp(row.createdAt, LANGUAGE_LOCALES[language])} / {localizeAdminSource(row.source, language)} / {localizeAdminLogMessage(row.eventType.replace(/_/g, " "), language, formatAdminIdentifierLabel(row.eventType))} / {row.tenant?.name || t("Platform", "Plateforme", "Plattform", "Plataforma", "Plataforma")} / {row.user?.email || t("system", "systeme", "system", "sistema", "sistema")}
                     </p>
                   </div>
                 </button>
@@ -507,7 +529,7 @@ export default function EventsExplorerClient({ actorRole }: { actorRole: ActorRo
           )}
           <div className="flex items-center justify-between border-t border-border/60 px-4 py-3">
             <p className="text-xs text-muted-foreground">
-              Page {page}{isValidating ? " / refreshing..." : ""}
+              {t("Page", "Page", "Seite", "Pagina", "Pagina")} {page}{isValidating ? ` / ${t("refreshing...", "actualisation...", "aktualisiert...", "actualizando...", "a atualizar...")}` : ""}
             </p>
             <div className="flex items-center gap-2">
               <Button
@@ -519,7 +541,7 @@ export default function EventsExplorerClient({ actorRole }: { actorRole: ActorRo
                   setPage((prev) => Math.max(1, prev - 1));
                 }}
               >
-                Previous
+                {t("Previous", "Precedent", "Zurueck", "Anterior", "Anterior")}
               </Button>
               <Button
                 variant="ghost"
@@ -535,7 +557,7 @@ export default function EventsExplorerClient({ actorRole }: { actorRole: ActorRo
                   setPage((prev) => prev + 1);
                 }}
               >
-                Next
+                {t("Next", "Suivant", "Weiter", "Siguiente", "Seguinte")}
               </Button>
             </div>
           </div>
@@ -543,11 +565,11 @@ export default function EventsExplorerClient({ actorRole }: { actorRole: ActorRo
 
         <aside className="min-h-[640px] rounded-xl border border-border/60 bg-card">
           <div className="border-b border-border/60 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Event details
+            {t("Event details", "Details de l'evenement", "Ereignisdetails", "Detalles del evento", "Detalhes do evento")}
           </div>
           {!selected ? (
             <div className="flex min-h-[420px] items-center justify-center px-6 text-center text-sm text-muted-foreground">
-              Select an event to inspect context and metadata.
+              {t("Select an event to inspect context and metadata.", "Sélectionnez un evenement pour inspecter le contexte et les metadonnees.", "Waehlen Sie ein Ereignis aus, um Kontext und Metadaten zu pruefen.", "Selecciona un evento para inspeccionar contexto y metadatos.", "Selecione um evento para inspecionar contexto e metadados.")}
             </div>
           ) : (
             <div className="space-y-5 px-4 py-4">
@@ -558,56 +580,56 @@ export default function EventsExplorerClient({ actorRole }: { actorRole: ActorRo
                     severityClasses(selected.severity)
                   )}
                 >
-                  {selected.severity}
+                  {localizeAdminSeverity(selected.severity, language)}
                 </span>
                 <Badge variant="warning" className="bg-transparent text-foreground">
-                  {selected.eventType}
+                  {localizeAdminLogMessage(selected.eventType.replace(/_/g, " "), language, formatAdminIdentifierLabel(selected.eventType))}
                 </Badge>
-                <span className="text-xs text-muted-foreground">{formatStamp(selected.createdAt)}</span>
+                <span className="text-xs text-muted-foreground">{formatStamp(selected.createdAt, LANGUAGE_LOCALES[language])}</span>
               </div>
 
               <div className="space-y-2">
-                <h2 className="text-sm font-semibold text-foreground">Context</h2>
+                <h2 className="text-sm font-semibold text-foreground">{t("Context", "Contexte", "Kontext", "Contexto", "Contexto")}</h2>
                 <div className="space-y-1 text-sm text-muted-foreground">
                   <p>
-                    Tenant:{" "}
+                    {t("Tenant:", "Locataire :", "Mandant:", "Tenant:", "Tenant:")}{" "}
                     {selected.tenant ? (
                       <Link className="text-indigo-600 hover:underline dark:text-indigo-300" href={`/admin/tenants/${selected.tenant.id}`}>
                         {selected.tenant.name}
                       </Link>
                     ) : (
-                      "Platform"
+                        t("Platform", "Plateforme", "Plattform", "Plataforma", "Plataforma")
                     )}
                   </p>
                   <p>
-                    User:{" "}
+                    {t("User:", "Utilisateur :", "Benutzer:", "Usuario:", "Utilizador:")}{" "}
                     {selected.user ? (
                       <Link className="text-indigo-600 hover:underline dark:text-indigo-300" href={`/admin/users/${selected.user.id}/activity`}>
                         {selected.user.name || selected.user.email}
                       </Link>
                     ) : (
-                      "System"
+                        t("System", "Systeme", "System", "Sistema", "Sistema")
                     )}
                   </p>
-                  {selected.actor ? <p>Actor: {selected.actor.name || selected.actor.email}</p> : null}
+                  {selected.actor ? <p>{t("Actor:", "Acteur :", "Akteur:", "Actor:", "Ator:")} {selected.actor.name || selected.actor.email}</p> : null}
                 </div>
               </div>
 
               <div className="space-y-2">
-                <h2 className="text-sm font-semibold text-foreground">Event</h2>
-                <p className="text-sm text-foreground">{selected.message}</p>
+                <h2 className="text-sm font-semibold text-foreground">{t("Event", "Evenement", "Ereignis", "Evento", "Evento")}</h2>
+                <p className="text-sm text-foreground">{localizeAdminLogMessage(selected.message, language, selected.message)}</p>
               </div>
 
               <div className="space-y-2">
-                <h2 className="text-sm font-semibold text-foreground">Entity</h2>
+                <h2 className="text-sm font-semibold text-foreground">{t("Entity", "Entite", "Entitaet", "Entidad", "Entidade")}</h2>
                 <div className="space-y-1 text-sm text-muted-foreground">
-                  <p>Type: <span className="text-foreground">{selected.entityType || "-"}</span></p>
+                  <p>{t("Type:", "Type :", "Typ:", "Tipo:", "Tipo:")} <span className="text-foreground">{selected.entityType || "-"}</span></p>
                   <div className="flex items-center gap-2">
-                    <span>Entity ID:</span>
+                    <span>{t("Entity ID:", "ID entite :", "Entitaets-ID:", "ID de entidad:", "ID da entidade:")}</span>
                     <code className="rounded bg-muted px-2 py-0.5 text-xs text-foreground">{selected.entityId || "-"}</code>
                     {selected.entityId ? (
                       <Button size="sm" variant="ghost" onClick={() => navigator.clipboard.writeText(selected.entityId || "")}>
-                        Copy
+                        {t("Copy", "Copier", "Kopieren", "Copiar", "Copiar")}
                       </Button>
                     ) : null}
                   </div>
@@ -615,12 +637,12 @@ export default function EventsExplorerClient({ actorRole }: { actorRole: ActorRo
               </div>
 
               <div className="space-y-2">
-                <h2 className="text-sm font-semibold text-foreground">Request</h2>
+                <h2 className="text-sm font-semibold text-foreground">{t("Request", "Requête", "Anfrage", "Solicitud", "Pedido")}</h2>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <code className="rounded bg-muted px-2 py-0.5 text-xs text-foreground">{selected.requestId || "-"}</code>
                   {selected.requestId ? (
                     <Button size="sm" variant="ghost" onClick={() => navigator.clipboard.writeText(selected.requestId || "")}>
-                      Copy
+                      {t("Copy", "Copier", "Kopieren", "Copiar", "Copiar")}
                     </Button>
                   ) : null}
                 </div>
@@ -628,13 +650,13 @@ export default function EventsExplorerClient({ actorRole }: { actorRole: ActorRo
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
-                  <h2 className="text-sm font-semibold text-foreground">Metadata</h2>
+                  <h2 className="text-sm font-semibold text-foreground">{t("Metadata", "Metadonnees", "Metadaten", "Metadatos", "Metadados")}</h2>
                   <div className="flex items-center gap-2">
                     <Button size="sm" variant="ghost" onClick={() => setShowMetadata((prev) => !prev)}>
-                      {showMetadata ? "Collapse" : "Expand"}
+                      {showMetadata ? t("Collapse", "Reduire", "Einklappen", "Contraer", "Recolher") : t("Expand", "Developper", "Erweitern", "Expandir", "Expandir")}
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => navigator.clipboard.writeText(metadataText)}>
-                      Copy
+                      {t("Copy", "Copier", "Kopieren", "Copiar", "Copiar")}
                     </Button>
                   </div>
                 </div>
@@ -643,26 +665,26 @@ export default function EventsExplorerClient({ actorRole }: { actorRole: ActorRo
                     {metadataText}
                   </pre>
                 ) : (
-                  <p className="text-xs text-muted-foreground">Metadata is collapsed by default. Sensitive fields are redacted.</p>
+                  <p className="text-xs text-muted-foreground">{t("Metadata is collapsed by default. Sensitive fields are redacted.", "Les metadonnees sont reduites par defaut. Les champs sensibles sont masques.", "Metadaten sind standardmaessig eingeklappt. Sensible Felder sind geschwaerzt.", "Los metadatos estan contraidos por defecto. Los campos sensibles estan ocultos.", "Os metadados estão recolhidos por defeito. Os campos sensíveis estão ocultos.")}</p>
                 )}
               </div>
 
               <div className="space-y-2">
-                <h2 className="text-sm font-semibold text-foreground">Related links</h2>
+                <h2 className="text-sm font-semibold text-foreground">{t("Related links", "Liens associes", "Verwandte Links", "Enlaces relacionados", "Links relacionados")}</h2>
                 <div className="flex flex-wrap gap-2">
                   {selected.user ? (
                     <Link href={`/admin/users/${selected.user.id}/activity`} className="text-sm text-indigo-600 hover:underline dark:text-indigo-300">
-                      View user timeline
+                      {t("View user timeline", "Voir la chronologie utilisateur", "Benutzerverlauf ansehen", "Ver cronologia del usuario", "Ver linha temporal do utilizador")}
                     </Link>
                   ) : null}
                   {selected.tenant ? (
                     <Link href={`/admin/tenants/${selected.tenant.id}`} className="text-sm text-indigo-600 hover:underline dark:text-indigo-300">
-                      View tenant
+                      {t("View tenant", "Voir le locataire", "Mandant ansehen", "Ver tenant", "Ver tenant")}
                     </Link>
                   ) : null}
                   {selected.requestId ? (
                     <Link href={`/admin/audit-explorer?q=${encodeURIComponent(selected.requestId)}`} className="text-sm text-indigo-600 hover:underline dark:text-indigo-300">
-                      View audit logs
+                      {t("View audit logs", "Voir les journaux d'audit", "Audit-Protokolle ansehen", "Ver registros de auditoria", "Ver registos de auditoria")}
                     </Link>
                   ) : null}
                 </div>

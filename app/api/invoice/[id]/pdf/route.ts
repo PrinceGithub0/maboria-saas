@@ -52,6 +52,7 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
   const invoice = await prisma.invoice.findFirst({
     where: {
       userId: targetUserId,
+      subscriptionId: null,
       OR: [
         { id: invoiceId },
         { invoiceNumber: invoiceId },

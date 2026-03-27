@@ -6,12 +6,14 @@ import useSWR from "swr";
 import { Copy, ExternalLink, RefreshCw, Search, X } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/components/providers/language-provider";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Toast } from "@/components/ui/toast";
 import { formatDateTimeDMY } from "@/lib/date";
+import { LANGUAGE_LOCALES, type CompleteLocalizedText } from "@/lib/i18n";
 
 type RecoveryStatus = "FAILED" | "RETRYING" | "RESOLVED";
 type RangeMode = "1h" | "24h" | "7d" | "custom";
@@ -142,19 +144,45 @@ const fetcher = async <T,>(url: string): Promise<T> => {
   return payload as T;
 };
 
-const statusOptions: Array<{ value: "ALL" | RecoveryStatus; label: string }> = [
-  { value: "ALL", label: "All statuses" },
-  { value: "FAILED", label: "FAILED" },
-  { value: "RETRYING", label: "RETRYING" },
-  { value: "RESOLVED", label: "RESOLVED" },
+const text = (en: string, fr: string, de: string, es: string, pt: string): CompleteLocalizedText => ({ en, fr, de, es, pt });
+
+const statusOptions: Array<{ value: "ALL" | RecoveryStatus; label: CompleteLocalizedText }> = [
+  { value: "ALL", label: text("All statuses", "Tous les statuts", "Alle Status", "Todos los estados", "Todos os estados") },
+  { value: "FAILED", label: text("Failed", "échoué", "Fehlgeschlagen", "Fallido", "Falhado") },
+  { value: "RETRYING", label: text("Retrying", "Nouvelle tentative", "Wiederholung", "Reintentando", "A tentar novamente") },
+  { value: "RESOLVED", label: text("Resolved", "Résolue", "Behoben", "Resuelto", "Resolvido") },
 ];
 
-function formatRelative(input: string) {
-  const deltaMs = Date.now() - new Date(input).getTime();
-  if (deltaMs < 60_000) return "just now";
-  if (deltaMs < 3_600_000) return `${Math.floor(deltaMs / 60_000)}m ago`;
-  if (deltaMs < 86_400_000) return `${Math.floor(deltaMs / 3_600_000)}h ago`;
-  return `${Math.floor(deltaMs / 86_400_000)}d ago`;
+function statusLabel(status: RecoveryStatus) {
+  if (status === "FAILED") return text("Failed", "échoué", "Fehlgeschlagen", "Fallido", "Falhado");
+  if (status === "RETRYING") return text("Retrying", "Nouvelle tentative", "Wiederholung", "Reintentando", "A tentar novamente");
+  return text("Resolved", "Résolue", "Behoben", "Resuelto", "Resolvido");
+}
+
+function stepStatusLabel(status: "STARTED" | "SUCCESS" | "FAILED" | "SKIPPED") {
+  if (status === "STARTED") return text("Started", "Demarre", "Gestartet", "Iniciado", "Iniciado");
+  if (status === "SUCCESS") return text("Success", "Succes", "Erfolg", "Exito", "Sucesso");
+  if (status === "FAILED") return text("Failed", "échoué", "Fehlgeschlagen", "Fallido", "Falhado");
+  return text("Skipped", "Ignore", "übersprungen", "Omitido", "Ignorado");
+}
+
+function attemptStatusLabel(status: "STARTED" | "BLOCKED" | "SUCCEEDED" | "FAILED") {
+  if (status === "STARTED") return text("Started", "Demarre", "Gestartet", "Iniciado", "Iniciado");
+  if (status === "BLOCKED") return text("Blocked", "Bloque", "Blockiert", "Bloqueado", "Bloqueado");
+  if (status === "SUCCEEDED") return text("Succeeded", "Reussi", "Erfolgreich", "Completado", "Concluido");
+  return text("Failed", "échoué", "Fehlgeschlagen", "Fallido", "Falhado");
+}
+
+function formatRelative(input: string, locale: string) {
+  const deltaMs = new Date(input).getTime() - Date.now();
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+  const minute = 60_000;
+  const hour = 3_600_000;
+  const day = 86_400_000;
+  if (Math.abs(deltaMs) < minute) return rtf.format(0, "minute");
+  if (Math.abs(deltaMs) < hour) return rtf.format(Math.round(deltaMs / minute), "minute");
+  if (Math.abs(deltaMs) < day) return rtf.format(Math.round(deltaMs / hour), "hour");
+  return rtf.format(Math.round(deltaMs / day), "day");
 }
 
 function statusBadgeClass(status: RecoveryStatus) {
@@ -197,7 +225,8 @@ function parseDateInput(value: string) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function JsonCard({ title, value }: { title: string; value: Record<string, unknown> }) {
+function JsonCard({ title, value }: { title: CompleteLocalizedText; value: Record<string, unknown> }) {
+  const { t } = useLanguage();
   const [copied, setCopied] = useState(false);
   const formatted = useMemo(() => JSON.stringify(value || {}, null, 2), [value]);
 
@@ -210,9 +239,9 @@ function JsonCard({ title, value }: { title: string; value: Record<string, unkno
   return (
     <div className="space-y-2 rounded-lg border border-border/70 bg-background/70 p-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{title}</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t(title)}</p>
         <Button size="sm" variant="ghost" onClick={copy}>
-          {copied ? "Copied" : "Copy JSON"}
+          {copied ? t("Copied", "Copie", "Kopiert", "Copiado", "Copiado") : t("Copy JSON", "Copier le JSON", "JSON kopieren", "Copiar JSON", "Copiar JSON")}
         </Button>
       </div>
       <pre className="max-h-48 overflow-auto rounded-md border border-border/60 bg-background p-2 text-xs text-foreground">
@@ -223,6 +252,7 @@ function JsonCard({ title, value }: { title: string; value: Record<string, unkno
 }
 
 export default function AutomationErrorsPage() {
+  const { language, t } = useLanguage();
   const searchRef = useRef<HTMLInputElement | null>(null);
 
   const [searchInput, setSearchInput] = useState("");
@@ -340,14 +370,14 @@ export default function AutomationErrorsPage() {
   const activeFilters = useMemo(
     () =>
       [
-        search ? { id: "q", label: `Search: ${search}`, clear: () => { setSearch(""); setSearchInput(""); setPage(1); setCursors([""]); } } : null,
-        flowId ? { id: "flow", label: `Flow: ${flowId}`, clear: () => { setFlowId(""); setPage(1); setCursors([""]); } } : null,
-        subscriber ? { id: "subscriber", label: `Subscriber: ${subscriber}`, clear: () => { setSubscriber(""); setPage(1); setCursors([""]); } } : null,
-        tenant ? { id: "tenant", label: `Tenant: ${tenant}`, clear: () => { setTenant(""); setPage(1); setCursors([""]); } } : null,
-        status !== "ALL" ? { id: "status", label: `Status: ${status}`, clear: () => { setStatus("ALL"); setPage(1); setCursors([""]); } } : null,
-        range !== "24h" ? { id: "range", label: `Range: ${range}`, clear: () => applyRange("24h") } : null,
+        search ? { id: "q", label: t(text(`Search: ${search}`, `Recherche : ${search}`, `Suche: ${search}`, `Buscar: ${search}`, `Pesquisar: ${search}`)), clear: () => { setSearch(""); setSearchInput(""); setPage(1); setCursors([""]); } } : null,
+        flowId ? { id: "flow", label: t(text(`Flow: ${flowId}`, `Flux : ${flowId}`, `Flow: ${flowId}`, `Flujo: ${flowId}`, `Fluxo: ${flowId}`)), clear: () => { setFlowId(""); setPage(1); setCursors([""]); } } : null,
+        subscriber ? { id: "subscriber", label: t(text(`Subscriber: ${subscriber}`, `Abonne : ${subscriber}`, `Abonnent: ${subscriber}`, `Suscriptor: ${subscriber}`, `Subscritor: ${subscriber}`)), clear: () => { setSubscriber(""); setPage(1); setCursors([""]); } } : null,
+        tenant ? { id: "tenant", label: t(text(`Tenant: ${tenant}`, `Locataire : ${tenant}`, `Mandant: ${tenant}`, `Tenant: ${tenant}`, `Tenant: ${tenant}`)), clear: () => { setTenant(""); setPage(1); setCursors([""]); } } : null,
+        status !== "ALL" ? { id: "status", label: t(text(`Status: ${status}`, `Statut : ${status}`, `Status: ${status}`, `Estado: ${status}`, `Estado: ${status}`)), clear: () => { setStatus("ALL"); setPage(1); setCursors([""]); } } : null,
+        range !== "24h" ? { id: "range", label: t(text(`Range: ${range}`, `Plage : ${range}`, `Bereich: ${range}`, `Rango: ${range}`, `Intervalo: ${range}`)), clear: () => applyRange("24h") } : null,
       ].filter(Boolean) as Array<{ id: string; label: string; clear: () => void }>,
-    [flowId, range, search, status, subscriber, tenant]
+    [flowId, range, search, status, subscriber, tenant, t]
   );
 
   const copyText = useCallback(async (label: string, value: string | null | undefined) => {
@@ -357,10 +387,10 @@ export default function AutomationErrorsPage() {
       setCopiedValue(label);
       setTimeout(() => setCopiedValue((prev) => (prev === label ? null : prev)), 1500);
     } catch {
-      setToast("Copy failed");
+      setToast(t("Copy failed", "La copie a échoué", "Kopieren fehlgeschlagen", "La copia fallo", "A copia falhou"));
       setTimeout(() => setToast(""), 2200);
     }
-  }, []);
+  }, [t]);
 
   const runReplay = async (runId: string, reason?: string) => {
     if (replayBusyId) return;
@@ -373,14 +403,26 @@ export default function AutomationErrorsPage() {
       });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(String((payload as { error?: string }).error || "Replay failed"));
+        throw new Error(String((payload as { error?: string }).error || t("Replay failed", "La relecture a échoué", "Replay fehlgeschlagen", "La repeticion fallo", "A repeticao falhou")));
       }
       const replayRunId = String((payload as { newRunId?: string; replayRunId?: string }).newRunId || (payload as { replayRunId?: string }).replayRunId || "").trim();
-      setToast(replayRunId ? `Replay started (${replayRunId})` : "Replay started");
+      setToast(
+        replayRunId
+          ? t(
+              text(
+                `Replay started (${replayRunId})`,
+                `Relecture demarree (${replayRunId})`,
+                `Replay gestartet (${replayRunId})`,
+                `Repeticion iniciada (${replayRunId})`,
+                `Repeticao iniciada (${replayRunId})`
+              )
+            )
+          : t("Replay started", "Relecture demarree", "Replay gestartet", "Repeticion iniciada", "Repeticao iniciada")
+      );
       await Promise.all([mutate(), mutateDetail()]);
       setTimeout(() => setToast(""), 2500);
     } catch (err) {
-      setToast(err instanceof Error ? err.message : "Replay failed");
+      setToast(err instanceof Error ? err.message : t("Replay failed", "La relecture a échoué", "Replay fehlgeschlagen", "La repeticion fallo", "A repeticao falhou"));
       setTimeout(() => setToast(""), 3200);
     } finally {
       setReplayBusyId(null);
@@ -423,24 +465,34 @@ export default function AutomationErrorsPage() {
       <header className="rounded-xl border border-border/60 bg-card px-5 py-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-semibold text-foreground">Automation Errors</h1>
+            <h1 className="text-3xl font-semibold text-foreground">{t(text("Automation Errors", "Erreurs d'automatisation", "Automatisierungsfehler", "Errores de automatización", "Erros de automação"))}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Recover failed automation runs and maintain system reliability.
+              {t(
+                text(
+                  "Recover failed automation runs and maintain system reliability.",
+                  "Recuperez les executions d'automatisation échouées et maintenez la fiabilite du systeme.",
+                  "Behebe fehlgeschlagene Automatisierungslaufe und halte die Systemzuverlässigkeit aufrecht.",
+                  "Recupera las ejecuciones fallidas de automatización y manten la fiabilidad del sistema.",
+                  "Recupere execucoes falhadas da automação e mantenha a fiabilidade do sistema."
+                )
+              )}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="secondary" onClick={refreshPage} disabled={refreshing}>
               <RefreshCw className={clsx("h-4 w-4", refreshing && "animate-spin")} />
-              {refreshing ? "Refreshing..." : "Refresh"}
+              {refreshing
+                ? t("Refreshing...", "Rafraichissement...", "Wird aktualisiert...", "Actualizando...", "A atualizar...")
+                : t("Refresh", "Rafraichir", "Aktualisieren", "Actualizar", "Atualizar")}
             </Button>
             <select
               value={autoRefresh}
               onChange={(event) => setAutoRefresh(event.target.value as AutoRefreshMode)}
               className="h-10 rounded-md border border-border/70 bg-background px-3 text-sm"
             >
-              <option value="off">Auto refresh: Off</option>
-              <option value="30">Auto refresh: 30s</option>
-              <option value="60">Auto refresh: 60s</option>
+              <option value="off">{t("Auto refresh: Off", "Rafraichissement auto : arret", "Auto-Aktualisierung: aus", "Actualización automatica: desactivada", "Atualizacao automatica: desligada")}</option>
+              <option value="30">{t("Auto refresh: 30s", "Rafraichissement auto : 30 s", "Auto-Aktualisierung: 30 s", "Actualización automatica: 30 s", "Atualizacao automatica: 30 s")}</option>
+              <option value="60">{t("Auto refresh: 60s", "Rafraichissement auto : 60 s", "Auto-Aktualisierung: 60 s", "Actualización automatica: 60 s", "Atualizacao automatica: 60 s")}</option>
             </select>
           </div>
         </div>
@@ -448,32 +500,32 @@ export default function AutomationErrorsPage() {
 
       {error ? (
         <div className="space-y-2">
-          <Alert variant="error">Unable to load automation failures.</Alert>
-          <Button variant="secondary" onClick={refreshPage}>Retry</Button>
+          <Alert variant="error">{t("Unable to load automation failures.", "Impossible de charger les echecs d'automatisation.", "Automatisierungsfehler können nicht geladen werden.", "No se pueden cargar los fallos de automatización.", "Não foi possivel carregar as falhas de automação.")}</Alert>
+          <Button variant="secondary" onClick={refreshPage}>{t("Retry", "Reessayer", "Erneut versuchen", "Reintentar", "Tentar novamente")}</Button>
         </div>
       ) : null}
 
-      <section className="grid gap-3 md:grid-cols-4">
+      <section className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
         {isLoading ? (
           Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-24 rounded-xl" />)
         ) : (
           <>
             <div className={clsx("rounded-xl border bg-card px-4 py-3", hasFailures ? "border-amber-300 dark:border-amber-500/40" : "border-border/70")}>
-              <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Failed Runs</p>
+              <p className="text-xs uppercase leading-5 tracking-[0.1em] text-muted-foreground break-words">{t("Failed Runs", "Executions échouées", "Fehlgeschlagene Laufe", "Ejecuciones fallidas", "Execucoes falhadas")}</p>
               <p className="mt-1 text-2xl font-semibold text-foreground">{summary?.failedRuns24h ?? 0}</p>
             </div>
             <div className="rounded-xl border border-border/70 bg-card px-4 py-3">
-              <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Impacted Flows</p>
+              <p className="text-xs uppercase leading-5 tracking-[0.1em] text-muted-foreground break-words">{t("Impacted Flows", "Flux impactes", "Betroffene Flows", "Flujos afectados", "Fluxos afetados")}</p>
               <p className="mt-1 text-2xl font-semibold text-foreground">{summary?.impactedFlows24h ?? 0}</p>
             </div>
             <div className="rounded-xl border border-border/70 bg-card px-4 py-3">
-              <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Impacted Subscribers</p>
+              <p className="text-xs uppercase leading-5 tracking-[0.1em] text-muted-foreground break-words">{t("Impacted Subscribers", "Abonnes impactes", "Betroffene Abonnenten", "Suscriptores afectados", "Subscritores afetados")}</p>
               <p className="mt-1 text-2xl font-semibold text-foreground">{summary?.impactedSubscribers24h ?? 0}</p>
             </div>
             <div className="rounded-xl border border-border/70 bg-card px-4 py-3">
-              <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Latest Failure</p>
+              <p className="text-xs uppercase leading-5 tracking-[0.1em] text-muted-foreground break-words">{t("Latest Failure", "Dernier echec", "Letzter Fehler", "Ultimo fallo", "Ultima falha")}</p>
               <p className="mt-1 text-sm font-semibold text-foreground">
-                {summary?.latestFailureAt ? formatDateTimeDMY(new Date(summary.latestFailureAt)) : "N/A"}
+                {summary?.latestFailureAt ? formatDateTimeDMY(new Date(summary.latestFailureAt), LANGUAGE_LOCALES[language]) : t("N/A", "N/D", "k. A.", "N/D", "N/D")}
               </p>
             </div>
           </>
@@ -482,8 +534,8 @@ export default function AutomationErrorsPage() {
 
       <section className="rounded-xl border border-border/60 bg-card px-5 py-4">
         <div className="mb-3 flex items-center justify-between">
-          <p className="text-sm font-semibold text-foreground">Most impacted flows</p>
-          <p className="text-xs text-muted-foreground">Last 24 hours</p>
+          <p className="text-sm font-semibold text-foreground">{t("Most impacted flows", "Flux les plus impactes", "Am starksten betroffene Flows", "Flujos mas afectados", "Fluxos mais afetados")}</p>
+          <p className="text-xs text-muted-foreground">{t("Last 24 hours", "Dernieres 24 heures", "Letzte 24 Stunden", "Ultimas 24 horas", "Ultimas 24 horas")}</p>
         </div>
         {isLoading ? (
           <Skeleton className="h-24 rounded-lg" />
@@ -504,12 +556,22 @@ export default function AutomationErrorsPage() {
                 )}
               >
                 <span className="text-sm font-medium text-foreground">{flow.flowName}</span>
-                <span className="text-xs text-muted-foreground">{flow.failureCount} failures</span>
+                 <span className="text-xs text-muted-foreground">
+                   {t(
+                     text(
+                       `${flow.failureCount} failures`,
+                       `${flow.failureCount} echecs`,
+                       `${flow.failureCount} Fehler`,
+                       `${flow.failureCount} fallos`,
+                       `${flow.failureCount} falhas`
+                     )
+                   )}
+                 </span>
               </button>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">No automation failures detected. System is operating normally.</p>
+          <p className="text-sm text-muted-foreground">{t("No automation failures detected. System is operating normally.", "Aucun echec d'automatisation detecte. Le systeme fonctionne normalement.", "Keine Automatisierungsfehler erkannt. Das System arbeitet normal.", "No se detectaron fallos de automatización. El sistema funciona con normalidad.", "Não foram detetadas falhas de automação. O sistema esta a funcionar normalmente.")}</p>
         )}
       </section>
 
@@ -521,7 +583,7 @@ export default function AutomationErrorsPage() {
               ref={searchRef}
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search flow, subscriber email, run id"
+              placeholder={t("Search flow, subscriber email, run id", "Rechercher un flux, un email d'abonne, un ID d'execution", "Flow, Abonnenten-E-Mail oder Lauf-ID suchen", "Buscar flujo, correo del suscriptor o ID de ejecucion", "Pesquisar fluxo, email do subscritor ou ID da execucao")}
               className="h-11 w-full rounded-md border border-border/70 bg-background pl-9 pr-3 text-sm text-foreground"
             />
           </div>
@@ -532,7 +594,7 @@ export default function AutomationErrorsPage() {
               setPage(1);
               setCursors([""]);
             }}
-            placeholder="Flow ID"
+            placeholder={t("Flow ID", "ID du flux", "Flow-ID", "ID del flujo", "ID do fluxo")}
           />
           <Input
             value={subscriber}
@@ -541,7 +603,7 @@ export default function AutomationErrorsPage() {
               setPage(1);
               setCursors([""]);
             }}
-            placeholder="Subscriber"
+            placeholder={t("Subscriber", "Abonne", "Abonnent", "Suscriptor", "Subscritor")}
           />
           <Input
             value={tenant}
@@ -550,7 +612,7 @@ export default function AutomationErrorsPage() {
               setPage(1);
               setCursors([""]);
             }}
-            placeholder="Tenant"
+            placeholder={t("Tenant", "Locataire", "Mandant", "Tenant", "Tenant")}
           />
           <select
             value={status}
@@ -563,7 +625,7 @@ export default function AutomationErrorsPage() {
           >
             {statusOptions.map((option) => (
               <option key={option.value} value={option.value}>
-                {option.label}
+                {t(option.label)}
               </option>
             ))}
           </select>
@@ -575,10 +637,10 @@ export default function AutomationErrorsPage() {
             onChange={(event) => applyRange(event.target.value as RangeMode)}
             className="h-10 rounded-md border border-border/70 bg-background px-3 text-sm"
           >
-            <option value="1h">Last 1 hour</option>
-            <option value="24h">Last 24 hours</option>
-            <option value="7d">Last 7 days</option>
-            <option value="custom">Custom range</option>
+            <option value="1h">{t("Last 1 hour", "Derniere heure", "Letzte 1 Stunde", "Ultima hora", "Ultima hora")}</option>
+            <option value="24h">{t("Last 24 hours", "Dernieres 24 heures", "Letzte 24 Stunden", "Ultimas 24 horas", "Ultimas 24 horas")}</option>
+            <option value="7d">{t("Last 7 days", "Derniers 7 jours", "Letzte 7 Tage", "Ultimos 7 dias", "Ultimos 7 dias")}</option>
+            <option value="custom">{t("Custom range", "Plage personnalisee", "Benutzerdefinierter Bereich", "Rango personalizado", "Intervalo personalizado")}</option>
           </select>
           <select
             value={sort}
@@ -589,8 +651,8 @@ export default function AutomationErrorsPage() {
             }}
             className="h-10 rounded-md border border-border/70 bg-background px-3 text-sm"
           >
-            <option value="created_desc">Newest first</option>
-            <option value="created_asc">Oldest first</option>
+            <option value="created_desc">{t("Newest first", "Plus recentes d'abord", "Neueste zuerst", "Mas recientes primero", "Mais recentes primeiro")}</option>
+            <option value="created_asc">{t("Oldest first", "Plus anciennes d'abord", "Alteste zuerst", "Mas antiguos primero", "Mais antigos primeiro")}</option>
           </select>
           {range === "custom" ? (
             <div className="grid gap-2 sm:grid-cols-2">
@@ -649,7 +711,7 @@ export default function AutomationErrorsPage() {
                 setCursors([""]);
               }}
             >
-              Reset all
+              {t("Reset all", "Tout reinitialiser", "Alles zurücksetzen", "Restablecer todo", "Repor tudo")}
             </Button>
           </div>
         ) : null}
@@ -658,13 +720,13 @@ export default function AutomationErrorsPage() {
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
         <div className="rounded-xl border border-border/60 bg-card">
           <div className="grid grid-cols-[minmax(160px,1fr)_minmax(180px,1fr)_120px_minmax(180px,1.3fr)_170px_110px_130px] gap-2 border-b border-border/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            <span>Flow</span>
-            <span>Subscriber</span>
-            <span>Status</span>
-            <span>Error summary</span>
-            <span>Created</span>
-            <span>Retry count</span>
-            <span>Actions</span>
+            <span>{t("Flow", "Flux", "Flow", "Flujo", "Fluxo")}</span>
+            <span>{t("Subscriber", "Abonne", "Abonnent", "Suscriptor", "Subscritor")}</span>
+            <span>{t("Status", "Statut", "Status", "Estado", "Estado")}</span>
+            <span>{t("Error summary", "Resume de l'erreur", "Fehlerzusammenfassung", "Resumen del error", "Resumo do erro")}</span>
+            <span>{t("Created", "Cree", "Erstellt", "Creado", "Criado")}</span>
+            <span>{t("Retry count", "Nombre de tentatives", "Anzahl Wiederholungen", "Numero de reintentos", "Numero de tentativas")}</span>
+            <span>{t("Actions", "Actions", "Aktionen", "Acciones", "Ações")}</span>
           </div>
           <div className="max-h-[calc(100vh-380px)] overflow-y-auto">
             {isLoading ? (
@@ -675,8 +737,8 @@ export default function AutomationErrorsPage() {
               </div>
             ) : rows.length === 0 ? (
               <div className="flex min-h-[280px] flex-col items-center justify-center px-5 text-center">
-                <p className="text-base font-semibold text-foreground">No automation failures detected.</p>
-                <p className="text-sm text-muted-foreground">System is operating normally.</p>
+                 <p className="text-base font-semibold text-foreground">{t("No automation failures detected.", "Aucun echec d'automatisation detecte.", "Keine Automatisierungsfehler erkannt.", "No se detectaron fallos de automatización.", "Não foram detetadas falhas de automação.")}</p>
+                 <p className="text-sm text-muted-foreground">{t("System is operating normally.", "Le systeme fonctionne normalement.", "Das System arbeitet normal.", "El sistema funciona con normalidad.", "O sistema esta a funcionar normalmente.")}</p>
               </div>
             ) : (
               rows.map((row) => (
@@ -707,12 +769,12 @@ export default function AutomationErrorsPage() {
                     </span>
                   </span>
                   <span className={clsx("inline-flex h-fit w-fit items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1", statusBadgeClass(row.status))}>
-                    {row.status}
+                    {t(statusLabel(row.status))}
                   </span>
                   <span className="truncate text-sm text-foreground">{row.errorSummary}</span>
                   <span className="text-xs text-muted-foreground">
-                    <span className="block">{formatRelative(row.createdAt)}</span>
-                    <span className="block">{formatDateTimeDMY(new Date(row.createdAt))}</span>
+                      <span className="block">{formatRelative(row.createdAt, LANGUAGE_LOCALES[language])}</span>
+                    <span className="block">{formatDateTimeDMY(new Date(row.createdAt), LANGUAGE_LOCALES[language])}</span>
                   </span>
                   <span className="text-sm font-semibold text-foreground">{row.retryCount}</span>
                   <span>
@@ -727,7 +789,7 @@ export default function AutomationErrorsPage() {
                         setReplayReason("");
                       }}
                     >
-                      Replay
+                      {t("Replay", "Relancer", "Replay", "Repetir", "Repetir")}
                     </Button>
                   </span>
                 </div>
@@ -735,7 +797,17 @@ export default function AutomationErrorsPage() {
             )}
           </div>
           <div className="flex items-center justify-between border-t border-border/70 px-3 py-2 text-xs text-muted-foreground">
-            <span>Total failed roots: {data?.total ?? 0}</span>
+             <span>
+               {t(
+                 text(
+                   `Total failed roots: ${data?.total ?? 0}`,
+                   `Total des racines echouees : ${data?.total ?? 0}`,
+                   `Gesamtzahl fehlgeschlagener Wurzeln: ${data?.total ?? 0}`,
+                   `Total de raices fallidas: ${data?.total ?? 0}`,
+                   `Total de raizes falhadas: ${data?.total ?? 0}`
+                 )
+               )}
+             </span>
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
@@ -743,9 +815,9 @@ export default function AutomationErrorsPage() {
                 disabled={page <= 1}
                 onClick={() => setPage((prev) => Math.max(1, prev - 1))}
               >
-                Previous
+                {t("Previous", "Precedent", "Zurück", "Anterior", "Anterior")}
               </Button>
-              <span>Page {page}</span>
+              <span>{t(text(`Page ${page}`, `Page ${page}`, `Seite ${page}`, `Pagina ${page}`, `Pagina ${page}`))}</span>
               <Button
                 size="sm"
                 variant="ghost"
@@ -760,7 +832,7 @@ export default function AutomationErrorsPage() {
                   setPage((prev) => prev + 1);
                 }}
               >
-                Next
+                {t("Next", "Suivant", "Weiter", "Siguiente", "Seguinte")}
               </Button>
             </div>
           </div>
@@ -769,7 +841,7 @@ export default function AutomationErrorsPage() {
         <aside className="rounded-xl border border-border/60 bg-card p-4">
           {!selectedRunId ? (
             <div className="flex min-h-[220px] items-center justify-center text-sm text-muted-foreground">
-              Select a failed run to view diagnostics.
+              {t("Select a failed run to view diagnostics.", "Sélectionnez une execution échouée pour voir les diagnostics.", "Wähle einen fehlgeschlagenen Lauf aus, um Diagnosen zu sehen.", "Selecciona una ejecucion fallida para ver los diagnosticos.", "Selecione uma execucao falhada para ver diagnosticos.")}
             </div>
           ) : detailLoading || !detail ? (
             <div className="space-y-3">
@@ -780,17 +852,17 @@ export default function AutomationErrorsPage() {
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-foreground">Run details</h2>
+                <h2 className="text-lg font-semibold text-foreground">{t("Run details", "Details de l'execution", "Laufdetails", "Detalles de la ejecucion", "Detalhes da execucao")}</h2>
                 <span className={clsx("inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ring-1", statusBadgeClass(detail.status))}>
-                  {detail.status}
+                  {t(statusLabel(detail.status))}
                 </span>
               </div>
 
               <section className="space-y-2 rounded-lg border border-border/70 bg-muted/20 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Run metadata</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t("Run metadata", "Metadonnees de l'execution", "Lauf-Metadaten", "Metadatos de la ejecucion", "Metadados da execucao")}</p>
                 <dl className="space-y-1 text-xs">
                   <div className="flex items-start justify-between gap-2">
-                    <dt className="text-muted-foreground">Run ID</dt>
+                    <dt className="text-muted-foreground">{t("Run ID", "ID d'execution", "Lauf-ID", "ID de ejecucion", "ID da execucao")}</dt>
                     <dd className="flex items-center gap-1">
                       <span className="font-mono text-foreground">{detail.runMetadata.runId}</span>
                       <Button
@@ -799,34 +871,34 @@ export default function AutomationErrorsPage() {
                         onClick={() => void copyText("run-id", detail.runMetadata.runId)}
                       >
                         <Copy className="h-3.5 w-3.5" />
-                        {copiedValue === "run-id" ? "Copied" : "Copy"}
-                      </Button>
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-2"><dt className="text-muted-foreground">Flow</dt><dd className="text-right text-foreground">{detail.runMetadata.flowName}<br /><span className="font-mono text-[11px] text-muted-foreground">{detail.runMetadata.flowId}</span></dd></div>
-                  <div className="flex justify-between gap-2"><dt className="text-muted-foreground">Subscriber</dt><dd className="text-right text-foreground">{detail.runMetadata.subscriberEmail}<br /><span className="font-mono text-[11px] text-muted-foreground">{detail.runMetadata.subscriberId}</span></dd></div>
-                  <div className="flex justify-between gap-2"><dt className="text-muted-foreground">Tenant</dt><dd className="text-right text-foreground">{detail.runMetadata.tenantName || detail.runMetadata.tenantId || "N/A"}</dd></div>
-                  <div className="flex justify-between gap-2"><dt className="text-muted-foreground">Trigger</dt><dd className="text-foreground">{detail.runMetadata.triggerType}</dd></div>
-                  <div className="flex justify-between gap-2"><dt className="text-muted-foreground">Created</dt><dd className="text-foreground">{formatDateTimeDMY(new Date(detail.runMetadata.createdAt))}</dd></div>
-                  <div className="flex justify-between gap-2"><dt className="text-muted-foreground">Retry count</dt><dd className="text-foreground">{detail.retryCount}</dd></div>
-                  <div className="flex justify-between gap-2"><dt className="text-muted-foreground">Last retry</dt><dd className="text-foreground">{detail.lastRetryAt ? formatDateTimeDMY(new Date(detail.lastRetryAt)) : "Never"}</dd></div>
+                         {copiedValue === "run-id" ? t("Copied", "Copie", "Kopiert", "Copiado", "Copiado") : t("Copy", "Copier", "Kopieren", "Copiar", "Copiar")}
+                       </Button>
+                     </dd>
+                   </div>
+                  <div className="flex justify-between gap-2"><dt className="text-muted-foreground">{t("Flow", "Flux", "Flow", "Flujo", "Fluxo")}</dt><dd className="text-right text-foreground">{detail.runMetadata.flowName}<br /><span className="font-mono text-[11px] text-muted-foreground">{detail.runMetadata.flowId}</span></dd></div>
+                  <div className="flex justify-between gap-2"><dt className="text-muted-foreground">{t("Subscriber", "Abonne", "Abonnent", "Suscriptor", "Subscritor")}</dt><dd className="text-right text-foreground">{detail.runMetadata.subscriberEmail}<br /><span className="font-mono text-[11px] text-muted-foreground">{detail.runMetadata.subscriberId}</span></dd></div>
+                  <div className="flex justify-between gap-2"><dt className="text-muted-foreground">{t("Tenant", "Locataire", "Mandant", "Tenant", "Tenant")}</dt><dd className="text-right text-foreground">{detail.runMetadata.tenantName || detail.runMetadata.tenantId || t("N/A", "N/D", "k. A.", "N/D", "N/D")}</dd></div>
+                  <div className="flex justify-between gap-2"><dt className="text-muted-foreground">{t("Trigger", "Declencheur", "Ausloser", "Disparador", "Gatilho")}</dt><dd className="text-foreground">{detail.runMetadata.triggerType}</dd></div>
+                  <div className="flex justify-between gap-2"><dt className="text-muted-foreground">{t("Created", "Cree", "Erstellt", "Creado", "Criado")}</dt><dd className="text-foreground">{formatDateTimeDMY(new Date(detail.runMetadata.createdAt), LANGUAGE_LOCALES[language])}</dd></div>
+                  <div className="flex justify-between gap-2"><dt className="text-muted-foreground">{t("Retry count", "Nombre de tentatives", "Anzahl Wiederholungen", "Numero de reintentos", "Numero de tentativas")}</dt><dd className="text-foreground">{detail.retryCount}</dd></div>
+                  <div className="flex justify-between gap-2"><dt className="text-muted-foreground">{t("Last retry", "Derniere tentative", "Letzte Wiederholung", "Ultimo reintento", "Ultima tentativa")}</dt><dd className="text-foreground">{detail.lastRetryAt ? formatDateTimeDMY(new Date(detail.lastRetryAt), LANGUAGE_LOCALES[language]) : t("Never", "Jamais", "Nie", "Nunca", "Nunca")}</dd></div>
                   {detail.relatedLinks.tenant || detail.relatedLinks.subscriber || detail.relatedLinks.flow ? (
                     <div className="pt-1">
-                      <dt className="mb-1 text-muted-foreground">Links</dt>
+                      <dt className="mb-1 text-muted-foreground">{t("Links", "Liens", "Links", "Enlaces", "Ligacoes")}</dt>
                       <dd className="flex flex-wrap items-center gap-2">
                         {detail.relatedLinks.tenant ? (
                           <a href={detail.relatedLinks.tenant} className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline dark:text-indigo-300">
-                            Tenant <ExternalLink className="h-3 w-3" />
+                            {t("Tenant", "Locataire", "Mandant", "Tenant", "Tenant")} <ExternalLink className="h-3 w-3" />
                           </a>
                         ) : null}
                         {detail.relatedLinks.subscriber ? (
                           <a href={detail.relatedLinks.subscriber} className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline dark:text-indigo-300">
-                            Subscriber <ExternalLink className="h-3 w-3" />
+                            {t("Subscriber", "Abonne", "Abonnent", "Suscriptor", "Subscritor")} <ExternalLink className="h-3 w-3" />
                           </a>
                         ) : null}
                         {detail.relatedLinks.flow ? (
                           <a href={detail.relatedLinks.flow} className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline dark:text-indigo-300">
-                            Flow <ExternalLink className="h-3 w-3" />
+                            {t("Flow", "Flux", "Flow", "Flujo", "Fluxo")} <ExternalLink className="h-3 w-3" />
                           </a>
                         ) : null}
                       </dd>
@@ -836,34 +908,52 @@ export default function AutomationErrorsPage() {
               </section>
 
               <section className="space-y-2 rounded-lg border border-border/70 bg-muted/20 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Error information</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t("Error information", "Informations sur l'erreur", "Fehlerinformationen", "Información del error", "Informação do erro")}</p>
                 <p className="text-sm font-semibold text-foreground">{detail.errorMessage || detail.error.message}</p>
                 {detail.failedStep ? (
                   <p className="text-xs text-muted-foreground">
-                    Failed step: <span className="font-medium text-foreground">{detail.failedStep.stepId || detail.failedStep.stepType || "unknown"}</span>
+                    {t("Failed step:", "Etape échouée :", "Fehlgeschlagener Schritt:", "Paso fallido:", "Etapa falhada:")} <span className="font-medium text-foreground">{detail.failedStep.stepId || detail.failedStep.stepType || t("unknown", "inconnu", "unbekannt", "desconocido", "desconhecido")}</span>
                     {detail.failedStep.stepIndex !== null ? ` (#${detail.failedStep.stepIndex})` : ""}
                   </p>
                 ) : null}
                 {/business profile required|missing recipient email|missing invoice id/i.test(detail.errorMessage || "") ? (
                   <p className="text-xs text-amber-700 dark:text-amber-300">
-                    Likely fix: subscriber profile/data is incomplete. Resolve data then replay.
+                    {t("Likely fix: subscriber profile/data is incomplete. Resolve data then replay.", "Correction probable : le profil ou les données de l'abonne sont incomplets. Corrigez les données puis relancez.", "Wahrscheinliche Lösung: Das Abonnentenprofil bzw. die Daten sind unvollstandig. Daten korrigieren und dann erneut ausfuhren.", "Posible solucion: el perfil o los datos del suscriptor estan incompletos. Corrige los datos y luego repite.", "Correcao provavel: o perfil ou os dados do subscritor estão incompletos. Corrija os dados e depois repita.")}
                   </p>
                 ) : null}
                 <details className="rounded-md border border-border/70 bg-background/80 p-2">
-                  <summary className="cursor-pointer text-xs font-medium text-muted-foreground">Stack trace</summary>
+                  <summary className="cursor-pointer text-xs font-medium text-muted-foreground">{t("Stack trace", "Trace de pile", "Stacktrace", "Traza de pila", "Stack trace")}</summary>
                   <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap text-xs text-foreground">
-                    {detail.stackTrace || detail.error.stackTrace || "No stack trace captured."}
+                    {detail.stackTrace || detail.error.stackTrace || t("No stack trace captured.", "Aucune trace de pile capturee.", "Kein Stacktrace erfasst.", "No se capturo la traza de pila.", "Nenhum stack trace capturado.")}
                   </pre>
                 </details>
               </section>
 
               <section className="space-y-2">
-                <JsonCard title="Input payload (sanitized)" value={detail.inputPayload || detail.executionContext.inputPayload} />
-                <JsonCard title="Flow configuration snapshot (sanitized)" value={detail.flowSnapshot || detail.executionContext.flowSnapshot} />
+                <JsonCard
+                  title={text(
+                    "Input payload (sanitized)",
+                    "Charge utile d'entree (sanitisee)",
+                    "Eingabenutzlast (bereinigt)",
+                    "Carga de entrada (sanitizada)",
+                    "Carga de entrada (sanitizada)"
+                  )}
+                  value={detail.inputPayload || detail.executionContext.inputPayload}
+                />
+                <JsonCard
+                  title={text(
+                    "Flow configuration snapshot (sanitized)",
+                    "Instantane de configuration du flux (sanitise)",
+                    "Flow-Konfigurationssnapshot (bereinigt)",
+                    "Instantanea de configuración del flujo (sanitizada)",
+                    "Instantaneo da configuração do fluxo (sanitizado)"
+                  )}
+                  value={detail.flowSnapshot || detail.executionContext.flowSnapshot}
+                />
               </section>
 
               <section className="space-y-2 rounded-lg border border-border/70 bg-muted/20 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Execution timeline</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t("Execution timeline", "Chronologie d'execution", "Ausfuhrungszeitlinie", "Cronologia de ejecucion", "Cronologia de execucao")}</p>
                 {detail.stepsTimeline.length ? (
                   <div className="max-h-48 space-y-2 overflow-auto pr-1">
                     {detail.stepsTimeline.map((step) => (
@@ -874,14 +964,14 @@ export default function AutomationErrorsPage() {
                             {step.stepType ? <span className="ml-1 text-muted-foreground">({step.stepType})</span> : null}
                           </span>
                           <span className={clsx("inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1", stepStatusClass(step.status))}>
-                            {step.status}
+                            {t(stepStatusLabel(step.status))}
                           </span>
                         </summary>
                         <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-                          <p>Started: {step.startedAt ? formatDateTimeDMY(new Date(step.startedAt)) : "N/A"}</p>
-                          <p>Finished: {step.finishedAt ? formatDateTimeDMY(new Date(step.finishedAt)) : "N/A"}</p>
-                          <p>Duration: {typeof step.durationMs === "number" ? `${step.durationMs}ms` : "N/A"}</p>
-                          {step.errorMessage ? <p className="text-rose-700 dark:text-rose-300">Error: {step.errorMessage}</p> : null}
+                          <p>{t("Started:", "Demarre :", "Gestartet:", "Iniciado:", "Iniciado:")} {step.startedAt ? formatDateTimeDMY(new Date(step.startedAt), LANGUAGE_LOCALES[language]) : t("N/A", "N/D", "k. A.", "N/D", "N/D")}</p>
+                          <p>{t("Finished:", "Termine :", "Beendet:", "Finalizado:", "Concluido:")} {step.finishedAt ? formatDateTimeDMY(new Date(step.finishedAt), LANGUAGE_LOCALES[language]) : t("N/A", "N/D", "k. A.", "N/D", "N/D")}</p>
+                          <p>{t("Duration:", "Durée :", "Dauer:", "Duración:", "Duracao:")} {typeof step.durationMs === "number" ? `${step.durationMs}ms` : t("N/A", "N/D", "k. A.", "N/D", "N/D")}</p>
+                          {step.errorMessage ? <p className="text-rose-700 dark:text-rose-300">{t("Error:", "Erreur :", "Fehler:", "Error:", "Erro:")} {step.errorMessage}</p> : null}
                           {step.safeOutput ? (
                             <pre className="max-h-28 overflow-auto rounded border border-border/60 bg-muted/20 p-2 text-[11px] text-foreground">
                               {JSON.stringify(step.safeOutput, null, 2)}
@@ -892,13 +982,13 @@ export default function AutomationErrorsPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground">No step execution timeline captured for this run.</p>
+                  <p className="text-xs text-muted-foreground">{t("No step execution timeline captured for this run.", "Aucune chronologie d'execution capturee pour cette execution.", "Keine Ausfuhrungszeitlinie für diesen Lauf erfasst.", "No se capturo cronologia de ejecucion para esta ejecucion.", "Nenhuma cronologia de execucao foi capturada para esta execucao.")}</p>
                 )}
               </section>
 
               <section className="space-y-2 rounded-lg border border-border/70 bg-muted/20 p-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Recovery attempts</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t("Recovery attempts", "Tentatives de recuperation", "Wiederherstellungsversuche", "Intentos de recuperacion", "Tentativas de recuperacao")}</p>
                   <Button
                     size="sm"
                     variant={detail.status === "FAILED" ? "danger" : "secondary"}
@@ -909,11 +999,11 @@ export default function AutomationErrorsPage() {
                       setReplayReason("");
                     }}
                   >
-                    Replay
+                    {t("Replay", "Relancer", "Replay", "Repetir", "Repetir")}
                   </Button>
                 </div>
                 {detail.status !== "FAILED" ? (
-                  <p className="text-xs text-muted-foreground">Replay is only available while this run is in FAILED state.</p>
+                  <p className="text-xs text-muted-foreground">{t("Replay is only available while this run is in FAILED state.", "La relecture est disponible uniquement lorsque cette execution est en etat d'echec.", "Replay ist nur verfügbar, solange dieser Lauf den Status FEHLGESCHLAGEN hat.", "La repeticion solo esta disponible mientras esta ejecucion este en estado FALLIDO.", "A repeticao so esta disponível enquanto esta execucao estiver no estado FALHADO.")}</p>
                 ) : null}
                 {detail.recoveryAttempts.length ? (
                   <div className="max-h-36 space-y-1 overflow-auto">
@@ -922,12 +1012,12 @@ export default function AutomationErrorsPage() {
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-mono text-foreground">{entry.id}</span>
                           <span className={clsx("inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1", attemptStatusClass(entry.resultStatus))}>
-                            {entry.resultStatus}
+                            {t(attemptStatusLabel(entry.resultStatus))}
                           </span>
                         </div>
                         <div className="mt-1 space-y-0.5 text-muted-foreground">
-                          <p>{formatDateTimeDMY(new Date(entry.createdAt))}</p>
-                          <p>Actor: {entry.actorAdminName || entry.actorAdminId}</p>
+                          <p>{formatDateTimeDMY(new Date(entry.createdAt), LANGUAGE_LOCALES[language])}</p>
+                          <p>{t("Actor:", "Acteur :", "Akteur:", "Actor:", "Ator:")} {entry.actorAdminName || entry.actorAdminId}</p>
                           {entry.newRunId ? (
                             <div className="flex items-center gap-1">
                               <span className="font-mono text-foreground">{entry.newRunId}</span>
@@ -937,22 +1027,22 @@ export default function AutomationErrorsPage() {
                                 onClick={() => void copyText(`new-run-${entry.id}`, entry.newRunId)}
                               >
                                 <Copy className="h-3.5 w-3.5" />
-                                {copiedValue === `new-run-${entry.id}` ? "Copied" : "Copy"}
+                                {copiedValue === `new-run-${entry.id}` ? t("Copied", "Copie", "Kopiert", "Copiado", "Copiado") : t("Copy", "Copier", "Kopieren", "Copiar", "Copiar")}
                               </Button>
                             </div>
                           ) : null}
-                          {entry.blockReason ? <p className="text-rose-700 dark:text-rose-300">Blocked: {entry.blockReason}</p> : null}
-                          {entry.reason ? <p>Reason: {entry.reason}</p> : null}
+                          {entry.blockReason ? <p className="text-rose-700 dark:text-rose-300">{t("Blocked:", "Bloque :", "Blockiert:", "Bloqueado:", "Bloqueado:")} {entry.blockReason}</p> : null}
+                          {entry.reason ? <p>{t("Reason:", "Raison :", "Grund:", "Motivo:", "Motivo:")} {entry.reason}</p> : null}
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground">No replay attempts yet.</p>
+                  <p className="text-xs text-muted-foreground">{t("No replay attempts yet.", "Aucune relecture pour le moment.", "Noch keine Replay-Versuche.", "Aún no hay intentos de repeticion.", "Ainda não existem tentativas de repeticao.")}</p>
                 )}
               </section>
 
-              <p className="text-[11px] text-muted-foreground">Sensitive fields are redacted.</p>
+              <p className="text-[11px] text-muted-foreground">{t("Sensitive fields are redacted.", "Les champs sensibles sont masques.", "Sensible Felder sind geschwarzt.", "Los campos sensibles estan ocultos.", "Os campos sensíveis estão ocultos.")}</p>
             </div>
           )}
         </aside>
@@ -965,25 +1055,25 @@ export default function AutomationErrorsPage() {
           setReplayModalRunId(null);
           setReplayReason("");
         }}
-        title="Replay automation run?"
+        title={t("Replay automation run?", "Relancer l'execution d'automatisation ?", "Automatisierungslauf erneut ausfuhren?", "Repetir la ejecucion de automatización?", "Repetir a execucao da automação?")}
       >
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            This creates a new run linked to the original execution. Replay may fail again if the root cause is unresolved.
+            {t("This creates a new run linked to the original execution. Replay may fail again if the root cause is unresolved.", "Cela cree une nouvelle execution liee ? l'execution d'origine. La relecture peut echouer a nouveau si la cause profonde n'est pas résolue.", "Dies erstellt einen neuen Lauf, der mit der ursprunglichen Ausfuhrung verknupft ist. Das Replay kann erneut fehlschlagen, wenn die Grundursache nicht behoben ist.", "Esto crea una nueva ejecucion vinculada a la ejecucion original. La repeticion puede volver a fallar si la causa raiz no se ha resuelto.", "Isto cria uma nova execucao ligada a execucao original. A repeticao pode voltar a falhar se a causa raiz não tiver sido resolvida.")}
           </p>
           <div className="rounded-lg border border-border/70 bg-muted/20 p-3 text-xs text-muted-foreground">
             <p className="font-medium text-foreground">
-              {replayModalRun?.flow.name || "Selected run"}
+              {replayModalRun?.flow.name || t("Selected run", "Execution selectionnee", "Ausgewahlter Lauf", "Ejecucion seleccionada", "Execucao selecionada")}
             </p>
-            <p className="mt-1">Run ID: <span className="font-mono text-foreground">{replayModalRun?.id || replayModalRunId}</span></p>
-            <p className="mt-1">Subscriber: <span className="text-foreground">{replayModalRun?.subscriber.email || "N/A"}</span></p>
+            <p className="mt-1">{t("Run ID:", "ID d'execution :", "Lauf-ID:", "ID de ejecucion:", "ID da execucao:")} <span className="font-mono text-foreground">{replayModalRun?.id || replayModalRunId}</span></p>
+            <p className="mt-1">{t("Subscriber:", "Abonne :", "Abonnent:", "Suscriptor:", "Subscritor:")} <span className="text-foreground">{replayModalRun?.subscriber.email || t("N/A", "N/D", "k. A.", "N/D", "N/D")}</span></p>
           </div>
           <Textarea
-            label="Reason (optional, for audit log)"
+            label={t("Reason (optional, for audit log)", "Raison (facultatif, pour le journal d'audit)", "Grund (optional, für das Audit-Protokoll)", "Motivo (opcional, para el registro de auditoria)", "Motivo (opcional, para o registo de auditoria)")}
             maxLength={280}
             value={replayReason}
             onChange={(event) => setReplayReason(event.target.value)}
-            placeholder="Describe why this replay is needed"
+            placeholder={t("Describe why this replay is needed", "Decrivez pourquoi cette relecture est necessaire", "Beschreibe, warum dieses Replay erforderlich ist", "Describe por que se necesita esta repeticion", "Descreva porque esta repeticao e necessária")}
             className="min-h-[110px]"
           />
           <div className="flex items-center justify-end gap-2">
@@ -995,14 +1085,14 @@ export default function AutomationErrorsPage() {
               }}
               disabled={Boolean(replayBusyId)}
             >
-              Cancel
+              {t("Cancel", "Annuler", "Abbrechen", "Cancelar", "Cancelar")}
             </Button>
             <Button
               variant="danger"
               onClick={() => void onReplay()}
               loading={Boolean(replayBusyId && replayBusyId === replayModalRunId)}
             >
-              Replay
+              {t("Replay", "Relancer", "Replay", "Repetir", "Repetir")}
             </Button>
           </div>
         </div>

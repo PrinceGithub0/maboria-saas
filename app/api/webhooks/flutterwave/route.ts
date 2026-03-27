@@ -5,6 +5,7 @@ import { withErrorHandling } from "@/lib/api-handler";
 import { log } from "@/lib/logger";
 import {
   recordFlutterwavePayment,
+  normalizeFlutterwavePaymentMethod,
   verifyFlutterwaveTransactionByReference,
 } from "@/lib/payments/flutterwave";
 import { recordInvoicePayment, recordInvoicePaymentRefund } from "@/lib/invoice-payments";
@@ -160,22 +161,24 @@ export const POST = withErrorHandling(async (req: Request) => {
       return NextResponse.json({ received: true, ignored: true });
     }
 
-    if (data?.meta?.type === "invoice_payment") {
-      if (!txRef) {
-        await markWebhookFailed(webhookEvent.id, "Missing invoice reference");
-        return NextResponse.json({ error: "Missing invoice reference" }, { status: 400 });
-      }
-      const verification = await verifyFlutterwaveTransactionByReference(txRef);
-      const verified = verification?.data;
-      if (!verification?.status || !verified) {
-        await markWebhookFailed(webhookEvent.id, "Verification failed");
-        return NextResponse.json({ error: "Verification failed" }, { status: 400 });
-      }
-      if (verified?.status !== "successful") {
-        await markWebhookFailed(webhookEvent.id, "Payment not successful");
-        return NextResponse.json({ error: "Payment not successful" }, { status: 400 });
-      }
-      const meta = verified?.meta || {};
+    if (!txRef) {
+      await markWebhookFailed(webhookEvent.id, "Missing payment reference");
+      return NextResponse.json({ error: "Missing payment reference" }, { status: 400 });
+    }
+
+    const verification = await verifyFlutterwaveTransactionByReference(txRef);
+    const verified = verification?.data;
+    if (!verification?.status || !verified) {
+      await markWebhookFailed(webhookEvent.id, "Verification failed");
+      return NextResponse.json({ error: "Verification failed" }, { status: 400 });
+    }
+    if (verified?.status !== "successful") {
+      await markWebhookFailed(webhookEvent.id, "Payment not successful");
+      return NextResponse.json({ error: "Payment not successful" }, { status: 400 });
+    }
+
+    if (verified?.meta?.type === "invoice_payment") {
+      const meta = verified.meta || {};
       if (meta?.type !== "invoice_payment") {
         await markWebhookProcessed(webhookEvent.id);
         return NextResponse.json({ received: true, ignored: true });
@@ -205,26 +208,26 @@ export const POST = withErrorHandling(async (req: Request) => {
       await finalizeSubscriptionPayment({
         provider: "FLUTTERWAVE",
         reference: txRef!,
-        amount: Number(checkout.amount),
-        currency: checkout.currency,
+        amount: Number(verified.amount || checkout.amount),
+        currency: normalizeCurrency(verified.currency || checkout.currency),
         userId: checkout.userId,
         plan: checkout.plan,
         interval: checkout.billingCycle,
-        paymentMethod: "Card",
-        verifiedAt: data?.charged_at || data?.created_at || new Date(),
-        rawPayload: data,
+        paymentMethod: normalizeFlutterwavePaymentMethod(verified),
+        verifiedAt: verified?.charged_at || verified?.created_at || new Date(),
+        rawPayload: verified,
       });
       await markWebhookProcessed(webhookEvent.id);
       return NextResponse.json({ received: true, checkout: true });
     }
 
-    const amount = typeof data?.amount === "number" ? data.amount : Number(data?.amount || 0);
-    const currency = normalizeCurrency(data?.currency || "USD");
-    const userId = data?.meta?.userId as string | undefined;
-    const customerEmail = data?.customer?.email as string | undefined;
-    const rawPlan = String(data?.meta?.plan || "").toUpperCase();
+    const amount = typeof verified?.amount === "number" ? verified.amount : Number(verified?.amount || 0);
+    const currency = normalizeCurrency(verified?.currency || "USD");
+    const userId = verified?.meta?.userId as string | undefined;
+    const customerEmail = verified?.customer?.email as string | undefined;
+    const rawPlan = String(verified?.meta?.plan || "").toUpperCase();
     const normalizedPlan = rawPlan === "PREMIUM" ? "BUSINESS" : rawPlan;
-    const rawInterval = String(data?.meta?.interval || "");
+    const rawInterval = String(verified?.meta?.interval || "");
     const interval: BillingInterval = rawInterval === "yearly" ? "yearly" : "monthly";
     let plan = (["STARTER", "PRO", "GROWTH", "BUSINESS", "ENTERPRISE"].includes(normalizedPlan)
       ? (normalizedPlan as SubscriptionPlan)
@@ -248,7 +251,10 @@ export const POST = withErrorHandling(async (req: Request) => {
     const existingPayment = await prisma.payment.findFirst({ where: { reference: txRef } });
     if (existingPayment) {
       log("info", "flutterwave_webhook_duplicate", { txRef, userId: resolvedUserId });
-      await recordFlutterwavePayment({ ...data, meta: { ...(data?.meta || {}), userId: resolvedUserId, plan } });
+      await recordFlutterwavePayment({
+        ...verified,
+        meta: { ...(verified?.meta || {}), userId: resolvedUserId, plan },
+      });
       await markWebhookProcessed(webhookEvent.id);
       return NextResponse.json({ received: true, duplicate: true });
     }
@@ -263,7 +269,7 @@ export const POST = withErrorHandling(async (req: Request) => {
           provider: "FLUTTERWAVE",
           status: "FAILED",
           reference: txRef,
-          metadata: { ...data, needsReview: true, reason: "unsupported_currency" },
+          metadata: { ...verified, needsReview: true, reason: "unsupported_currency" },
         },
       });
       await markWebhookProcessed(webhookEvent.id);
@@ -288,7 +294,10 @@ export const POST = withErrorHandling(async (req: Request) => {
       return NextResponse.json({ error: "Amount verification failed" }, { status: 400 });
     }
 
-    await recordFlutterwavePayment({ ...data, meta: { ...(data?.meta || {}), userId: resolvedUserId, plan } });
+    await recordFlutterwavePayment({
+      ...verified,
+      meta: { ...(verified?.meta || {}), userId: resolvedUserId, plan },
+    });
     log("info", "flutterwave_webhook_processed", { txRef, userId: resolvedUserId, plan });
     await markWebhookProcessed(webhookEvent.id);
     return NextResponse.json({ received: true });

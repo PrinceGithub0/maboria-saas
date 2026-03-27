@@ -25,8 +25,7 @@ type Variant = "hero" | "header" | "mobileCard" | "mobileBar";
 
 export function MarketingCta({ variant }: { variant: Variant }) {
   const { data: session } = useSession();
-  const { language } = useLanguage();
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const { t } = useLanguage();
   const { data: me } = useSWR(session ? "/api/user/me" : null, fetcher, {
     shouldRetryOnError: false,
   });
@@ -52,7 +51,7 @@ export function MarketingCta({ variant }: { variant: Variant }) {
           <Button variant="ghost">{t("Login", "Se connecter")}</Button>
         </Link>
         <Link href="/signup">
-          <Button>{t("Get Started", "Commencer")}</Button>
+          <Button>{t("Get started", "Commencer")}</Button>
         </Link>
       </>
     );

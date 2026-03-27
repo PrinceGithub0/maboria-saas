@@ -10,18 +10,15 @@ import { subscriptionSchema } from "@/lib/validators";
 import { withErrorHandling } from "@/lib/api-handler";
 import { requireOrgPermission, resolveOrgContext, writeOrgAuditLog } from "@/lib/org-auth";
 import { ensureCurrentSubscriptionForOrg } from "@/lib/subscription-downgrade";
+import {
+  resolveSubscriptionDisplayRenewalDate,
+  resolveSubscriptionDisplayStatus,
+  resolveSubscriptionManagementProvider,
+} from "@/lib/subscription-display";
 import { deriveSubscriptionManagement } from "@/lib/subscription-management";
+import { getPendingRenewalCheckoutForSubscription, resolveRenewalCheckoutRedirectUrl } from "@/lib/subscription-renewal";
 import { addCalendarMonthUtcKeepingTime, clampAnchorDay } from "@/lib/usage/cycle";
 import { requireSystemFlag } from "@/lib/system-flags-guard";
-
-function mapOrgStatusToSubscriptionStatus(status: string | null | undefined) {
-  const value = String(status || "").toUpperCase();
-  if (value === "ACTIVE") return "ACTIVE";
-  if (value === "PAST_DUE") return "PAST_DUE";
-  if (value === "TRIALING") return "TRIALING";
-  if (value === "CANCELED") return "CANCELED";
-  return "INACTIVE";
-}
 
 function mapSubscriptionStatusToOrgStatus(status: string | null | undefined): OrgSubscriptionStatus {
   const value = String(status || "").toUpperCase();
@@ -59,11 +56,14 @@ function mapSubscriptionRowToView(sub: {
   pendingPlan: string | null;
   pendingEffectiveAt: Date | null;
 }) {
+  const displayRenewalDate = resolveSubscriptionDisplayRenewalDate({
+    renewalDate: sub.renewalDate,
+  });
   return {
     id: sub.id,
     plan: sub.plan,
-    status: mapOrgStatusToSubscriptionStatus(sub.status),
-    renewalDate: sub.renewalDate,
+    status: resolveSubscriptionDisplayStatus(sub.status, displayRenewalDate),
+    renewalDate: displayRenewalDate,
     usageLimit: sub.usageLimit,
     usagePeriod: sub.usagePeriod || "monthly",
     currency: sub.currency || "USD",
@@ -92,18 +92,23 @@ function mapOrgSubscriptionToView(input: {
   ownerUserId: string;
   planId: string;
   status: string;
+  paidThroughAt: Date | null;
   currentCycleEndAt: Date;
   billingInterval: OrgBillingInterval;
   createdAt: Date;
   updatedAt: Date;
   provider: string | null;
 }) {
+  const displayRenewalDate = resolveSubscriptionDisplayRenewalDate({
+    paidThroughAt: input.paidThroughAt,
+    currentCycleEndAt: input.currentCycleEndAt,
+  });
   return {
     id: input.id,
     userId: input.ownerUserId,
     plan: input.planId,
-    status: mapOrgStatusToSubscriptionStatus(input.status),
-    renewalDate: input.currentCycleEndAt,
+    status: resolveSubscriptionDisplayStatus(input.status, displayRenewalDate),
+    renewalDate: displayRenewalDate,
     usageLimit: null,
     usagePeriod: "monthly",
     currency: "USD",
@@ -191,7 +196,7 @@ export const GET = withErrorHandling(async (req: Request) => {
   const scope = new URL(req.url).searchParams.get("scope");
   if (scope === "status_check") {
     return NextResponse.json({
-      status: mapOrgStatusToSubscriptionStatus(context.orgSubscriptionStatus),
+      status: resolveSubscriptionDisplayStatus(context.orgSubscriptionStatus, null),
       plan: context.orgPlan,
       role: context.role,
       orgId: context.orgId,
@@ -224,18 +229,23 @@ export const GET = withErrorHandling(async (req: Request) => {
           id: true,
           planId: true,
           status: true,
+          paidThroughAt: true,
           currentCycleEndAt: true,
           billingInterval: true,
           createdAt: true,
           updatedAt: true,
           provider: true,
           providerCustomerId: true,
+          providerPaymentMethodData: true,
         },
       }),
       prisma.business.count({
         where: { ownerId: access.context.ownerUserId },
       }),
     ]);
+    const pendingRenewalCheckout = activeSubscription
+      ? await getPendingRenewalCheckoutForSubscription(activeSubscription.id)
+      : null;
 
     const stateSource = activeSubscription
       ? "subscription"
@@ -243,8 +253,13 @@ export const GET = withErrorHandling(async (req: Request) => {
         ? "org_subscription"
         : "none";
     const management = deriveSubscriptionManagement({
-      provider: activeSubscription?.provider ?? orgSub?.provider ?? null,
+      provider: resolveSubscriptionManagementProvider({
+        provider: activeSubscription?.provider ?? null,
+        lastPaymentProvider: activeSubscription?.lastPaymentProvider ?? null,
+        orgProvider: orgSub?.provider ?? null,
+      }),
       providerCustomerId: orgSub?.providerCustomerId ?? null,
+      hasReusablePaymentMethod: Boolean(orgSub?.providerPaymentMethodData),
       stateSource,
     });
 
@@ -262,6 +277,14 @@ export const GET = withErrorHandling(async (req: Request) => {
       active,
       hasReceipt: ownedBusinessCount > 1 ? Boolean(activeSubscription?.receiptUrl) : Boolean(activeSubscription?.receiptUrl || latestReceipt),
       management,
+      renewalAction:
+        pendingRenewalCheckout
+          ? {
+              reference: pendingRenewalCheckout.reference,
+              status: pendingRenewalCheckout.status,
+              redirectUrl: resolveRenewalCheckoutRedirectUrl(pendingRenewalCheckout.providerPayload),
+            }
+          : null,
     });
   }
 

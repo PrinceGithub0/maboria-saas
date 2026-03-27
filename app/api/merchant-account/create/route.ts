@@ -128,6 +128,7 @@ export const POST = withRequestLogging(
         const unpaidInvoices = await prisma.invoice.findMany({
           where: {
             userId: access.ownerUserId,
+            subscriptionId: null,
             status: { in: ["SENT", "OVERDUE"] },
           },
           select: { id: true, currency: true },

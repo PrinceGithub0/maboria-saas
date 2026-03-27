@@ -9,6 +9,7 @@ import { useTheme } from "@/components/providers/theme-provider";
 import { Card } from "@/components/ui/card";
 import { supportEmail, supportMailto } from "@/lib/support/contact";
 import { getSubscriberSupportLastActivityAt } from "@/lib/support/subscriber-display";
+import { getSupportDateLocale, localizeSupportCategory } from "@/lib/support/localization";
 import { ChevronLeft, ChevronRight, MessageSquare } from "lucide-react";
 
 type Ticket = {
@@ -45,10 +46,9 @@ const fetcher = async (url: string) => {
 };
 
 export default function SupportTicketsPage() {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const { theme, resolvedTheme } = useTheme();
   const forceLight = theme === "light" || resolvedTheme === "light";
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
   const [cursor, setCursor] = useState<string | null>(null);
   const [cursorStack, setCursorStack] = useState<string[]>([]);
   const [query, setQuery] = useState("");
@@ -88,27 +88,27 @@ export default function SupportTicketsPage() {
     const normalized = String(ticketStatus || "").toUpperCase();
     if (normalized === "RESOLVED") {
       return {
-        label: t("Resolved", "Resolue"),
+        label: t("Resolved", "Résolue", "Geloest", "Resuelto", "Resolvido"),
         className:
           "bg-green-100 text-green-700 border-green-200 font-bold dark:bg-green-500/10 dark:text-green-300 dark:border-green-500/40",
       };
     }
     if (normalized === "CLOSED") {
       return {
-        label: t("Closed", "Ferme"),
+        label: t("Closed", "Ferme", "Geschlossen", "Cerrado", "Fechado"),
         className:
           "bg-emerald-100 text-emerald-700 border-emerald-200 font-bold dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/40",
       };
     }
     if (normalized === "IN_PROGRESS" || normalized === "PENDING") {
       return {
-        label: t("Pending", "En attente"),
+        label: t("Pending", "En attente", "Ausstehend", "Pendiente", "Pendente"),
         className:
           "bg-amber-100 text-amber-700 border-amber-200 font-bold dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/40",
       };
     }
     return {
-      label: t("Open", "Ouvert"),
+      label: t("Open", "Ouvert", "Offen", "Abierto", "Aberto"),
       className:
         "bg-orange-100 text-orange-700 border-orange-200 font-bold dark:bg-orange-500/10 dark:text-orange-300 dark:border-orange-500/40",
     };
@@ -138,32 +138,32 @@ export default function SupportTicketsPage() {
       <section className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-            {t("Support", "Support")}
+            {t("Support", "Support", "Support", "Soporte", "Suporte")}
           </p>
           <h1 className="mt-2 text-3xl font-bold text-slate-900 dark:text-slate-100">
-            {t("All tickets", "Tous les tickets")}
+            {t("All tickets", "Tous les tickets", "Alle Tickets", "Todos los tickets", "Todos os tickets")}
           </h1>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-            {t("Full history of your support requests.", "Historique complet de vos demandes support.")}
+            {t("Full history of your support requests.", "Historique complet de vos demandes support.", "Vollständiger Verlauf deiner Support-Anfragen.", "Historial completo de tus solicitudes de soporte.", "Histórico completo dos seus pedidos de suporte.")}
           </p>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            {t("Our team replies from ", "Notre equipe repond depuis ")}
+            {t("Our team replies from ", "Notre équipe repond depuis ", "Unser Team antwortet von ", "Nuestro equipo responde desde ", "A nossa equipa responde a partir de ")}
             <a href={supportMailto} className="font-medium hover:text-slate-800 dark:hover:text-slate-200">
               {supportEmail}
             </a>
           </p>
         </div>
         <Link href="/dashboard/support" className="text-sm font-semibold text-[#2563EB] hover:underline dark:text-[#3B82F6]">
-          {t("Back to support", "Retour au support")}
+          {t("Back to support", "Retour au support", "Zurück zum Support", "Volver al soporte", "Voltar ao suporte")}
         </Link>
       </section>
 
       <Card className={ticketsCardClass}>
         <div className="mb-4 grid gap-3 md:grid-cols-3">
           <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-            {t("Search", "Recherche")}
+            {t("Search", "Recherche", "Suche", "Buscar", "Pesquisar")}
             <input
-              placeholder={t("Search tickets", "Rechercher des tickets")}
+              placeholder={t("Search tickets", "Rechercher des tickets", "Tickets suchen", "Buscar tickets", "Pesquisar tickets")}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               className={`rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 placeholder:normal-case dark:border-slate-700 dark:bg-slate-950/90 dark:text-slate-100 ${
@@ -172,7 +172,7 @@ export default function SupportTicketsPage() {
             />
           </label>
           <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-            {t("Status", "Statut")}
+            {t("Status", "Statut", "Status", "Estado", "Estado")}
             <select
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value as "ALL" | "OPEN" | "PENDING" | "CLOSED")}
@@ -181,14 +181,14 @@ export default function SupportTicketsPage() {
                 forceLight ? "!border-[#CBD5E1] !bg-[#FFFFFF] !text-[#0F172A]" : ""
               }`}
             >
-              <option value="ALL" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("All", "Tous")}</option>
-              <option value="OPEN" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Open", "Ouvert")}</option>
-              <option value="PENDING" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Pending", "En attente")}</option>
-              <option value="CLOSED" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Closed", "Ferme")}</option>
+              <option value="ALL" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("All", "Tous", "Alle", "Todos", "Todos")}</option>
+              <option value="OPEN" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Open", "Ouvert", "Offen", "Abierto", "Aberto")}</option>
+              <option value="PENDING" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Pending", "En attente", "Ausstehend", "Pendiente", "Pendente")}</option>
+              <option value="CLOSED" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Closed", "Ferme", "Geschlossen", "Cerrado", "Fechado")}</option>
             </select>
           </label>
           <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-            {t("Sort by", "Trier par")}
+            {t("Sort by", "Trier par", "Sortieren nach", "Ordenar por", "Ordenar por")}
             <select
               value={sortBy}
               onChange={(event) => setSortBy(event.target.value as "NEWEST" | "OLDEST")}
@@ -197,18 +197,21 @@ export default function SupportTicketsPage() {
                 forceLight ? "!border-[#CBD5E1] !bg-[#FFFFFF] !text-[#0F172A]" : ""
               }`}
             >
-              <option value="NEWEST" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Newest", "Plus recent")}</option>
-              <option value="OLDEST" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Oldest", "Plus ancien")}</option>
+              <option value="NEWEST" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Newest", "Plus recent", "Neueste", "Mas recientes", "Mais recentes")}</option>
+              <option value="OLDEST" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Oldest", "Plus ancien", "Aelteste", "Mas antiguos", "Mais antigos")}</option>
             </select>
           </label>
         </div>
         {isLoading ? (
-          <p className="text-sm text-slate-500 dark:text-slate-300">{t("Loading tickets...", "Chargement des tickets...")}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-300">{t("Loading tickets...", "Chargement des tickets...", "Tickets werden geladen...", "Cargando tickets...", "A carregar tickets...")}</p>
         ) : error ? (
           <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-200">
             {t(
               "We could not load your support tickets right now. Please refresh and try again.",
-              "Nous n avons pas pu charger vos tickets support pour le moment. Veuillez actualiser et reessayer."
+              "Nous n'avons pas pu charger vos tickets support pour le moment. Veuillez actualiser et réessayer.",
+              "Deine Support-Tickets konnten derzeit nicht geladen werden. Bitte aktualisiere die Seite und versuche es erneut.",
+              "No pudimos cargar tus tickets de soporte en este momento. Actualiza e intentalo de nuevo.",
+              "Não foi possivel carregar os seus tickets de suporte neste momento. Atualize e tente novamente."
             )}
           </div>
         ) : filteredItems.length === 0 ? (
@@ -220,18 +223,24 @@ export default function SupportTicketsPage() {
             </div>
             <p className="text-base font-semibold text-slate-900 dark:text-slate-100">
               {debouncedQuery || statusFilter !== "ALL"
-                ? t("No tickets match your filters", "Aucun ticket ne correspond a vos filtres")
-                : t("No support tickets yet", "Aucun ticket support pour le moment")}
+                ? t("No tickets match your filters", "Aucun ticket ne correspond a vos filtres", "Keine Tickets entsprechen deinen Filtern", "Ningun ticket coincide con tus filtros", "Nenhum ticket corresponde aos seus filtros")
+                : t("No support tickets yet", "Aucun ticket support pour le moment", "Noch keine Support-Tickets", "Aún no hay tickets de soporte", "Ainda não ha tickets de suporte")}
             </p>
             <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
               {debouncedQuery || statusFilter !== "ALL"
                 ? t(
                     "Try clearing your search or changing the selected status.",
-                    "Essayez d effacer votre recherche ou de changer le statut selectionne."
+                    "Essayez d effacer votre recherche ou de changer le statut selectionne.",
+                    "Versuche, deine Suche zu leeren oder den gewahlten Status zu andern.",
+                    "Prueba a borrar tu busqueda o cambiar el estado seleccionado.",
+                    "Tente limpar a pesquisa ou alterar o estado selecionado."
                   )
                 : t(
                     "You haven't submitted any support requests. When you create a ticket, it will appear here.",
-                    "Vous n avez pas encore soumis de demande support. Quand vous creez un ticket, il apparaitra ici."
+                    "Vous n'avez pas encore soumis de demande support. Quand vous creez un ticket, il apparaitra ici.",
+                    "Du hast noch keine Support-Anfragen eingereicht. Wenn du ein Ticket erstellst, erscheint es hier.",
+                    "Aún no has enviado solicitudes de soporte. Cuando crees un ticket, aparecera aqui.",
+                    "Ainda não submeteu pedidos de suporte. Quando criar um ticket, ele aparecera aqui."
                   )}
             </p>
             <div className="mt-5 flex items-center justify-center gap-3">
@@ -245,18 +254,18 @@ export default function SupportTicketsPage() {
                   }}
                   className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
                 >
-                  {t("Clear filters", "Effacer les filtres")}
+                  {t("Clear filters", "Effacer les filtres", "Filter zurücksetzen", "Borrar filtros", "Limpar filtros")}
                 </button>
               ) : (
                 <Link
                   href="/dashboard/support#submit-ticket"
                   className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
                 >
-                  {t("Create a Support Ticket", "Creer un ticket support")}
+                  {t("Create a Support Ticket", "Creer un ticket support", "Support-Ticket erstellen", "Crear un ticket de soporte", "Criar um ticket de suporte")}
                 </Link>
               )}
               <Link href="/dashboard/support" className="text-sm font-semibold text-[#2563EB] hover:underline dark:text-[#3B82F6]">
-                {t("Back to Support", "Retour au support")}
+                {t("Back to Support", "Retour au support", "Zurück zum Support", "Volver al soporte", "Voltar ao suporte")}
               </Link>
             </div>
           </div>
@@ -274,7 +283,7 @@ export default function SupportTicketsPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-                        {parsed.category}
+                        {localizeSupportCategory(parsed.category, language)}
                       </p>
                       <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
                         {parsed.subject}
@@ -283,7 +292,10 @@ export default function SupportTicketsPage() {
                         {ticket.message}
                       </p>
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        {formatDistanceToNow(new Date(getSubscriberSupportLastActivityAt(ticket)), { addSuffix: true })}
+                        {formatDistanceToNow(new Date(getSubscriberSupportLastActivityAt(ticket)), {
+                          addSuffix: true,
+                          locale: getSupportDateLocale(language),
+                        })}
                       </p>
                     </div>
                     <span className={`inline-flex shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-bold ${statusPill.className}`}>
@@ -295,7 +307,7 @@ export default function SupportTicketsPage() {
             })}
             <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                {t("Showing 20 tickets per page.", "Affichage de 20 tickets par page.")}
+                {t("Showing 20 tickets per page.", "Affichage de 20 tickets par page.", "Es werden 20 Tickets pro Seite angezeigt.", "Se muestran 20 tickets por pagina.", "A mostrar 20 tickets por pagina.")}
               </p>
               <div className="flex items-center gap-2">
                 <button
@@ -311,7 +323,7 @@ export default function SupportTicketsPage() {
                   }`}
                 >
                   <ChevronLeft className="h-4 w-4" />
-                  {t("Previous", "Precedent")}
+                  {t("Previous", "Precedent", "Vorherige", "Anterior", "Anterior")}
                 </button>
                 <button
                   type="button"
@@ -325,7 +337,7 @@ export default function SupportTicketsPage() {
                     !ticketPage?.nextCursor ? paginationDisabledClass : paginationEnabledClass
                   }`}
                 >
-                  {t("Next", "Suivant")}
+                  {t("Next", "Suivant", "Weiter", "Siguiente", "Seguinte")}
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </div>

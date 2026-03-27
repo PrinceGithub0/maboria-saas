@@ -31,9 +31,78 @@ type OnboardingFieldErrors = Partial<Record<keyof OnboardingFormState, string>>;
 
 const PHONE_PATTERN = /^\+[1-9]\d{7,14}$/;
 
+type Translate = (en: string, fr?: string, de?: string, es?: string, pt?: string) => string;
+
+function localizeOnboardingError(error: unknown, t: Translate) {
+  const message = String(error || "").trim();
+  if (!message) {
+    return t(
+      "Unable to complete onboarding.",
+      "Impossible de terminer l onboarding.",
+      "Onboarding konnte nicht abgeschlossen werden.",
+      "No se pudo completar la incorporacion.",
+      "Não foi possivel concluir a configuração inicial."
+    );
+  }
+
+  const known: Record<string, string> = {
+    Unauthorized: t(
+      "Please sign in and try again.",
+      "Veuillez vous connecter puis réessayer.",
+      "Bitte melde dich an und versuche es erneut.",
+      "Inicia sesión y vuelve a intentarlo.",
+      "Inicie sessão e tente novamente."
+    ),
+    "Active subscription required before onboarding.": t(
+      "An active subscription is required before onboarding.",
+      "Un abonnement actif est requis avant l onboarding.",
+      "Vor dem Onboarding ist ein aktives Abonnement erforderlich.",
+      "Se requiere una suscripción activa antes de la incorporacion.",
+      "E necessária uma subscrição ativa antes da configuração inicial."
+    ),
+    "Unsupported currency": t(
+      "Select a supported currency.",
+      "Sélectionnez une devise prise en charge.",
+      "Wähle eine unterstutzte Währung aus.",
+      "Selecciona una moneda compatible.",
+      "Selecione uma moeda suportada."
+    ),
+    "Invalid country code": t(
+      "Select a supported country.",
+      "Sélectionnez un pays pris en charge.",
+      "Wähle ein unterstutztes Land aus.",
+      "Selecciona un pais compatible.",
+      "Selecione um pais suportado."
+    ),
+    "Invalid phone number": t(
+      "Enter a valid business phone in international format, for example +14155550123.",
+      "Saisissez un numero professionnel valide au format international, par exemple +14155550123.",
+      "Gib eine gültige internationale Geschäftstelefonnummer ein, zum Beispiel +14155550123.",
+      "Introduce un telefono comercial valido en formato internacional, por ejemplo +14155550123.",
+      "Introduza um telefone comercial valido em formato internacional, por exemplo +14155550123."
+    ),
+    "Business name too short": t(
+      "Enter a business name with at least 2 characters.",
+      "Saisissez un nom d entreprise d au moins 2 caracteres.",
+      "Gib einen Unternehmensnamen mit mindestens 2 Zeichen ein.",
+      "Introduce un nombre de empresa con al menos 2 caracteres.",
+      "Introduza um nome de empresa com pelo menos 2 caracteres."
+    ),
+    "Invalid onboarding data": t(
+      "Please review your onboarding details and try again.",
+      "Veuillez verifier vos informations d onboarding puis réessayer.",
+      "Bitte überprüfe deine Onboarding-Daten und versuche es erneut.",
+      "Revisa los datos de incorporacion y vuelve a intentarlo.",
+      "Verifique os dados da configuração inicial e tente novamente."
+    ),
+  };
+
+  return known[message] || message;
+}
+
 function validateBusinessProfileStep(
   form: OnboardingFormState,
-  t: (en: string, fr: string) => string
+  t: Translate
 ): OnboardingFieldErrors {
   const errors: OnboardingFieldErrors = {};
 
@@ -52,11 +121,11 @@ function validateBusinessProfileStep(
   }
 
   if (!isSupportedCountry(normalizeCountryCode(form.country))) {
-    errors.country = t("Select a supported country.", "Selectionnez un pays pris en charge.");
+    errors.country = t("Select a supported country.", "Sélectionnez un pays pris en charge.");
   }
 
   if (!isSupportedBusinessCurrency(normalizeCurrencyCode(form.currency))) {
-    errors.currency = t("Select a supported currency.", "Selectionnez une devise prise en charge.");
+    errors.currency = t("Select a supported currency.", "Sélectionnez une devise prise en charge.");
   }
 
   return errors;
@@ -64,8 +133,7 @@ function validateBusinessProfileStep(
 
 export default function OnboardingWizard() {
   const router = useRouter();
-  const { language } = useLanguage();
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const { language, t } = useLanguage();
   const currencyOptions = BUSINESS_CURRENCIES.map((code) => ({
     code,
     label: formatBusinessCurrencyOption(code),
@@ -155,9 +223,7 @@ export default function OnboardingWizard() {
       const payload = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        setError(
-          String(payload?.error || t("Unable to complete onboarding.", "Impossible de terminer l onboarding."))
-        );
+        setError(localizeOnboardingError(payload?.error, t));
         return;
       }
 
@@ -168,7 +234,15 @@ export default function OnboardingWizard() {
 
       router.replace("/dashboard");
     } catch {
-      setError(t("Unable to complete onboarding.", "Impossible de terminer l onboarding."));
+      setError(
+        t(
+          "Unable to complete onboarding.",
+          "Impossible de terminer l onboarding.",
+          "Onboarding konnte nicht abgeschlossen werden.",
+          "No se pudo completar la incorporacion.",
+          "Não foi possivel concluir a configuração inicial."
+        )
+      );
     } finally {
       setSubmitting(false);
     }
@@ -212,7 +286,7 @@ export default function OnboardingWizard() {
                 label={t("Business phone", "Telephone entreprise")}
                 value={form.businessPhone}
                 required
-                locale={language === "fr" ? "fr" : "en"}
+                locale={language}
                 onChange={(value) => setFormValue("businessPhone", value)}
               />
               {fieldErrors.businessPhone ? <p className="text-sm text-rose-600">{fieldErrors.businessPhone}</p> : null}
@@ -221,7 +295,7 @@ export default function OnboardingWizard() {
               <CountrySelect
                 label={t("Country", "Pays")}
                 value={form.country}
-                locale={language === "fr" ? "fr" : "en"}
+                locale={language}
                 required
                 onChange={(value) => setFormValue("country", value)}
               />

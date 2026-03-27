@@ -83,6 +83,7 @@ export const GET = withErrorHandling(async (req: Request) => {
     : {};
   const where = {
     userId: targetUserId,
+    subscriptionId: null,
     ...searchWhere,
   };
 
@@ -132,7 +133,7 @@ export const GET = withErrorHandling(async (req: Request) => {
     }),
     prisma.invoice.count({ where }),
     prisma.invoice.findMany({
-      where: { userId: targetUserId },
+      where: { userId: targetUserId, subscriptionId: null },
       select: {
         status: true,
         invoicePayments: {
@@ -152,6 +153,7 @@ export const GET = withErrorHandling(async (req: Request) => {
     prisma.invoice.count({
       where: {
         userId: targetUserId,
+        subscriptionId: null,
         generatedAt: {
           gte: startOfYear,
           lt: startOfNextYear,

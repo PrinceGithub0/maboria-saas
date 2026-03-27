@@ -13,6 +13,10 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/api/subscription/process-renewals",
+      "schedule": "9,24,39,54 * * * *"
+    },
+    {
       "path": "/api/automation/retention",
       "schedule": "17 2 * * *"
     },

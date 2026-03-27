@@ -9,34 +9,22 @@ import { AlertTriangle, CheckCircle2, Clock3, Loader2, RefreshCw, XCircle } from
 import type { SubscriberDashboardData } from "@/lib/dashboard/subscriber-data";
 import { formatCurrency } from "@/lib/currency";
 import { rangeToQuery } from "@/lib/shared/date-range";
+import { useLanguage } from "@/components/providers/language-provider";
+import { LANGUAGE_LOCALES } from "@/lib/i18n";
 
 const AUTO_REFRESH_KEY = "subscriber_dashboard_auto_refresh";
 const RANGE_STATE_KEY = "subscriber_dashboard_range";
 const MAX_TIMELINE_ITEMS = 20;
 
-function compactTime(iso: string) {
-  const then = new Date(iso).getTime();
-  const now = Date.now();
-  const diff = Math.max(0, now - then);
-  const minutes = Math.floor(diff / (60 * 1000));
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
+type DashboardRequestError = Error & {
+  status?: number;
+  code?: string;
+};
 
 function statusClass(status: SubscriberDashboardData["status"]) {
   if (status === "critical") return "border-red-300 bg-red-100 text-red-900 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-200";
   if (status === "attention") return "border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200";
   return "border-emerald-300 bg-emerald-100 text-emerald-900 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-200";
-}
-
-function statusLabel(status: SubscriberDashboardData["status"]) {
-  if (status === "critical") return "Critical";
-  if (status === "attention") return "Attention Needed";
-  return "Stable";
 }
 
 function MiniTrend({ values }: { values: number[] }) {
@@ -82,7 +70,7 @@ function Skeleton() {
 function buildRangeFromKey(key: "today" | "last7" | "last30" | "custom", current: SubscriberDashboardData["dateRange"]) {
   if (key === "today") {
     const day = new Date().toISOString().slice(0, 10);
-    return { key: "today" as const, from: day, to: day, label: "Today" };
+    return { key: "today" as const, from: day, to: day, label: key };
   }
   if (key === "last30") {
     const to = new Date();
@@ -91,11 +79,11 @@ function buildRangeFromKey(key: "today" | "last7" | "last30" | "custom", current
       key: "last30" as const,
       from: from.toISOString().slice(0, 10),
       to: to.toISOString().slice(0, 10),
-      label: "Last 30 Days",
+      label: key,
     };
   }
   if (key === "custom") {
-    return { key: "custom" as const, from: current.from, to: current.to, label: "Custom" };
+    return { key: "custom" as const, from: current.from, to: current.to, label: key };
   }
   const to = new Date();
   const from = new Date(to.getTime() - 6 * 24 * 60 * 60 * 1000);
@@ -103,8 +91,31 @@ function buildRangeFromKey(key: "today" | "last7" | "last30" | "custom", current
     key: "last7" as const,
     from: from.toISOString().slice(0, 10),
     to: to.toISOString().slice(0, 10),
-    label: "Last 7 Days",
+    label: key,
   };
+}
+
+async function fetchSubscriberDashboardData(
+  query: URLSearchParams
+): Promise<SubscriberDashboardData> {
+  const response = await fetch(`/api/dashboard/subscriber?${query.toString()}`, {
+    cache: "no-store",
+    credentials: "same-origin",
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const error = new Error(
+      typeof payload === "object" && payload && "error" in payload && typeof payload.error === "string"
+        ? payload.error
+        : "refresh_failed"
+    ) as DashboardRequestError;
+    error.status = response.status;
+    if (typeof payload === "object" && payload && "code" in payload && typeof payload.code === "string") {
+      error.code = payload.code;
+    }
+    throw error;
+  }
+  return payload as SubscriberDashboardData;
 }
 
 export function SubscriberOverviewDashboard({
@@ -112,6 +123,8 @@ export function SubscriberOverviewDashboard({
 }: {
   initialData: SubscriberDashboardData;
 }) {
+  const { language, t } = useLanguage();
+  const locale = LANGUAGE_LOCALES[language];
   const router = useRouter();
   const [data, setData] = useState(initialData);
   const [warning, setWarning] = useState<string | null>(null);
@@ -121,6 +134,82 @@ export function SubscriberOverviewDashboard({
   const [visibleTimeline, setVisibleTimeline] = useState(MAX_TIMELINE_ITEMS);
   const intervalRef = useRef<number | null>(null);
   const inFlightRef = useRef(false);
+
+  const localizeAccessError = useCallback(
+    (error: DashboardRequestError) => {
+      const status = Number(error.status || 0);
+      if (status === 401) {
+        return t(
+          "Your session expired. Please sign in again.",
+          "Votre session a expire. Veuillez vous reconnecter.",
+          "Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.",
+          "Tu sesión ha expirado. Vuelve a iniciar sesión.",
+          "A sua sessão expirou. Inicie sessão novamente."
+        );
+      }
+      if (status !== 403) return null;
+      if (error.code === "ORG_ACCESS_DENIED" || error.message === "Organization access denied.") {
+        return t(
+          "Organization access denied.",
+          "Accès à l'organisation refuse.",
+          "Zugriff auf die Organisation verweigert.",
+          "Acceso a la organización denegado.",
+          "Acesso a organização negado."
+        );
+      }
+      if (error.code === "TENANT_SUSPENDED") {
+        return error.message === "Organization access has been disabled."
+          ? t(
+              "Organization access has been disabled.",
+              "L accès à l'organisation a ?t? desactive.",
+              "Der Organisationszugriff wurde deaktiviert.",
+              "El acceso a la organización ha sido deshabilitado.",
+              "O acesso a organização foi desativado."
+            )
+          : t(
+              "Organization access is suspended.",
+              "L accès à l'organisation est suspendu.",
+              "Der Organisationszugriff ist ausgesetzt.",
+              "El acceso a la organización esta suspendido.",
+              "O acesso a organização esta suspenso."
+            );
+      }
+      if (error.code === "SUBSCRIPTION_INACTIVE") {
+        return error.message === "Organization subscription inactive. Please renew billing."
+          ? t(
+              "Organization subscription inactive. Please renew billing.",
+              "L abonnement de l'organisation est inactif. Veuillez renouveler la facturation.",
+              "Das Organisationsabonnement ist inaktiv. Bitte erneuere die Abrechnung.",
+              "La suscripción de la organización esta inactiva. Renueva la facturación.",
+              "A subscrição da organização esta inativa. Renove a faturação."
+            )
+          : t(
+              "Organization subscription inactive. Please contact the organization owner.",
+              "L abonnement de l'organisation est inactif. Veuillez contacter le proprietaire de l'organisation.",
+              "Das Organisationsabonnement ist inaktiv. Bitte kontaktiere den Eigentümer der Organisation.",
+              "La suscripción de la organización esta inactiva. Ponte en contacto con el propietario de la organización.",
+              "A subscrição da organização esta inativa. Contacte o proprietário da organização."
+            );
+      }
+      if (error.code === "FORBIDDEN" || error.message === "You do not have permission for this action.") {
+        return t(
+          "You do not have permission for this action.",
+          "Vous n'avez pas l autorisation pour cette action.",
+          "Du hast keine Berechtigung für diese Aktion.",
+          "No tienes permiso para esta acción.",
+          "Não tem permissao para esta ação."
+        );
+      }
+      return t(
+        "Dashboard access could not be verified. Please reload the page.",
+        "L accès au tableau de bord n'a pas pu être verifie. Rechargez la page.",
+        "Der Dashboard-Zugriff konnte nicht verifiziert werden. Bitte lade die Seite neu.",
+        "No se pudo verificar el acceso al panel. Recarga la pagina.",
+        "Não foi possivel verificar o acesso ao painel. Recarregue a pagina."
+      );
+    },
+    [t]
+  );
 
   useEffect(() => {
     try {
@@ -179,33 +268,39 @@ export function SubscriberOverviewDashboard({
       setFatalError(null);
       try {
         const query = rangeToQuery(data.dateRange);
-        const response = await fetch(`/api/dashboard/subscriber?${query.toString()}`, {
-          cache: "no-store",
-        });
-        if (!response.ok) {
-          const error = new Error("refresh_failed") as Error & { status?: number };
-          error.status = response.status;
-          throw error;
-        }
-        const payload = (await response.json()) as SubscriberDashboardData;
+        const payload = await fetchSubscriberDashboardData(query);
         setData(payload);
       } catch (error) {
-        const status = error instanceof Error && "status" in error ? Number((error as { status?: number }).status) : 0;
+        const requestError = error as DashboardRequestError;
+        const status = Number(requestError.status || 0);
         if (status === 401) {
-          setFatalError("Your session expired. Please sign in again.");
+          setFatalError(localizeAccessError(requestError));
           return;
         }
         if (status === 403) {
-          setFatalError("You no longer have access to this dashboard.");
+          if (silent) {
+            setWarning(localizeAccessError(requestError));
+            return;
+          }
+          setWarning(
+            t(
+              "Reloading the dashboard to restore access...",
+              "Rechargement du tableau de bord pour restaurer l accès...",
+              "Das Dashboard wird neu geladen, um den Zugriff wiederherzustellen...",
+              "Recargando el panel para restaurar el acceso...",
+              "A recarregar o painel para restaurar o acesso..."
+            )
+          );
+          router.refresh();
           return;
         }
-        setWarning("Live data temporarily unavailable. Showing last updated state.");
+        setWarning(t("Live data temporarily unavailable. Showing last updated state.", "Les données en direct sont temporairement indisponibles. Affichage du dernier etat connu.", "Live-Daten sind vorübergehend nicht verfügbar. Letzter bekannter Stand wird angezeigt.", "Los datos en vivo no estan disponibles temporalmente. Se muestra el ultimo estado conocido.", "Os dados em tempo real estão temporariamente indisponiveis. A mostrar o ultimo estado conhecido."));
       } finally {
         inFlightRef.current = false;
         if (!silent) setIsRefreshing(false);
       }
     },
-    [data.dateRange]
+    [data.dateRange, localizeAccessError, router, t]
   );
 
   useEffect(() => {
@@ -225,6 +320,91 @@ export function SubscriberOverviewDashboard({
     };
   }, [autoRefresh, refresh]);
 
+  const compactTime = useCallback(
+    (iso: string) => {
+      const then = new Date(iso).getTime();
+      if (!Number.isFinite(then)) return "--";
+      const diff = Math.max(0, Date.now() - then);
+      if (diff < 60 * 1000) {
+        return t("just now", "a l instant", "gerade eben", "justo ahora", "agora mesmo");
+      }
+      const formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+      const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+        ["day", 24 * 60 * 60 * 1000],
+        ["hour", 60 * 60 * 1000],
+        ["minute", 60 * 1000],
+      ];
+      for (const [unit, unitMs] of units) {
+        const count = Math.floor(diff / unitMs);
+        if (count > 0) {
+          return formatter.format(-count, unit);
+        }
+      }
+      return t("just now", "a l instant", "gerade eben", "justo ahora", "agora mesmo");
+    },
+    [locale, t]
+  );
+
+  const dashboardStatusLabel = useCallback(
+    (status: SubscriberDashboardData["status"]) => {
+      if (status === "critical") return t("Critical", "Critique", "Kritisch", "Critico", "Critico");
+      if (status === "attention") return t("Attention Needed", "Attention requise", "Aufmerksamkeit erforderlich", "Atencion necesaria", "Atencao necessária");
+      return t("Stable", "Stable", "Stabil", "Estable", "Estavel");
+    },
+    [t]
+  );
+
+  const localizeRevenueNote = useCallback(
+    (note?: string | null) => {
+      if (!note) return null;
+      if (note === "No payment subaccount connected") {
+        return t(
+          "No payment subaccount connected",
+          "Aucun sous-compte de paiement connecte",
+          "Kein Zahlungsunterkonto verbunden",
+          "No hay subcuenta de pago conectada",
+          "Nenhuma subconta de pagamento ligada"
+        );
+      }
+      return note;
+    },
+    [t]
+  );
+
+  const localizeTimelineTitle = useCallback(
+    (title: string) => {
+      const mapped: Record<string, string> = {
+        "Payment failed": t("Payment failed", "Paiement échoué", "Zahlung fehlgeschlagen", "Pago fallido", "Pagamento falhou"),
+        "Payment refunded": t("Payment refunded", "Paiement rembourse", "Zahlung erstattet", "Pago reembolsado", "Pagamento reembolsado"),
+        "Payment pending": t("Payment pending", "Paiement en attente", "Zahlung ausstehend", "Pago pendiente", "Pagamento pendente"),
+        "Payment received": t("Payment received", "Paiement recu", "Zahlung erhalten", "Pago recibido", "Pagamento recebido"),
+        "Invoice overdue": t("Invoice overdue", "Facture en retard", "Rechnung überfällig", "Factura vencida", "Fatura em atraso"),
+        "Invoice created": t("Invoice created", "Facture creee", "Rechnung erstellt", "Factura creada", "Fatura criada"),
+        "Automation failed": t("Automation failed", "Automatisation échouée", "Automatisierung fehlgeschlagen", "Automatización fallida", "Automação falhou"),
+        "Automation completed": t("Automation completed", "Automatisation terminée", "Automatisierung abgeschlossen", "Automatización completada", "Automação concluida"),
+        "Automation running": t("Automation running", "Automatisation en cours", "Automatisierung lauft", "Automatización en curso", "Automação em execucao"),
+        "Automation queued": t("Automation queued", "Automatisation en file d attente", "Automatisierung in Warteschlange", "Automatización en cola", "Automação em fila"),
+        "Message delivery failed": t("Message delivery failed", "Echec de livraison du message", "Nachrichtenzustellung fehlgeschlagen", "Fallo en la entrega del mensaje", "Falha na entrega da mensagem"),
+        "Message read": t("Message read", "Message lu", "Nachricht gelesen", "Mensaje leido", "Mensagem lida"),
+        "Message delivered": t("Message delivered", "Message distribue", "Nachricht zugestellt", "Mensaje entregado", "Mensagem entregue"),
+        "Message sent": t("Message sent", "Message envoye", "Nachricht gesendet", "Mensaje enviado", "Mensagem enviada"),
+      };
+      return mapped[title] || title;
+    },
+    [t]
+  );
+
+  const localizeTimelineCustomer = useCallback(
+    (customer: string | null) => {
+      if (!customer) return customer;
+      if (customer === "Deleted Customer") {
+        return t("Deleted Customer", "Client supprime", "Gelöschter Kunde", "Cliente eliminado", "Cliente eliminado");
+      }
+      return customer;
+    },
+    [t]
+  );
+
   const navigateWithRange = useCallback(
     (path: string, extras?: Record<string, string>) => {
       const query = rangeToQuery(data.dateRange, extras);
@@ -237,7 +417,7 @@ export function SubscriberOverviewDashboard({
   const setRange = async (rangeKey: "today" | "last7" | "last30" | "custom", from?: string, to?: string) => {
     const nextRange =
       rangeKey === "custom" && from && to
-        ? { key: "custom" as const, from, to, label: "Custom" }
+        ? { key: "custom" as const, from, to, label: rangeKey }
         : buildRangeFromKey(rangeKey, data.dateRange);
 
     const query = rangeToQuery(nextRange);
@@ -246,26 +426,30 @@ export function SubscriberOverviewDashboard({
     setFatalError(null);
     setIsRefreshing(true);
     try {
-      const response = await fetch(`/api/dashboard/subscriber?${query.toString()}`, { cache: "no-store" });
-      if (!response.ok) {
-        const error = new Error("range_fetch_failed") as Error & { status?: number };
-        error.status = response.status;
-        throw error;
-      }
-      const payload = (await response.json()) as SubscriberDashboardData;
+      const payload = await fetchSubscriberDashboardData(query);
       setData(payload);
       setVisibleTimeline(MAX_TIMELINE_ITEMS);
     } catch (error) {
-      const status = error instanceof Error && "status" in error ? Number((error as { status?: number }).status) : 0;
+      const requestError = error as DashboardRequestError;
+      const status = Number(requestError.status || 0);
       if (status === 401) {
-        setFatalError("Your session expired. Please sign in again.");
+        setFatalError(localizeAccessError(requestError));
         return;
       }
       if (status === 403) {
-        setFatalError("You no longer have access to this dashboard.");
+        setWarning(
+          t(
+            "Reloading the dashboard to restore access...",
+            "Rechargement du tableau de bord pour restaurer l accès...",
+            "Das Dashboard wird neu geladen, um den Zugriff wiederherzustellen...",
+            "Recargando el panel para restaurar el acceso...",
+            "A recarregar o painel para restaurar o acesso..."
+          )
+        );
+        router.refresh();
         return;
       }
-      setWarning("Live data temporarily unavailable. Showing last updated state.");
+      setWarning(t("Live data temporarily unavailable. Showing last updated state.", "Les données en direct sont temporairement indisponibles. Affichage du dernier etat connu.", "Live-Daten sind vorübergehend nicht verfügbar. Letzter bekannter Stand wird angezeigt.", "Los datos en vivo no estan disponibles temporalmente. Se muestra el ultimo estado conocido.", "Os dados em tempo real estão temporariamente indisponiveis. A mostrar o ultimo estado conhecido."));
     } finally {
       setIsRefreshing(false);
     }
@@ -287,13 +471,13 @@ export function SubscriberOverviewDashboard({
         ...(data.permissions.canViewBilling
           ? [
               {
-                label: "Overdue invoices",
+                label: t("Overdue invoices", "Factures en retard", "überfällige Rechnungen", "Facturas vencidas", "Faturas em atraso"),
                 value: `${data.risk.overdueInvoicesCount} • ${formatCurrency(data.risk.overdueInvoicesAmount, data.overview.currency)}`,
                 href: "/dashboard/invoices",
                 count: data.risk.overdueInvoicesCount,
               },
               {
-                label: "Failed payments",
+                label: t("Failed payments", "Paiements échoués", "Fehlgeschlagene Zahlungen", "Pagos fallidos", "Pagamentos falhados"),
                 value: String(data.risk.failedPaymentsCount),
                 href: navigateWithRange("/billing/payments", { status: "failed" }),
                 count: data.risk.failedPaymentsCount,
@@ -301,27 +485,31 @@ export function SubscriberOverviewDashboard({
             ]
           : []),
         {
-          label: "Failed automations",
+          label: t("Failed automations", "Automatisations échouées", "Fehlgeschlagene Automatisierungen", "Automatizaciónes fallidas", "Automações falhadas"),
           value: String(data.risk.failedAutomationsCount),
           href: navigateWithRange("/dashboard/automation-operations", { status: "FAILED" }),
           count: data.risk.failedAutomationsCount,
         },
         {
-          label: "Undelivered messages",
+          label: t("Undelivered messages", "Messages non distribues", "Nicht zugestellte Nachrichten", "Mensajes no entregados", "Mensagens não entregues"),
           value: String(data.risk.undeliveredMessagesCount),
           href: "/dashboard/inbox/analytics",
           count: data.risk.undeliveredMessagesCount,
         },
       ].filter((row) => row.count > 0),
-    [data, navigateWithRange]
+    [data, navigateWithRange, t]
   );
 
   const timelineRows = data.timeline.slice(0, visibleTimeline);
   const canLoadMoreTimeline = visibleTimeline < data.timeline.length;
-  const sectionClass = "border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/70";
-  const subcardClass = "rounded border border-slate-200 bg-slate-50 p-3 transition-colors hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900/70 dark:hover:bg-slate-900";
-  const articleClass = "border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950/70";
-  const controlClass = "h-9 rounded border border-slate-300 bg-white px-3 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100";
+  const sectionClass = "rounded-xl border border-slate-200 bg-white/90 p-3.5 dark:border-slate-800 dark:bg-slate-950/70";
+  const metricGridClass =
+    "mt-2 grid gap-px overflow-hidden rounded-xl border border-slate-200 bg-slate-200 dark:border-slate-800 dark:bg-slate-800";
+  const metricCellClass =
+    "group bg-white px-3 py-3 transition-colors hover:bg-slate-50 dark:bg-slate-950/70 dark:hover:bg-slate-900";
+  const moduleCellClass = "bg-white px-3 py-3 dark:bg-slate-950/70";
+  const controlClass =
+    "h-8.5 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100";
 
   if (!data) return <Skeleton />;
   if (fatalError) {
@@ -333,28 +521,28 @@ export function SubscriberOverviewDashboard({
   }
 
   return (
-    <div className="space-y-4">
-      <section className="border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950/70">
+    <div className="space-y-3.5">
+      <section className="rounded-xl border border-slate-200 bg-white/90 px-3.5 py-3 dark:border-slate-800 dark:bg-slate-950/70">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3">
-            <span className={clsx("inline-flex items-center gap-2 rounded border px-3 py-1.5 text-sm font-semibold", statusClass(data.status))}>
-              <span className="h-2.5 w-2.5 rounded-full bg-current" />
-              {statusLabel(data.status)}
+            <span className={clsx("inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm font-semibold", statusClass(data.status))}>
+              <span className="h-2 w-2 rounded-full bg-current" />
+              {dashboardStatusLabel(data.status)}
             </span>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             <select
               value={data.dateRange.key}
               onChange={(event) => void setRange(event.target.value as "today" | "last7" | "last30" | "custom")}
               className={controlClass}
             >
-              <option value="today">Today</option>
-              <option value="last7">Last 7 Days</option>
-              <option value="last30">Last 30 Days</option>
-              <option value="custom">Custom</option>
+              <option value="today">{t("Today", "Aujourd'hui", "Heute", "Hoy", "Hoje")}</option>
+              <option value="last7">{t("Last 7 Days", "7 derniers jours", "Letzte 7 Tage", "Ultimos 7 dias", "Ultimos 7 dias")}</option>
+              <option value="last30">{t("Last 30 Days", "30 derniers jours", "Letzte 30 Tage", "Ultimos 30 dias", "Ultimos 30 dias")}</option>
+              <option value="custom">{t("Custom", "Personnalise", "Benutzerdefiniert", "Personalizado", "Personalizado")}</option>
             </select>
             {data.dateRange.key === "custom" ? (
-              <div className="inline-flex items-center gap-2">
+              <div className="inline-flex items-center gap-1.5">
                 <input
                   type="date"
                   value={customFrom}
@@ -370,24 +558,27 @@ export function SubscriberOverviewDashboard({
                 <button
                   type="button"
                   onClick={() => void setRange("custom", customFrom, customTo)}
-                  className="h-9 rounded border border-slate-300 px-3 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                  className="h-8.5 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
                 >
-                  Apply
+                  {t("Apply", "Appliquer", "Anwenden", "Aplicar", "Aplicar")}
                 </button>
               </div>
             ) : null}
-            <span className="text-xs text-slate-500 dark:text-slate-400">Last updated {compactTime(data.generatedAt)}</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">
+              {t("Last updated", "Derniere mise a jour", "Zuletzt aktualisiert", "Ultima actualizacion", "Ultima atualizacao")}{" "}
+              {compactTime(data.generatedAt)}
+            </span>
             <button
               type="button"
               onClick={() => void refresh({ silent: false })}
               disabled={isRefreshing}
-              className="inline-flex h-9 items-center gap-2 rounded border border-slate-300 px-3 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+              className="inline-flex h-8.5 items-center gap-2 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
             >
               {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              Refresh
+              {t("Refresh", "Actualiser", "Aktualisieren", "Actualizar", "Atualizar")}
             </button>
             <label className="inline-flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-              Auto-refresh
+              {t("Auto-refresh", "Actualisation automatique", "Automatische Aktualisierung", "Actualización automatica", "Atualizacao automatica")}
               <button
                 type="button"
                 onClick={() => setAutoRefresh((prev) => !prev)}
@@ -408,136 +599,161 @@ export function SubscriberOverviewDashboard({
         </div>
       </section>
 
-      {warning ? <section className="border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">{warning}</section> : null}
+      {warning ? (
+        <section className="rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2 text-sm text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+          {warning}
+        </section>
+      ) : null}
 
-      <section className={sectionClass}>
-        <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Business Overview</h1>
+      <section className="space-y-2">
+        <div className="flex items-end justify-between gap-3">
+          <h1 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+            {t("Business Overview", "Vue d'ensemble de l'activité", "Geschäftsübersicht", "Resumen del negocio", "Visao geral do negocio")}
+          </h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            {t("Key signals for the selected range", "Signaux cles pour la periode choisie", "Wichtige Signale für den gewahlten Zeitraum", "Senales clave para el periodo seleccionado", "Sinais principais para o periodo selecionado")}
+          </p>
+        </div>
         <div
           className={clsx(
-            "mt-3 grid gap-3 sm:grid-cols-2",
-            data.permissions.canViewBilling ? "xl:grid-cols-6" : "xl:grid-cols-3"
+            metricGridClass,
+            "sm:grid-cols-2",
+            data.permissions.canViewBilling ? "xl:grid-cols-3 2xl:grid-cols-6" : "xl:grid-cols-3"
           )}
         >
           {data.permissions.canViewBilling ? (
             <>
-              <Link href={navigateWithRange("/billing/payments", { status: "paid" })} className={subcardClass}>
-                <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Revenue</p>
-                <p className="mt-1 text-3xl font-bold leading-tight text-slate-950 dark:text-slate-100">
+              <Link href={navigateWithRange("/billing/payments", { status: "paid" })} className={metricCellClass}>
+                <p className="text-[11px] uppercase leading-5 tracking-[0.1em] text-slate-500 break-words dark:text-slate-400">{t("Revenue", "Revenus", "Umsatz", "Ingresos", "Receita")}</p>
+                <p className="mt-1 text-2xl font-semibold leading-tight text-slate-950 dark:text-slate-100">
                   {formatCurrency(data.overview.revenue, data.overview.currency)}
                 </p>
-                <div className="mt-1">
+                <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
                   <MiniTrend values={data.overview.revenueTrend} />
+                  {localizeRevenueNote(data.overview.revenueNote) ? (
+                    <span className="min-w-0 text-right text-[11px] leading-4 text-amber-700 dark:text-amber-300">{localizeRevenueNote(data.overview.revenueNote)}</span>
+                  ) : null}
                 </div>
-                {data.overview.revenueNote ? (
-                  <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">{data.overview.revenueNote}</p>
-                ) : null}
               </Link>
-              <Link href={navigateWithRange("/billing/payments")} className={subcardClass}>
-                <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Payments</p>
-                <p className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">{data.overview.paymentsCount}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Success rate {data.overview.paymentSuccessRate}%</p>
+              <Link href={navigateWithRange("/billing/payments")} className={metricCellClass}>
+                <p className="text-[11px] uppercase leading-5 tracking-[0.1em] text-slate-500 break-words dark:text-slate-400">{t("Payments", "Paiements", "Zahlungen", "Pagos", "Pagamentos")}</p>
+                <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{data.overview.paymentsCount}</p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  {t("Success rate", "Taux de reussite", "Erfolgsquote", "Tasa de exito", "Taxa de sucesso")} {data.overview.paymentSuccessRate}%
+                </p>
               </Link>
-              <Link href="/dashboard/invoices" className={subcardClass}>
-                <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Invoices Sent</p>
-                <p className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">{data.overview.invoicesSent}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Overdue {data.overview.invoicesOverdue}</p>
+              <Link href="/dashboard/invoices" className={metricCellClass}>
+                <p className="text-[11px] uppercase leading-5 tracking-[0.1em] text-slate-500 break-words dark:text-slate-400">{t("Invoices Sent", "Factures envoyees", "Gesendete Rechnungen", "Facturas enviadas", "Faturas enviadas")}</p>
+                <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{data.overview.invoicesSent}</p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  {t("Overdue", "En retard", "überfällig", "Vencidas", "Em atraso")} {data.overview.invoicesOverdue}
+                </p>
               </Link>
             </>
           ) : null}
-          <Link href="/dashboard/inbox/analytics" className={subcardClass}>
-            <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Messages</p>
-            <p className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">{data.overview.messagesSent}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Delivery rate {data.overview.messageDeliveryRate}%</p>
+          <Link href="/dashboard/inbox/analytics" className={metricCellClass}>
+            <p className="text-[11px] uppercase leading-5 tracking-[0.1em] text-slate-500 break-words dark:text-slate-400">{t("Messages", "Messages", "Nachrichten", "Mensajes", "Mensagens")}</p>
+            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{data.overview.messagesSent}</p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {t("Delivery rate", "Taux de livraison", "Zustellrate", "Tasa de entrega", "Taxa de entrega")} {data.overview.messageDeliveryRate}%
+            </p>
           </Link>
-          <Link href={navigateWithRange("/dashboard/automation-operations")} className={subcardClass}>
-            <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Automations</p>
-            <p className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">{data.overview.automationRuns}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Failed {data.overview.failedAutomations}</p>
+          <Link href={navigateWithRange("/dashboard/automation-operations")} className={metricCellClass}>
+            <p className="text-[11px] uppercase leading-5 tracking-[0.1em] text-slate-500 break-words dark:text-slate-400">{t("Automations", "Automatisations", "Automatisierungen", "Automatizaciónes", "Automações")}</p>
+            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{data.overview.automationRuns}</p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {t("Failed", "Echouees", "Fehlgeschlagen", "Fallidas", "Falhadas")} {data.overview.failedAutomations}
+            </p>
           </Link>
           {typeof data.overview.aiRequests === "number" ? (
-            <Link href="/dashboard/assistant" className={subcardClass}>
-              <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">AI</p>
-              <p className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">{data.overview.aiRequests}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Requests in range</p>
+            <Link href="/dashboard/assistant" className={metricCellClass}>
+              <p className="text-[11px] uppercase leading-5 tracking-[0.1em] text-slate-500 break-words dark:text-slate-400">{t("AI", "IA", "KI", "IA", "IA")}</p>
+              <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{data.overview.aiRequests}</p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                {t("Requests in range", "Requetes sur la periode", "Anfragen im Zeitraum", "Solicitudes en el rango", "Pedidos no intervalo")}
+              </p>
             </Link>
           ) : null}
         </div>
       </section>
 
       <section className={sectionClass}>
-        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Risk &amp; Attention</h2>
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">{t("Risk & Attention", "Risques et attention", "Risiko und Aufmerksamkeit", "Riesgo y atencion", "Risco e atencao")}</h2>
         {data.permissions.canViewBilling && data.risk.paymentConnectionIssue ? (
-          <div className="mt-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
-            Payment subaccount not connected.
+          <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+            {t("Payment subaccount not connected.", "Le sous-compte de paiement n'est pas connecte.", "Zahlungsunterkonto nicht verbunden.", "La subcuenta de pago no esta conectada.", "A subconta de pagamento não esta ligada.")}
             <Link href="/dashboard/settings?tab=payout" className="ml-2 font-semibold text-blue-700 hover:underline dark:text-blue-300">
-              Complete payout setup
+              {t("Complete payout setup", "Finaliser la configuration des virements", "Auszahlungseinrichtung abschliessen", "Completar la configuración de cobros", "Concluir a configuração de recebimentos")}
             </Link>
           </div>
         ) : null}
         {riskRows.length === 0 && !(data.permissions.canViewBilling && data.risk.paymentConnectionIssue) ? (
-          <p className="mt-3 text-sm text-emerald-700 dark:text-emerald-300">All systems operating normally.</p>
+          <p className="mt-2 text-sm text-emerald-700 dark:text-emerald-300">{t("All systems operating normally.", "Tous les systemes fonctionnent normalement.", "Alle Systeme arbeiten normal.", "Todos los sistemas funcionan con normalidad.", "Todos os sistemas estão a funcionar normalmente.")}</p>
         ) : (
-          <div className="mt-3 grid gap-2 md:grid-cols-2">
+          <div className="mt-2 divide-y divide-amber-200 overflow-hidden rounded-xl border border-amber-300 bg-amber-50 dark:divide-amber-500/20 dark:border-amber-500/40 dark:bg-amber-500/10">
             {riskRows.map((row) => (
               <Link
                 key={row.label}
                 href={row.href}
-                className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200 dark:hover:bg-amber-500/15"
+                className="flex items-center justify-between gap-3 px-3 py-2 text-sm text-amber-900 transition hover:bg-amber-100 dark:text-amber-200 dark:hover:bg-amber-500/15"
               >
-                <div className="flex items-center justify-between">
-                  <span>{row.label}</span>
-                  <span className="font-semibold">{row.value}</span>
-                </div>
+                <span>{row.label}</span>
+                <span className="font-semibold">{row.value}</span>
               </Link>
             ))}
           </div>
         )}
       </section>
 
-      <section className={clsx("grid gap-3", data.permissions.canViewBilling ? "lg:grid-cols-3" : "lg:grid-cols-2")}>
-        {data.permissions.canViewBilling ? (
-          <article className={articleClass}>
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Billing</h3>
+      <section className="space-y-2">
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+          {t("Module Snapshot", "Aperçu des modules", "Modulübersicht", "Resumen de modulos", "Resumo dos modulos")}
+        </h2>
+        <div className={clsx(metricGridClass, data.permissions.canViewBilling ? "lg:grid-cols-3" : "lg:grid-cols-2")}>
+          {data.permissions.canViewBilling ? (
+            <article className={moduleCellClass}>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{t("Billing", "Facturation", "Abrechnung", "Facturación", "Faturação")}</h3>
+              <div className="mt-2 space-y-1 text-sm text-slate-700 dark:text-slate-300">
+                <p>{t("Revenue", "Revenus", "Umsatz", "Ingresos", "Receita")}: {formatCurrency(data.modules.billing.revenue, data.overview.currency)}</p>
+                <p>{t("Payments", "Paiements", "Zahlungen", "Pagos", "Pagamentos")}: {data.modules.billing.paymentsCount}</p>
+                <p>{t("Overdue invoices", "Factures en retard", "überfällige Rechnungen", "Facturas vencidas", "Faturas em atraso")}: {data.modules.billing.overdueInvoices}</p>
+              </div>
+              <Link href={navigateWithRange("/billing/payments")} className="mt-3 inline-block text-sm font-semibold text-blue-700 dark:text-blue-300">
+                {t("Open payments ledger", "Ouvrir le registre des paiements", "Zahlungsledger öffnen", "Abrir libro de pagos", "Abrir razao de pagamentos")}
+              </Link>
+            </article>
+          ) : null}
+          <article className={moduleCellClass}>
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{t("Automation", "Automatisation", "Automatisierung", "Automatización", "Automação")}</h3>
             <div className="mt-2 space-y-1 text-sm text-slate-700 dark:text-slate-300">
-              <p>Revenue: {formatCurrency(data.modules.billing.revenue, data.overview.currency)}</p>
-              <p>Payments: {data.modules.billing.paymentsCount}</p>
-              <p>Overdue invoices: {data.modules.billing.overdueInvoices}</p>
+              <p>{t("Runs", "Executions", "Laufe", "Ejecuciones", "Execucoes")}: {data.modules.automation.runs}</p>
+              <p>{t("Failed", "Echouees", "Fehlgeschlagen", "Fallidas", "Falhadas")}: {data.modules.automation.failed}</p>
+              <p>{t("Active workflows", "Workflows actifs", "Aktive Workflows", "Flujos activos", "Fluxos ativos")}: {data.modules.automation.active}</p>
             </div>
-            <Link href={navigateWithRange("/billing/payments")} className="mt-3 inline-block text-sm font-semibold text-blue-700 dark:text-blue-300">
-              Open payments ledger
+            <Link href={navigateWithRange("/dashboard/automations")} className="mt-3 inline-block text-sm font-semibold text-blue-700 dark:text-blue-300">
+              {t("View automations", "Voir les automatisations", "Automatisierungen ansehen", "Ver automatizaciones", "Ver automações")}
             </Link>
           </article>
-        ) : null}
-        <article className={articleClass}>
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Automation</h3>
-          <div className="mt-2 space-y-1 text-sm text-slate-700 dark:text-slate-300">
-            <p>Runs: {data.modules.automation.runs}</p>
-            <p>Failed: {data.modules.automation.failed}</p>
-            <p>Active workflows: {data.modules.automation.active}</p>
-          </div>
-          <Link href={navigateWithRange("/dashboard/automations")} className="mt-3 inline-block text-sm font-semibold text-blue-700 dark:text-blue-300">
-            View automations
-          </Link>
-        </article>
-        <article className={articleClass}>
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Messaging</h3>
-          <div className="mt-2 space-y-1 text-sm text-slate-700 dark:text-slate-300">
-            <p>Sent: {data.modules.messaging.sent}</p>
-            <p>Delivered: {data.modules.messaging.delivered}</p>
-            <p>Failed: {data.modules.messaging.failed}</p>
-          </div>
-          <Link href="/dashboard/inbox/analytics" className="mt-3 inline-block text-sm font-semibold text-blue-700 dark:text-blue-300">
-            View messaging
-          </Link>
-        </article>
+          <article className={moduleCellClass}>
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{t("Messaging", "Messagerie", "Nachrichten", "Mensajeria", "Mensagens")}</h3>
+            <div className="mt-2 space-y-1 text-sm text-slate-700 dark:text-slate-300">
+              <p>{t("Sent", "Envoyes", "Gesendet", "Enviados", "Enviadas")}: {data.modules.messaging.sent}</p>
+              <p>{t("Delivered", "Distribues", "Zugestellt", "Entregados", "Entregues")}: {data.modules.messaging.delivered}</p>
+              <p>{t("Failed", "Echoues", "Fehlgeschlagen", "Fallidos", "Falhados")}: {data.modules.messaging.failed}</p>
+            </div>
+            <Link href="/dashboard/inbox/analytics" className="mt-3 inline-block text-sm font-semibold text-blue-700 dark:text-blue-300">
+              {t("View messaging", "Voir la messagerie", "Nachrichten ansehen", "Ver mensajeria", "Ver mensagens")}
+            </Link>
+          </article>
+        </div>
       </section>
 
       <section className={sectionClass}>
-        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Recent Activity Timeline</h2>
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">{t("Recent Activity Timeline", "Chronologie de l'activité recente", "Zeitleiste der letzten Aktivität", "Cronologia de actividad reciente", "Cronologia da atividade recente")}</h2>
         {timelineRows.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">No recent system activity.</p>
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t("No recent system activity.", "Aucune activité systeme recente.", "Keine aktuelle Systemaktivität.", "No hay actividad reciente del sistema.", "Não ha atividade recente do sistema.")}</p>
         ) : (
-          <div className="mt-3 space-y-2">
+          <div className="mt-2 divide-y divide-slate-200 dark:divide-slate-800">
             {timelineRows.map((item) => {
               const Icon =
                 item.status === "failed"
@@ -548,7 +764,7 @@ export function SubscriberOverviewDashboard({
                       ? CheckCircle2
                       : Clock3;
               return (
-                <article key={item.id} className="rounded border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/70">
+                <article key={item.id} className="py-2 first:pt-0 last:pb-0">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-2">
                       <span
@@ -566,9 +782,9 @@ export function SubscriberOverviewDashboard({
                         <Icon className="h-3.5 w-3.5" />
                       </span>
                       <div>
-                        <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{item.title}</p>
+                        <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{localizeTimelineTitle(item.title)}</p>
                         <p className="text-xs text-slate-500 dark:text-slate-400">
-                          {item.customer ? `${item.customer} • ` : ""}
+                          {item.customer ? `${localizeTimelineCustomer(item.customer)} • ` : ""}
                           {item.invoice ? `${item.invoice} • ` : ""}
                           {compactTime(item.timestamp)}
                         </p>
@@ -586,9 +802,9 @@ export function SubscriberOverviewDashboard({
             onClick={() =>
               setVisibleTimeline((current) => Math.min(current + MAX_TIMELINE_ITEMS, data.timeline.length))
             }
-            className="mt-3 rounded border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+            className="mt-3 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
           >
-            Load More
+            {t("Load More", "Charger plus", "Mehr laden", "Cargar mas", "Carregar mais")}
           </button>
         ) : null}
       </section>

@@ -3,6 +3,7 @@
 import clsx from "clsx";
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Search } from "lucide-react";
+import { getLocalizedText, type Language } from "@/lib/i18n";
 import {
   COUNTRY_DIAL_CODES,
   getCountryFlag,
@@ -15,7 +16,7 @@ type PhoneInputProps = {
   label: string;
   value: string;
   onChange: (value: string) => void;
-  locale?: "en" | "fr";
+  locale?: Language;
   defaultCountry?: string;
   required?: boolean;
   fieldClassName?: string;
@@ -113,6 +114,26 @@ export function PhoneInput({
 
   const dialCode = getDialCode(country);
   const formatted = nationalNumber ? `+${dialCode}${nationalNumber}` : "";
+  const phonePlaceholder = getLocalizedText(
+    {
+      en: "Phone number",
+      fr: "Numero de telephone",
+      de: "Telefonnummer",
+      es: "Numero de telefono",
+      pt: "Numero de telefone",
+    },
+    locale
+  );
+  const searchPlaceholder = getLocalizedText(
+    {
+      en: "Search country",
+      fr: "Rechercher un pays",
+      de: "Land suchen",
+      es: "Buscar pais",
+      pt: "Pesquisar pais",
+    },
+    locale
+  );
 
   useEffect(() => {
     if (formatted && formatted !== value) {
@@ -155,7 +176,7 @@ export function PhoneInput({
           onChange={(event) => setNationalNumber(event.target.value.replace(/\D/g, ""))}
           inputMode="numeric"
           required={required}
-          placeholder={locale === "fr" ? "Numero de telephone" : "Phone number"}
+          placeholder={phonePlaceholder}
           className={clsx(
             "w-full bg-transparent px-2 py-1 text-sm text-foreground outline-none placeholder:text-muted-foreground dark:text-slate-100 dark:placeholder:text-slate-400",
             inputClassName
@@ -170,7 +191,7 @@ export function PhoneInput({
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder={locale === "fr" ? "Rechercher un pays" : "Search country"}
+                placeholder={searchPlaceholder}
                 className="w-full bg-transparent text-sm text-foreground outline-none"
                 ref={searchInputRef}
                 autoComplete="off"

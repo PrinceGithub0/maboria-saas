@@ -9,7 +9,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Toast } from "@/components/ui/toast";
 import { useLanguage } from "@/components/providers/language-provider";
 import { useTheme } from "@/components/providers/theme-provider";
+import { localizeAdminServerMessage } from "@/lib/admin/localization";
 import { formatDateTimeDMY } from "@/lib/date";
+import { LANGUAGE_LOCALES } from "@/lib/i18n";
 
 type RawCheck = {
   name?: string;
@@ -95,10 +97,9 @@ function statusIcon(status: CheckStatus) {
 }
 
 export default function PrelaunchClient() {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const { theme, resolvedTheme } = useTheme();
   const forceLight = theme === "light" || resolvedTheme === "light";
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
 
   const { data, error, isLoading, isValidating, mutate } = useSWR<PrelaunchApiResponse>("/api/admin/prelaunch", fetcher);
   const [isRunning, setIsRunning] = useState(false);
@@ -134,11 +135,25 @@ export default function PrelaunchClient() {
       }
 
       setLocalLastRunAt(new Date().toISOString());
-      setLocalTriggeredBy(t("Current admin", "Admin actuel"));
+      setLocalTriggeredBy(t("Current admin", "Admin actuel", "Aktueller Admin", "Administrador actual", "Administrador atual"));
       await mutate(payload as PrelaunchApiResponse, { revalidate: false });
       await mutate();
     } catch (runError) {
-      setToastMessage(runError instanceof Error ? runError.message : t("Failed to run diagnostics.", "Echec du diagnostic."));
+      setToastMessage(
+        runError instanceof Error
+          ? localizeAdminServerMessage(
+              runError.message,
+              language,
+              t(
+                "Failed to run diagnostics.",
+                "Echec du diagnostic.",
+                "Diagnose konnte nicht ausgefuehrt werden.",
+                "No se pudieron ejecutar los diagnosticos.",
+                "Nao foi possivel executar os diagnosticos."
+              )
+            )
+          : t("Failed to run diagnostics.", "Echec du diagnostic.", "Diagnose konnte nicht ausgeführt werden.", "No se pudieron ejecutar los diagnosticos.", "Não foi possivel executar os diagnosticos.")
+      );
     } finally {
       setIsRunning(false);
     }
@@ -148,35 +163,37 @@ export default function PrelaunchClient() {
     <div className="space-y-4 px-6 py-6 max-md:px-4 max-md:py-4">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">{t("Admin", "Admin")}</p>
-          <h1 className="text-3xl font-semibold text-foreground">{t("Pre-Launch Diagnostics", "Diagnostic pre-lancement")}</h1>
+          <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">{t("Admin", "Admin", "Admin", "Admin", "Admin")}</p>
+          <h1 className="text-3xl font-semibold text-foreground">{t("Pre-Launch Diagnostics", "Diagnostic pre-lancement", "Pre-Launch-Diagnose", "Diagnosticos previos al lanzamiento", "Diagnosticos pre-lancamento")}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {t("Verify platform readiness before production launch.", "Verifiez la preparation de la plateforme avant le lancement.")}
+            {t("Verify platform readiness before production launch.", "Verifiez la preparation de la plateforme avant le lancement.", "Prüfe die Plattformbereitschaft vor dem Produktionsstart.", "Verifica la preparacion de la plataforma antes del lanzamiento en producción.", "Verifique a prontidao da plataforma antes do lancamento em produção.")}
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
-            {t("Last run:", "Derniere execution:")}{" "}
-            {renderLastRunAt ? formatDateTimeDMY(new Date(renderLastRunAt)) : t("Not available", "Indisponible")}{" "}
+            {t("Last run:", "Derniere execution:", "Letzte Ausfuhrung:", "Ultima ejecucion:", "Ultima execucao:")}{" "}
+            {renderLastRunAt ? formatDateTimeDMY(new Date(renderLastRunAt), LANGUAGE_LOCALES[language]) : t("Not available", "Indisponible", "Nicht verfuegbar", "No disponible", "Indisponivel")}{" "}
             <span className="mx-2">|</span>
-            {t("Triggered by:", "Declenche par:")} {renderTriggeredBy || t("Unknown", "Inconnu")}
+            {t("Triggered by:", "Declenche par:", "Ausgelöst von:", "Iniciado por:", "Acionado por:")} {renderTriggeredBy || t("Unknown", "Inconnu", "Unbekannt", "Desconocido", "Desconhecido")}
           </p>
         </div>
         <Button type="button" onClick={runChecks} disabled={isValidating || isRunning} loading={isRunning}>
-          {isRunning ? t("Running diagnostics...", "Diagnostic en cours...") : t("Run checks", "Lancer les controles")}
+          {isRunning
+            ? t("Running diagnostics...", "Diagnostic en cours...", "Diagnose lauft...", "Ejecutando diagnosticos...", "A executar diagnosticos...")
+            : t("Run checks", "Lancer les controles", "Prufungen ausfuhren", "Ejecutar comprobaciones", "Executar verificacoes")}
         </Button>
       </header>
 
       {error ? (
         <Alert variant="error">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <span>{t("Failed to load diagnostics.", "Echec du chargement du diagnostic.")}</span>
+            <span>{t("Failed to load diagnostics.", "Echec du chargement du diagnostic.", "Diagnose konnte nicht geladen werden.", "No se pudieron cargar los diagnosticos.", "Não foi possivel carregar os diagnosticos.")}</span>
             <Button size="sm" variant="secondary" onClick={() => void mutate()}>
-              {t("Retry", "Reessayer")}
+              {t("Retry", "Reessayer", "Erneut versuchen", "Reintentar", "Tentar novamente")}
             </Button>
           </div>
         </Alert>
       ) : null}
 
-      <Card title={t("System Diagnostics", "Diagnostic systeme")}>
+      <Card title={t("System Diagnostics", "Diagnostic systeme", "Systemdiagnose", "Diagnosticos del sistema", "Diagnosticos do sistema")}>
         {isLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 7 }).map((_, index) => (
@@ -191,7 +208,7 @@ export default function PrelaunchClient() {
               }`}
             >
               {normalized.checks.length === 0 ? (
-                <p className="text-slate-500 dark:text-slate-300">{t("No diagnostics available.", "Aucun diagnostic disponible.")}</p>
+                <p className="text-slate-500 dark:text-slate-300">{t("No diagnostics available.", "Aucun diagnostic disponible.", "Keine Diagnose verfügbar.", "No hay diagnosticos disponibles.", "Não ha diagnosticos disponiveis.")}</p>
               ) : (
                 <ul className="space-y-1.5">
                   {normalized.checks.map((check) => (
@@ -210,7 +227,7 @@ export default function PrelaunchClient() {
 
             <div className="space-y-2 rounded-lg border border-border/70 bg-muted/20 px-4 py-3">
               <p className="text-sm font-semibold text-foreground">
-                {t("Readiness score:", "Score de preparation:")} {normalized.readiness}%
+                {t("Readiness score:", "Score de preparation:", "Bereitschaftswert:", "Puntuacion de preparacion:", "Pontuacao de prontidao:")} {normalized.readiness}%
               </p>
               <p className="font-mono text-xs text-muted-foreground">{buildAsciiBar(normalized.readiness)} {normalized.readiness}%</p>
               <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
@@ -218,10 +235,10 @@ export default function PrelaunchClient() {
               </div>
               {normalized.issues > 0 ? (
                 <p className="text-sm text-amber-700 dark:text-amber-300">
-                  {normalized.issues} {t("issues require attention before launch.", "problemes requierent votre attention avant le lancement.")}
+                  {normalized.issues} {t("issues require attention before launch.", "problemes requierent votre attention avant le lancement.", "Probleme erfordern vor dem Start Aufmerksamkeit.", "problemas requieren atencion antes del lanzamiento.", "problemas exigem atencao antes do lancamento.")}
                 </p>
               ) : (
-                <p className="text-sm text-emerald-700 dark:text-emerald-300">{t("No blocking issues detected.", "Aucun probleme bloquant detecte.")}</p>
+                <p className="text-sm text-emerald-700 dark:text-emerald-300">{t("No blocking issues detected.", "Aucun probleme bloquant detecte.", "Keine blockierenden Probleme erkannt.", "No se detectaron problemas bloqueantes.", "Não foram detetados problemas bloqueadores.")}</p>
               )}
             </div>
           </div>
@@ -232,4 +249,3 @@ export default function PrelaunchClient() {
     </div>
   );
 }
-

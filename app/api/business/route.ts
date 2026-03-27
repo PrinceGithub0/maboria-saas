@@ -35,7 +35,15 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const parsed = businessSchema.parse(body);
+    const parsedResult = businessSchema.safeParse(body);
+    if (!parsedResult.success) {
+      const issue = parsedResult.error.issues[0];
+      if (issue?.path?.includes("name")) {
+        return NextResponse.json({ error: "Business name too short" }, { status: 400 });
+      }
+      return NextResponse.json({ error: "Invalid business data" }, { status: 400 });
+    }
+    const parsed = parsedResult.data;
     const sub = await prisma.subscription.findFirst({
       where: { userId: session.user.id, status: "ACTIVE" },
       orderBy: { createdAt: "desc" },
@@ -64,7 +72,7 @@ export async function POST(req: Request) {
       },
     });
     return NextResponse.json(business, { status: 201 });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+  } catch {
+    return NextResponse.json({ error: "Could not create business." }, { status: 400 });
   }
 }

@@ -11,6 +11,13 @@ import { useLanguage } from "@/components/providers/language-provider";
 import { useTheme } from "@/components/providers/theme-provider";
 import { supportEmail, supportMailto } from "@/lib/support/contact";
 import {
+  getSupportCategoryLabel,
+  getSupportDateLocale,
+  localizeSupportCategory,
+  localizeSupportServerMessage,
+  SUPPORT_CATEGORY_OPTIONS,
+} from "@/lib/support/localization";
+import {
   getSubscriberSupportLastActivityAt,
   sortSubscriberSupportTicketsByRecentActivity,
 } from "@/lib/support/subscriber-display";
@@ -44,19 +51,6 @@ type Ticket = {
 
 const MAX_ATTACHMENTS = 3;
 const ALLOWED_ATTACHMENT_TYPES = ["image/jpeg", "image/png", "application/pdf"] as const;
-
-const CATEGORY_OPTIONS = [
-  { value: "billing-payments", label: "Billing & Payments", labelFr: "Facturation et paiements" },
-  { value: "invoices", label: "Invoices", labelFr: "Factures" },
-  { value: "subscriptions", label: "Subscriptions", labelFr: "Abonnements" },
-  { value: "automation", label: "Automation", labelFr: "Automatisation" },
-  { value: "ai-assistant", label: "AI Assistant", labelFr: "Assistant IA" },
-  { value: "account-security", label: "Account & Security", labelFr: "Compte et securite" },
-  { value: "payouts", label: "Payouts", labelFr: "Decaissements" },
-  { value: "business-profile", label: "Business Profile", labelFr: "Profil entreprise" },
-  { value: "technical-issue", label: "Technical Issue", labelFr: "Probleme technique" },
-  { value: "other", label: "Other", labelFr: "Autre" },
-];
 
 const parseTicketTitle = (rawTitle: string) => {
   const title = String(rawTitle || "");
@@ -142,12 +136,11 @@ function SupportCenterIllustration({ forceLight }: { forceLight: boolean }) {
 }
 
 export default function DashboardSupportPage() {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const { resolvedTheme } = useTheme();
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
   const forceLight = resolvedTheme === "light";
   const [form, setForm] = useState({
-    category: CATEGORY_OPTIONS[0].value,
+    category: SUPPORT_CATEGORY_OPTIONS[0].value,
     urgency: "medium" as Urgency,
     subject: "",
     message: "",
@@ -181,10 +174,13 @@ export default function DashboardSupportPage() {
     };
   }, [attachments]);
 
-  const supportHeaderBadge = t(
-    "Support replies appear here and by email",
-    "Les reponses support apparaissent ici et par email"
-  );
+  const supportHeaderBadge = t({
+    en: "Support replies appear here and by email",
+    fr: "Les réponses support apparaissent ici et par email",
+    de: "Supportantworten erscheinen hier und per E-Mail",
+    es: "Las respuestas de soporte aparecen aqui y por correo",
+    pt: "As respostas do suporte aparecem aqui e por email",
+  });
 
   const urgencyClassMap: Record<Urgency, string> = {
     low: "border-[#CBD5E1] bg-white text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200",
@@ -206,11 +202,11 @@ export default function DashboardSupportPage() {
 
     for (const file of incoming) {
       if (!ALLOWED_ATTACHMENT_TYPES.includes(file.type as (typeof ALLOWED_ATTACHMENT_TYPES)[number])) {
-        nextError = t("Only JPG, PNG, or PDF files are supported.", "Seuls les fichiers JPG, PNG, ou PDF sont acceptes.");
+        nextError = t("Only JPG, PNG, or PDF files are supported.", "Seuls les fichiers JPG, PNG, ou PDF sont acceptes.", "Nur JPG-, PNG- oder PDF-Dateien werden unterstutzt.", "Solo se admiten archivos JPG, PNG o PDF.", "Apenas sao suportados ficheiros JPG, PNG ou PDF.");
         continue;
       }
       if (file.size > 5 * 1024 * 1024) {
-        nextError = t("File too large. Maximum allowed is 5MB.", "Fichier trop volumineux. Le maximum autorise est de 5 Mo.");
+        nextError = t("File too large. Maximum allowed is 5MB.", "Fichier trop volumineux. Le maximum autorise est de 5 Mo.", "Datei zu gross. Maximal 5 MB sind erlaubt.", "El archivo es demasiado grande. El maximo permitido es 5 MB.", "Ficheiro demasiado grande. O maximo permitido e 5 MB.");
         continue;
       }
       if (nextFiles.some((existing) => existing.name === file.name && existing.size === file.size && existing.lastModified === file.lastModified)) {
@@ -219,7 +215,10 @@ export default function DashboardSupportPage() {
       if (nextFiles.length >= MAX_ATTACHMENTS) {
         nextError = t(
           "You can attach up to 3 files per ticket.",
-          "Vous pouvez joindre jusqu a 3 fichiers par ticket."
+          "Vous pouvez joindre jusqu a 3 fichiers par ticket.",
+          "Du kannst bis zu 3 Dateien pro Ticket anhangen.",
+          "Puedes adjuntar hasta 3 archivos por ticket.",
+          "Pode anexar at? 3 ficheiros por ticket."
         );
         break;
       }
@@ -277,18 +276,17 @@ export default function DashboardSupportPage() {
     const subject = form.subject.trim();
     const message = form.message.trim();
     const nextErrors: { subject?: string; message?: string } = {};
-    if (subject.length < 5) nextErrors.subject = t("Subject must be at least 5 characters.", "Le sujet doit comporter au moins 5 caracteres.");
-    if (message.length < 10) nextErrors.message = t("Message must be at least 10 characters.", "Le message doit comporter au moins 10 caracteres.");
+    if (subject.length < 5) nextErrors.subject = t("Subject must be at least 5 characters.", "Le sujet doit comporter au moins 5 caracteres.", "Der Bêtreff muss mindestens 5 Zeichen lang sein.", "El asunto debe tener al menos 5 caracteres.", "O assunto tem de ter pelo menos 5 caracteres.");
+    if (message.length < 10) nextErrors.message = t("Message must be at least 10 characters.", "Le message doit comporter au moins 10 caracteres.", "Die Nachricht muss mindestens 10 Zeichen lang sein.", "El mensaje debe tener al menos 10 caracteres.", "A mensagem tem de ter pelo menos 10 caracteres.");
     if (Object.keys(nextErrors).length) {
       setErrors(nextErrors);
-      setStatus({ message: t("Please fix the highlighted fields.", "Corrigez les champs en surbrillance."), variant: "warning" });
+      setStatus({ message: t("Please fix the highlighted fields.", "Corrigez les champs en surbrillance.", "Bitte korrigiere die markierten Felder.", "Corrige los campos resaltados.", "Corrija os campos destacados."), variant: "warning" });
       return;
     }
     setErrors({});
     setSending(true);
     try {
-      const categoryEntry = CATEGORY_OPTIONS.find((item) => item.value === form.category) || CATEGORY_OPTIONS[CATEGORY_OPTIONS.length - 1];
-      const categoryLabel = t(categoryEntry.label, categoryEntry.labelFr);
+      const categoryLabel = getSupportCategoryLabel(form.category, language);
       const attachmentsPayload =
         attachments.length > 0 ? await Promise.all(attachments.map((file) => toAttachmentPayload(file))) : undefined;
       const res = await fetch("/api/support", {
@@ -303,41 +301,61 @@ export default function DashboardSupportPage() {
       });
       const data = await res.json();
       if (res.status === 401) {
-        setStatus({ message: t("Please sign in to submit a support ticket.", "Connectez-vous pour soumettre un ticket."), variant: "error" });
+        setStatus({ message: t("Please sign in to submit a support ticket.", "Connectez-vous pour soumettre un ticket.", "Bitte melde dich an, um ein Support-Ticket zu senden.", "Inicia sesión para enviar un ticket de soporte.", "Inicie sessão para submeter um ticket de suporte."), variant: "error" });
       } else if (!res.ok) {
         setStatus({
-          message: data.error || t(`Could not submit ticket (status ${res.status}).`, `Impossible de soumettre le ticket (statut ${res.status}).`),
+          message:
+            localizeSupportServerMessage(
+              data.error,
+              language,
+              t({
+                en: `Could not submit ticket (status ${res.status}).`,
+                fr: `Impossible de soumettre le ticket (statut ${res.status}).`,
+                de: `Ticket konnte nicht gesendet werden (Status ${res.status}).`,
+                es: `No se pudo enviar el ticket (estado ${res.status}).`,
+                pt: `Nao foi possivel submeter o ticket (estado ${res.status}).`,
+              })
+            ),
           variant: "error",
         });
       } else {
         if (data.emailError) {
           setStatus({
-            message: t(
-              `Ticket submitted, but email could not be sent: ${data.emailError}`,
-              `Ticket envoye, mais l'email n'a pas pu etre envoye: ${data.emailError}`
-            ),
+            message: t({
+              en: "Ticket submitted, but support email delivery failed. Updates will still appear here.",
+              fr: "Ticket envoye, mais l envoi de l email support a échoué. Les mises a jour apparaitront quand meme ici.",
+              de: "Ticket gesendet, aber die Zustellung der Support-E-Mail ist fehlgeschlagen. Aktualisierungen erscheinen weiterhin hier.",
+              es: "El ticket se envio, pero la entrega del correo de soporte fallo. Las actualizaciones seguiran apareciendo aqui.",
+              pt: "O ticket foi enviado, mas a entrega do email de suporte falhou. As atualizacoes continuarao a aparecer aqui.",
+            }),
             variant: "warning",
           });
         } else {
           setStatus({
             message: t(
               "Ticket submitted successfully. You can track updates in Recent tickets.",
-              "Ticket envoye avec succes. Suivez les mises a jour dans les tickets recents."
+              "Ticket envoye avec succes. Suivez les mises a jour dans les tickets recents.",
+              "Ticket erfolgreich gesendet. Du kannst Aktualisierungen in Letzte Tickets verfolgen.",
+              "Ticket enviado correctamente. Puedes seguir las actualizaciones en Tickets recientes.",
+              "Ticket enviado com sucesso. Pode acompanhar as atualizacoes em Tickets recentes."
             ),
             variant: "success",
           });
         }
-        setForm((prev) => ({ ...prev, category: CATEGORY_OPTIONS[0].value, subject: "", message: "" }));
+        setForm((prev) => ({ ...prev, category: SUPPORT_CATEGORY_OPTIONS[0].value, subject: "", message: "" }));
         setAttachments([]);
         setErrors({});
         refreshTickets();
       }
-    } catch (err: any) {
+    } catch {
       setStatus({
-        message: t(
-          `Could not submit ticket. ${err?.message || "Please try again."}`,
-          `Impossible de soumettre le ticket. ${err?.message || "Veuillez reessayer."}`
-        ),
+        message: t({
+          en: "Could not submit ticket. Please try again.",
+          fr: "Impossible de soumettre le ticket. Veuillez réessayer.",
+          de: "Ticket konnte nicht gesendet werden. Bitte versuche es erneut.",
+          es: "No se pudo enviar el ticket. Intentalo de nuevo.",
+          pt: "Não foi possivel submeter o ticket. Tente novamente.",
+        }),
         variant: "error",
       });
     } finally {
@@ -353,27 +371,27 @@ export default function DashboardSupportPage() {
     const normalized = String(ticketStatus || "").toUpperCase();
     if (normalized === "RESOLVED") {
       return {
-        label: t("Resolved", "Resolue"),
+        label: t("Resolved", "Résolue", "Geloest", "Resuelto", "Resolvido"),
         className:
           "bg-green-100 text-green-700 border-green-200 font-bold dark:bg-green-500/10 dark:text-green-300 dark:border-green-500/40",
       };
     }
     if (normalized === "CLOSED") {
       return {
-        label: t("Closed", "Ferme"),
+        label: t("Closed", "Ferme", "Geschlossen", "Cerrado", "Fechado"),
         className:
           "bg-emerald-100 text-emerald-700 border-emerald-200 font-bold dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/40",
       };
     }
     if (normalized === "IN_PROGRESS" || normalized === "PENDING") {
       return {
-        label: t("Pending", "En attente"),
+        label: t("Pending", "En attente", "Ausstehend", "Pendiente", "Pendente"),
         className:
           "bg-amber-100 text-amber-700 border-amber-200 font-bold dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/40",
       };
     }
     return {
-      label: t("Open", "Ouvert"),
+      label: t("Open", "Ouvert", "Offen", "Abierto", "Aberto"),
       className:
         "bg-orange-100 text-orange-700 border-orange-200 font-bold dark:bg-orange-500/10 dark:text-orange-300 dark:border-orange-500/40",
     };
@@ -417,13 +435,13 @@ export default function DashboardSupportPage() {
                 className="text-[15px] font-semibold text-slate-900 dark:text-[#E2E8F0]"
                 style={forceLight ? { color: "#1E293B" } : undefined}
               >
-                {t("Support Center", "Centre de support")}
+                {t("Support Center", "Centre de support", "Support-Center", "Centro de soporte", "Centro de suporte")}
               </p>
               <p
                 className="text-xs text-slate-500 dark:text-slate-400"
                 style={forceLight ? { color: "#64748B" } : undefined}
               >
-                {t("Priority support for your workspace", "Support prioritaire pour votre espace")}
+                {t("Priority support for your workspace", "Support prioritaire pour votre espace", "Priorisierter Support für deinen Workspace", "Soporte prioritario para tu espacio de trabajo", "Suporte prioritario para o seu espaco de trabalho")}
               </p>
             </div>
           </div>
@@ -436,13 +454,13 @@ export default function DashboardSupportPage() {
           <div className="max-w-[540px] space-y-6">
             <div className="space-y-3">
               <p className="text-xs uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                {t("Support", "Support")}
+                {t("Support", "Support", "Support", "Soporte", "Suporte")}
               </p>
               <h1
                 className="text-[34px] font-bold leading-tight text-slate-900 dark:text-[#E2E8F0] max-md:text-[30px]"
                 style={forceLight ? { color: "#0F172A" } : undefined}
               >
-                {t("Need help with something?", "Besoin d'aide pour quelque chose ?")}
+                {t("Need help with something?", "Besoin d'aide pour quelque chose ?", "Brauchst du bei etwas Hilfe?", "Necesitas ayuda con algo?", "Precisa de ajuda com alguma coisa?")}
               </h1>
               <p
                 className="max-w-[500px] text-[17px] leading-relaxed text-slate-500 dark:text-slate-300"
@@ -450,7 +468,10 @@ export default function DashboardSupportPage() {
               >
                 {t(
                   "Create a support ticket or continue your existing support conversation.",
-                  "Creez un ticket de support ou poursuivez votre conversation de support existante."
+                  "Creez un ticket de support ou poursuivez votre conversation de support existante.",
+                  "Erstelle ein Support-Ticket oder setze deine bestehende Support-Konversation fort.",
+                  "Crea un ticket de soporte o continua tu conversación de soporte existente.",
+                  "Crie um ticket de suporte ou continue a sua conversa de suporte existente."
                 )}
               </p>
             </div>
@@ -461,7 +482,7 @@ export default function DashboardSupportPage() {
                 onClick={scrollToSubmitTicket}
                 className="min-h-12 rounded-2xl bg-[linear-gradient(135deg,#4F8EF7,#2F6DEB)] px-7 text-base shadow-[0_16px_34px_rgba(47,109,235,0.28)] hover:brightness-105"
               >
-                {t("Create Ticket", "Creer un ticket")}
+                {t("Create Ticket", "Creer un ticket", "Ticket erstellen", "Crear ticket", "Criar ticket")}
               </Button>
               <div className="flex flex-wrap items-center gap-2.5">
                 <span
@@ -476,7 +497,7 @@ export default function DashboardSupportPage() {
                     forceLight ? "!border-slate-200 !bg-slate-50 !text-slate-600" : ""
                   }`}
                 >
-                  {t("Priority support available", "Support prioritaire disponible")}
+                  {t("Priority support available", "Support prioritaire disponible", "Priorisierter Support verfügbar", "Soporte prioritario disponible", "Suporte prioritario disponível")}
                 </span>
               </div>
             </div>
@@ -491,13 +512,13 @@ export default function DashboardSupportPage() {
               className="text-lg font-semibold text-slate-900 dark:text-[#E2E8F0]"
               style={forceLight ? { color: "#0F172A" } : undefined}
             >
-            {t("Support Overview", "Support Overview")}
+            {t("Support Overview", "Vue d'ensemble du support", "Support-überblick", "Resumen de soporte", "Visao geral do suporte")}
             </h2>
             <div className="mt-6 space-y-6">
               <div
                 className={`rounded-2xl border border-slate-200 bg-slate-50/70 p-4 ${insetPanelClass}`}
               >
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{t("Channels", "Canaux")}</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{t("Channels", "Canaux", "Kanaele", "Canales", "Canais")}</p>
                 <div className="mt-3 flex items-start gap-3">
                   <span
                     className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 ${
@@ -511,14 +532,14 @@ export default function DashboardSupportPage() {
                       className="text-sm font-semibold text-slate-900 dark:text-[#E2E8F0]"
                       style={forceLight ? { color: "#0F172A" } : undefined}
                     >
-                      {t("Email-first support", "Support prioritaire par email")}
+                      {t("Email-first support", "Support prioritaire par email", "Support zuerst per E-Mail", "Soporte prioritario por correo", "Suporte prioritario por email")}
                     </p>
                     <div className="mt-1.5 space-y-0.5">
                       <p
                         className="text-xs font-medium uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400"
                         style={forceLight ? { color: "#64748B" } : undefined}
                       >
-                        {t("We reply from", "Nous repondons depuis")}
+                        {t("We reply from", "Nous repondons depuis", "Wir antworten von", "Respondemos desde", "Respondemos a partir de")}
                       </p>
                       <a
                         href={supportMailto}
@@ -534,14 +555,14 @@ export default function DashboardSupportPage() {
 
               <div>
                 <p className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-                  {t("What to include", "A inclure")}
+                  {t("What to include", "A inclure", "Was du angeben solltest", "Que incluir", "O que incluir")}
                 </p>
                 <ul className="mt-3 space-y-3">
                   {[
-                    t("What you were trying to do", "Ce que vous tentiez de faire"),
-                    t("Exact error message", "Le message d erreur exact"),
-                    t("Steps taken and expected outcome", "Etapes suivies et resultat attendu"),
-                    t("Screenshots or attachments (if available)", "Captures d ecran ou pieces jointes (si disponibles)"),
+                    t("What you were trying to do", "Ce que vous tentiez de faire", "Was du versucht hast zu tun", "Lo que intentabas hacer", "O que estava a tentar fazer"),
+                    t("Exact error message", "Le message d erreur exact", "Genaue Fehlermeldung", "Mensaje de error exacto", "Mensagem de erro exata"),
+                    t("Steps taken and expected outcome", "Etapes suivies et resultat attendu", "Ausgeführte Schritte und erwartetes Ergebnis", "Pasos realizados y resultado esperado", "Passos efetuados e resultado esperado"),
+                    t("Screenshots or attachments (if available)", "Captures d ecran ou pieces jointes (si disponibles)", "Screenshots oder Anhange (falls vorhanden)", "Capturas o archivos adjuntos (si estan disponibles)", "Capturas de ecran ou anexos (se disponiveis)"),
                   ].map((item) => (
                     <li
                       key={item}
@@ -563,20 +584,23 @@ export default function DashboardSupportPage() {
                 className="text-lg font-semibold text-slate-900 dark:text-[#E2E8F0]"
                 style={forceLight ? { color: "#0F172A" } : undefined}
               >
-                {t("Recent tickets", "Tickets recents")}
+                {t("Recent tickets", "Tickets recents", "Letzte Tickets", "Tickets recientes", "Tickets recentes")}
               </h2>
               <Link href="/dashboard/support/tickets" className="text-sm font-semibold text-[#2563EB] hover:underline dark:text-[#3B82F6]">
-                {t("View all tickets", "Voir tous les tickets")}
+                {t("View all tickets", "Voir tous les tickets", "Alle Tickets anzeigen", "Ver todos los tickets", "Ver todos os tickets")}
               </Link>
             </div>
             <div className="space-y-3">
               {loadingTickets ? (
-                <p className="text-sm text-slate-500 dark:text-slate-300">{t("Loading tickets...", "Chargement des tickets...")}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-300">{t("Loading tickets...", "Chargement des tickets...", "Tickets werden geladen...", "Cargando tickets...", "A carregar tickets...")}</p>
               ) : ticketsError ? (
                 <Alert variant="error">
                   {t(
                     "We could not load your recent support tickets right now.",
-                    "Nous n avons pas pu charger vos tickets support recents pour le moment."
+                    "Nous n'avons pas pu charger vos tickets support recents pour le moment.",
+                    "Deine letzten Support-Tickets konnten derzeit nicht geladen werden.",
+                    "No pudimos cargar tus tickets de soporte recientes en este momento.",
+                    "Não foi possivel carregar os seus tickets de suporte recentes neste momento."
                   )}
                 </Alert>
               ) : recentTickets.length === 0 ? (
@@ -584,19 +608,22 @@ export default function DashboardSupportPage() {
                   className={`rounded-xl border border-slate-200 bg-white px-4 py-6 text-center ${insetPanelClass}`}
                 >
                   <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                    {t("No support tickets yet", "Aucun ticket support pour le moment")}
+                    {t("No support tickets yet", "Aucun ticket support pour le moment", "Noch keine Support-Tickets", "Aún no hay tickets de soporte", "Ainda não ha tickets de suporte")}
                   </p>
                   <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">
                     {t(
                       "When you submit a support request, it will appear here.",
-                      "Quand vous soumettez une demande de support, elle apparait ici."
+                      "Quand vous soumettez une demande de support, elle apparait ici.",
+                      "Wenn du eine Support-Anfrage einreichst, erscheint sie hier.",
+                      "Cuando envies una solicitud de soporte, aparecera aqui.",
+                      "Quando submeter um pedido de suporte, ele aparecera aqui."
                     )}
                   </p>
                   <Link
                     href="/dashboard/support#submit-ticket"
                     className="mt-3 inline-flex rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-[#334155] dark:text-slate-200 dark:hover:bg-slate-700/40"
                   >
-                    {t("Create a Support Ticket", "Creer un ticket support")}
+                    {t("Create a Support Ticket", "Creer un ticket support", "Support-Ticket erstellen", "Crear un ticket de soporte", "Criar um ticket de suporte")}
                   </Link>
                 </div>
               ) : (
@@ -612,7 +639,7 @@ export default function DashboardSupportPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-                            {category}
+                            {localizeSupportCategory(category, language)}
                           </p>
                           <p
                             className="truncate text-sm font-semibold text-slate-900 dark:text-[#E2E8F0]"
@@ -624,7 +651,10 @@ export default function DashboardSupportPage() {
                             className="mt-1 text-xs text-slate-500 dark:text-slate-400"
                             style={forceLight ? { color: "#475569" } : undefined}
                           >
-                            {formatDistanceToNow(new Date(getSubscriberSupportLastActivityAt(ticket)), { addSuffix: true })}
+                            {formatDistanceToNow(new Date(getSubscriberSupportLastActivityAt(ticket)), {
+                              addSuffix: true,
+                              locale: getSupportDateLocale(language),
+                            })}
                           </p>
                         </div>
                         <span className={`inline-flex shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-bold ${statusPill.className}`}>
@@ -644,7 +674,7 @@ export default function DashboardSupportPage() {
             className="text-lg font-semibold text-slate-900 dark:text-[#E2E8F0]"
             style={forceLight ? { color: "#0F172A" } : undefined}
           >
-            {t("Submit a Ticket", "Soumettre un ticket")}
+            {t("Submit a Ticket", "Soumettre un ticket", "Ticket einreichen", "Enviar un ticket", "Submeter um ticket")}
           </h2>
           {status && (
             <div className="mt-4">
@@ -656,7 +686,7 @@ export default function DashboardSupportPage() {
           <div className="mt-5 space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="flex flex-col gap-1 text-sm text-foreground">
-                <span>{t("Category", "Categorie")}</span>
+                <span>{t("Category", "Categorie", "Kategorie", "Categoria", "Categoria")}</span>
                 <select
                   value={form.category}
                   onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value }))}
@@ -667,19 +697,19 @@ export default function DashboardSupportPage() {
                       : ""
                   }`}
                 >
-                  {CATEGORY_OPTIONS.map((option) => (
+                  {SUPPORT_CATEGORY_OPTIONS.map((option) => (
                     <option
                       key={option.value}
                       value={option.value}
                       style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}
                     >
-                      {t(option.label, option.labelFr)}
+                      {getSupportCategoryLabel(option.value, language)}
                     </option>
                   ))}
                 </select>
               </label>
               <label className="flex flex-col gap-1 text-sm text-foreground">
-                <span>{t("Urgency", "Urgence")}</span>
+                <span>{t("Urgency", "Urgence", "Dringlichkeit", "Urgencia", "Urgencia")}</span>
                 <select
                   value={form.urgency}
                   onChange={(e) => setForm((prev) => ({ ...prev, urgency: e.target.value as Urgency }))}
@@ -698,17 +728,17 @@ export default function DashboardSupportPage() {
                       : ""
                   }`}
                 >
-                  <option value="low" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Low", "Faible")}</option>
-                  <option value="medium" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Medium", "Moyenne")}</option>
-                  <option value="high" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("High", "Elevee")}</option>
-                  <option value="urgent" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Urgent", "Urgente")}</option>
+                  <option value="low" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Low", "Faible", "Niedrig", "Baja", "Baixa")}</option>
+                  <option value="medium" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Medium", "Moyenne", "Mittel", "Media", "Media")}</option>
+                  <option value="high" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("High", "Elevee", "Hoch", "Alta", "Alta")}</option>
+                  <option value="urgent" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Urgent", "Urgente", "Dringend", "Urgente", "Urgente")}</option>
                 </select>
               </label>
             </div>
 
             <Input
-              label={t("Subject", "Sujet")}
-              placeholder={t("Billing, automation, AI...", "Facturation, automatisation, IA...")}
+              label={t("Subject", "Sujet", "Bêtreff", "Asunto", "Assunto")}
+              placeholder={t("Billing, automation, AI...", "Facturation, automatisation, IA...", "Abrechnung, Automatisierung, KI...", "Facturación, automatización, IA...", "Faturação, automação, IA...")}
               value={form.subject}
               onChange={(e) => {
                 setForm((f) => ({ ...f, subject: e.target.value }));
@@ -724,8 +754,8 @@ export default function DashboardSupportPage() {
               }`}
             />
             <Textarea
-              label={t("Description", "Description")}
-              placeholder={t("Describe the issue", "Decrivez le probleme")}
+              label={t("Description", "Description", "Beschreibung", "Descripcion", "Descricao")}
+              placeholder={t("Describe the issue", "Decrivez le probleme", "Beschreibe das Problem", "Describe el problema", "Descreva o problema")}
               value={form.message}
               onChange={(e) => {
                 setForm((f) => ({ ...f, message: e.target.value }));
@@ -743,7 +773,7 @@ export default function DashboardSupportPage() {
             />
 
             <div className="space-y-3">
-              <p className="text-sm font-medium text-slate-900 dark:text-[#E2E8F0]">{t("Attach File", "Joindre un fichier")}</p>
+              <p className="text-sm font-medium text-slate-900 dark:text-[#E2E8F0]">{t("Attach File", "Joindre un fichier", "Datei anhangen", "Adjuntar archivo", "Anexar ficheiro")}</p>
               <label
                 className={`group relative flex w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 text-center transition-colors ${
                   attachments.length > 0 ? "min-h-[102px]" : "min-h-[120px]"
@@ -765,13 +795,13 @@ export default function DashboardSupportPage() {
               >
                 <Paperclip className="h-5 w-5 text-slate-500 dark:text-slate-300" />
                 <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                  {t("Drag & drop files here", "Glissez-deposez vos fichiers ici")}
+                  {t("Drag & drop files here", "Glissez-deposez vos fichiers ici", "Dateien hierher ziehen und ablegen", "Arrastra y suelta archivos aqui", "Arraste e largue os ficheiros aqui")}
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {t("or click to upload", "ou cliquez pour televerser")}
+                  {t("or click to upload", "ou cliquez pour télevérser", "oder klicken zum Hochladen", "o haz clic para subirlos", "ou clique para carregar")}
                 </p>
                 <span className="pointer-events-none absolute bottom-3 right-3 text-[11px] text-slate-500 dark:text-slate-400">
-                  {t("JPG, PNG, PDF - Up to 3 files, 5MB each", "JPG, PNG, PDF - Jusqu a 3 fichiers, 5 Mo chacun")}
+                  {t("JPG, PNG, PDF - Up to 3 files, 5MB each", "JPG, PNG, PDF - Jusqu a 3 fichiers, 5 Mo chacun", "JPG, PNG, PDF - Bis zu 3 Dateien, je 5 MB", "JPG, PNG, PDF - Hasta 3 archivos, 5 MB cada uno", "JPG, PNG, PDF - At? 3 ficheiros, 5 MB cada")}
                 </span>
                 <input
                   type="file"
@@ -797,7 +827,13 @@ export default function DashboardSupportPage() {
                           {preview ? (
                             <Image
                               src={preview}
-                              alt="attachment preview"
+                              alt={t({
+                                en: "Attachment preview",
+                                fr: "Apercu de la piece jointe",
+                                de: "Vorschau des Anhangs",
+                                es: "Vista previa del adjunto",
+                                pt: "Pre-visualizacao do anexo",
+                              })}
                               width={36}
                               height={36}
                               unoptimized
@@ -829,7 +865,13 @@ export default function DashboardSupportPage() {
                             setUploadError(null);
                           }}
                           className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-                          aria-label="Remove attachment"
+                          aria-label={t({
+                            en: "Remove attachment",
+                            fr: "Supprimer la piece jointe",
+                            de: "Anhang entfernen",
+                            es: "Eliminar adjunto",
+                            pt: "Remover anexo",
+                          })}
                         >
                           <X className="h-4 w-4" />
                         </button>
@@ -842,7 +884,7 @@ export default function DashboardSupportPage() {
 
             <div className="flex flex-wrap items-center gap-3 pt-6">
               <p className="w-full text-sm text-slate-500 dark:text-slate-400">
-                {t("Our team replies from ", "Notre equipe repond depuis ")}
+                {t("Our team replies from ", "Notre équipe repond depuis ", "Unser Team antwortet von ", "Nuestro equipo responde desde ", "A nossa equipa responde a partir de ")}
                 <a
                   href={supportMailto}
                   className="font-medium text-slate-700 transition-colors hover:text-slate-900 dark:text-slate-200 dark:hover:text-white"
@@ -859,7 +901,7 @@ export default function DashboardSupportPage() {
                     : ""
                 }`}
               >
-                {t("Submit support ticket", "Soumettre le ticket support")}
+                {t("Submit support ticket", "Soumettre le ticket support", "Support-Ticket senden", "Enviar ticket de soporte", "Enviar ticket de suporte")}
               </Button>
             </div>
           </div>

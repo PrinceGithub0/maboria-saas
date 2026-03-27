@@ -55,7 +55,7 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
   }
   const { id: invoiceId } = await params;
   const invoice = await prisma.invoice.findFirst({
-    where: { id: invoiceId, userId: targetUserId },
+    where: { id: invoiceId, userId: targetUserId, subscriptionId: null },
     include: {
       customer: {
         select: {
@@ -138,6 +138,7 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
   const existing = await prisma.invoice.findFirst({
     where: {
       userId: targetUserId,
+      subscriptionId: null,
       OR: [
         rawId ? { id: rawId } : undefined,
         rawId ? { invoiceNumber: rawId } : undefined,
@@ -457,7 +458,7 @@ export const DELETE = withErrorHandling(async (_req: Request, { params }: Params
 
   const { id: invoiceId } = await params;
   const existing = await prisma.invoice.findFirst({
-    where: { id: invoiceId, userId: targetUserId },
+    where: { id: invoiceId, userId: targetUserId, subscriptionId: null },
     select: { id: true, status: true, invoiceNumber: true },
   });
   if (!existing) {

@@ -11,8 +11,12 @@ import {
   type OrgPermission,
   type OrgRole,
 } from "@/lib/org-permissions";
-import { isPlatformRole } from "@/lib/global-role";
+import { isPlatformRole, normalizeGlobalRole } from "@/lib/global-role";
 import { resolveAuthPlaneContextFromRequestContext } from "@/lib/admin/impersonation";
+import {
+  resolveSubscriptionDisplayRenewalDate,
+  resolveSubscriptionDisplayStatus,
+} from "@/lib/subscription-display";
 export {
   ORG_ROLE_VALUES,
   canActorChangeTargetRole,
@@ -126,6 +130,8 @@ export async function resolveOrgContext(userId: string): Promise<OrgContext | nu
               status: true,
               planId: true,
               apiAccessEnabled: true,
+              paidThroughAt: true,
+              currentCycleEndAt: true,
             },
           },
         },
@@ -150,18 +156,35 @@ export async function resolveOrgContext(userId: string): Promise<OrgContext | nu
     )
   );
   const fallbackOwnerSubscriptions = ownerIdsNeedingFallback.length
-    ? await prisma.subscription.findMany({
+      ? await prisma.subscription.findMany({
         where: {
           userId: { in: ownerIdsNeedingFallback },
           status: { in: ["ACTIVE", "PAST_DUE", "TRIALING"] },
         },
         orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
-        select: { userId: true, status: true, plan: true, updatedAt: true, createdAt: true, id: true },
+        select: {
+          userId: true,
+          status: true,
+          plan: true,
+          updatedAt: true,
+          createdAt: true,
+          id: true,
+          renewalDate: true,
+          currentPeriodEnd: true,
+        },
       })
     : [];
   const fallbackOwnerSubscriptionMap = new Map<
     string,
-    { status: string; plan: SubscriptionPlan; updatedAt: Date; createdAt: Date; id: string }
+    {
+      status: string;
+      plan: SubscriptionPlan;
+      updatedAt: Date;
+      createdAt: Date;
+      id: string;
+      renewalDate: Date;
+      currentPeriodEnd: Date | null;
+    }
   >();
   for (const subscription of fallbackOwnerSubscriptions) {
     if (!fallbackOwnerSubscriptionMap.has(subscription.userId)) {
@@ -175,9 +198,20 @@ export async function resolveOrgContext(userId: string): Promise<OrgContext | nu
       const fallbackOwnerSubscription = member.business?.ownerId
         ? fallbackOwnerSubscriptionMap.get(member.business.ownerId) || null
         : null;
+      const resolvedRenewalDate = resolveSubscriptionDisplayRenewalDate({
+        paidThroughAt: member.business?.orgSubscription?.paidThroughAt ?? null,
+        currentCycleEndAt: member.business?.orgSubscription?.currentCycleEndAt ?? null,
+        renewalDate:
+          fallbackOwnerSubscription?.currentPeriodEnd ?? fallbackOwnerSubscription?.renewalDate ?? null,
+      });
       const resolvedOrgSubscriptionStatus =
-        member.business?.orgSubscription?.status ??
-        mapSubscriptionStatusToOrgStatus(fallbackOwnerSubscription?.status);
+        mapSubscriptionStatusToOrgStatus(
+          resolveSubscriptionDisplayStatus(
+          member.business?.orgSubscription?.status ??
+            mapSubscriptionStatusToOrgStatus(fallbackOwnerSubscription?.status),
+          resolvedRenewalDate
+          )
+        );
       const resolvedOrgPlan =
         member.business?.orgSubscription?.planId ??
         fallbackOwnerSubscription?.plan ??
@@ -253,6 +287,10 @@ export async function requireOrgPermission(
     requireActiveSubscription?: boolean;
   }
 ) {
+  const authPlane = await resolveAuthPlaneContextFromRequestContext({
+    actorUserId: userId,
+  });
+  const actorIsSuperAdmin = normalizeGlobalRole(authPlane.actorGlobalRole) === "SUPER_ADMIN";
   const context = await resolveOrgContext(userId);
   if (!context) {
     return {
@@ -276,7 +314,11 @@ export async function requireOrgPermission(
     };
   }
 
-  if (options.requireActiveSubscription && !isOrgSubscriptionActive(context.orgSubscriptionStatus)) {
+  if (
+    options.requireActiveSubscription &&
+    !actorIsSuperAdmin &&
+    !isOrgSubscriptionActive(context.orgSubscriptionStatus)
+  ) {
     return {
       ok: false as const,
       status: 403,

@@ -12,7 +12,6 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { billingEmail, billingMailto } from "@/lib/billing/contact";
 import { formatCurrency } from "@/lib/currency";
 import { getCountryFlag, getCountryName } from "@/lib/countries";
-import { formatDateDMY } from "@/lib/date";
 import { BillingInterval, getPlanPriceForInterval, pricingTableDualCurrency } from "@/lib/pricing";
 import { BUSINESS_CURRENCIES, formatBusinessCurrencyOption } from "@/lib/business-currencies";
 import {
@@ -34,6 +33,7 @@ import {
   type CheckoutProvider,
 } from "@/lib/payments/payment-providers";
 import { useLanguage } from "@/components/providers/language-provider";
+import type { LocalizedText } from "@/lib/i18n";
 
 type PaymentHistoryRow = {
   id: string;
@@ -109,10 +109,110 @@ function getDefaultCurrencyForProvider(
     : providerSupport[selectedProvider][0] || "USD";
 }
 
+function formatPaymentDate(value: string, locale: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "--";
+  return new Intl.DateTimeFormat(locale, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+function localizePaymentStatus(
+  value: unknown,
+  t: ReturnType<typeof useLanguage>["t"]
+) {
+  const status = String(value || "").toUpperCase();
+  if (status === "SUCCEEDED") return t("Succeeded", "Reussi", "Erfolgreich", "Correcto", "Bem-sucedido");
+  if (status === "PENDING") return t("Pending", "En attente", "Ausstehend", "Pendiente", "Pendente");
+  if (status === "FAILED") return t("Failed", "échoué", "Fehlgeschlagen", "Fallido", "Falhou");
+  return status || "--";
+}
+
+function localizePaymentsServerMessage(
+  message: string,
+  t: ReturnType<typeof useLanguage>["t"]
+) {
+  const normalized = String(message || "").trim();
+  if (!normalized) return "";
+  if (/^Request failed \(\d+\)$/.test(normalized)) {
+    return t(
+      "Request failed. Please try again.",
+      "La requête a échoué. Veuillez réessayer.",
+      "Die Anfrage ist fehlgeschlagen. Bitte versuche es erneut.",
+      "La solicitud fallo. Intentalo de nuevo.",
+      "O pedido falhou. Tente novamente."
+    );
+  }
+
+  const translations: Record<string, string> = {
+    Unauthorized: t("Unauthorized.", "Non autorise.", "Nicht autorisiert.", "No autorizado.", "Não autorizado."),
+    "Organization access denied.": t(
+      "Organization access denied.",
+      "Accès à l'organisation refuse.",
+      "Zugriff auf die Organisation verweigert.",
+      "Acceso a la organización denegado.",
+      "Acesso a organização negado."
+    ),
+    "Organization access has been disabled.": t(
+      "Organization access has been disabled.",
+      "L accès à l'organisation a ?t? desactive.",
+      "Der Zugriff auf die Organisation wurde deaktiviert.",
+      "El acceso a la organización ha sido desactivado.",
+      "O acesso a organização foi desativado."
+    ),
+    "Organization access is suspended.": t(
+      "Organization access is suspended.",
+      "L accès à l'organisation est suspendu.",
+      "Der Zugriff auf die Organisation ist ausgesetzt.",
+      "El acceso a la organización esta suspendido.",
+      "O acesso a organização esta suspenso."
+    ),
+    "Organization subscription inactive. Please renew billing.": t(
+      "Organization subscription is inactive. Please renew billing.",
+      "L abonnement de l'organisation est inactif. Veuillez renouveler la facturation.",
+      "Das Abonnement der Organisation ist inaktiv. Bitte erneuere die Abrechnung.",
+      "La suscripción de la organización esta inactiva. Renueva la facturación.",
+      "A subscrição da organização esta inativa. Renove a faturação."
+    ),
+    "Organization subscription inactive. Please contact the organization owner.": t(
+      "Organization subscription is inactive. Please contact the organization owner.",
+      "L abonnement de l'organisation est inactif. Contactez le proprietaire de l'organisation.",
+      "Das Abonnement der Organisation ist inaktiv. Bitte kontaktiere den Eigentümer der Organisation.",
+      "La suscripción de la organización esta inactiva. Ponte en contacto con el propietario de la organización.",
+      "A subscrição da organização esta inativa. Contacte o proprietário da organização."
+    ),
+    "You do not have permission for this action.": t(
+      "You do not have permission for this action.",
+      "Vous n'avez pas l autorisation pour cette action.",
+      "Du hast keine Berechtigung für diese Aktion.",
+      "No tienes permiso para esta acción.",
+      "Não tem permissao para esta ação."
+    ),
+    "Only cycle=current is supported.": t(
+      "Only the current cycle is supported.",
+      "Seul le cycle en cours est pris en charge.",
+      "Nur der aktuelle Zyklus wird unterstutzt.",
+      "Solo se admite el ciclo actual.",
+      "Apenas o ciclo atual e suportado."
+    ),
+    "Invalid feature key.": t(
+      "Invalid feature key.",
+      "Cle de fonctionnalite invalide.",
+      "Ungültiger Funktionsschlussel.",
+      "Clave de funcion no valida.",
+      "Chave de funcionalidade invalida."
+    ),
+  };
+
+  return translations[normalized] || normalized;
+}
+
 export default function PaymentsPage() {
   const router = useRouter();
-  const { language } = useLanguage();
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const { language, t } = useLanguage();
+  const locale = language;
   const { data: me } = useSWR<MeResponse>("/api/user/me", fetcher, { revalidateOnFocus: false });
   const orgRole = String(me?.orgRole || "").toLowerCase();
   const canManageWorkspaceSubscription = orgRole === "owner" || orgRole === "billing_admin";
@@ -166,12 +266,12 @@ export default function PaymentsPage() {
           ? "GROWTH"
           : "BUSINESS";
   const selectedPlan = plans.find((p) => p.plan === planKey(plan));
-  const planLabelMap: Record<string, { en: string; fr: string }> = {
-    Starter: { en: "Starter", fr: "Starter" },
-    Pro: { en: "Pro", fr: "Pro" },
-    Growth: { en: "Growth", fr: "Growth" },
-    Business: { en: "Business", fr: "Business" },
-    Enterprise: { en: "Enterprise", fr: "Entreprise" },
+  const planLabelMap: Record<string, LocalizedText> = {
+    Starter: { en: "Starter", fr: "Starter", de: "Starter", es: "Starter", pt: "Starter" },
+    Pro: { en: "Pro", fr: "Pro", de: "Pro", es: "Pro", pt: "Pro" },
+    Growth: { en: "Growth", fr: "Growth", de: "Growth", es: "Growth", pt: "Growth" },
+    Business: { en: "Business", fr: "Business", de: "Business", es: "Business", pt: "Business" },
+    Enterprise: { en: "Enterprise", fr: "Entreprise", de: "Enterprise", es: "Enterprise", pt: "Enterprise" },
   };
   const availableCurrencies = useMemo(() => {
     if (provider === "PAYSTACK") {
@@ -192,7 +292,6 @@ export default function PaymentsPage() {
     }));
   }, [provider, paystackEnabledCurrencies]);
   const providerCoverageText = useMemo(() => {
-    const locale = language === "fr" ? "fr" : "en";
     const formatCountries = (codes: readonly string[]) =>
       codes.map((code) => `${getCountryFlag(code)} ${getCountryName(code, locale)}`.trim());
 
@@ -205,7 +304,7 @@ export default function PaymentsPage() {
     }
 
     return null;
-  }, [language, provider]);
+  }, [locale, provider]);
 
   const paymentRows = useMemo(() => paymentPages?.flatMap((page) => page.items) || [], [paymentPages]);
   const hasMorePayments = Boolean(paymentPages?.[paymentPages.length - 1]?.pagination?.hasMore);
@@ -245,8 +344,14 @@ export default function PaymentsPage() {
     selectedPlanIndex >= 0 &&
     (selectedPlanIndex > currentPlanIndex ||
       (selectedPlanIndex === currentPlanIndex && activeInterval === "monthly" && billingInterval === "yearly"));
-  const checkoutError = message || subscriptionsError?.message || null;
-  const paymentHistoryError = paymentsError?.message || null;
+  const checkoutError = message
+    ? localizePaymentsServerMessage(message, t)
+    : subscriptionsError?.message
+      ? localizePaymentsServerMessage(subscriptionsError.message, t)
+      : null;
+  const paymentHistoryError = paymentsError?.message
+    ? localizePaymentsServerMessage(paymentsError.message, t)
+    : null;
   const subscriptionStateLoading = subscriptions === undefined && !subscriptionsError;
   const hasSubscriptionStateError = Boolean(subscriptionsError && !subscriptions);
   const paymentsStateLoading = paymentsLoading && paymentRows.length === 0 && !paymentsError;
@@ -260,18 +365,18 @@ export default function PaymentsPage() {
     isDowngradeSelection ||
     isLockedCurrentPlanSelection;
   const checkoutLabel = subscriptionStateLoading
-    ? t("Loading plan state...", "Chargement du plan...")
+    ? t("Loading plan state...", "Chargement du plan...", "Planstatus wird geladen...", "Cargando estado del plan...", "A carregar o estado do plano...")
     : checkoutLoading
-      ? t("Redirecting to secure checkout...", "Redirection vers le paiement securise...")
+      ? t("Redirecting to secure checkout...", "Redirection vers le paiement securise...", "Weiterleitung zum sicheren Checkout...", "Redirigiendo al pago seguro...", "A redirecionar para o pagamento seguro...")
     : canRetryCurrentPlan
-      ? t("Retry secure payment", "Relancer le paiement securise")
+      ? t("Retry secure payment", "Relancer le paiement securise", "Sichere Zahlung erneut versuchen", "Reintentar pago seguro", "Tentar novamente o pagamento seguro")
       : isIntervalUpgradeSelection
-        ? t("Switch to yearly billing", "Passer a la facturation annuelle")
+        ? t("Switch to yearly billing", "Passer a la facturation annuelle", "Zu jährlicher Abrechnung wechseln", "Cambiar a facturación anual", "Mudar para faturação anual")
         : isPlanUpgradeSelection
-          ? t("Upgrade plan securely", "Mettre le plan a niveau")
+          ? t("Upgrade plan securely", "Mettre le plan a niveau", "Plan sicher upgraden", "Mejorar plan de forma segura", "Atualizar plano com seguranca")
           : activeSubscription
-            ? t("Continue to secure payment", "Continuer vers le paiement securise")
-            : t("Start secure checkout", "Demarrer le paiement securise");
+            ? t("Continue to secure payment", "Continuer vers le paiement securise", "Weiter zur sicheren Zahlung", "Continuar al pago seguro", "Continuar para o pagamento seguro")
+            : t("Start secure checkout", "Demarrer le paiement securise", "Sicheren Checkout starten", "Iniciar pago seguro", "Iniciar checkout seguro");
 
   useEffect(() => {
     if (!availableProviders.includes(provider)) {
@@ -364,8 +469,14 @@ export default function PaymentsPage() {
       if (!res.ok) {
         setMessage(
           typeof data?.error === "string"
-            ? data.error
-            : t("Unable to start secure checkout right now.", "Impossible de lancer le paiement securise pour le moment.")
+            ? localizePaymentsServerMessage(data.error, t)
+            : t(
+                "Unable to start secure checkout right now.",
+                "Impossible de lancer le paiement securise pour le moment.",
+                "Sicherer Checkout kann gerade nicht gestartet werden.",
+                "No se puede iniciar el pago seguro en este momento.",
+                "Não foi possivel iniciar o checkout seguro neste momento."
+              )
         );
         return;
       }
@@ -373,12 +484,19 @@ export default function PaymentsPage() {
         window.location.href = data.redirectUrl;
         return;
       }
-      setMessage(data.error || t("Checkout failed", "Le paiement a echoue"));
+      setMessage(
+        typeof data?.error === "string"
+          ? localizePaymentsServerMessage(data.error, t)
+          : t("Checkout failed", "Le paiement a échoué", "Checkout fehlgeschlagen", "El pago fallo", "O checkout falhou")
+      );
     } catch {
       setMessage(
         t(
           "Unable to reach secure checkout right now. Please try again.",
-          "Impossible de joindre le paiement securise pour le moment. Veuillez reessayer."
+          "Impossible de joindre le paiement securise pour le moment. Veuillez réessayer.",
+          "Sicherer Checkout ist gerade nicht erreichbar. Bitte versuche es erneut.",
+          "No se puede acceder al pago seguro en este momento. Intentalo de nuevo.",
+          "Não foi possivel aceder ao checkout seguro neste momento. Tente novamente."
         )
       );
     } finally {
@@ -416,7 +534,7 @@ export default function PaymentsPage() {
         ) : status === "FAILED" ? (
           <XCircle className="mr-1.5 h-4 w-4 text-red-600" />
         ) : null}
-        {status || "--"}
+        {localizePaymentStatus(status, t)}
       </span>
     );
   };
@@ -432,18 +550,21 @@ export default function PaymentsPage() {
               onClick={() => router.push("/dashboard/subscription")}
             >
               <ArrowLeft className="h-4 w-4" />
-              {t("Back to manage plan", "Retour a la gestion du plan")}
+              {t("Back to manage plan", "Retour a la gestion du plan", "Zurück zur Planverwaltung", "Volver a gestionar el plan", "Voltar a gerir o plano")}
             </button>
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-indigo-600 dark:text-indigo-300">
-              {t("Billing", "Facturation")}
+              {t("Billing", "Facturation", "Abrechnung", "Facturación", "Faturação")}
             </p>
             <h1 className="text-4xl font-bold tracking-tight text-slate-950 dark:text-slate-50">
-              {t("Billing + subscriptions", "Facturation + abonnements")}
+              {t("Billing + subscriptions", "Facturation + abonnements", "Abrechnung + Abonnements", "Facturación + suscripciones", "Faturação + subscricoes")}
             </h1>
             <p className="max-w-3xl text-sm text-slate-600 dark:text-slate-300">
               {t(
                 "Choose a plan and continue to secure checkout. Prices are shown in USD, while billing currency depends on your selected provider, country, and supported checkout currency.",
-                "Choisissez un plan puis continuez vers le paiement securise. Les prix sont affiches en USD, tandis que la devise de facturation depend du fournisseur choisi, du pays et des devises de paiement prises en charge."
+                "Choisissez un plan puis continuez vers le paiement securise. Les prix sont affiches en USD, tandis que la devise de facturation depend du fournisseur choisi, du pays et des devises de paiement prises en charge.",
+                "Wähle einen Plan und fahre mit dem sicheren Checkout fort. Die Preise werden in USD angezeigt, wahrend die Abrechnungswährung von deinem gewahlten Anbieter, Land und den unterstutzten Zahlungswährungen abhangt.",
+                "Elige un plan y continua al pago seguro. Los precios se muestran en USD, mientras que la moneda de facturación depende del proveedor, del pais y de la moneda admitida.",
+                "Escolha um plano e continue para o checkout seguro. Os precos sao apresentados em USD, enquanto a moeda de faturação depende do fornecedor, do pais e da moeda suportada."
               )}
             </p>
           </div>
@@ -457,7 +578,7 @@ export default function PaymentsPage() {
                   : "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-slate-50"
               }`}
             >
-              {t("Monthly", "Mensuel")}
+              {t("Monthly", "Mensuel", "Monatlich", "Mensual", "Mensal")}
             </button>
             <button
               type="button"
@@ -468,7 +589,7 @@ export default function PaymentsPage() {
                   : "bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-slate-50"
               }`}
             >
-              {t("Yearly (Save 10%)", "Annuel (10% off)")}
+              {t("Yearly (Save 10%)", "Annuel (10% off)", "Jährlich (10% sparen)", "Anual (ahorra 10%)", "Anual (poupa 10%)")}
             </button>
           </div>
         </div>
@@ -479,7 +600,7 @@ export default function PaymentsPage() {
                 <span>{checkoutError}</span>
                 {hasSubscriptionStateError ? (
                   <Button size="sm" variant="secondary" onClick={() => void mutateSubscriptions()}>
-                    {t("Retry", "Reessayer")}
+                    {t("Retry", "Reessayer", "Erneut versuchen", "Reintentar", "Tentar novamente")}
                   </Button>
                 ) : null}
               </div>
@@ -492,14 +613,17 @@ export default function PaymentsPage() {
         <Alert variant="error">
           {t(
             "Only the workspace owner or billing admin can manage subscription billing.",
-            "Seul le proprietaire de l espace de travail ou l administrateur de facturation peut gerer l abonnement."
+            "Seul le proprietaire de l'espace de travail ou l administrateur de facturation peut gerer l abonnement.",
+            "Nur der Workspace-Eigentümer oder Billing-Admin kann die Abonnement-Abrechnung verwalten.",
+            "Solo el propietario del espacio de trabajo o el administrador de facturación puede gestionar la suscripción.",
+            "Apenas o proprietário do espaco de trabalho ou o administrador de faturação pode gerir a subscrição."
           )}
         </Alert>
       ) : (
         <>
       <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
         <Card
-          title={<span className="text-slate-900 dark:text-slate-100">{t("Select a plan", "Choisir un plan")}</span>}
+          title={<span className="text-slate-900 dark:text-slate-100">{t("Select a plan", "Choisir un plan", "Plan auswählen", "Seleccionar un plan", "Selecionar um plano")}</span>}
           className="rounded-3xl !border-slate-200 !bg-white !text-slate-900 p-7 shadow-[0_18px_42px_-28px_rgba(15,23,42,0.2)] dark:!border-slate-800 dark:!bg-slate-950 dark:!text-slate-100"
         >
           <div className="grid gap-4 sm:grid-cols-2">
@@ -508,7 +632,7 @@ export default function PaymentsPage() {
               .map((p) => {
                 const isSelected = planKey(plan) === p.plan;
                 const mappedLabel = planLabelMap[p.label];
-                const label = mappedLabel ? t(mappedLabel.en, mappedLabel.fr) : p.label;
+                const label = mappedLabel ? t(mappedLabel) : p.label;
                 const usdPrice = p.plan === "ENTERPRISE" ? null : getUsdPriceForPlan(p.plan);
                 return (
                   <button
@@ -536,25 +660,25 @@ export default function PaymentsPage() {
                       <p className="text-base font-semibold text-slate-900 dark:text-slate-100">{label}</p>
                       <div className="text-4xl font-bold tracking-tight text-slate-950 dark:text-slate-50">
                         {p.plan === "ENTERPRISE" || usdPrice == null
-                          ? t("Contact sales", "Contacter ventes")
+                          ? t("Contact sales", "Contacter ventes", "Vertrieb kontaktieren", "Contactar ventas", "Contactar vendas")
                           : formatUsd(usdPrice)}
                       </div>
                       {p.plan !== "ENTERPRISE" && (
                         <p className="text-sm text-slate-600 dark:text-slate-400">
                           {billingInterval === "yearly"
-                            ? t("per year (USD)", "par an (USD)")
-                            : t("per month (USD)", "par mois (USD)")}
+                            ? t("per year (USD)", "par an (USD)", "pro Jahr (USD)", "por ano (USD)", "por ano (USD)")
+                            : t("per month (USD)", "par mois (USD)", "pro Monat (USD)", "por mes (USD)", "por mes (USD)")}
                         </p>
                       )}
                     </div>
                     <p className="text-xs text-slate-600 dark:text-slate-400">
                       {p.plan === "STARTER"
-                        ? t("Best for getting started.", "Ideal pour bien demarrer.")
+                        ? t("Best for getting started.", "Ideal pour bien demarrer.", "Ideal für den Einstieg.", "Ideal para empezar.", "Ideal para comecar.")
                         : p.plan === "PRO"
-                          ? t("Built for professionals automating at scale.", "Concu pour les pros qui automatisent a l echelle.")
+                          ? t("Built for professionals automating at scale.", "Concu pour les pros qui automatisent a l echelle.", "Für Profis, die in grossem Umfang automatisieren.", "Pensado para profesionales que automatizan a escala.", "Criado para profissionais que automatizam em escala.")
                           : p.plan === "GROWTH"
-                            ? t("For growing teams with higher volume.", "Pour equipes en croissance avec plus de volume.")
-                            : t("For teams running high-volume operations.", "Pour equipes qui gerent un fort volume operationnel.")}
+                            ? t("For growing teams with higher volume.", "Pour équipes en croissance avec plus de volume.", "Für wachsende Teams mit hoherem Volumen.", "Para equipos en crecimiento con mas volumen.", "Para equipas em crescimento com maior volume.")
+                            : t("For teams running high-volume operations.", "Pour équipes qui gèrent un fort volume operationnel.", "Für Teams mit hohem Betriebsvolumen.", "Para equipos que gestionan operaciónes de alto volumen.", "Para equipas que operam em grande volume.")}
                     </p>
                   </button>
                 );
@@ -563,7 +687,7 @@ export default function PaymentsPage() {
         </Card>
 
         <Card
-          title={<span className="text-slate-900 dark:text-slate-100">{t("Payment", "Paiement")}</span>}
+          title={<span className="text-slate-900 dark:text-slate-100">{t("Payment", "Paiement", "Zahlung", "Pago", "Pagamento")}</span>}
           className="rounded-3xl !border-slate-200 !bg-white !text-slate-900 p-7 shadow-[0_18px_42px_-28px_rgba(15,23,42,0.2)] dark:!border-slate-800 dark:!bg-slate-950 dark:!text-slate-100"
         >
           <div className="space-y-5">
@@ -593,11 +717,7 @@ export default function PaymentsPage() {
 
             <label className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm dark:border-slate-800 dark:bg-slate-900/70">
               <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                {provider === "PAYSTACK"
-                  ? t("Paystack currency", "Devise Paystack")
-                  : provider === "STRIPE"
-                    ? t("Stripe billing currency", "Devise Stripe")
-                  : t("Billing currency", "Devise de facturation")}
+                {t("Billing currency", "Devise de facturation", "Abrechnungswährung", "Moneda de facturación", "Moeda de faturação")}
               </span>
               <select
                 value={currency}
@@ -613,9 +733,7 @@ export default function PaymentsPage() {
               </select>
               {providerCoverageText ? (
                 <span className="text-xs leading-5 text-slate-500 dark:text-slate-400">
-                  {provider === "PAYSTACK"
-                    ? t("Supported countries:", "Pays pris en charge :")
-                    : t("Supported countries and regions:", "Pays et regions pris en charge :")}{" "}
+                  {t("Supported countries and regions:", "Pays et regions pris en charge :", "Unterstutzte Lander und Regionen:", "Paises y regiones compatibles:", "Paises e regioes suportados:")}{" "}
                   {providerCoverageText}
                 </span>
               ) : null}
@@ -636,7 +754,10 @@ export default function PaymentsPage() {
               <p className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 text-sm text-emerald-800">
                 {t(
                   "This change upgrades your plan immediately. We automatically apply credit for unused time on your current subscription and charge only the prorated difference.",
-                  "Cette modification met votre plan a niveau immediatement. Le credit du temps non utilise est applique automatiquement et seule la difference au prorata est facturee."
+                  "Cette modification met votre plan a niveau immediatement. Le credit du temps non utilise est applique automatiquement et seule la difference au prorata est facturee.",
+                  "Diese Änderung aktualisiert deinen Plan sofort. Ungenutzte Zeit auf dem aktuellen Abonnement wird automatisch gutgeschrieben und nur die anteilige Differenz berechnet.",
+                  "Este cambio mejora tu plan de inmediato. Aplicamos automaticamente el credito por el tiempo no usado y solo cobramos la diferencia prorrateada.",
+                  "Esta alteração atualiza o teu plano imediatamente. Aplicamos automaticamente o credito pelo tempo não utilizado e cobramos apenas a diferenca proporcional."
                 )}
               </p>
             ) : null}
@@ -645,7 +766,10 @@ export default function PaymentsPage() {
               <p className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-300">
                 {t(
                   "You are already on this plan and billing cycle. Choose a higher plan or switch to yearly billing to continue.",
-                  "Vous etes deja sur ce plan et ce cycle. Choisissez un plan superieur ou passez a l annuel pour continuer."
+                  "Vous etes déjà sur ce plan et ce cycle. Choisissez un plan superieur ou passez a l annuel pour continuer.",
+                  "Du bist bereits auf diesem Plan und Abrechnungszyklus. Wähle einen höheren Plan oder wechsle zur jährlichen Abrechnung, um fortzufahren.",
+                  "Ya estas en este plan y ciclo de facturación. Elige un plan superior o cambia a facturación anual para continuar.",
+                  "Ja estas neste plano e ciclo de faturação. Escolhe um plano superior ou muda para a faturação anual para continuar."
                 )}
               </p>
             ) : null}
@@ -654,7 +778,10 @@ export default function PaymentsPage() {
               <p className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-800">
                 {t(
                   "This subscription needs payment to stay active. Continue to retry billing for the current plan.",
-                  "Cet abonnement doit etre paye pour rester actif. Continuez pour relancer la facturation du plan actuel."
+                  "Cet abonnement doit être paye pour rester actif. Continuez pour relancer la facturation du plan actuel.",
+                  "Dieses Abonnement muss bezahlt werden, um aktiv zu bleiben. Fahre fort, um die Abrechnung für den aktuellen Plan erneut zu versuchen.",
+                  "Esta suscripción necesita pago para seguir activa. Continua para reintentar la facturación del plan actual.",
+                  "Esta subscrição precisa de pagamento para continuar ativa. Continue para tentar novamente a faturação do plano atual."
                 )}
               </p>
             ) : null}
@@ -663,7 +790,10 @@ export default function PaymentsPage() {
               <p className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-800">
                 {t(
                   "Downgrades and shorter billing cycles are scheduled from the subscription page at the end of your current cycle.",
-                  "Les downgrades et cycles plus courts se planifient depuis la page abonnement a la fin du cycle en cours."
+                  "Les downgrades et cycles plus courts se planifient depuis la page abonnement a la fin du cycle en cours.",
+                  "Downgrades und kurzere Abrechnungszyklen werden am Ende des aktuellen Zyklus auf der Abonnementseite geplant.",
+                  "Las bajadas de plan y los ciclos de facturación mas cortos se programan desde la pagina de suscripción al final del ciclo actual.",
+                  "Os downgrades e os ciclos de faturação mais curtos sao agendados na pagina de subscrição no fim do ciclo atual."
                 )}
               </p>
             ) : null}
@@ -671,19 +801,24 @@ export default function PaymentsPage() {
             <p className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-300">
               {t(
                 "You will be redirected to a secure payment page. Your local currency will be applied automatically where supported.",
-                "Vous serez redirige vers une page de paiement securisee. Votre devise locale sera appliquee automatiquement lorsque c est pris en charge."
+                "Vous serez redirige vers une page de paiement securisee. Votre devise locale sera appliquee automatiquement lorsque c est pris en charge.",
+                "Du wirst zu einer sicheren Zahlungsseite weitergeleitet. Deine lokale Währung wird automatisch verwendet, sofern sie unterstutzt wird.",
+                "Seras redirigido a una pagina de pago seguro. Tu moneda local se aplicara automaticamente cuando sea compatible.",
+                "Sera redirecionado para uma pagina de pagamento segura. A tua moeda local sera aplicada automaticamente quando suportada."
               )}
             </p>
 
             {selectedPlan ? (
               <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
-                {t("Selected plan:", "Plan choisi:")} <span className="font-semibold text-slate-950 dark:text-slate-50">
+                {t("Selected plan:", "Plan choisi:", "Gewahlter Plan:", "Plan seleccionado:", "Plano selecionado:")} <span className="font-semibold text-slate-950 dark:text-slate-50">
                   {planLabelMap[selectedPlan.label]
-                    ? t(planLabelMap[selectedPlan.label].en, planLabelMap[selectedPlan.label].fr)
+                    ? t(planLabelMap[selectedPlan.label])
                     : selectedPlan.label}
                 </span>
                 <span className="ml-2 text-slate-500 dark:text-slate-400">
-                  {billingInterval === "yearly" ? t("(Yearly)", "(Annuel)") : t("(Monthly)", "(Mensuel)")}
+                  {billingInterval === "yearly"
+                    ? t("(Yearly)", "(Annuel)", "(Jährlich)", "(Anual)", "(Anual)")
+                    : t("(Monthly)", "(Mensuel)", "(Monatlich)", "(Mensual)", "(Mensal)")}
                 </span>
               </div>
             ) : null}
@@ -693,31 +828,34 @@ export default function PaymentsPage() {
 
       <Card
         id="recent-payments"
-        title={<span className="text-slate-900 dark:text-slate-100">{t("Recent payments", "Paiements recents")}</span>}
+        title={<span className="text-slate-900 dark:text-slate-100">{t("Recent payments", "Paiements recents", "Letzte Zahlungen", "Pagos recientes", "Pagamentos recentes")}</span>}
         className="scroll-mt-24 rounded-3xl !border-slate-200 !bg-white !text-slate-900 p-7 shadow-[0_18px_42px_-28px_rgba(15,23,42,0.2)] dark:!border-slate-800 dark:!bg-slate-950 dark:!text-slate-100"
       >
         {paymentsStateLoading ? (
           <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-8 text-center text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300">
-            {t("Loading recent payments...", "Chargement des paiements recents...")}
+            {t("Loading recent payments...", "Chargement des paiements recents...", "Letzte Zahlungen werden geladen...", "Cargando pagos recientes...", "A carregar pagamentos recentes...")}
           </div>
         ) : paymentHistoryError && paymentRows.length === 0 ? (
           <Alert variant="error">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span>
-                {t("Recent payments are unavailable.", "Les paiements recents sont indisponibles.")}{" "}
+                {t("Recent payments are unavailable.", "Les paiements recents sont indisponibles.", "Letzte Zahlungen sind nicht verfügbar.", "Los pagos recientes no estan disponibles.", "Os pagamentos recentes não estão disponiveis.")}{" "}
                 {paymentHistoryError}
               </span>
               <Button size="sm" variant="secondary" onClick={() => void mutatePayments()}>
-                {t("Retry", "Reessayer")}
+                {t("Retry", "Reessayer", "Erneut versuchen", "Reintentar", "Tentar novamente")}
               </Button>
             </div>
           </Alert>
         ) : paymentRows.length === 0 ? (
           <EmptyState
-            title={t("No payments yet", "Aucun paiement")}
+            title={t("No payments yet", "Aucun paiement", "Noch keine Zahlungen", "Aún no hay pagos", "Ainda sem pagamentos")}
             description={t(
               "Your subscription payments will appear here once completed.",
-              "Vos paiements d abonnement apparaitront ici."
+              "Vos paiements d abonnement apparaitront ici.",
+              "Deine Abonnementzahlungen erscheinen hier, sobald sie abgeschlossen sind.",
+              "Los pagos de tu suscripción apareceran aqui cuando se completen.",
+              "Os pagamentos da tua subscrição aparecerao aqui quando forem concluidos."
             )}
           />
         ) : (
@@ -727,19 +865,19 @@ export default function PaymentsPage() {
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-900/80">
                     <th className="px-6 py-4 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                      {t("Date", "Date")}
+                      {t("Date", "Date", "Datum", "Fecha", "Data")}
                     </th>
                     <th className="px-6 py-4 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                      {t("Provider", "Fournisseur")}
+                      {t("Provider", "Fournisseur", "Anbieter", "Proveedor", "Fornecedor")}
                     </th>
                     <th className="px-6 py-4 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                      {t("Currency", "Devise")}
+                      {t("Currency", "Devise", "Währung", "Moneda", "Moeda")}
                     </th>
                     <th className="px-6 py-4 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                      {t("Amount", "Montant")}
+                      {t("Amount", "Montant", "Betrag", "Importe", "Montante")}
                     </th>
                     <th className="px-6 py-4 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                      {t("Status", "Statut")}
+                      {t("Status", "Statut", "Status", "Estado", "Estado")}
                     </th>
                   </tr>
                 </thead>
@@ -750,7 +888,7 @@ export default function PaymentsPage() {
                       className="border-t border-slate-100 transition-colors duration-150 hover:bg-slate-50/60 dark:border-slate-800 dark:hover:bg-slate-900/60"
                     >
                       <td className="px-6 py-5 text-center text-sm text-slate-600 dark:text-slate-300">
-                        {formatDateDMY(new Date(row.createdAt))}
+                        {formatPaymentDate(row.createdAt, locale)}
                       </td>
                       <td className="px-6 py-5 text-center text-sm font-medium text-slate-700 dark:text-slate-200">
                         {formatPaymentProviderLabel(row.provider)}
@@ -775,7 +913,7 @@ export default function PaymentsPage() {
                   onClick={() => setPaymentsPageSize((current) => current + 1)}
                   loading={paymentsValidating && !paymentsLoading}
                 >
-                  {t("Load older payments", "Charger les paiements plus anciens")}
+                  {t("Load older payments", "Charger les paiements plus anciens", "Altere Zahlungen laden", "Cargar pagos anteriores", "Carregar pagamentos anteriores")}
                 </Button>
               </div>
             ) : null}
@@ -784,7 +922,7 @@ export default function PaymentsPage() {
       </Card>
 
       <p className="text-sm text-slate-500 dark:text-slate-400">
-        {t("Billing questions? Email ", "Questions de facturation ? Ecrivez a ")}
+        {t("Billing questions? Email ", "Questions de facturation ? Ecrivez a ", "Fragen zur Abrechnung? E-Mail an ", "Preguntas de facturación? Escribe a ", "Duvidas de faturação? Envia email para ")}
         <a href={billingMailto} className="font-medium text-slate-700 hover:underline dark:text-slate-200">
           {billingEmail}
         </a>

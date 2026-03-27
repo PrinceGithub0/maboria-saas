@@ -1,7 +1,8 @@
 import { LangText } from "@/components/ui/lang-text";
+import { resolveLocalizedText } from "@/lib/i18n";
 
 export default function DocsPage() {
-  const t = (en: string, fr: string) => <LangText en={en} fr={fr} />;
+  const t = (en: string, fr: string) => <LangText {...resolveLocalizedText({ en, fr })} />;
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-6 py-10 text-foreground max-md:mx-0 max-md:w-full max-md:max-w-none">
       <h1 className="text-3xl font-semibold">{t("Maboria Internal Docs", "Docs internes Maboria")}</h1>
@@ -33,11 +34,11 @@ export default function DocsPage() {
         </p>
       </section>
       <section>
-        <h2 className="text-xl font-semibold">{t("Database schema", "Schema base de donnees")}</h2>
+        <h2 className="text-xl font-semibold">{t("Database schema", "Schema base de données")}</h2>
         <p className="text-sm text-muted-foreground">
           {t(
             "Users, subscriptions, payments, invoices, automations, runs, AI memory, logs, settings.",
-            "Users, abonnements, paiements, factures, automatisations, runs, memoire IA, logs, parametres."
+            "Users, abonnements, paiements, factures, automatisations, runs, memoire IA, logs, paramêtres."
           )}
         </p>
       </section>

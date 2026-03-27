@@ -10,7 +10,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Toast } from "@/components/ui/toast";
+import { useLanguage } from "@/components/providers/language-provider";
+import {
+  formatAdminRelativeTime,
+  localizeAdminLogMessage,
+  localizeAdminServerMessage,
+  localizeAdminSeverity,
+  localizeAdminStatus,
+} from "@/lib/admin/localization";
 import { formatDateTimeDMY } from "@/lib/date";
+import { LANGUAGE_LOCALES } from "@/lib/i18n";
 
 type NotificationRow = {
   id: string;
@@ -50,15 +59,30 @@ const statuses = ["ALL", "UNREAD", "READ", "ACKNOWLEDGED", "RESOLVED", "SNOOZED"
 const severities = ["ALL", "CRITICAL", "WARNING", "INFO"] as const;
 const types = ["ALL", "SYSTEM", "AUTOMATION", "SLA", "SUPPORT", "SECURITY", "BILLING", "INCIDENT"] as const;
 const ranges = ["24h", "7d", "30d"] as const;
-
-function rel(ts: string) {
-  const d = new Date(ts);
-  const ms = Date.now() - d.getTime();
-  if (ms < 60_000) return "just now";
-  if (ms < 3_600_000) return `${Math.floor(ms / 60_000)}m ago`;
-  if (ms < 86_400_000) return `${Math.floor(ms / 3_600_000)}h ago`;
-  return `${Math.floor(ms / 86_400_000)}d ago`;
-}
+const STATUS_LABELS = {
+  ALL: { en: "All statuses", fr: "Tous les statuts", de: "Alle Status", es: "Todos los estados", pt: "Todos os estados" },
+  UNREAD: { en: "Unread", fr: "Non lu", de: "Ungelesen", es: "No leido", pt: "Nao lida" },
+  READ: { en: "Read", fr: "Lu", de: "Gelesen", es: "Leida", pt: "Lida" },
+  ACKNOWLEDGED: { en: "Acknowledged", fr: "Pris en compte", de: "Bestatigt", es: "Reconocida", pt: "Confirmada" },
+  RESOLVED: { en: "Resolved", fr: "Resolue", de: "Gelost", es: "Resuelta", pt: "Resolvida" },
+  SNOOZED: { en: "Snoozed", fr: "Reporte", de: "Zuruckgestellt", es: "Pospuesta", pt: "Adiada" },
+} as const;
+const SEVERITY_LABELS = {
+  ALL: { en: "All severities", fr: "Toutes les severites", de: "Alle Schweregrade", es: "Todas las severidades", pt: "Todas as severidades" },
+  CRITICAL: { en: "Critical", fr: "Critique", de: "Kritisch", es: "Critico", pt: "Critico" },
+  WARNING: { en: "Warning", fr: "Alerte", de: "Warnung", es: "Advertencia", pt: "Aviso" },
+  INFO: { en: "Info", fr: "Info", de: "Info", es: "Info", pt: "Info" },
+} as const;
+const TYPE_LABELS = {
+  ALL: { en: "All types", fr: "Tous les types", de: "Alle Typen", es: "Todos los tipos", pt: "Todos os tipos" },
+  SYSTEM: { en: "System", fr: "Systeme", de: "System", es: "Sistema", pt: "Sistema" },
+  AUTOMATION: { en: "Automation", fr: "Automatisation", de: "Automatisierung", es: "Automatizacion", pt: "Automacao" },
+  SLA: { en: "SLA", fr: "SLA", de: "SLA", es: "SLA", pt: "SLA" },
+  SUPPORT: { en: "Support", fr: "Support", de: "Support", es: "Soporte", pt: "Suporte" },
+  SECURITY: { en: "Security", fr: "Securite", de: "Sicherheit", es: "Seguridad", pt: "Seguranca" },
+  BILLING: { en: "Billing", fr: "Facturation", de: "Abrechnung", es: "Facturacion", pt: "Faturacao" },
+  INCIDENT: { en: "Incident", fr: "Incident", de: "Vorfall", es: "Incidente", pt: "Incidente" },
+} as const;
 
 function severityClass(s: AdminNotificationSeverity) {
   if (s === "CRITICAL") return "bg-rose-100 text-rose-800 ring-rose-200";
@@ -67,6 +91,7 @@ function severityClass(s: AdminNotificationSeverity) {
 }
 
 export default function AdminNotificationsPage() {
+  const { language, t } = useLanguage();
   const [status, setStatus] = useState<(typeof statuses)[number]>("ALL");
   const [severity, setSeverity] = useState<(typeof severities)[number]>("ALL");
   const [type, setType] = useState<(typeof types)[number]>("ALL");
@@ -148,10 +173,18 @@ export default function AdminNotificationsPage() {
       if (!res.ok) throw new Error(String((json as { error?: string }).error || "Action failed"));
       await mutate();
       await mutateDetail();
-      setToast(action === "ACK" ? "Notification acknowledged" : action === "RESOLVE" ? "Resolved" : "Updated");
+      setToast(action === "ACK" ? t("Notification acknowledged", "Notification accusee", "Benachrichtigung bestätigt", "Notificacion reconocida", "Notificacao confirmada") : action === "RESOLVE" ? t("Resolved", "Résolu", "Geloest", "Resuelto", "Resolvido") : t("Updated", "Mis a jour", "Aktualisiert", "Actualizado", "Atualizado"));
       setTimeout(() => setToast(""), 3000);
     } catch (e) {
-      setToast(e instanceof Error ? e.message : "Action failed");
+      setToast(
+        e instanceof Error
+          ? localizeAdminServerMessage(
+              e.message,
+              language,
+              t("Action failed", "Echec de l'action", "Aktion fehlgeschlagen", "La acción fallo", "A ação falhou")
+            )
+          : t("Action failed", "Echec de l'action", "Aktion fehlgeschlagen", "La acción fallo", "A ação falhou")
+      );
       setTimeout(() => setToast(""), 3000);
     } finally {
       setBusy(false);
@@ -163,19 +196,33 @@ export default function AdminNotificationsPage() {
   return (
     <div className="mx-auto w-full max-w-[1280px] space-y-5 px-6 py-5">
       <header className="space-y-1">
-        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Admin</p>
-        <h1 className="text-3xl font-semibold text-foreground">Notifications</h1>
-        <p className="text-sm text-muted-foreground">Platform alerts and admin activity.</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">{t("Admin", "Admin", "Admin", "Admin", "Admin")}</p>
+        <h1 className="text-3xl font-semibold text-foreground">{t("Notifications", "Notifications", "Benachrichtigungen", "Notificaciones", "Notificacoes")}</h1>
+        <p className="text-sm text-muted-foreground">{t("Platform alerts and admin activity.", "Alertes de plateforme et activité admin.", "Plattformwarnungen und Admin-Aktivitaet.", "Alertas de plataforma y actividad admin.", "Alertas da plataforma e atividade admin.")}</p>
       </header>
 
-      {error ? <Alert variant="error">{error.message}</Alert> : null}
+      {error ? (
+        <Alert variant="error">
+          {localizeAdminServerMessage(
+            error.message,
+            language,
+            t(
+              "Unable to load notifications right now.",
+              "Impossible de charger les notifications pour le moment.",
+              "Benachrichtigungen koennen derzeit nicht geladen werden.",
+              "No se pueden cargar las notificaciones en este momento.",
+              "Nao foi possivel carregar as notificacoes neste momento."
+            )
+          )}
+        </Alert>
+      ) : null}
 
-      <section className="grid gap-3 md:grid-cols-4">
+      <section className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
         {[
-          { id: "total", label: "Total (7d)", value: stats.total7d },
-          { id: "unread", label: "Unread", value: stats.unread },
-          { id: "critical", label: "Critical (24h)", value: stats.critical24h },
-          { id: "snoozed", label: "Snoozed", value: stats.snoozed },
+          { id: "total", label: t("Total (7d)", "Total (7j)", "Gesamt (7 T.)", "Total (7d)", "Total (7d)"), value: stats.total7d },
+          { id: "unread", label: t("Unread", "Non lues", "Ungelesen", "No leidas", "Não lidas"), value: stats.unread },
+          { id: "critical", label: t("Critical (24h)", "Critiques (24h)", "Kritisch (24h)", "Criticas (24h)", "Criticas (24h)"), value: stats.critical24h },
+          { id: "snoozed", label: localizeAdminStatus("SNOOZED", language), value: stats.snoozed },
         ].map((card) => (
           <button
             key={card.id}
@@ -191,7 +238,7 @@ export default function AdminNotificationsPage() {
                 : "border-border/70 bg-card"
             )}
           >
-            <p className="text-xs uppercase tracking-[0.15em] text-muted-foreground">{card.label}</p>
+            <p className="text-xs uppercase leading-5 tracking-[0.1em] text-muted-foreground break-words">{card.label}</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{card.value}</p>
           </button>
         ))}
@@ -199,15 +246,15 @@ export default function AdminNotificationsPage() {
 
       <section className="rounded-xl border border-border/70 bg-card p-4">
         <div className="grid gap-2 lg:grid-cols-[minmax(220px,1fr)_160px_160px_150px_auto]">
-          <Input value={searchInput} onChange={(e) => setSearchInput(e.target.value)} placeholder="Search title or message" />
-          <select value={status} onChange={(e) => { setStatus(e.target.value as typeof status); setPage(1); }} className="h-10 rounded-md border border-border/70 bg-background px-3 text-sm">{statuses.map((s) => <option key={s} value={s}>{s === "ALL" ? "All statuses" : s}</option>)}</select>
-          <select value={severity} onChange={(e) => { setSeverity(e.target.value as typeof severity); setPage(1); }} className="h-10 rounded-md border border-border/70 bg-background px-3 text-sm">{severities.map((s) => <option key={s} value={s}>{s === "ALL" ? "All severities" : s}</option>)}</select>
-          <select value={type} onChange={(e) => { setType(e.target.value as typeof type); setPage(1); }} className="h-10 rounded-md border border-border/70 bg-background px-3 text-sm">{types.map((s) => <option key={s} value={s}>{s === "ALL" ? "All types" : s}</option>)}</select>
+          <Input value={searchInput} onChange={(e) => setSearchInput(e.target.value)} placeholder={t("Search title or message", "Rechercher un titre ou message", "Titel oder Nachricht suchen", "Buscar título o mensaje", "Pesquisar título ou mensagem")} />
+          <select value={status} onChange={(e) => { setStatus(e.target.value as typeof status); setPage(1); }} className="h-10 rounded-md border border-border/70 bg-background px-3 text-sm">{statuses.map((s) => <option key={s} value={s}>{t(STATUS_LABELS[s])}</option>)}</select>
+          <select value={severity} onChange={(e) => { setSeverity(e.target.value as typeof severity); setPage(1); }} className="h-10 rounded-md border border-border/70 bg-background px-3 text-sm">{severities.map((s) => <option key={s} value={s}>{t(SEVERITY_LABELS[s])}</option>)}</select>
+          <select value={type} onChange={(e) => { setType(e.target.value as typeof type); setPage(1); }} className="h-10 rounded-md border border-border/70 bg-background px-3 text-sm">{types.map((s) => <option key={s} value={s}>{t(TYPE_LABELS[s])}</option>)}</select>
           <div className="flex items-center gap-2">
-            <select value={timeRange} onChange={(e) => { setTimeRange(e.target.value as typeof timeRange); setPage(1); }} className="h-10 rounded-md border border-border/70 bg-background px-3 text-sm">{ranges.map((r) => <option key={r} value={r}>{r === "24h" ? "Last 24 hours" : r === "7d" ? "Last 7 days" : "Last 30 days"}</option>)}</select>
+            <select value={timeRange} onChange={(e) => { setTimeRange(e.target.value as typeof timeRange); setPage(1); }} className="h-10 rounded-md border border-border/70 bg-background px-3 text-sm">{ranges.map((r) => <option key={r} value={r}>{r === "24h" ? t("Last 24 hours", "Dernieres 24 heures", "Letzte 24 Stunden", "Ultimas 24 horas", "Ultimas 24 horas") : r === "7d" ? t("Last 7 days", "Derniers 7 jours", "Letzte 7 Tage", "Ultimos 7 dias", "Ultimos 7 dias") : t("Last 30 days", "Derniers 30 jours", "Letzte 30 Tage", "Ultimos 30 dias", "Ultimos 30 dias")}</option>)}</select>
             <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
               <input type="checkbox" checked={mineOnly} onChange={(e) => setMineOnly(e.target.checked)} className="h-4 w-4 rounded border-border" />
-              Mine only
+              {t("Mine only", "Les miennes uniquement", "Nur meine", "Solo mias", "Apenas minhas")}
             </label>
           </div>
         </div>
@@ -215,8 +262,8 @@ export default function AdminNotificationsPage() {
 
       <section className="grid min-h-[560px] gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,430px)]">
         <div className="rounded-xl border border-border/70 bg-card">
-          <div className="grid grid-cols-[120px_minmax(200px,1fr)_90px_90px_170px] gap-2 border-b border-border/70 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            <span>Severity</span><span>Title</span><span>Occur.</span><span>Status</span><span>Last Seen</span>
+          <div className="grid grid-cols-[96px_minmax(0,1fr)_56px_84px_92px] gap-2 border-b border-border/70 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            <span>{t("Severity", "Severite", "Schweregrad", "Severidad", "Severidade")}</span><span>{t("Title", "Titre", "Titel", "Titulo", "Titulo")}</span><span>{t("Count", "Nb.", "Anz.", "Num.", "N.o")}</span><span>{t("Status", "Statut", "Status", "Estado", "Estado")}</span><span>{t("Last seen", "Derniere vue", "Zuletzt", "Ultima vez", "Ultima vez")}</span>
           </div>
           <div className="max-h-[620px] overflow-y-auto">
             {isLoading ? (
@@ -224,24 +271,24 @@ export default function AdminNotificationsPage() {
             ) : list.length === 0 ? (
               <div className="flex min-h-[340px] flex-col items-center justify-center gap-2 text-center">
                 <CheckCircle2 className="h-8 w-8 text-emerald-500" />
-                <p className="text-base font-semibold text-foreground">All clear</p>
-                <p className="text-sm text-muted-foreground">No platform alerts or admin notifications.</p>
+                <p className="text-base font-semibold text-foreground">{t("All clear", "Tout est clair", "Alles klar", "Todo en orden", "Tudo limpo")}</p>
+                <p className="text-sm text-muted-foreground">{t("No platform alerts or admin notifications.", "Aucune alerte de plateforme ni notification admin.", "Keine Plattformwarnungen oder Admin-Benachrichtigungen.", "No hay alertas de plataforma ni notificaciones admin.", "Não ha alertas da plataforma nem notificacoes admin.")}</p>
               </div>
             ) : list.map((row) => (
-              <button key={row.id} type="button" onClick={() => setSelectedId(row.id)} className={clsx("grid w-full grid-cols-[120px_minmax(200px,1fr)_90px_90px_170px] gap-2 border-b border-border/60 px-3 py-2 text-left transition-colors hover:bg-muted/40", row.severity === "CRITICAL" && "border-l-2 border-l-rose-500", selectedId === row.id && "bg-indigo-50/70 dark:bg-indigo-500/10")}>
-                <span className={clsx("inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ring-1", severityClass(row.severity))} aria-label={`Severity ${row.severity.toLowerCase()}`}>
+              <button key={row.id} type="button" onClick={() => setSelectedId(row.id)} className={clsx("grid w-full grid-cols-[96px_minmax(0,1fr)_56px_84px_92px] gap-2 border-b border-border/60 px-3 py-2 text-left transition-colors hover:bg-muted/40", row.severity === "CRITICAL" && "border-l-2 border-l-rose-500", selectedId === row.id && "bg-indigo-50/70 dark:bg-indigo-500/10")}>
+                <span className={clsx("inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ring-1", severityClass(row.severity))} aria-label={`${t("Severity", "Severite", "Schweregrad", "Severidad", "Severidade")} ${localizeAdminSeverity(row.severity, language)}`}>
                   <span className={row.severity === "CRITICAL" ? "h-2 w-2 rounded-full bg-rose-600" : row.severity === "WARNING" ? "h-2 w-2 rounded-full bg-amber-500" : "h-2 w-2 rounded-full bg-slate-400"} />
-                  {row.severity.toLowerCase()}
+                  {localizeAdminSeverity(row.severity, language)}
                 </span>
-                <span className="min-w-0"><span className={clsx("block truncate text-sm text-foreground", row.status === "UNREAD" && "font-semibold")}>{row.title}</span><span className="block truncate text-xs text-muted-foreground">{row.message}</span></span>
+                <span className="min-w-0"><span className={clsx("block truncate text-sm text-foreground", row.status === "UNREAD" && "font-semibold")}>{row.title}</span><span className="block truncate text-xs text-muted-foreground">{localizeAdminLogMessage(row.message, language, row.message)}</span></span>
                 <span className="text-xs tabular-nums text-foreground">{row.occurrences > 1 ? `x${row.occurrences}` : "-"}</span>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{row.status.toLowerCase()}</span>
-                <span className="text-xs text-muted-foreground"><span className="block">{rel(row.lastSeenAt)}</span><span className="block text-[10px]">{formatDateTimeDMY(new Date(row.lastSeenAt))}</span></span>
+                <span className="truncate text-[11px] font-semibold text-muted-foreground">{localizeAdminStatus(row.status, language)}</span>
+                <span className="text-xs text-muted-foreground"><span className="block">{formatAdminRelativeTime(row.lastSeenAt, language)}</span><span className="block text-[10px]">{formatDateTimeDMY(new Date(row.lastSeenAt), LANGUAGE_LOCALES[language])}</span></span>
               </button>
             ))}
           </div>
           <div className="flex items-center justify-between border-t border-border/70 px-3 py-2 text-xs text-muted-foreground">
-            <span>Page {page} of {pageCount}</span>
+            <span>{t("Page", "Page", "Seite", "Pagina", "Pagina")} {page} {t("of", "sur", "von", "de", "de")} {pageCount}</span>
             <div className="flex items-center gap-1">
               <Button size="sm" variant="ghost" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>{"<"}</Button>
               <Button size="sm" variant="secondary">{page}</Button>
@@ -256,25 +303,25 @@ export default function AdminNotificationsPage() {
           ) : (
             <div className="space-y-4">
               <div>
-                <span className={clsx("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1", severityClass(detail.severity))}>{detail.severity.toLowerCase()}</span>
+                <span className={clsx("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1", severityClass(detail.severity))}>{localizeAdminSeverity(detail.severity, language)}</span>
                 <h2 className="mt-2 text-lg font-semibold text-foreground">{detail.title}</h2>
-                <p className="text-sm text-muted-foreground">{detail.message}</p>
+                <p className="text-sm text-muted-foreground">{localizeAdminLogMessage(detail.message, language, detail.message)}</p>
               </div>
               <div className="flex flex-wrap gap-2 border-t border-border/70 pt-3">
-                {(detail.status === "UNREAD" || detail.status === "READ" || detail.status === "SNOOZED") ? <Button onClick={() => patchOne("ACK")} disabled={busy} className="shadow-none">Acknowledge</Button> : null}
-                {detail.status !== "RESOLVED" ? <Button variant="secondary" onClick={() => patchOne("RESOLVE")} disabled={busy}>Resolve</Button> : null}
-                {detail.status === "UNREAD" ? <Button variant="ghost" onClick={() => patchOne("MARK_READ")} disabled={busy}>Mark read</Button> : null}
+                {(detail.status === "UNREAD" || detail.status === "READ" || detail.status === "SNOOZED") ? <Button onClick={() => patchOne("ACK")} disabled={busy} className="shadow-none">{t("Acknowledge", "Accuser reception", "Bestaetigen", "Reconocer", "Confirmar")}</Button> : null}
+                {detail.status !== "RESOLVED" ? <Button variant="secondary" onClick={() => patchOne("RESOLVE")} disabled={busy}>{t("Resolve", "Resoudre", "Loesen", "Resolver", "Resolver")}</Button> : null}
+                {detail.status === "UNREAD" ? <Button variant="ghost" onClick={() => patchOne("MARK_READ")} disabled={busy}>{t("Mark read", "Marquer comme lu", "Als gelesen markieren", "Marcar como leido", "Marcar como lida")}</Button> : null}
                 {detail.status === "SNOOZED" ? (
-                  <Button variant="ghost" onClick={() => patchOne("UNSNOOZE")} disabled={busy}>Unsnooze</Button>
+                  <Button variant="ghost" onClick={() => patchOne("UNSNOOZE")} disabled={busy}>{t("Unsnooze", "Retirer le report", "Schlummern beenden", "Quitar pausa", "Retomar")}</Button>
                 ) : detail.status !== "RESOLVED" ? (
                   <select defaultValue="" onChange={(e) => { const h = Number(e.target.value); if (!h) return; patchOne("SNOOZE", new Date(Date.now() + h * 60 * 60 * 1000).toISOString()); e.target.value = ""; }} className="h-9 rounded-md border border-border/70 bg-background px-2 text-xs">
-                    <option value="">Snooze...</option><option value="1">1 hour</option><option value="4">4 hours</option><option value="24">24 hours</option>
+                    <option value="">{t("Snooze...", "Reporter...", "Schlummern...", "Posponer...", "Adiar...")}</option><option value="1">{t("1 hour", "1 heure", "1 Stunde", "1 hora", "1 hora")}</option><option value="4">{t("4 hours", "4 heures", "4 Stunden", "4 horas", "4 horas")}</option><option value="24">{t("24 hours", "24 heures", "24 Stunden", "24 horas", "24 horas")}</option>
                   </select>
                 ) : null}
               </div>
               {metaRows.length ? (
                 <div className="space-y-2 border-t border-border/70 pt-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Metadata</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t("Metadata", "Metadonnees", "Metadaten", "Metadatos", "Metadados")}</p>
                   <dl className="space-y-1 rounded-md border border-border/60 bg-background p-2">
                     {metaRows.map(([key, value]) => (
                       <div key={key} className="grid grid-cols-[120px_minmax(0,1fr)] gap-2 text-xs">
@@ -286,14 +333,14 @@ export default function AdminNotificationsPage() {
                 </div>
               ) : null}
               <div className="space-y-2 border-t border-border/70 pt-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Audit trail</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t("Audit trail", "Journal d'audit", "Audit-Verlauf", "Rastro de auditoria", "Trilho de auditoria")}</p>
                 <div className="max-h-56 space-y-2 overflow-y-auto">
                   {detail.audits?.length ? detail.audits.map((a) => (
                     <div key={a.id} className="rounded-md border border-border/60 bg-background px-2 py-2 text-xs">
                       <p className="font-semibold text-foreground">{a.action}</p>
-                      <p className="text-muted-foreground">{a.actorAdmin?.name || a.actorAdmin?.email || "Unknown admin"} - {formatDateTimeDMY(new Date(a.createdAt))}</p>
+                      <p className="text-muted-foreground">{a.actorAdmin?.name || a.actorAdmin?.email || t("Unknown admin", "Admin inconnu", "Unbekannter Admin", "Admin desconocido", "Admin desconhecido")} - {formatDateTimeDMY(new Date(a.createdAt), LANGUAGE_LOCALES[language])}</p>
                     </div>
-                  )) : <p className="text-xs text-muted-foreground">No audit events for this notification yet.</p>}
+                  )) : <p className="text-xs text-muted-foreground">{t("No audit events for this notification yet.", "Aucun evenement d'audit pour cette notification pour le moment.", "Noch keine Audit-Ereignisse fuer diese Benachrichtigung.", "Aún no hay eventos de auditoria para esta notificacion.", "Ainda não ha eventos de auditoria para esta notificacao.")}</p>}
                 </div>
               </div>
             </div>

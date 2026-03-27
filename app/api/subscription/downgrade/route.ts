@@ -53,11 +53,13 @@ export const POST = withErrorHandling(async (req: Request) => {
     select: {
       provider: true,
       providerCustomerId: true,
+      providerPaymentMethodData: true,
     },
   });
   const management = deriveSubscriptionManagement({
     provider: orgSub?.provider ?? null,
     providerCustomerId: orgSub?.providerCustomerId ?? null,
+    hasReusablePaymentMethod: Boolean(orgSub?.providerPaymentMethodData),
     stateSource: orgSub ? "org_subscription" : "none",
   });
   if (!management.canScheduleDowngradeInApp) {
@@ -97,7 +99,7 @@ export const POST = withErrorHandling(async (req: Request) => {
   return NextResponse.json({ ok: true });
 });
 
-export const DELETE = withErrorHandling(async (_req: Request) => {
+export const DELETE = withErrorHandling(async () => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

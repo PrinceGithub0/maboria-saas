@@ -28,7 +28,7 @@ function formatDeltaValue(
   displayValue?: string
 ) {
   if (displayValue) return displayValue;
-  if (value == null || Number.isNaN(value)) return "—";
+  if (value == null || Number.isNaN(value)) return "--";
   const formatter = new Intl.NumberFormat("en-US", {
     minimumFractionDigits: precision,
     maximumFractionDigits: precision,
@@ -50,9 +50,9 @@ function toneClasses(tone: DeltaTone) {
 }
 
 function symbolForTone(tone: DeltaTone) {
-  if (tone === "positive") return "↑";
-  if (tone === "negative") return "↓";
-  if (tone === "neutral") return "→";
+  if (tone === "positive") return "?";
+  if (tone === "negative") return "?";
+  if (tone === "neutral") return "?";
   return "";
 }
 
@@ -72,14 +72,14 @@ export function Delta({
   const weight = mode === "muted" ? "font-semibold" : "font-bold";
 
   return (
-    <span className={`inline-flex items-center gap-1.5 ${className}`.trim()}>
+    <span className={`inline-flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5 ${className}`.trim()}>
       <span
         className={`inline-flex items-center gap-1 text-xs leading-4 tabular-nums ${weight} ${toneClasses(tone)}`}
       >
         {symbol ? <span aria-hidden="true">{symbol}</span> : null}
         <span>{valueText}</span>
       </span>
-      {compareLabel ? <span className="text-xs text-muted-foreground">{compareLabel}</span> : null}
+      {compareLabel ? <span className="min-w-0 break-words text-xs leading-4 text-muted-foreground">{compareLabel}</span> : null}
     </span>
   );
 }

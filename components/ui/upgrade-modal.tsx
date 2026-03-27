@@ -19,8 +19,7 @@ export function UpgradeModal({
   title?: string;
   description?: string;
 }) {
-  const { language } = useLanguage();
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const { t } = useLanguage();
   return (
     <Modal
       open={open}
@@ -39,7 +38,7 @@ export function UpgradeModal({
           {description ??
             t(
               "Upgrade your plan to unlock this feature. Your account and data stay the same.",
-              "Ameliorez votre plan pour debloquer cette fonction. Votre compte et vos donnees restent identiques."
+              "Ameliorez votre plan pour debloquer cette fonction. Votre compte et vos données restent identiques."
             )}
         </p>
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">

@@ -10,11 +10,10 @@ import { useLanguage } from "@/components/providers/language-provider";
 
 const NEUTRAL_MESSAGE_EN = "If an account exists for this email, a reset link has been sent.";
 const NEUTRAL_MESSAGE_FR =
-  "Si un compte existe pour cet email, un lien de reinitialisation a ete envoye.";
+  "Si un compte existe pour cet email, un lien de reinitialisation a ?t? envoye.";
 
 export default function ForgotPasswordPage() {
-  const { language } = useLanguage();
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

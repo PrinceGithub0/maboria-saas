@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { Check } from "lucide-react";
 import { getCheckoutPlanConfig } from "@/lib/checkout-plan-config";
+import { useLanguage } from "@/components/providers/language-provider";
 
 type Props = {
   plan: string;
@@ -81,6 +82,7 @@ export function CheckoutPanel({
   yearlyPrice,
   userId,
 }: Props) {
+  const { t } = useLanguage();
   const [billing, setBilling] = useState<"monthly" | "yearly">(interval);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -114,7 +116,16 @@ export function CheckoutPanel({
       });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data?.error || "Unable to start checkout");
+        throw new Error(
+          data?.error ||
+            t(
+              "Unable to start checkout",
+              "Impossible de lancer le paiement",
+              "Checkout kann nicht gestartet werden",
+              "No se puede iniciar el checkout",
+              "Não foi possivel iniciar o checkout"
+            )
+        );
       }
       if (data?.redirectUrl) {
         window.location.href = data.redirectUrl as string;
@@ -123,7 +134,15 @@ export function CheckoutPanel({
       router.refresh();
     } catch (err) {
       console.error(err);
-      setError("Unable to start checkout. Please try again.");
+      setError(
+        t(
+          "Unable to start checkout. Please try again.",
+          "Impossible de lancer le paiement. Veuillez réessayer.",
+          "Checkout kann nicht gestartet werden. Bitte versuche es erneut.",
+          "No se pudo iniciar el checkout. Intentalo de nuevo.",
+          "Não foi possivel iniciar o checkout. Tente novamente."
+        )
+      );
       setLoading(false);
     }
   };
@@ -135,7 +154,7 @@ export function CheckoutPanel({
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-500">
-                Selected Plan: {planConfig.planName}
+                {t("Selected Plan", "Plan selectionne", "Ausgewahlter Plan", "Plan seleccionado", "Plano selecionado")}: {planConfig.planName}
               </p>
               <h2 className="text-3xl font-semibold tracking-tight text-slate-900">
                 {planConfig.planName}
@@ -153,7 +172,7 @@ export function CheckoutPanel({
                     : "border border-[#EAEAEA] bg-slate-50 text-slate-700"
                 )}
               >
-                Monthly
+                {t("Monthly", "Mensuel", "Monatlich", "Mensual", "Mensal")}
               </button>
               <button
                 type="button"
@@ -165,17 +184,24 @@ export function CheckoutPanel({
                     : "border border-[#EAEAEA] bg-slate-50 text-slate-700"
                 )}
               >
-                Yearly
+                {t("Yearly", "Annuel", "Jährlich", "Anual", "Anual")}
               </button>
             </div>
           </div>
 
           <div className="space-y-2 border-t border-[#EAEAEA] pt-8">
             <p className="text-6xl font-semibold tracking-tight text-slate-900">
-              {displayPrice ?? "Pricing unavailable"}
+              {displayPrice ??
+                t(
+                  "Pricing unavailable",
+                  "Tarification indisponible",
+                  "Preis nicht verfügbar",
+                  "Precio no disponible",
+                  "Preco indisponivel"
+                )}
             </p>
             <p className="text-base text-slate-500">
-              per {billing === "yearly" ? "year" : "month"}
+              {t("per", "par", "pro", "por", "por")} {billing === "yearly" ? t("year", "an", "Jahr", "ano", "ano") : t("month", "mois", "Monat", "mes", "mes")}
             </p>
           </div>
 
@@ -193,7 +219,7 @@ export function CheckoutPanel({
           </ul>
 
           <p className="border-t border-[#EAEAEA] pt-6 text-sm text-slate-500">
-            Best for {planConfig.targetAudience}
+            {t("Best for", "Ideal pour", "Ideal für", "Ideal para", "Ideal para")} {planConfig.targetAudience}
           </p>
         </div>
       </section>
@@ -207,14 +233,16 @@ export function CheckoutPanel({
           onClick={onCheckout}
           className="min-h-14 w-full rounded-[14px] bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-4 text-base font-medium text-white shadow-[0_14px_28px_-16px_rgba(37,99,235,0.55)] transition hover:from-blue-700 hover:to-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {loading ? "Redirecting..." : "Subscribe securely"}
+          {loading
+            ? t("Redirecting...", "Redirection...", "Weiterleitung...", "Redirigiendo...", "A redirecionar...")
+            : t("Subscribe securely", "Souscrire en toute sécurité", "Sicher abonnieren", "Suscribirse de forma segura", "Subscrever em seguranca")}
         </button>
         <p className="mt-5 flex items-center justify-center gap-2 text-[13px] font-medium text-[#6B7280] sm:mt-6 sm:text-sm">
           <TrustLockIcon />
-          <span>SSL Encrypted</span>
+          <span>{t("SSL Encrypted", "SSL chiffre", "SSL-verschlusselt", "Cifrado SSL", "Encriptado SSL")}</span>
           <span>{"\u00B7"}</span>
           <TrustShieldCheckIcon />
-          <span>Secure global payment processing</span>
+          <span>{t("Secure global payment processing", "Traitement securise des paiements mondiaux", "Sichere globale Zahlungsabwicklung", "Procesamiento global de pagos seguro", "Processamento global de pagamentos seguro")}</span>
         </p>
       </div>
     </div>

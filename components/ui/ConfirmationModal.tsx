@@ -6,6 +6,7 @@ import {
   ExclamationTriangleIcon,
   XMarkIcon,
 } from "@heroicons/react/24/solid";
+import { useLanguage } from "@/components/providers/language-provider";
 
 type ConfirmationModalProps = {
   open: boolean;
@@ -32,6 +33,7 @@ export function ConfirmationModal({
   onSecondaryConfirm,
   onCancel,
 }: ConfirmationModalProps) {
+  const { t } = useLanguage();
   const [mounted, setMounted] = useState(open);
   const [visible, setVisible] = useState(open);
 
@@ -104,7 +106,7 @@ export function ConfirmationModal({
           type="button"
           onClick={onCancel}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-          aria-label="Close"
+          aria-label={t("Close", "Fermer", "Schliessen", "Cerrar", "Fechar")}
         >
           <XMarkIcon className="h-6 w-6" />
         </button>
@@ -125,7 +127,7 @@ export function ConfirmationModal({
             onClick={onCancel}
             className="flex-1 h-11 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition"
           >
-            Cancel
+            {t("Cancel", "Annuler", "Abbrechen", "Cancelar", "Cancelar")}
           </button>
           {secondaryConfirmLabel && onSecondaryConfirm ? (
             <button

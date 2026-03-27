@@ -19,8 +19,7 @@ function StatusItem({ label, status }: { label: string; status: "green" | "yello
 }
 
 export default function StatusPage() {
-  const { language } = useLanguage();
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const { t } = useLanguage();
   const { data } = useSWR("/api/health", fetcher);
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-6 py-10 text-foreground max-md:mx-0 max-md:w-full max-md:max-w-none">
@@ -29,7 +28,7 @@ export default function StatusPage() {
         <Card title={t("Core services", "Services coeur")}>
           <div className="space-y-2">
             <StatusItem label={t("API", "API")} status={data?.status === "ok" ? "green" : "red"} />
-            <StatusItem label={t("Database", "Base de donnees")} status={data?.db === "connected" ? "green" : "red"} />
+            <StatusItem label={t("Database", "Base de données")} status={data?.db === "connected" ? "green" : "red"} />
             <StatusItem label={t("Automation engine", "Moteur automatisation")} status="green" />
           </div>
         </Card>

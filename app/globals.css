@@ -361,7 +361,25 @@ html:not(.dark) .delta-unknown {
 
 
 html[data-lang="en"] [data-lang="fr"],
-html[data-lang="fr"] [data-lang="en"] {
+html[data-lang="en"] [data-lang="de"],
+html[data-lang="en"] [data-lang="es"],
+html[data-lang="en"] [data-lang="pt"],
+html[data-lang="fr"] [data-lang="en"],
+html[data-lang="fr"] [data-lang="de"],
+html[data-lang="fr"] [data-lang="es"],
+html[data-lang="fr"] [data-lang="pt"],
+html[data-lang="de"] [data-lang="en"],
+html[data-lang="de"] [data-lang="fr"],
+html[data-lang="de"] [data-lang="es"],
+html[data-lang="de"] [data-lang="pt"],
+html[data-lang="es"] [data-lang="en"],
+html[data-lang="es"] [data-lang="fr"],
+html[data-lang="es"] [data-lang="de"],
+html[data-lang="es"] [data-lang="pt"],
+html[data-lang="pt"] [data-lang="en"],
+html[data-lang="pt"] [data-lang="fr"],
+html[data-lang="pt"] [data-lang="de"],
+html[data-lang="pt"] [data-lang="es"] {
   display: none !important;
 }
 

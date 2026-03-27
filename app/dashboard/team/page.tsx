@@ -9,6 +9,14 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { TransientAlert } from "@/components/ui/transient-alert";
 import { useLanguage } from "@/components/providers/language-provider";
+import {
+  getTeamActivityActionLabel,
+  getTeamDateLocale,
+  getTeamPlanLabel,
+  getTeamRoleLabel,
+  localizeTeamActivityMessage,
+  localizeTeamServerMessage,
+} from "@/lib/team/localization";
 import { useTheme } from "@/components/providers/theme-provider";
 import { CheckCircle2, Lock, MoreHorizontal, UserPlus, Users } from "lucide-react";
 
@@ -52,6 +60,17 @@ type TeamActivity = {
   actionType: string;
   createdAt: string;
   message: string;
+  metadata?: Record<string, unknown> | null;
+  actor?: {
+    id?: string | null;
+    name?: string | null;
+    email?: string | null;
+  } | null;
+  target?: {
+    id?: string | null;
+    name?: string | null;
+    email?: string | null;
+  } | null;
 };
 
 type TeamResponse = {
@@ -86,12 +105,6 @@ function initialsForMember(member: { name?: string | null; email?: string | null
   return (local.slice(0, 2) || "tm").toUpperCase();
 }
 
-function roleLabel(role?: string | null) {
-  const value = String(role || "member").toLowerCase();
-  if (value === "billing_admin") return "Billing Admin";
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
 function successMessage(message: string) {
   return { message, variant: "success" as const };
 }
@@ -101,15 +114,15 @@ function errorMessage(message: string) {
 }
 
 export default function TeamPage() {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const { theme, resolvedTheme } = useTheme();
   const forceLight = theme === "light" || resolvedTheme === "light";
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
   const { data, error, isLoading, mutate } = useSWR<TeamResponse>("/api/team", fetcher, {
     shouldRetryOnError: false,
   });
   const router = useRouter();
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const dateLocale = getTeamDateLocale(language);
 
   const members = Array.isArray(data?.members) ? data.members : [];
   const pendingInvites = Array.isArray(data?.pendingInvites) ? data.pendingInvites : [];
@@ -178,9 +191,21 @@ export default function TeamPage() {
   const seatsUsed = typeof data?.seatsUsed === "number" ? data.seatsUsed : members.length;
   const seatLabel =
     seatLimit === null
-      ? t("Unlimited / Contract-based", "Illimite / Contrat")
+      ? t(
+          "Unlimited / Contract-based",
+          "Illimite / Contrat",
+          "Unbegrenzt / Vertragsbasiert",
+          "Ilimitado / Segun contrato",
+          "Ilimitado / Baseado em contrato"
+        )
       : typeof seatLimit === "number"
-        ? t(`${seatsUsed} of ${seatLimit} seats used`, `${seatsUsed} sur ${seatLimit} places utilisees`)
+        ? t(
+            `${seatsUsed} of ${seatLimit} seats used`,
+            `${seatsUsed} sur ${seatLimit} places utilisees`,
+            `${seatsUsed} von ${seatLimit} Platzen belegt`,
+            `${seatsUsed} de ${seatLimit} plazas usadas`,
+            `${seatsUsed} de ${seatLimit} lugares usados`
+          )
         : null;
 
   const inviteDisabled =
@@ -227,7 +252,16 @@ export default function TeamPage() {
 
   const handleInvite = async () => {
     if (!email.trim()) {
-      setStatus({ message: t("Enter a valid email address.", "Entrez un email valide."), variant: "warning" });
+      setStatus({
+        message: t(
+          "Enter a valid email address.",
+          "Entrez une adresse email valide.",
+          "Gib eine gültige E-Mail-Adresse ein.",
+          "Introduce una direccion de correo valida.",
+          "Introduz um endereco de email valido."
+        ),
+        variant: "warning",
+      });
       return;
     }
     setSaving(true);
@@ -240,39 +274,101 @@ export default function TeamPage() {
       });
       const payload = await res.json().catch(() => null);
       if (res.status === 401) {
-        setStatus(errorMessage(t("Please sign in first.", "Veuillez vous connecter.")));
+        setStatus(
+          errorMessage(
+            localizeTeamServerMessage(
+              payload?.error || "Please sign in first.",
+              language,
+              t(
+                "Please sign in first.",
+                "Veuillez d'abord vous connecter.",
+                "Bitte melde dich zuerst an.",
+                "Inicia sesión primero.",
+                "Inicia sessão primeiro."
+              )
+            )
+          )
+        );
       } else if (res.status === 403) {
         setStatus(
           errorMessage(
-            payload?.error ||
+            localizeTeamServerMessage(
+              payload?.error,
+              language,
               t(
                 "Upgrade to Pro, Growth, Business, or Enterprise to add team members.",
-                "Passez au plan Pro, Growth, Business ou Enterprise pour ajouter des membres."
+                "Passez au plan Pro, Growth, Business ou Enterprise pour ajouter des membres.",
+                "Wechsle zu Pro, Growth, Business oder Enterprise, um Teammitglieder hinzuzufügen.",
+                "Actualiza a Pro, Growth, Business o Enterprise para anadir miembros al equipo.",
+                "Atualiza para Pro, Growth, Business ou Enterprise para adicionar membros a equipa."
               )
+            )
           )
         );
       } else if (!res.ok) {
-        setStatus(errorMessage(payload?.error || t("Invite failed. Please try again.", "Invitation echouee. Reessayez.")));
+        setStatus(
+          errorMessage(
+            localizeTeamServerMessage(
+              payload?.error,
+              language,
+              t(
+                "Invite failed. Please try again.",
+                "L'invitation a échoué. Reessayez.",
+                "Einladung fehlgeschlagen. Bitte versuche es erneut.",
+                "La invitacion ha fallado. Intentalo de nuevo.",
+                "O convite falhou. Tenta novamente."
+              )
+            )
+          )
+        );
       } else if (payload?.alreadyMember) {
         setStatus({
-          message: t("That user is already on your team.", "Cet utilisateur est deja dans votre equipe."),
+          message: localizeTeamServerMessage(
+            "That user is already on your team.",
+            language,
+            t(
+              "That user is already on your team.",
+              "Cet utilisateur fait déjà partie de votre équipe.",
+              "Diese Person ist bereits in deinem Team.",
+              "Ese usuario ya forma parte de tu equipo.",
+              "Esse utilizador ja faz parte da tua equipa."
+            )
+          ),
           variant: "info",
         });
       } else if (payload?.invited) {
-        setStatus(successMessage(t("Invitation sent.", "Invitation envoyee.")));
+        setStatus(successMessage(t("Invitation sent.", "Invitation envoyee.", "Einladung gesendet.", "Invitacion enviada.", "Convite enviado.")));
         setEmail("");
         setRole("member");
         setShowInvite(false);
         await mutate();
       } else {
-        setStatus(successMessage(t("Team member added.", "Membre ajoute.")));
+        setStatus(
+          successMessage(
+            t("Team member added.", "Membre ajoute.", "Teammitglied hinzugefugt.", "Miembro del equipo anadido.", "Membro da equipa adicionado.")
+          )
+        );
         setEmail("");
         setRole("member");
         setShowInvite(false);
         await mutate();
       }
     } catch (err: any) {
-      setStatus(errorMessage(t(`Invite failed. ${err?.message || ""}`, `Invitation echouee. ${err?.message || ""}`)));
+      setStatus(
+        errorMessage(
+          localizeTeamServerMessage(
+            err?.message,
+            language,
+            t(
+              "Invite failed. Please try again.",
+              "L'invitation a échoué. Reessayez.",
+              "Einladung fehlgeschlagen. Bitte versuche es erneut.",
+              "La invitacion ha fallado. Intentalo de nuevo.",
+              "O convite falhou. Tenta novamente."
+            )
+          )
+        )
+      );
     } finally {
       setSaving(false);
     }
@@ -289,14 +385,30 @@ export default function TeamPage() {
       });
       const payload = await res.json().catch(() => null);
       if (!res.ok) {
-        setStatus(errorMessage(payload?.error || t("Remove failed.", "Suppression echouee.")));
+        setStatus(
+          errorMessage(
+            localizeTeamServerMessage(
+              payload?.error,
+              language,
+              t("Remove failed.", "La suppression a échoué.", "Entfernen fehlgeschlagen.", "La eliminacion ha fallado.", "A remocao falhou.")
+            )
+          )
+        );
       } else {
-        setStatus(successMessage(t("Member removed.", "Membre supprime.")));
+        setStatus(successMessage(t("Member removed.", "Membre supprime.", "Mitglied entfernt.", "Miembro eliminado.", "Membro removido.")));
         setRowActionId(null);
         await mutate();
       }
     } catch (err: any) {
-      setStatus(errorMessage(t(`Remove failed. ${err?.message || ""}`, `Suppression echouee. ${err?.message || ""}`)));
+      setStatus(
+        errorMessage(
+          localizeTeamServerMessage(
+            err?.message,
+            language,
+            t("Remove failed.", "La suppression a échoué.", "Entfernen fehlgeschlagen.", "La eliminacion ha fallado.", "A remocao falhou.")
+          )
+        )
+      );
     } finally {
       setSaving(false);
     }
@@ -316,15 +428,43 @@ export default function TeamPage() {
       });
       const payload = await res.json().catch(() => null);
       if (!res.ok) {
-        setStatus(errorMessage(payload?.error || t("Role update failed.", "La mise a jour du role a echoue.")));
+        setStatus(
+          errorMessage(
+            localizeTeamServerMessage(
+              payload?.error,
+              language,
+              t(
+                "Role update failed.",
+                "La mise a jour du role a echoue.",
+                "Rollenaktualisierung fehlgeschlagen.",
+                "La actualización del rol ha fallado.",
+                "A atualizacao do papel falhou."
+              )
+            )
+          )
+        );
         return;
       }
-      setStatus(successMessage(t("Member role updated.", "Role du membre mis a jour.")));
+      setStatus(
+        successMessage(
+          t("Member role updated.", "Role du membre mis ? jour.", "Mitgliedsrolle aktualisiert.", "Rol del miembro actualizado.", "Papel do membro atualizado.")
+        )
+      );
       await mutate();
     } catch (err: any) {
       setStatus(
         errorMessage(
-          t(`Role update failed. ${err?.message || ""}`, `La mise a jour du role a echoue. ${err?.message || ""}`)
+          localizeTeamServerMessage(
+            err?.message,
+            language,
+            t(
+              "Role update failed.",
+              "La mise a jour du role a echoue.",
+              "Rollenaktualisierung fehlgeschlagen.",
+              "La actualización del rol ha fallado.",
+              "A atualizacao do papel falhou."
+            )
+          )
         )
       );
     } finally {
@@ -343,13 +483,29 @@ export default function TeamPage() {
       });
       const payload = await res.json().catch(() => null);
       if (!res.ok) {
-        setStatus(errorMessage(payload?.error || t("Resend failed.", "Renvoi echoue.")));
+        setStatus(
+          errorMessage(
+            localizeTeamServerMessage(
+              payload?.error,
+              language,
+              t("Resend failed.", "Le renvoi a échoué.", "Erneutes Senden fehlgeschlagen.", "El reenvio ha fallado.", "O reenvio falhou.")
+            )
+          )
+        );
       } else {
-        setStatus(successMessage(t("Invitation resent.", "Invitation renvoyee.")));
+        setStatus(successMessage(t("Invitation resent.", "Invitation renvoyee.", "Einladung erneut gesendet.", "Invitacion reenviada.", "Convite reenviado.")));
         await mutate();
       }
     } catch (err: any) {
-      setStatus(errorMessage(t(`Resend failed. ${err?.message || ""}`, `Renvoi echoue. ${err?.message || ""}`)));
+      setStatus(
+        errorMessage(
+          localizeTeamServerMessage(
+            err?.message,
+            language,
+            t("Resend failed.", "Le renvoi a échoué.", "Erneutes Senden fehlgeschlagen.", "El reenvio ha fallado.", "O reenvio falhou.")
+          )
+        )
+      );
     } finally {
       setInviteActionId(null);
     }
@@ -366,30 +522,35 @@ export default function TeamPage() {
       });
       const payload = await res.json().catch(() => null);
       if (!res.ok) {
-        setStatus(errorMessage(payload?.error || t("Cancel failed.", "Annulation echouee.")));
+        setStatus(
+          errorMessage(
+            localizeTeamServerMessage(
+              payload?.error,
+              language,
+              t("Cancel failed.", "L annulation a échoué.", "Abbrechen fehlgeschlagen.", "La cancelación ha fallado.", "O cancelamento falhou.")
+            )
+          )
+        );
       } else {
-        setStatus(successMessage(t("Invitation canceled.", "Invitation annulee.")));
+        setStatus(successMessage(t("Invitation canceled.", "Invitation annulee.", "Einladung storniert.", "Invitacion cancelada.", "Convite cancelado.")));
         await mutate();
       }
     } catch (err: any) {
-      setStatus(errorMessage(t(`Cancel failed. ${err?.message || ""}`, `Annulation echouee. ${err?.message || ""}`)));
+      setStatus(
+        errorMessage(
+          localizeTeamServerMessage(
+            err?.message,
+            language,
+            t("Cancel failed.", "L annulation a échoué.", "Abbrechen fehlgeschlagen.", "La cancelación ha fallado.", "O cancelamento falhou.")
+          )
+        )
+      );
     } finally {
       setInviteActionId(null);
     }
   };
 
-  const currentPlanTitle =
-    visiblePlanLabel === "starter"
-      ? t("Starter", "Starter")
-      : visiblePlanLabel === "pro"
-        ? t("Pro", "Pro")
-        : visiblePlanLabel === "growth"
-          ? t("Growth", "Growth")
-          : visiblePlanLabel === "business"
-            ? t("Business", "Business")
-            : visiblePlanLabel === "enterprise"
-              ? t("Enterprise", "Enterprise")
-              : null;
+  const currentPlanTitle = visiblePlanLabel ? getTeamPlanLabel(visiblePlanLabel, language) : null;
 
   const hasTopTierPlan = visiblePlanLabel === "enterprise";
 
@@ -403,7 +564,7 @@ export default function TeamPage() {
             </div>
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
-                {t("Current plan", "Plan actuel")}
+                {t("Current plan", "Plan actuel", "Aktueller Plan", "Plan actual", "Plano atual")}
               </p>
               {currentPlanTitle ? <p className="mt-1 text-2xl font-semibold text-foreground">{currentPlanTitle}</p> : null}
               {seatLabel ? <p className="text-sm text-muted-foreground">{seatLabel}</p> : null}
@@ -414,7 +575,13 @@ export default function TeamPage() {
             onClick={() => {
               if (hasTopTierPlan) {
                 setStatus({
-                  message: t("You are on the best plan.", "Vous etes sur le meilleur plan."),
+                  message: t(
+                    "You are on the best plan.",
+                    "Vous etes sur le meilleur plan.",
+                    "Du hast bereits den besten Plan.",
+                    "Ya estas en el mejor plan.",
+                    "Ja estas no melhor plano."
+                  ),
                   variant: "info",
                 });
                 return;
@@ -422,10 +589,20 @@ export default function TeamPage() {
               router.push("/dashboard/subscription");
             }}
             variant="primary"
-            title={hasTopTierPlan ? t("You are on the best plan.", "Vous etes sur le meilleur plan.") : undefined}
+            title={
+              hasTopTierPlan
+                ? t(
+                    "You are on the best plan.",
+                    "Vous etes sur le meilleur plan.",
+                    "Du hast bereits den besten Plan.",
+                    "Ya estas en el mejor plan.",
+                    "Ja estas no melhor plano."
+                  )
+                : undefined
+            }
             size="sm"
           >
-            {t("Upgrade", "Mettre a niveau")}
+            {t("Upgrade", "Mettre a niveau", "Upgrade", "Mejorar", "Atualizar")}
           </Button>
         </div>
       </section>
@@ -436,15 +613,37 @@ export default function TeamPage() {
           {status.message}
         </TransientAlert>
       ) : null}
-      {error ? <Alert variant="error">{String(error.message || t("Team information unavailable.", "Informations indisponibles."))}</Alert> : null}
+      {error ? (
+        <Alert variant="error">
+          {localizeTeamServerMessage(
+            error.message,
+            language,
+            t(
+              "Team information unavailable.",
+              "Informations indisponibles.",
+              "Teaminformationen nicht verfügbar.",
+              "Información del equipo no disponible.",
+              "Informações da equipa indisponiveis."
+            )
+          )}
+        </Alert>
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
           <section className="rounded-3xl border border-border/60 bg-card px-6 py-6 shadow-sm">
             <div>
-              <h1 className="text-2xl font-semibold text-foreground">{t("Team Members", "Membres de l equipe")}</h1>
+              <h1 className="text-2xl font-semibold text-foreground">
+                {t("Team Members", "Membres de l équipe", "Teammitglieder", "Miembros del equipo", "Membros da equipa")}
+              </h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                {t("Manage your workspace access and member roles.", "Gerez les acces et roles de votre espace de travail.")}
+                {t(
+                  "Manage your workspace access and member roles.",
+                  "Gerez les accès et roles de votre espace de travail.",
+                  "Verwalte den Workspace-Zugriff und die Rollen deines Teams.",
+                  "Gestiona el acceso al espacio de trabajo y los roles del equipo.",
+                  "Gere o acesso ao espaco de trabalho e os papeis da equipa."
+                )}
               </p>
             </div>
 
@@ -457,10 +656,10 @@ export default function TeamPage() {
                 className="h-10 rounded-xl bg-blue-600 px-4 text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] hover:bg-blue-500"
               >
                 <UserPlus className="mr-2 h-4 w-4" />
-                {t("Invite new member", "Inviter un membre")}
+                {t("Invite new member", "Inviter un membre", "Mitglied einladen", "Invitar a un miembro", "Convidar membro")}
               </Button>
               <input
-                placeholder={t("Search", "Rechercher")}
+                placeholder={t("Search", "Rechercher", "Suchen", "Buscar", "Pesquisar")}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 className="h-10 min-w-[220px] rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition focus:border-blue-500"
@@ -470,18 +669,18 @@ export default function TeamPage() {
                 onChange={(event) => setRoleFilter(event.target.value)}
                 className="h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition focus:border-blue-500"
               >
-                <option value="all">{t("All roles", "Tous les roles")}</option>
-                <option value="owner">{t("Owner", "Owner")}</option>
-                <option value="admin">{t("Admin", "Admin")}</option>
-                <option value="billing_admin">{t("Billing Admin", "Admin facturation")}</option>
-                <option value="member">{t("Member", "Membre")}</option>
+                <option value="all">{t("All roles", "Tous les roles", "Alle Rollen", "Todos los roles", "Todos os papeis")}</option>
+                <option value="owner">{getTeamRoleLabel("owner", language)}</option>
+                <option value="admin">{getTeamRoleLabel("admin", language)}</option>
+                <option value="billing_admin">{getTeamRoleLabel("billing_admin", language)}</option>
+                <option value="member">{getTeamRoleLabel("member", language)}</option>
               </select>
             </div>
 
             {showInvite ? (
               <div className="mt-5 grid gap-4 rounded-2xl border border-border/60 bg-muted/30 p-4 sm:grid-cols-[minmax(0,1fr)_180px_auto] sm:items-end">
                 <label className="grid gap-1 text-sm text-foreground">
-                  <span>{t("Email", "Email")}</span>
+                  <span>{t("Email", "Email", "E-Mail", "Correo electronico", "Email")}</span>
                   <input
                     placeholder="name@company.com"
                     value={email}
@@ -493,16 +692,16 @@ export default function TeamPage() {
                   />
                 </label>
                 <label className="grid gap-1 text-sm text-foreground">
-                  <span>{t("Role", "Role")}</span>
+                  <span>{t("Role", "Role", "Rolle", "Rol", "Papel")}</span>
                   <select
                     value={role}
                     onChange={(event) => setRole(event.target.value)}
                     disabled={inviteDisabled}
                     className="h-10 rounded-xl border border-border bg-background px-3 text-foreground outline-none transition focus:border-blue-500"
                   >
-                    <option value="member">{t("Member", "Membre")}</option>
-                    <option value="admin" disabled={currentOrgRole !== "owner"}>{t("Admin", "Admin")}</option>
-                    <option value="billing_admin" disabled={!canAssignBillingAdmin}>{t("Billing Admin", "Admin facturation")}</option>
+                    <option value="member">{getTeamRoleLabel("member", language)}</option>
+                    <option value="admin" disabled={currentOrgRole !== "owner"}>{getTeamRoleLabel("admin", language)}</option>
+                    <option value="billing_admin" disabled={!canAssignBillingAdmin}>{getTeamRoleLabel("billing_admin", language)}</option>
                   </select>
                 </label>
                 <Button
@@ -511,31 +710,31 @@ export default function TeamPage() {
                   disabled={inviteDisabled}
                   className="h-10 rounded-xl bg-blue-600 px-4 text-white shadow-[0_10px_24px_rgba(37,99,235,0.22)] hover:bg-blue-500"
                 >
-                  {t("Add member", "Ajouter")}
+                  {t("Add member", "Ajouter", "Mitglied hinzufügen", "Anadir miembro", "Adicionar membro")}
                 </Button>
               </div>
             ) : null}
 
             <div className="mt-6 rounded-2xl border border-border/60 bg-background">
               <div className="hidden grid-cols-[64px_minmax(0,2.4fr)_104px_150px_52px] gap-5 bg-muted/30 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground 2xl:grid">
-                <div>{t("Initials", "Initiales")}</div>
-                <div>{t("Member", "Membre")}</div>
-                <div className="text-center">{t("Joined", "Rejoint")}</div>
-                <div className="text-center">{t("Role", "Role")}</div>
-                <div>{t("Actions", "Actions")}</div>
+                <div>{t("Initials", "Initiales", "Initialen", "Iniciales", "Iniciais")}</div>
+                <div>{t("Member", "Membre", "Mitglied", "Miembro", "Membro")}</div>
+                <div className="text-center">{t("Joined", "Rejoint", "Beigêtreten", "Se unio", "Entrou")}</div>
+                <div className="text-center">{t("Role", "Role", "Rolle", "Rol", "Papel")}</div>
+                <div>{t("Actions", "Actions", "Aktionen", "Acciones", "Ações")}</div>
               </div>
               <div className="hidden grid-cols-[56px_minmax(0,2.2fr)_104px_136px_44px] gap-5 bg-muted/30 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground xl:grid 2xl:hidden">
-                <div>{t("Initials", "Initiales")}</div>
-                <div>{t("Member", "Membre")}</div>
-                <div className="text-center">{t("Joined", "Rejoint")}</div>
-                <div className="text-center">{t("Role", "Role")}</div>
-                <div>{t("Actions", "Actions")}</div>
+                <div>{t("Initials", "Initiales", "Initialen", "Iniciales", "Iniciais")}</div>
+                <div>{t("Member", "Membre", "Mitglied", "Miembro", "Membro")}</div>
+                <div className="text-center">{t("Joined", "Rejoint", "Beigêtreten", "Se unio", "Entrou")}</div>
+                <div className="text-center">{t("Role", "Role", "Rolle", "Rol", "Papel")}</div>
+                <div>{t("Actions", "Actions", "Aktionen", "Acciones", "Ações")}</div>
               </div>
               {filteredMembers.length === 0 && !isLoading ? (
                 <div className="px-5 py-8 text-sm text-muted-foreground">
                   {query || roleFilter !== "all"
-                    ? t("No team members found.", "Aucun membre trouve.")
-                    : t("No members yet.", "Aucun membre pour le moment.")}
+                    ? t("No team members found.", "Aucun membre trouve.", "Keine Teammitglieder gefunden.", "No se encontraron miembros del equipo.", "Nenhum membro da equipa encontrado.")
+                    : t("No members yet.", "Aucun membre pour le moment.", "Noch keine Mitglieder.", "Todavia no hay miembros.", "Ainda não ha membros.")}
                 </div>
               ) : null}
 
@@ -545,7 +744,7 @@ export default function TeamPage() {
                   const editableRoleOptions = getEditableRoleOptions(member);
                   const memberRole = String(member.role || "member").toLowerCase();
                   const joinedLabel = member.joinedAt || member.createdAt
-                    ? format(new Date(member.joinedAt || member.createdAt || ""), "MMM d, yyyy")
+                    ? format(new Date(member.joinedAt || member.createdAt || ""), "PPP", { locale: dateLocale })
                     : "-";
                   const canRemoveThisMember =
                     canRemoveMember && memberRole !== "owner" && !(currentOrgRole === "admin" && memberRole !== "member");
@@ -572,7 +771,7 @@ export default function TeamPage() {
                           {memberRole === "owner" ? (
                             <span className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-sm font-medium text-slate-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
                               <Lock className="h-4 w-4 text-amber-500 dark:text-amber-300" />
-                              {t("Owner", "Owner")}
+                              {getTeamRoleLabel("owner", language)}
                             </span>
                           ) : editableRoleOptions.length > 0 ? (
                             <select
@@ -582,11 +781,11 @@ export default function TeamPage() {
                               className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition focus:border-blue-500 disabled:opacity-60"
                             >
                               {editableRoleOptions.map((option) => (
-                                <option key={option} value={option}>{roleLabel(option)}</option>
+                                <option key={option} value={option}>{getTeamRoleLabel(option, language)}</option>
                               ))}
                             </select>
                           ) : (
-                            <span className="text-sm text-foreground">{roleLabel(memberRole)}</span>
+                            <span className="text-sm text-foreground">{getTeamRoleLabel(memberRole, language)}</span>
                           )}
                         </div>
                         <div className="relative flex justify-end">
@@ -613,7 +812,7 @@ export default function TeamPage() {
                                     disabled={!canRemoveThisMember || saving}
                                     className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:text-muted-foreground"
                                   >
-                                    {t("Remove member", "Retirer le membre")}
+                                    {t("Remove member", "Retirer le membre", "Mitglied entfernen", "Eliminar miembro", "Remover membro")}
                                   </button>
                                 </div>
                               ) : null}
@@ -642,7 +841,7 @@ export default function TeamPage() {
                           {memberRole === "owner" ? (
                             <span className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-sm font-medium text-slate-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
                               <Lock className="h-4 w-4 text-amber-500 dark:text-amber-300" />
-                              {t("Owner", "Owner")}
+                              {getTeamRoleLabel("owner", language)}
                             </span>
                           ) : editableRoleOptions.length > 0 ? (
                             <select
@@ -652,11 +851,11 @@ export default function TeamPage() {
                               className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition focus:border-blue-500 disabled:opacity-60"
                             >
                               {editableRoleOptions.map((option) => (
-                                <option key={option} value={option}>{roleLabel(option)}</option>
+                                <option key={option} value={option}>{getTeamRoleLabel(option, language)}</option>
                               ))}
                             </select>
                           ) : (
-                            <span className="text-sm text-foreground">{roleLabel(memberRole)}</span>
+                            <span className="text-sm text-foreground">{getTeamRoleLabel(memberRole, language)}</span>
                           )}
                         </div>
                         <div className="relative flex justify-end">
@@ -683,7 +882,7 @@ export default function TeamPage() {
                                     disabled={!canRemoveThisMember || saving}
                                     className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:text-muted-foreground"
                                   >
-                                    {t("Remove member", "Retirer le membre")}
+                                    {t("Remove member", "Retirer le membre", "Mitglied entfernen", "Eliminar miembro", "Remover membro")}
                                   </button>
                                 </div>
                               ) : null}
@@ -726,7 +925,7 @@ export default function TeamPage() {
                                           disabled={!canRemoveThisMember || saving}
                                           className="flex w-full rounded-lg px-3 py-2 text-left text-sm text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:text-muted-foreground"
                                         >
-                                          {t("Remove member", "Retirer le membre")}
+                                          {t("Remove member", "Retirer le membre", "Mitglied entfernen", "Eliminar miembro", "Remover membro")}
                                         </button>
                                       </div>
                                     ) : null}
@@ -736,7 +935,7 @@ export default function TeamPage() {
                             </div>
                             <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                               <span>
-                                <span className="font-medium text-foreground/80">{t("Joined", "Rejoint")}:</span>{" "}
+                                <span className="font-medium text-foreground/80">{t("Joined", "Rejoint", "Beigêtreten", "Se unio", "Entrou")}:</span>{" "}
                                 {joinedLabel}
                               </span>
                               <span className="hidden h-1 w-1 rounded-full bg-border sm:inline-block" />
@@ -744,7 +943,7 @@ export default function TeamPage() {
                                 {memberRole === "owner" ? (
                                   <span className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-sm font-medium text-slate-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
                                     <Lock className="h-4 w-4 text-amber-500 dark:text-amber-300" />
-                                    {t("Owner", "Owner")}
+                                    {getTeamRoleLabel("owner", language)}
                                   </span>
                                 ) : editableRoleOptions.length > 0 ? (
                                   <select
@@ -754,11 +953,11 @@ export default function TeamPage() {
                                     className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition focus:border-blue-500 disabled:opacity-60 sm:min-w-[180px]"
                                   >
                                     {editableRoleOptions.map((option) => (
-                                      <option key={option} value={option}>{roleLabel(option)}</option>
+                                      <option key={option} value={option}>{getTeamRoleLabel(option, language)}</option>
                                     ))}
                                   </select>
                                 ) : (
-                                  <span className="text-sm text-foreground">{roleLabel(memberRole)}</span>
+                                  <span className="text-sm text-foreground">{getTeamRoleLabel(memberRole, language)}</span>
                                 )}
                               </div>
                             </div>
@@ -774,17 +973,19 @@ export default function TeamPage() {
 
           {canViewTeamOperations ? (
           <section className="rounded-3xl border border-border/60 bg-card px-6 py-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-foreground">{t("Pending Invitations", "Invitations en attente")}</h2>
+            <h2 className="text-xl font-semibold text-foreground">
+              {t("Pending Invitations", "Invitations en attente", "Ausstehende Einladungen", "Invitaciones pendientes", "Convites pendentes")}
+            </h2>
             <div className="mt-4 rounded-2xl border border-border/60">
               <div className="hidden grid-cols-[72px_minmax(200px,240px)_88px_176px] gap-4 bg-muted/30 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground xl:grid">
-                <div>{t("Initials", "Initiales")}</div>
-                <div>{t("Email", "Email")}</div>
-                <div>{t("Role", "Role")}</div>
-                <div>{t("Actions", "Actions")}</div>
+                <div>{t("Initials", "Initiales", "Initialen", "Iniciales", "Iniciais")}</div>
+                <div>{t("Email", "Email", "E-Mail", "Correo electronico", "Email")}</div>
+                <div>{t("Role", "Role", "Rolle", "Rol", "Papel")}</div>
+                <div>{t("Actions", "Actions", "Aktionen", "Acciones", "Ações")}</div>
               </div>
               {pendingInvites.length === 0 ? (
                 <div className="px-5 py-8 text-sm text-muted-foreground">
-                  {t("No pending invitations.", "Aucune invitation en attente.")}
+                  {t("No pending invitations.", "Aucune invitation en attente.", "Keine ausstehenden Einladungen.", "No hay invitaciones pendientes.", "Não ha convites pendentes.")}
                 </div>
               ) : (
                 pendingInvites.map((invite) => (
@@ -798,7 +999,7 @@ export default function TeamPage() {
                       <div className="min-w-0 pr-2 text-sm text-foreground">
                         <span className="block truncate">{invite.email}</span>
                       </div>
-                      <div className="text-sm text-foreground">{roleLabel(invite.role)}</div>
+                      <div className="text-sm text-foreground">{getTeamRoleLabel(invite.role, language)}</div>
                       <div className="flex items-center gap-1">
                         <Button
                           variant="secondary"
@@ -807,7 +1008,7 @@ export default function TeamPage() {
                           disabled={!canInvite || inviteActionId === invite.id}
                           className="h-8 rounded-xl border border-border/70 bg-background px-2.5 font-medium shadow-sm"
                         >
-                          {t("Resend", "Renvoyer")}
+                          {t("Resend", "Renvoyer", "Erneut senden", "Reenviar", "Reenviar")}
                         </Button>
                         <Button
                           variant="ghost"
@@ -816,7 +1017,7 @@ export default function TeamPage() {
                           disabled={!canInvite || inviteActionId === invite.id}
                           className="h-8 rounded-xl border border-rose-200 bg-rose-50 px-2.5 font-medium text-rose-700 hover:bg-rose-100 hover:text-rose-800 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/15"
                         >
-                          {t("Cancel", "Annuler")}
+                          {t("Cancel", "Annuler", "Abbrechen", "Cancelar", "Cancelar")}
                         </Button>
                       </div>
                     </div>
@@ -828,8 +1029,8 @@ export default function TeamPage() {
                         <div className="min-w-0 flex-1">
                           <p className="break-all text-sm font-medium text-foreground">{invite.email}</p>
                           <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                            <span className="font-medium text-foreground/80">{t("Role", "Role")}:</span>
-                            <span>{roleLabel(invite.role)}</span>
+                            <span className="font-medium text-foreground/80">{t("Role", "Role", "Rolle", "Rol", "Papel")}:</span>
+                            <span>{getTeamRoleLabel(invite.role, language)}</span>
                           </div>
                         </div>
                       </div>
@@ -841,7 +1042,7 @@ export default function TeamPage() {
                           disabled={!canInvite || inviteActionId === invite.id}
                           className="h-9 rounded-xl border border-border/70 bg-background px-4 font-medium shadow-sm"
                         >
-                          {t("Resend", "Renvoyer")}
+                          {t("Resend", "Renvoyer", "Erneut senden", "Reenviar", "Reenviar")}
                         </Button>
                         <Button
                           variant="ghost"
@@ -850,7 +1051,7 @@ export default function TeamPage() {
                           disabled={!canInvite || inviteActionId === invite.id}
                           className="h-9 rounded-xl border border-rose-200 bg-rose-50 px-4 font-medium text-rose-700 hover:bg-rose-100 hover:text-rose-800 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/15"
                         >
-                          {t("Cancel", "Annuler")}
+                          {t("Cancel", "Annuler", "Abbrechen", "Cancelar", "Cancelar")}
                         </Button>
                       </div>
                     </div>
@@ -864,28 +1065,39 @@ export default function TeamPage() {
 
         <aside className="rounded-3xl border border-border/60 bg-card px-6 py-6 shadow-sm">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-xl font-semibold text-foreground">{t("Team Activity", "Activite de l equipe")}</h2>
+            <h2 className="text-xl font-semibold text-foreground">
+              {t("Team Activity", "Activit? de l équipe", "Teamaktivität", "Actividad del equipo", "Atividade da equipa")}
+            </h2>
             {canViewTeamOperations ? (
               <Link href="/dashboard/team/activity" className="text-sm font-medium text-blue-600 hover:text-blue-500">
-                {t("View all", "Voir tout")}
+                {t("View all", "Voir tout", "Alle anzeigen", "Ver todo", "Ver tudo")}
               </Link>
             ) : null}
           </div>
           <div className="mt-5 space-y-4">
             {!canViewTeamOperations ? (
               <p className="text-sm text-muted-foreground">
-                {t("Activity details are available to workspace managers only.", "Les details d activite sont reserves aux gestionnaires de l espace.")}
+                {t(
+                  "Activity details are available to workspace managers only.",
+                  "Les details d activité sont reserves aux gestionnaires de l'espace.",
+                  "Aktivitätsdetails sind nur für Workspace-Manager sichtbar.",
+                  "Los detalles de actividad solo estan disponibles para gestores del espacio.",
+                  "Os detalhes da atividade estão disponiveis apenas para gestores do espaco."
+                )}
               </p>
             ) : recentActivity.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                {t("No recent team activity.", "Aucune activite recente.")}
+                {t("No recent team activity.", "Aucune activité recente.", "Keine aktuelle Teamaktivität.", "No hay actividad reciente del equipo.", "Não ha atividade recente da equipa.")}
               </p>
             ) : (
               recentActivity.map((entry) => (
                 <div key={entry.id} className="border-b border-border/60 pb-4 last:border-b-0 last:pb-0">
-                  <p className="text-sm font-medium text-foreground">{entry.message}</p>
+                  <div className="inline-flex items-center rounded-full bg-blue-200 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-900 dark:bg-blue-500/10 dark:text-blue-300">
+                    {getTeamActivityActionLabel(entry.actionType, language)}
+                  </div>
+                  <p className="mt-3 text-sm font-medium text-foreground">{localizeTeamActivityMessage(entry, language)}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {formatDistanceToNow(new Date(entry.createdAt), { addSuffix: true })}
+                    {formatDistanceToNow(new Date(entry.createdAt), { addSuffix: true, locale: dateLocale })}
                   </p>
                 </div>
               ))

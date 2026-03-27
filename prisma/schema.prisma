@@ -1882,6 +1882,7 @@ model OrgSubscription {
   provider              PaymentProvider?
   providerCustomerId    String?
   providerSubscriptionId String?
+  providerPaymentMethodData Json?
   paidThroughAt         DateTime?
   usageCycleAnchorDay   Int
   activationTimestamp   DateTime

@@ -1,4 +1,5 @@
-import Link from "next/link";
+﻿import Link from "next/link";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { OrgSubscriptionStatus, PaymentStatus, SupportThreadStatus } from "@prisma/client";
@@ -9,7 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/currency";
 import { formatDateTimeDMY } from "@/lib/date";
+import { localizeAdminActionLabel } from "@/lib/admin/localization";
 import { getActorSystemFlagRole } from "@/lib/system-flags";
+import { getLocalizedText, LANGUAGE_LOCALES, normalizeLanguage } from "@/lib/i18n";
 
 type AdminSearchParams = {
   tenant?: string;
@@ -24,6 +27,14 @@ type RiskItem = {
   severity: "HIGH" | "MEDIUM" | "LOW";
   context: string;
   href: string;
+};
+
+type RenewalJobMetadata = {
+  processed?: number;
+  succeeded?: number;
+  pending?: number;
+  skipped?: number;
+  failed?: number;
 };
 
 const RANGE_DAYS: Record<string, number> = {
@@ -42,8 +53,8 @@ function startOfUtcDay(date: Date) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
 
-function toShortDay(date: Date) {
-  return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short" }).format(date);
+function toShortDay(date: Date, locale: string) {
+  return new Intl.DateTimeFormat(locale, { day: "2-digit", month: "short" }).format(date);
 }
 
 function parseRange(value?: string | null) {
@@ -58,7 +69,7 @@ function toPercent(value: number) {
 }
 
 function formatResponseTime(minutes: number | null) {
-  if (minutes == null || !Number.isFinite(minutes)) return "—";
+  if (minutes == null || !Number.isFinite(minutes)) return "--";
   if (minutes < 60) return `${Math.round(minutes)}m`;
   const hours = Math.floor(minutes / 60);
   const mins = Math.round(minutes % 60);
@@ -69,7 +80,19 @@ function metricText(value: number) {
   return new Intl.NumberFormat("en-US").format(value);
 }
 
-function buildRevenueSeries(payments: Array<{ createdAt: Date; amount: number }>, days: number): RevenuePoint[] {
+function readRenewalJobMetadata(value: unknown): RenewalJobMetadata {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const metadata = value as Record<string, unknown>;
+  return {
+    processed: typeof metadata.processed === "number" ? metadata.processed : 0,
+    succeeded: typeof metadata.succeeded === "number" ? metadata.succeeded : 0,
+    pending: typeof metadata.pending === "number" ? metadata.pending : 0,
+    skipped: typeof metadata.skipped === "number" ? metadata.skipped : 0,
+    failed: typeof metadata.failed === "number" ? metadata.failed : 0,
+  };
+}
+
+function buildRevenueSeries(payments: Array<{ createdAt: Date; amount: number }>, days: number, locale: string): RevenuePoint[] {
   const today = startOfUtcDay(new Date());
   const firstDay = withDaysAgo(today, days - 1);
   const buckets = new Map<string, number>();
@@ -83,17 +106,20 @@ function buildRevenueSeries(payments: Array<{ createdAt: Date; amount: number }>
     buckets.set(key, (buckets.get(key) || 0) + payment.amount);
   }
   return Array.from(buckets.entries()).map(([key, value]) => ({
-    name: toShortDay(new Date(`${key}T00:00:00.000Z`)),
+    name: toShortDay(new Date(`${key}T00:00:00.000Z`), locale),
     value: Number(value.toFixed(2)),
   }));
 }
 
-function systemHealthStatus(input: {
+function systemHealthStatus(
+  input: {
   webhookFailures24h: number;
   automationErrors24h: number;
   failedPayments30d: number;
   slaBreaches: number;
-}) {
+  },
+  t: (en: string, fr?: string, de?: string, es?: string, pt?: string) => string
+) {
   const incident =
     input.webhookFailures24h >= 20 ||
     input.automationErrors24h >= 20 ||
@@ -101,7 +127,7 @@ function systemHealthStatus(input: {
     input.slaBreaches >= 10;
   if (incident) {
     return {
-      label: "Incident",
+      label: t("Incident", "Incident", "Stoerfall", "Incidente", "Incidente"),
       tone: "border-rose-200 bg-rose-50/85 dark:border-rose-500/40 dark:bg-rose-500/10",
       statusTextClass: "text-rose-700 dark:text-rose-300",
       statusDotClass: "bg-rose-500",
@@ -114,70 +140,73 @@ function systemHealthStatus(input: {
     input.slaBreaches >= 3;
   if (degraded) {
     return {
-      label: "Degraded",
+      label: t("Degraded", "Degrade", "Beeintraechtigt", "Degradado", "Degradado"),
       tone: "border-amber-400 bg-amber-50 dark:border-amber-500/40 dark:bg-amber-500/10",
       statusTextClass: "text-amber-700 dark:text-amber-300",
       statusDotClass: "bg-amber-600",
     };
   }
   return {
-    label: "Healthy",
+    label: t("Healthy", "Sain", "Gesund", "Saludable", "Saudavel"),
     tone: "border-emerald-200 bg-emerald-50/85 dark:border-emerald-500/40 dark:bg-emerald-500/10",
     statusTextClass: "text-emerald-700 dark:text-emerald-300",
     statusDotClass: "bg-emerald-600",
   };
 }
 
-function buildRiskItems(input: {
+function buildRiskItems(
+  input: {
   webhookFailures24h: number;
   automationErrors24h: number;
   failedPayments30d: number;
   supportBreaches: number;
   openSupportTickets: number;
-}): RiskItem[] {
+  },
+  t: (en: string, fr?: string, de?: string, es?: string, pt?: string) => string
+): RiskItem[] {
   const items: RiskItem[] = [];
   if (input.webhookFailures24h >= 3) {
     items.push({
       id: "webhook",
-      title: "Webhook retry spike detected",
+      title: t("Webhook retry spike detected", "Pic de nouvelles tentatives webhook detecte", "Anstieg bei Webhook-Wiederholungen erkannt", "Pico de reintentos de webhook detectado", "Pico de repeticoes de webhook detetado"),
       severity: input.webhookFailures24h >= 10 ? "HIGH" : "MEDIUM",
-      context: `${metricText(input.webhookFailures24h)} failures in the last 24 hours.`,
+      context: `${metricText(input.webhookFailures24h)} ${t("failures in the last 24 hours.", "echecs au cours des dernieres 24 heures.", "Fehler in den letzten 24 Stunden.", "fallos en las ultimas 24 horas.", "falhas nas ultimas 24 horas.")}`,
       href: "/admin/logs",
     });
   }
   if (input.automationErrors24h >= 5) {
     items.push({
       id: "automation",
-      title: "Automation failures increasing",
+      title: t("Automation failures increasing", "Les echecs d'automatisation augmentent", "Automatisierungsfehler nehmen zu", "Los fallos de automatización aumentan", "As falhas de automação estão a aumentar"),
       severity: input.automationErrors24h >= 15 ? "HIGH" : "MEDIUM",
-      context: `${metricText(input.automationErrors24h)} failed runs in 24 hours.`,
+      context: `${metricText(input.automationErrors24h)} ${t("failed runs in 24 hours.", "executions échouées en 24 heures.", "fehlgeschlagene Laeufe in 24 Stunden.", "ejecuciones fallidas en 24 horas.", "execucoes falhadas em 24 horas.")}`,
       href: "/admin/automation/errors",
     });
   }
   if (input.failedPayments30d >= 5) {
     items.push({
       id: "payments",
-      title: "Failed subscription payments rising",
+      title: t("Failed subscription payments rising", "Les paiements d'abonnement échoués augmentent", "Fehlgeschlagene Abo-Zahlungen nehmen zu", "Los pagos fallidos de suscripciones aumentan", "Os pagamentos falhados de subscricoes estão a aumentar"),
       severity: input.failedPayments30d >= 20 ? "HIGH" : "MEDIUM",
-      context: `${metricText(input.failedPayments30d)} failed subscription charges in 30 days.`,
+      context: `${metricText(input.failedPayments30d)} ${t("failed subscription charges in 30 days.", "paiements d'abonnement échoués en 30 jours.", "fehlgeschlagene Abo-Belastungen in 30 Tagen.", "cobros fallidos de suscripciones en 30 dias.", "cobrancas falhadas de subscricoes em 30 dias.")}`,
       href: "/admin/users",
     });
   }
   if (input.supportBreaches >= 1) {
     items.push({
       id: "sla",
-      title: "Support SLA breaches detected",
+      title: t("Support SLA breaches detected", "Violations du SLA de support detectees", "Support-SLA-Verstoesse erkannt", "Se detectaron incumplimientos del SLA de soporte", "Foram detetadas violacoes de SLA de suporte"),
       severity: input.supportBreaches >= 8 ? "HIGH" : "MEDIUM",
-      context: `${metricText(input.supportBreaches)} tickets breached first-response SLA.`,
+      context: `${metricText(input.supportBreaches)} ${t("tickets breached first-response SLA.", "tickets ont depasse le SLA de premiere réponse.", "Tickets haben das SLA fuer die erste Antwort verletzt.", "tickets incumplieron el SLA de primera respuesta.", "tickets violaram o SLA da primeira resposta.")}`,
       href: "/admin/support",
     });
   }
   if (input.openSupportTickets >= 20) {
     items.push({
       id: "support-volume",
-      title: "Open support volume elevated",
+      title: t("Open support volume elevated", "Volume de support ouvert élevé", "Offenes Support-Volumen erhoeht", "Volumen abierto de soporte elevado", "Volume aberto de suporte elevado"),
       severity: "LOW",
-      context: `${metricText(input.openSupportTickets)} open tickets currently in queue.`,
+      context: `${metricText(input.openSupportTickets)} ${t("open tickets currently in queue.", "tickets ouverts actuellement en file d'attente.", "offene Tickets derzeit in der Warteschlange.", "tickets abiertos actualmente en cola.", "tickets abertos atualmente na fila.")}`,
       href: "/admin/support",
     });
   }
@@ -193,32 +222,6 @@ function buildRiskItems(input: {
     .slice(0, 5);
 }
 
-function actionLabel(actionType: string) {
-  const key = String(actionType || "").toUpperCase();
-  const labels: Record<string, string> = {
-    SUBSCRIPTION_UPGRADED: "Tenant upgraded plan",
-    SUBSCRIPTION_DOWNGRADED: "Tenant downgraded plan",
-    SUBSCRIPTION_DOWNGRADE_SCHEDULED: "Subscription downgrade scheduled",
-    SUBSCRIPTION_DOWNGRADE_CANCELED: "Subscription downgrade canceled",
-    SUBSCRIPTION_DOWNGRADE_APPLIED: "Subscription downgrade applied",
-    SUBSCRIPTION_PENDING_DOWNGRADES_APPLIED: "Pending downgrades job ran",
-    SUBSCRIPTION_DOWNGRADE_SKIPPED_PROVIDER_MANAGED: "Provider-managed downgrade skipped",
-    SUBSCRIPTION_CANCELED: "Subscription canceled",
-    SUBSCRIPTION_CANCEL_SCHEDULED: "Subscription cancel scheduled",
-    SUBSCRIPTION_RENEWAL_RESUMED: "Subscription renewal resumed",
-    "TENANT.SUSPENDED": "Tenant suspended",
-    "TENANT.REACTIVATED": "Tenant reactivated",
-    BUSINESS_SETTINGS_UPDATED: "Business settings updated",
-    PAYOUT_SETTINGS_UPDATED: "Payout settings changed",
-    MEMBER_REMOVED: "Member removed",
-    MEMBER_PROMOTED_TO_ADMIN: "Member promoted to admin",
-    ADMIN_DEMOTED_TO_MEMBER: "Admin demoted to member",
-    INVITE_CREATED: "Team invite created",
-    INVITE_ACCEPTED: "Team invite accepted",
-  };
-  return labels[key] || actionType;
-}
-
 function hrefWithParams(params: { tenantId?: string | null; range: string; nextRange?: string }) {
   const query = new URLSearchParams();
   if (params.tenantId) query.set("tenant", params.tenantId);
@@ -231,6 +234,10 @@ export default async function AdminPage({
 }: {
   searchParams?: Promise<AdminSearchParams>;
 }) {
+  const cookieStore = await cookies();
+  const language = normalizeLanguage(cookieStore.get("maboria_language")?.value);
+  const t = (en: string, fr?: string, de?: string, es?: string, pt?: string) =>
+    getLocalizedText({ en, fr, de, es, pt }, language);
   const session = await getServerSession(authOptions);
   const actorRole = session?.user?.id ? await getActorSystemFlagRole(session.user.id) : "USER";
   if (!session?.user || (actorRole !== "OPS_ADMIN" && actorRole !== "SUPER_ADMIN")) {
@@ -279,6 +286,11 @@ export default async function AdminPage({
     successfulPayments90d,
     canceledEvents30d,
     timelineEvents,
+    dueRenewalsNow,
+    pendingRenewalsNow,
+    successfulRenewals24h,
+    failedRenewals24h,
+    latestRenewalProcessorRun,
   ] = await Promise.all([
     hasTenantScope
       ? prisma.unifiedAuditEvent.count({
@@ -408,6 +420,58 @@ export default async function AdminPage({
           },
         })
       : [],
+    hasTenantScope
+      ? prisma.orgSubscription.count({
+          where: {
+            orgId: { in: scopedTenantIds },
+            provider: "FLUTTERWAVE",
+            OR: [{ paidThroughAt: { lte: now } }, { currentCycleEndAt: { lte: now } }],
+          },
+        })
+      : 0,
+    hasOwnerScope
+      ? prisma.checkoutSession.count({
+          where: {
+            userId: { in: scopedOwnerIds },
+            provider: "FLUTTERWAVE",
+            status: { in: ["CREATED", "REDIRECTED"] },
+            providerPayload: { path: ["checkoutContext", "action"], equals: "renewal" },
+          },
+        })
+      : 0,
+    hasOwnerScope
+      ? prisma.payment.count({
+          where: {
+            userId: { in: scopedOwnerIds },
+            status: PaymentStatus.SUCCEEDED,
+            createdAt: { gte: last24h },
+            metadata: { path: ["action"], equals: "renewal" },
+          },
+        })
+      : 0,
+    hasOwnerScope
+      ? prisma.checkoutSession.count({
+          where: {
+            userId: { in: scopedOwnerIds },
+            provider: "FLUTTERWAVE",
+            status: "FAILED",
+            createdAt: { gte: last24h },
+            providerPayload: { path: ["checkoutContext", "action"], equals: "renewal" },
+          },
+        })
+      : 0,
+    hasTenantScope
+      ? prisma.activityLog.findFirst({
+          where: {
+            action: "SUBSCRIPTION_RENEWALS_PROCESSED",
+          },
+          orderBy: { timestamp: "desc" },
+          select: {
+            timestamp: true,
+            metadata: true,
+          },
+        })
+      : null,
   ]);
 
   const revenuePoints = successfulPayments90d.map((payment) => ({
@@ -428,7 +492,8 @@ export default async function AdminPage({
   const churnRate = (canceledEvents30d / Math.max(activeSubscribers + canceledEvents30d, 1)) * 100;
   const revenueSeries = buildRevenueSeries(
     revenuePoints.filter((point) => point.createdAt >= rangeStart),
-    rangeDays
+    rangeDays,
+    LANGUAGE_LOCALES[language]
   );
 
   const avgResponseMinutes = respondedTickets.length
@@ -444,7 +509,7 @@ export default async function AdminPage({
     failedPayments30d,
     supportBreaches,
     openSupportTickets,
-  });
+  }, t);
   const hasHighRisk = risks.some((risk) => risk.severity === "HIGH");
 
   const status = systemHealthStatus({
@@ -452,53 +517,54 @@ export default async function AdminPage({
     automationErrors24h,
     failedPayments30d,
     slaBreaches: supportBreaches,
-  });
+  }, t);
 
   const metrics = [
     {
-      label: "Webhook failures (24h)",
+      label: t("Webhook failures (24h)", "Echecs webhook (24h)", "Webhook-Fehler (24h)", "Fallos de webhook (24h)", "Falhas de webhook (24h)"),
       value: metricText(webhookFailures24h),
       href: "/admin/logs",
     },
     {
-      label: "Automation errors (24h)",
+      label: t("Automation errors (24h)", "Erreurs d'automatisation (24h)", "Automatisierungsfehler (24h)", "Errores de automatización (24h)", "Erros de automação (24h)"),
       value: metricText(automationErrors24h),
       href: "/admin/automation/errors",
     },
     {
-      label: "Failed subscription payments (30d)",
+      label: t("Failed subscription payments (30d)", "Paiements d'abonnement échoués (30j)", "Fehlgeschlagene Abo-Zahlungen (30 T.)", "Pagos fallidos de suscripciones (30d)", "Pagamentos falhados de subscricoes (30d)"),
       value: metricText(failedPayments30d),
       href: "/admin/users",
     },
     {
-      label: "Active subscribers",
+      label: t("Active subscribers", "Abonnes actifs", "Aktive Abonnenten", "Suscriptores activos", "Subscritores ativos"),
       value: metricText(activeSubscribers),
       href: "/admin/users",
     },
     {
-      label: "Open support tickets",
+      label: t("Open support tickets", "Tickets de support ouverts", "Offene Support-Tickets", "Tickets de soporte abiertos", "Tickets de suporte abertos"),
       value: metricText(openSupportTickets),
       href: "/admin/support",
     },
     {
-      label: "Rate limit spikes (24h)",
+      label: t("Rate limit spikes (24h)", "Pics de limite de debit (24h)", "Rate-Limit-Spitzen (24h)", "Picos de limite de tasa (24h)", "Picos de limite de taxa (24h)"),
       value: metricText(rateLimitSpikes24h),
       href: "/admin/logs",
     },
   ];
+  const latestRenewalJob = readRenewalJobMetadata(latestRenewalProcessorRun?.metadata);
 
   const riskSection = (
     <section className="rounded-2xl border border-border/70 bg-card p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-foreground">Risks & alerts</h2>
+        <h2 className="text-lg font-semibold text-foreground">{t("Risks & alerts", "Risques et alertes", "Risiken und Warnungen", "Riesgos y alertas", "Riscos e alertas")}</h2>
         <Link href="/admin/logs">
           <Button size="sm" variant="secondary">
-            View Logs
+            {t("View Logs", "Voir les journaux", "Protokolle ansehen", "Ver registros", "Ver registos")}
           </Button>
         </Link>
       </div>
       {risks.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Platform stable — no active risks.</p>
+        <p className="text-sm text-muted-foreground">{t("Platform stable, no active risks.", "Plateforme stable, aucun risque actif.", "Plattform stabil, keine aktiven Risiken.", "Plataforma estable, sin riesgos activos.", "Plataforma estavel, sem riscos ativos.")}</p>
       ) : (
         <div className="space-y-3">
           {risks.map((risk) => (
@@ -516,7 +582,7 @@ export default async function AdminPage({
                   risk.severity === "HIGH" ? "danger" : risk.severity === "MEDIUM" ? "warning" : "default"
                 }
               >
-                {risk.severity}
+                {risk.severity === "HIGH" ? t("High", "Eleve", "Hoch", "Alto", "Alto") : risk.severity === "MEDIUM" ? t("Medium", "Moyen", "Mittel", "Medio", "Medio") : t("Low", "Faible", "Niedrig", "Bajo", "Baixo")}
               </Badge>
             </Link>
           ))}
@@ -536,25 +602,25 @@ export default async function AdminPage({
       <section className={`rounded-2xl border p-6 ${status.tone}`}>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Admin Dashboard</p>
-            <h1 className="mt-2 text-3xl font-semibold text-foreground">Command Center</h1>
-            <p className="mt-2 text-sm text-muted-foreground">Executive platform signal for stability, risk, and subscriber health.</p>
+            <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">{t("Admin Dashboard", "Tableau de bord admin", "Admin-Dashboard", "Panel de administración", "Painel de administração")}</p>
+            <h1 className="mt-2 text-3xl font-semibold text-foreground">{t("Command Center", "Centre de commande", "Leitstand", "Centro de mando", "Centro de comando")}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">{t("Executive platform signal for stability, risk, and subscriber health.", "Vue executive de la plateforme pour la stabilite, le risque et la sante des abonnes.", "Management-Ueberblick zu Stabilitaet, Risiko und Abonnentenstatus.", "Vista ejecutiva de la plataforma para estabilidad, riesgo y salud de suscriptores.", "Visao executiva da plataforma para estabilidade, risco e saude dos subscritores.")}</p>
           </div>
           <form method="GET" className="flex items-end gap-2">
             <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Tenant scope</label>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">{t("Tenant scope", "Portee locataire", "Mandantenbereich", "Alcance del tenant", "Escopo do tenant")}</label>
               <select
                 name="tenant"
                 defaultValue={selectedTenant?.id || "all"}
                 className="h-10 min-w-[220px] rounded-lg border border-border/70 bg-background px-3 text-sm text-foreground"
               >
-                <option value="all">All tenants</option>
+                <option value="all">{t("All tenants", "Tous les locataires", "Alle Mandanten", "Todos los tenants", "Todos os tenants")}</option>
                 {tenantOptions}
               </select>
             </div>
             <input type="hidden" name="range" value={selectedRange} />
             <Button size="sm" type="submit">
-              Apply
+              {t("Apply", "Appliquer", "Anwenden", "Aplicar", "Aplicar")}
             </Button>
           </form>
         </div>
@@ -564,14 +630,14 @@ export default async function AdminPage({
           <span>{status.label}</span>
         </div>
 
-        <div className="mt-5 grid gap-2 md:grid-cols-3 xl:grid-cols-6">
+        <div className="mt-5 grid gap-2 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
           {metrics.map((metric) => (
             <Link
               key={metric.label}
               href={metric.href}
-              className="rounded-lg border border-transparent px-3 py-2 transition hover:border-border/50 hover:bg-background/50"
+              className="min-w-0 rounded-lg border border-transparent px-3 py-2 transition hover:border-border/50 hover:bg-background/50"
             >
-              <p className="text-xs text-muted-foreground">{metric.label}</p>
+              <p className="text-xs leading-5 text-muted-foreground break-words">{metric.label}</p>
               <p className="mt-1 text-lg font-semibold text-foreground">{metric.value}</p>
             </Link>
           ))}
@@ -583,8 +649,8 @@ export default async function AdminPage({
       <section className="rounded-2xl border border-border/70 bg-card p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-foreground">Revenue snapshot</h2>
-            <p className="text-sm text-muted-foreground">Subscriber revenue only (Paystack + Flutterwave).</p>
+            <h2 className="text-lg font-semibold text-foreground">{t("Revenue snapshot", "Aperçu des revenus", "Umsatzueberblick", "Resumen de ingresos", "Resumo da receita")}</h2>
+            <p className="text-sm text-muted-foreground">{t("Subscriber revenue only (Paystack + Flutterwave).", "Revenus des abonnes uniquement (Paystack + Flutterwave).", "Nur Abo-Umsaetze (Paystack + Flutterwave).", "Solo ingresos de suscriptores (Paystack + Flutterwave).", "Apenas receita de subscritores (Paystack + Flutterwave).")}</p>
           </div>
           <div className="inline-flex rounded-lg border border-border/70 bg-muted/20 p-1">
             {(["7d", "30d", "90d"] as const).map((rangeOption) => (
@@ -603,28 +669,28 @@ export default async function AdminPage({
           </div>
         </div>
 
-        <div className="grid gap-4 border-b border-border/60 pb-4 md:grid-cols-4">
+        <div className="grid gap-4 border-b border-border/60 pb-4 md:grid-cols-2 xl:grid-cols-4">
           <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">MRR</p>
+            <p className="text-xs uppercase leading-5 tracking-[0.1em] text-muted-foreground break-words">{t("MRR", "MRR", "MRR", "MRR", "MRR")}</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{formatCurrency(currentMrrRevenue, "USD")}</p>
           </div>
           <div className="text-center">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">30-day growth</p>
+            <p className="text-xs uppercase leading-5 tracking-[0.1em] text-muted-foreground break-words">{t("30-day growth", "Croissance sur 30 jours", "30-Tage-Wachstum", "Crecimiento de 30 dias", "Crescimento de 30 dias")}</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{toPercent(growth30d)}</p>
           </div>
           <div className="text-center">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Active subscribers</p>
+            <p className="text-xs uppercase leading-5 tracking-[0.1em] text-muted-foreground break-words">{t("Active subscribers", "Abonnes actifs", "Aktive Abonnenten", "Suscriptores actifs", "Subscritores ativos")}</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{metricText(activeSubscribers)}</p>
           </div>
           <div className="text-center">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Churn rate</p>
+            <p className="text-xs uppercase leading-5 tracking-[0.1em] text-muted-foreground break-words">{t("Churn rate", "Taux de churn", "Abwänderungsrate", "Tasa de cancelación", "Taxa de churn")}</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{toPercent(churnRate)}</p>
           </div>
         </div>
 
         <div className="mt-4">
           <p className="mb-2 text-xs text-muted-foreground">
-            Revenue in selected range: <span className="font-semibold text-foreground">{formatCurrency(currentRangeRevenue, "USD")}</span>
+            {t("Revenue in selected range:", "Revenus sur la periode selectionnee :", "Umsatz im ausgewaehlten Zeitraum:", "Ingresos en el rango seleccionado:", "Receita no intervalo selecionado:")} <span className="font-semibold text-foreground">{formatCurrency(currentRangeRevenue, "USD")}</span>
           </p>
           <MiniAreaChart data={revenueSeries} />
         </div>
@@ -632,27 +698,27 @@ export default async function AdminPage({
 
       {!hasHighRisk ? riskSection : null}
 
-      <section className="grid gap-4 md:grid-cols-[1fr_1.4fr]">
+      <section className="grid gap-4 xl:grid-cols-[1fr_1fr_1.4fr]">
         <div className="rounded-2xl border border-border/70 bg-card p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-foreground">Support snapshot</h2>
+            <h2 className="text-lg font-semibold text-foreground">{t("Support snapshot", "Aperçu du support", "Support-Ueberblick", "Resumen de soporte", "Resumo do suporte")}</h2>
             <Link href="/admin/support">
               <Button size="sm" variant="secondary">
-                View Support
+                {t("View Support", "Voir le support", "Support ansehen", "Ver soporte", "Ver suporte")}
               </Button>
             </Link>
           </div>
           <div className="space-y-3 text-sm">
             <div className="flex items-center justify-between border-b border-border/50 pb-2">
-              <span className="text-muted-foreground">Open tickets</span>
+              <span className="text-muted-foreground">{t("Open tickets", "Tickets ouverts", "Offene Tickets", "Tickets abiertos", "Tickets abertos")}</span>
               <span className="font-semibold text-foreground">{metricText(openSupportTickets)}</span>
             </div>
             <div className="flex items-center justify-between border-b border-border/50 pb-2">
-              <span className="text-muted-foreground">Tickets breaching SLA</span>
+              <span className="text-muted-foreground">{t("Tickets breaching SLA", "Tickets depassant le SLA", "Tickets mit SLA-Verletzung", "Tickets que incumplen el SLA", "Tickets que violam o SLA")}</span>
               <span className="font-semibold text-foreground">{metricText(supportBreaches)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Average response time</span>
+              <span className="text-muted-foreground">{t("Average response time", "Temps de réponse moyen", "Durchschnittliche Antwortzeit", "Tiempo medio de respuesta", "Tempo medio de resposta")}</span>
               <span className="font-semibold text-foreground">{formatResponseTime(avgResponseMinutes)}</span>
             </div>
           </div>
@@ -660,23 +726,71 @@ export default async function AdminPage({
 
         <div className="rounded-2xl border border-border/70 bg-card p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-foreground">Critical activity</h2>
+            <h2 className="text-lg font-semibold text-foreground">{t("Recurring renewals", "Renouvellements recurrents", "Wiederkehrende Verlaengerungen", "Renovaciones recurrentes", "Renovacoes recorrentes")}</h2>
+            <Link href="/admin/users">
+              <Button size="sm" variant="secondary">
+                {t("View Billing", "Voir la facturation", "Abrechnung ansehen", "Ver facturación", "Ver faturação")}
+              </Button>
+            </Link>
+          </div>
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center justify-between border-b border-border/50 pb-2">
+              <span className="text-muted-foreground">{t("Due now", "Echeance immediate", "Jetzt faellig", "Vence ahora", "Vence agora")}</span>
+              <span className="font-semibold text-foreground">{metricText(dueRenewalsNow)}</span>
+            </div>
+            <div className="flex items-center justify-between border-b border-border/50 pb-2">
+              <span className="text-muted-foreground">{t("Pending customer action", "Action client en attente", "Ausstehende Kundenaktion", "Acción de cliente pendiente", "Ação do cliente pendente")}</span>
+              <span className="font-semibold text-foreground">{metricText(pendingRenewalsNow)}</span>
+            </div>
+            <div className="flex items-center justify-between border-b border-border/50 pb-2">
+              <span className="text-muted-foreground">{t("Succeeded (24h)", "Reussi (24h)", "Erfolgreich (24h)", "Exitosos (24h)", "Concluidos (24h)")}</span>
+              <span className="font-semibold text-foreground">{metricText(successfulRenewals24h)}</span>
+            </div>
+            <div className="flex items-center justify-between border-b border-border/50 pb-2">
+              <span className="text-muted-foreground">{t("Failed attempts (24h)", "Tentatives échouées (24h)", "Fehlgeschlagene Versuche (24h)", "Intentos fallidos (24h)", "Tentativas falhadas (24h)")}</span>
+              <span className="font-semibold text-foreground">{metricText(failedRenewals24h)}</span>
+            </div>
+            <div className="rounded-xl border border-border/60 bg-muted/15 px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("Last processor run", "Derniere execution du processeur", "Letzter Prozesslauf", "Ultima ejecucion del procesador", "Ultima execucao do processador")}</p>
+              <p className="mt-2 text-sm font-semibold text-foreground">
+                {latestRenewalProcessorRun?.timestamp
+                  ? formatDateTimeDMY(latestRenewalProcessorRun.timestamp, LANGUAGE_LOCALES[language])
+                  : t("No renewal job run recorded yet", "Aucune execution du job de renouvellement enregistree pour l'instant", "Noch kein Lauf des Verlaengerungsjobs aufgezeichnet", "Aún no hay ejecuciones registradas del proceso de renovacion", "Ainda não ha execucoes registadas do processo de renovacao")}
+              </p>
+              {latestRenewalProcessorRun?.timestamp ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {t("Processed", "Traites", "Verarbeitet", "Procesados", "Processados")} {metricText(latestRenewalJob.processed || 0)} | {t("Succeeded", "Reussis", "Erfolgreich", "Exitosos", "Concluidos")}{" "}
+                  {metricText(latestRenewalJob.succeeded || 0)} | {t("Pending", "En attente", "Ausstehend", "Pendientes", "Pendentes")} {metricText(latestRenewalJob.pending || 0)} | {t("Failed", "Echoues", "Fehlgeschlagen", "Fallidos", "Falhados")}{" "}
+                  {metricText(latestRenewalJob.failed || 0)}
+                </p>
+              ) : (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {t("This card tracks the Flutterwave renewal processor and pending customer-auth renewals.", "Cette carte suit le processeur de renouvellement Flutterwave et les renouvellements clients en attente d'authentification.", "Diese Karte verfolgt den Flutterwave-Verlaengerungsprozess und ausstehende kundenautorisierte Verlaengerungen.", "Esta tarjeta sigue el procesador de renovacion de Flutterwave y las renovaciones pendientes de autenticacion del cliente.", "Este cartao acompanha o processador de renovacao da Flutterwave e as renovacoes pendentes de autenticação do cliente.")}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border/70 bg-card p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-foreground">{t("Critical activity", "Activite critique", "Kritische Aktivitaet", "Actividad critica", "Atividade critica")}</h2>
             <Link href="/admin/logs">
               <Button size="sm" variant="secondary">
-                View Audit Logs
+                {t("View Audit Logs", "Voir les journaux d'audit", "Audit-Protokolle ansehen", "Ver registros de auditoria", "Ver registos de auditoria")}
               </Button>
             </Link>
           </div>
           {timelineEvents.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No critical events in the selected scope.</p>
+            <p className="text-sm text-muted-foreground">{t("No critical events in the selected scope.", "Aucun evenement critique dans la portee selectionnee.", "Keine kritischen Ereignisse im ausgewaehlten Bereich.", "No hay eventos criticos en el alcance seleccionado.", "Não ha eventos criticos no escopo selecionado.")}</p>
           ) : (
             <div className="space-y-3">
               {timelineEvents.map((event) => (
                 <div key={event.id} className="border-b border-border/50 pb-3 last:border-b-0 last:pb-0">
-                  <p className="text-sm font-semibold text-foreground">{actionLabel(event.actionType || event.id)}</p>
+                  <p className="text-sm font-semibold text-foreground">{localizeAdminActionLabel(event.actionType || event.id, language, event.actionType || event.id)}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {formatDateTimeDMY(event.createdAt)}
-                    {event.orgId ? ` · tenant ${event.orgId}` : ""}
+                    {formatDateTimeDMY(event.createdAt, LANGUAGE_LOCALES[language])}
+                    {event.orgId ? ` - tenant ${event.orgId}` : ""}
                   </p>
                 </div>
               ))}
@@ -687,3 +801,4 @@ export default async function AdminPage({
     </div>
   );
 }
+

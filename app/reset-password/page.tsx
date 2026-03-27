@@ -16,16 +16,15 @@ import {
 
 type ValidationState = "checking" | "valid" | "invalid";
 
-function getPasswordStrength(password: string) {
-  if (!password) return { label: "Empty", width: "0%", tone: "bg-slate-300" };
-  if (password.length < MIN_PASSWORD_LENGTH) return { label: "Weak", width: "35%", tone: "bg-rose-500" };
-  if (password.length < 12) return { label: "Medium", width: "65%", tone: "bg-amber-500" };
-  return { label: "Strong", width: "100%", tone: "bg-emerald-500" };
+function getPasswordStrengthLabel(password: string, t: ReturnType<typeof useLanguage>["t"]) {
+  if (!password) return t("Empty", "Vide", "Leer", "Vacio", "Vazio");
+  if (password.length < MIN_PASSWORD_LENGTH) return t("Weak", "Faible", "Schwach", "Debil", "Fraca");
+  if (password.length < 12) return t("Medium", "Moyen", "Mittel", "Media", "Media");
+  return t("Strong", "Fort", "Stark", "Fuerte", "Forte");
 }
 
 export default function ResetPasswordPage() {
-  const { language } = useLanguage();
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const { t } = useLanguage();
   const token = useSearchParams().get("token") || "";
   const router = useRouter();
   const [validationState, setValidationState] = useState<ValidationState>("checking");
@@ -36,7 +35,14 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const logoSrc = "/branding/Maboria%20Company%20logo.png";
-  const strength = useMemo(() => getPasswordStrength(password), [password]);
+  const strength = useMemo(
+    () => ({
+      label: getPasswordStrengthLabel(password, t),
+      width: !password ? "0%" : password.length < MIN_PASSWORD_LENGTH ? "35%" : password.length < 12 ? "65%" : "100%",
+      tone: !password ? "bg-slate-300" : password.length < MIN_PASSWORD_LENGTH ? "bg-rose-500" : password.length < 12 ? "bg-amber-500" : "bg-emerald-500",
+    }),
+    [password, t]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -88,12 +94,12 @@ export default function ResetPasswordPage() {
       });
       const payload = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(payload?.error || t("Reset failed. Please request a new link.", "La reinitialisation a echoue. Demandez un nouveau lien."));
+        setError(payload?.error || t("Reset failed. Please request a new link.", "La reinitialisation a échoué. Demandez un nouveau lien."));
         return;
       }
       router.push("/login?reset=success");
     } catch {
-      setError(t("Reset failed. Please request a new link.", "La reinitialisation a echoue. Demandez un nouveau lien."));
+      setError(t("Reset failed. Please request a new link.", "La reinitialisation a échoué. Demandez un nouveau lien."));
     } finally {
       setLoading(false);
     }

@@ -120,3 +120,4 @@ export function Sidebar({ activeItem = "automation-operations" }: SidebarProps) 
     </aside>
   );
 }
+

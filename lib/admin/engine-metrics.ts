@@ -29,6 +29,11 @@ type SubscriptionRevenueRecord = {
 
 type DeltaDirection = "up" | "down" | "flat";
 type EngineStatusLevel = "HEALTHY" | "AT_RISK" | "CRITICAL";
+const ENGINE_STATUS_LABELS = {
+  CRITICAL: "CRITICAL",
+  HEALTHY: "HEALTHY",
+  AT_RISK: "AT_RISK",
+} as const;
 
 function startOfUtcDay(date: Date) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
@@ -175,7 +180,7 @@ function inferEngineStatus(input: {
     input.failedPayments30d > Math.max(input.failedPaymentsPrevious30d * 1.5, input.failedPaymentsPrevious30d + 4);
 
   if (input.churnRate30d > 7 || failedSpike) {
-    return { level: "CRITICAL", label: "Critical" };
+    return { level: "CRITICAL", label: ENGINE_STATUS_LABELS.CRITICAL };
   }
 
   if (
@@ -183,17 +188,17 @@ function inferEngineStatus(input: {
     input.failedPaymentRate30d < 5 &&
     input.collectionRate30d > 95
   ) {
-    return { level: "HEALTHY", label: "Healthy" };
+    return { level: "HEALTHY", label: ENGINE_STATUS_LABELS.HEALTHY };
   }
 
   if (
     (input.churnRate30d >= 3 && input.churnRate30d <= 7) ||
     input.retrySuccessRate7d < 85
   ) {
-    return { level: "AT_RISK", label: "At Risk" };
+    return { level: "AT_RISK", label: ENGINE_STATUS_LABELS.AT_RISK };
   }
 
-  return { level: "AT_RISK", label: "At Risk" };
+  return { level: "AT_RISK", label: ENGINE_STATUS_LABELS.AT_RISK };
 }
 
 export function parseEngineRange(value: string | null | undefined): EngineRangeKey {

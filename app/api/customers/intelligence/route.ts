@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { customerQuerySchema } from "@/lib/validators";
 import { requireBillingAccess } from "@/lib/permissions";
+import { getVisibleCustomerWhere } from "@/lib/customers";
 import {
   convertCustomerInvoiceAmount,
   convertCustomerPaymentAmount,
@@ -22,6 +23,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: billingAccess.message }, { status: 403 });
   }
   const targetUserId = billingAccess.ownerUserId;
+  const visibilityWhere = await getVisibleCustomerWhere(targetUserId);
 
   const { searchParams } = new URL(request.url);
   const parsed = customerQuerySchema.safeParse({
@@ -38,6 +40,7 @@ export async function GET(request: NextRequest) {
   const skip = Math.max(0, Number(parsed.data.skip || 0));
 
   const where = {
+    ...visibilityWhere,
     userId: targetUserId,
     deletedAt: null as Date | null,
     ...(query
@@ -79,6 +82,7 @@ export async function GET(request: NextRequest) {
     ? await prisma.invoice.findMany({
         where: {
           userId: targetUserId,
+          subscriptionId: null,
           customerId: { in: customerIds },
         },
         select: {

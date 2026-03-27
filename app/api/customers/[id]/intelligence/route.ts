@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateSubscriberSetting, toLateFeeSettingsSnapshot } from "@/lib/subscriber-settings";
 import { requireBillingAccess } from "@/lib/permissions";
+import { getVisibleCustomerWhere } from "@/lib/customers";
 import {
   convertCustomerInvoiceAmount,
   convertCustomerPaymentAmount,
@@ -26,10 +27,12 @@ export async function GET(_request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: billingAccess.message }, { status: 403 });
   }
   const targetUserId = billingAccess.ownerUserId;
+  const visibilityWhere = await getVisibleCustomerWhere(targetUserId);
 
   const [customer, businessProfile, subscriberSetting] = await Promise.all([
     prisma.customer.findFirst({
       where: {
+        ...visibilityWhere,
         id,
         userId: targetUserId,
         deletedAt: null,
@@ -67,6 +70,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
   const invoices = await prisma.invoice.findMany({
     where: {
       userId: targetUserId,
+      subscriptionId: null,
       customerId: customer.id,
     },
     select: {

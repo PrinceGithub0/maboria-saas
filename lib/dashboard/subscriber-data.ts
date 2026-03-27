@@ -348,7 +348,7 @@ export async function getSubscriberDashboardData(input: {
       : Promise.resolve([] as any[]),
     canViewBilling
       ? prisma.invoice.findMany({
-          where: { userId: ownerUserId, generatedAt: { gte: fromDate, lte: toDate } },
+          where: { userId: ownerUserId, subscriptionId: null, generatedAt: { gte: fromDate, lte: toDate } },
           orderBy: { generatedAt: "desc" },
           select: {
             id: true,
@@ -363,7 +363,12 @@ export async function getSubscriberDashboardData(input: {
       : Promise.resolve([] as any[]),
     canViewBilling
       ? prisma.invoice.findMany({
-          where: { userId: ownerUserId, status: "OVERDUE", generatedAt: { gte: fromDate, lte: toDate } },
+          where: {
+            userId: ownerUserId,
+            subscriptionId: null,
+            status: "OVERDUE",
+            generatedAt: { gte: fromDate, lte: toDate },
+          },
           select: { total: true, currency: true },
         })
       : Promise.resolve([] as Array<{ total: number; currency: string }>),

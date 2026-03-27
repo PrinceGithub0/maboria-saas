@@ -3,6 +3,7 @@
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useLanguage } from "@/components/providers/language-provider";
 
 type ViewState = "loading" | "success" | "failed" | "pending";
 
@@ -27,6 +28,7 @@ type CheckoutStatusPayload = {
 };
 
 export default function CheckoutReturnPage() {
+  const { t } = useLanguage();
   const searchParams = useSearchParams();
   const router = useRouter();
   const reference = searchParams.get("reference");
@@ -36,7 +38,7 @@ export default function CheckoutReturnPage() {
 
   const verifyPayment = useCallback(async (): Promise<ViewState> => {
     if (!reference) {
-      setMessage("Missing payment reference.");
+      setMessage(t("Missing payment reference.", "Reference de paiement manquante.", "Fehlende Zahlungsreferenz.", "Falta la referencia del pago.", "Falta a referencia do pagamento."));
       return "failed";
     }
 
@@ -62,7 +64,7 @@ export default function CheckoutReturnPage() {
       { cache: "no-store" }
     );
     if (!checkoutStatusRes.ok) {
-      setMessage("Unable to confirm payment at the moment.");
+      setMessage(t("Unable to confirm payment at the moment.", "Impossible de confirmer le paiement pour le moment.", "Die Zahlung kann derzeit nicht bestatigt werden.", "No se puede confirmar el pago en este momento.", "Não foi possivel confirmar o pagamento neste momento."));
       return "failed";
     }
 
@@ -79,19 +81,19 @@ export default function CheckoutReturnPage() {
     } else if (provider === "flutterwave") {
       verification = await verifyViaApi({ provider: "flutterwave", txRef: reference });
     } else {
-      setMessage("Unable to identify payment provider.");
+      setMessage(t("Unable to identify payment provider.", "Impossible d'identifier le fournisseur de paiement.", "Der Zahlungsanbieter konnte nicht erkannt werden.", "No se pudo identificar el proveedor de pago.", "Não foi possivel identificar o fornecedor de pagamento."));
       return "failed";
     }
 
     if (!verification.ok) {
       const errorText = String(verification.data?.error || "").toLowerCase();
       if (errorText.includes("pending")) return "pending";
-      setMessage("Payment could not be verified yet.");
+      setMessage(t("Payment could not be verified yet.", "Le paiement n'a pas encore pu être verifie.", "Die Zahlung konnte noch nicht verifiziert werden.", "Aún no se pudo verificar el pago.", "Ainda não foi possivel verificar o pagamento."));
       return "failed";
     }
 
     return normalizeVerifyStatus(verification.data?.status);
-  }, [reference]);
+  }, [reference, t]);
 
   const runVerification = useCallback(async () => {
     setView("loading");
@@ -100,16 +102,16 @@ export default function CheckoutReturnPage() {
       const nextView = await verifyPayment();
       setView(nextView);
     } catch {
-      setMessage("Unable to confirm payment at the moment.");
+      setMessage(t("Unable to confirm payment at the moment.", "Impossible de confirmer le paiement pour le moment.", "Die Zahlung kann derzeit nicht bestatigt werden.", "No se puede confirmar el pago en este momento.", "Não foi possivel confirmar o pagamento neste momento."));
       setView("failed");
     }
-  }, [verifyPayment]);
+  }, [t, verifyPayment]);
 
   const handleRetryPayment = useCallback(async () => {
     try {
       setRetrying(true);
       if (!reference) {
-        setMessage("Missing payment reference.");
+        setMessage(t("Missing payment reference.", "Reference de paiement manquante.", "Fehlende Zahlungsreferenz.", "Falta la referencia del pago.", "Falta a referencia do pagamento."));
         return;
       }
 
@@ -119,7 +121,7 @@ export default function CheckoutReturnPage() {
       const statusData = (await statusRes.json().catch(() => ({}))) as CheckoutStatusPayload;
 
       if (!statusRes.ok || !statusData?.checkout?.plan || !statusData?.checkout?.billingCycle) {
-        setMessage("Unable to restore your checkout details for retry.");
+        setMessage(t("Unable to restore your checkout details for retry.", "Impossible de restaurer les details du paiement pour réessayer.", "Die Checkout-Details für einen neuen Versuch können nicht wiederhergestellt werden.", "No se pudieron restaurar los datos del checkout para reintentar.", "Não foi possivel restaurar os detalhes do checkout para repetir."));
         return;
       }
 
@@ -147,14 +149,16 @@ export default function CheckoutReturnPage() {
       }
 
       setMessage(
-        typeof data?.error === "string" ? data.error : "Unable to start a secure retry right now."
+        typeof data?.error === "string"
+          ? data.error
+          : t("Unable to start a secure retry right now.", "Impossible de lancer une nouvelle tentative securisee pour le moment.", "Ein sicherer neuer Versuch kann derzeit nicht gestartet werden.", "No se puede iniciar un nuevo intento seguro en este momento.", "Não foi possivel iniciar uma nova tentativa segura neste momento.")
       );
     } catch {
-      setMessage("Unable to start a secure retry right now.");
+      setMessage(t("Unable to start a secure retry right now.", "Impossible de lancer une nouvelle tentative securisee pour le moment.", "Ein sicherer neuer Versuch kann derzeit nicht gestartet werden.", "No se puede iniciar un nuevo intento seguro en este momento.", "Não foi possivel iniciar uma nova tentativa segura neste momento."));
     } finally {
       setRetrying(false);
     }
-  }, [reference]);
+  }, [reference, t]);
 
   useEffect(() => {
     runVerification();
@@ -177,9 +181,9 @@ export default function CheckoutReturnPage() {
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
                 <Loader2 className="h-6 w-6 animate-spin text-slate-600" />
               </div>
-              <h1 className="mt-5 text-2xl font-semibold tracking-tight text-slate-900">Processing your payment</h1>
+              <h1 className="mt-5 text-2xl font-semibold tracking-tight text-slate-900">{t("Processing your payment", "Traitement de votre paiement", "Deine Zahlung wird verarbeitet", "Procesando tu pago", "A processar o seu pagamento")}</h1>
               <p className="mt-2 text-sm text-slate-600">
-                We&apos;re confirming your transaction securely. Please wait...
+                {t("We're confirming your transaction securely. Please wait...", "Nous confirmons votre transaction en toute sécurité. Veuillez patienter...", "Wir bestätigen deine Transaktion sicher. Bitte warte...", "Estamos confirmando tu transaccion de forma segura. Espera un momento...", "Estamos a confirmar a sua transacao de forma segura. Aguarde...")}
               </p>
             </div>
           )}
@@ -189,9 +193,9 @@ export default function CheckoutReturnPage() {
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
                 <CheckCircle2 className="h-6 w-6 text-emerald-600" />
               </div>
-              <h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-900">Payment successful</h1>
+              <h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-900">{t("Payment successful", "Paiement reussi", "Zahlung erfolgreich", "Pago correcto", "Pagamento bem-sucedido")}</h1>
               <p className="mt-2 text-sm text-slate-600">
-                Your subscription is now active. Redirecting to billing...
+                {t("Your subscription is now active. Redirecting to billing...", "Votre abonnement est maintenant actif. Redirection vers la facturation...", "Dein Abonnement ist jetzt aktiv. Weiterleitung zur Abrechnung...", "Tu suscripción ya esta activa. Redirigiendo a facturación...", "A sua subscrição esta agora ativa. A redirecionar para a faturação...")}
               </p>
             </div>
           )}
@@ -199,9 +203,9 @@ export default function CheckoutReturnPage() {
           {view === "failed" && (
             <div className="text-center">
               <div className="mx-auto h-2 w-16 rounded-full bg-slate-200" />
-              <h1 className="mt-5 text-2xl font-semibold tracking-tight text-slate-900">Payment not completed</h1>
+              <h1 className="mt-5 text-2xl font-semibold tracking-tight text-slate-900">{t("Payment not completed", "Paiement non finalise", "Zahlung nicht abgeschlossen", "Pago no completado", "Pagamento não concluido")}</h1>
               <p className="mt-2 text-sm text-slate-600">
-                It looks like your transaction did not go through. You can retry securely below.
+                {t("It looks like your transaction did not go through. You can retry securely below.", "Il semble que votre transaction n'ait pas abouti. Vous pouvez réessayer en toute sécurité ci-dessous.", "Es sieht so aus, als ware deine Transaktion nicht durchgegangen. Du kannst unten sicher erneut versuchen.", "Parece que tu transaccion no se completo. Puedes volver a intentarlo de forma segura abajo.", "Parece que a sua transacao não foi concluida. Pode tentar novamente em seguranca abaixo.")}
               </p>
               {message ? <p className="mt-3 text-sm text-slate-500">{message}</p> : null}
               <button
@@ -210,7 +214,9 @@ export default function CheckoutReturnPage() {
                 disabled={retrying}
                 className="mt-6 h-14 w-full rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-6 text-base font-semibold text-white transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {retrying ? "Preparing secure checkout..." : "Retry secure payment"}
+                {retrying
+                  ? t("Preparing secure checkout...", "Preparation du paiement securise...", "Sicherer Checkout wird vorbereitet...", "Preparando pago seguro...", "A preparar checkout seguro...")
+                  : t("Retry secure payment", "Reessayer le paiement securise", "Sichere Zahlung erneut versuchen", "Reintentar pago seguro", "Tentar novamente o pagamento seguro")}
               </button>
             </div>
           )}
@@ -218,9 +224,9 @@ export default function CheckoutReturnPage() {
           {view === "pending" && (
             <div className="text-center">
               <div className="mx-auto h-2 w-16 rounded-full bg-slate-200" />
-              <h1 className="mt-5 text-2xl font-semibold tracking-tight text-slate-900">Payment pending</h1>
+              <h1 className="mt-5 text-2xl font-semibold tracking-tight text-slate-900">{t("Payment pending", "Paiement en attente", "Zahlung ausstehend", "Pago pendiente", "Pagamento pendente")}</h1>
               <p className="mt-2 text-sm text-slate-600">
-                We&apos;re still waiting for confirmation from your bank.
+                {t("We're still waiting for confirmation from your bank.", "Nous attendons toujours la confirmation de votre banque.", "Wir warten noch auf die Bestätigung deiner Bank.", "Seguimos esperando la confirmacion de tu banco.", "Continuamos a aguardar a confirmacao do seu banco.")}
               </p>
               {message ? <p className="mt-3 text-sm text-slate-500">{message}</p> : null}
               <button
@@ -228,7 +234,7 @@ export default function CheckoutReturnPage() {
                 onClick={runVerification}
                 className="mt-6 h-14 w-full rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 px-6 text-base font-semibold text-white transition hover:brightness-105"
               >
-                Check again
+                {t("Check again", "Verifier a nouveau", "Erneut prüfen", "Volver a comprobar", "Verificar novamente")}
               </button>
             </div>
           )}

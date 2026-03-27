@@ -4,12 +4,13 @@ import clsx from "clsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Search } from "lucide-react";
 import { COUNTRY_DIAL_CODES, getCountryFlag, getCountryName } from "@/lib/countries";
+import { getLocalizedText, type Language } from "@/lib/i18n";
 
 type CountrySelectProps = {
   label: string;
   value: string;
   onChange: (value: string) => void;
-  locale?: "en" | "fr";
+  locale?: Language;
   required?: boolean;
   placeholder?: string;
   triggerClassName?: string;
@@ -23,7 +24,7 @@ export function CountrySelect({
   onChange,
   locale = "en",
   required,
-  placeholder = "Select country",
+  placeholder,
   triggerClassName,
 }: CountrySelectProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -52,6 +53,28 @@ export function CountrySelect({
   const selectedCode = normalizeCode(value);
   const selectedName = getCountryName(selectedCode, locale);
   const selectedFlag = getCountryFlag(selectedCode);
+  const resolvedPlaceholder =
+    placeholder ||
+    getLocalizedText(
+      {
+        en: "Select country",
+        fr: "Selectionner un pays",
+        de: "Land auswählen",
+        es: "Seleccionar pais",
+        pt: "Selecionar pais",
+      },
+      locale
+    );
+  const searchPlaceholder = getLocalizedText(
+    {
+      en: "Search country",
+      fr: "Rechercher un pays",
+      de: "Land suchen",
+      es: "Buscar pais",
+      pt: "Pesquisar pais",
+    },
+    locale
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -109,7 +132,7 @@ export function CountrySelect({
       >
         <span className="flex items-center gap-2">
           <span className="text-base">{selectedFlag}</span>
-          <span>{selectedName || placeholder}</span>
+          <span>{selectedName || resolvedPlaceholder}</span>
           {selectedCode ? (
             <span className="text-muted-foreground">({selectedCode})</span>
           ) : null}
@@ -128,7 +151,7 @@ export function CountrySelect({
               ref={searchInputRef}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder={locale === "fr" ? "Rechercher un pays" : "Search country"}
+              placeholder={searchPlaceholder}
               className="w-full bg-transparent text-sm text-foreground outline-none"
             />
           </div>

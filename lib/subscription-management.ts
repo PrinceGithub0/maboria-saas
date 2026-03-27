@@ -13,6 +13,7 @@ export type SubscriptionManagementState = {
 export function deriveSubscriptionManagement(input: {
   provider?: string | null;
   providerCustomerId?: string | null;
+  hasReusablePaymentMethod?: boolean;
   stateSource: SubscriptionStateSource;
 }): SubscriptionManagementState {
   const provider = String(input.provider || "").trim().toUpperCase() || null;
@@ -29,6 +30,17 @@ export function deriveSubscriptionManagement(input: {
   }
 
   if (provider) {
+    if (provider === "FLUTTERWAVE" && input.hasReusablePaymentMethod) {
+      return {
+        provider,
+        stateSource: input.stateSource,
+        billingMode: "unmanaged",
+        portalPath: null,
+        canManageAutoRenewInApp: true,
+        canScheduleDowngradeInApp: true,
+      };
+    }
+
     return {
       provider,
       stateSource: input.stateSource,

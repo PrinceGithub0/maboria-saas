@@ -12,6 +12,11 @@ import { useTheme } from "@/components/providers/theme-provider";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { supportEmail, supportMailto } from "@/lib/support/contact";
+import {
+  getSupportDateLocale,
+  localizeSupportCategory,
+  localizeSupportServerMessage,
+} from "@/lib/support/localization";
 import { Paperclip, X } from "lucide-react";
 import Image from "next/image";
 
@@ -98,10 +103,9 @@ const toAttachmentPayload = async (file: File): Promise<SupportAttachmentPayload
 });
 
 export default function SupportTicketDetailsPage() {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const { theme, resolvedTheme } = useTheme();
   const forceLight = theme === "light" || resolvedTheme === "light";
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
   const params = useParams<{ id: string }>();
   const ticketId = String(params?.id || "");
   const { mutate: mutateCache } = useSWRConfig();
@@ -161,27 +165,27 @@ export default function SupportTicketDetailsPage() {
     const normalized = String(status || "").toUpperCase();
     if (normalized === "RESOLVED") {
       return {
-        label: t("Resolved", "Resolue"),
+        label: t("Resolved", "Résolue", "Geloest", "Resuelto", "Resolvido"),
         className:
           "bg-green-100 text-green-700 border-green-200 font-bold dark:bg-green-500/10 dark:text-green-300 dark:border-green-500/40",
       };
     }
     if (normalized === "IN_PROGRESS" || normalized === "PENDING") {
       return {
-        label: t("Pending", "En attente"),
+        label: t("Pending", "En attente", "Ausstehend", "Pendiente", "Pendente"),
         className:
           "bg-amber-100 text-amber-700 border-amber-200 font-bold dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/40",
       };
     }
     if (normalized === "CLOSED") {
       return {
-        label: t("Closed", "Ferme"),
+        label: t("Closed", "Ferme", "Geschlossen", "Cerrado", "Fechado"),
         className:
           "bg-emerald-100 text-emerald-700 border-emerald-200 font-bold dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/40",
       };
     }
     return {
-      label: t("Open", "Ouvert"),
+      label: t("Open", "Ouvert", "Offen", "Abierto", "Aberto"),
       className:
         "bg-orange-100 text-orange-700 border-orange-200 font-bold dark:bg-orange-500/10 dark:text-orange-300 dark:border-orange-500/40",
     };
@@ -196,18 +200,18 @@ export default function SupportTicketDetailsPage() {
 
     for (const file of incoming) {
       if (!ALLOWED_ATTACHMENT_TYPES.includes(file.type as (typeof ALLOWED_ATTACHMENT_TYPES)[number])) {
-        nextError = t("Only JPG, PNG, or PDF files are supported.", "Seuls les fichiers JPG, PNG, ou PDF sont acceptes.");
+        nextError = t("Only JPG, PNG, or PDF files are supported.", "Seuls les fichiers JPG, PNG, ou PDF sont acceptes.", "Nur JPG-, PNG- oder PDF-Dateien werden unterstutzt.", "Solo se admiten archivos JPG, PNG o PDF.", "Apenas sao suportados ficheiros JPG, PNG ou PDF.");
         continue;
       }
       if (file.size > 5 * 1024 * 1024) {
-        nextError = t("Each file must be 5MB or smaller.", "Chaque fichier doit faire 5 Mo maximum.");
+        nextError = t("Each file must be 5MB or smaller.", "Chaque fichier doit faire 5 Mo maximum.", "Jede Datei muss 5 MB oder kleiner sein.", "Cada archivo debe pesar 5 MB o menos.", "Cada ficheiro deve ter 5 MB ou menos.");
         continue;
       }
       if (nextFiles.some((existing) => existing.name === file.name && existing.size === file.size && existing.lastModified === file.lastModified)) {
         continue;
       }
       if (nextFiles.length >= MAX_ATTACHMENTS) {
-        nextError = t("You can attach up to 3 files.", "Vous pouvez joindre jusqu a 3 fichiers.");
+        nextError = t("You can attach up to 3 files.", "Vous pouvez joindre jusqu a 3 fichiers.", "Du kannst bis zu 3 Dateien anhangen.", "Puedes adjuntar hasta 3 archivos.", "Pode anexar at? 3 ficheiros.");
         break;
       }
       nextFiles.push(file);
@@ -232,7 +236,11 @@ export default function SupportTicketDetailsPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setStatus({
-          message: data.error || t("Could not update ticket status.", "Impossible de mettre a jour le statut du ticket."),
+          message: localizeSupportServerMessage(
+            data.error,
+            language,
+            t("Could not update ticket status.", "Impossible de mettre a jour le statut du ticket.", "Ticketstatus konnte nicht aktualisiert werden.", "No se pudo actualizar el estado del ticket.", "Não foi possivel atualizar o estado do ticket.")
+          ),
           variant: "error",
         });
         return;
@@ -240,12 +248,12 @@ export default function SupportTicketDetailsPage() {
       await mutate((current) => (current ? { ...current, ...data } : current), false);
       await revalidateSupportLists();
       setStatus({
-        message: t("Ticket reopened.", "Ticket rouvert."),
+        message: t("Ticket reopened.", "Ticket rouvert.", "Ticket wieder geöffnet.", "Ticket reabierto.", "Ticket reaberto."),
         variant: "success",
       });
     } catch {
       setStatus({
-        message: t("Could not update ticket status.", "Impossible de mettre a jour le statut du ticket."),
+        message: t("Could not update ticket status.", "Impossible de mettre a jour le statut du ticket.", "Ticketstatus konnte nicht aktualisiert werden.", "No se pudo actualizar el estado del ticket.", "Não foi possivel atualizar o estado do ticket."),
         variant: "error",
       });
     } finally {
@@ -258,7 +266,7 @@ export default function SupportTicketDetailsPage() {
     const message = replyMessage.trim();
     if (!message) {
       setStatus({
-        message: t("Reply message is required.", "Le message de reponse est requis."),
+        message: t("Reply message is required.", "Le message de réponse est requis.", "Eine Antwortnachricht ist erforderlich.", "El mensaje de respuesta es obligatorio.", "A mensagem de resposta e obrigatoria."),
         variant: "warning",
       });
       return;
@@ -278,7 +286,11 @@ export default function SupportTicketDetailsPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setStatus({
-          message: data.error || t("Could not send reply.", "Impossible d envoyer la reponse."),
+          message: localizeSupportServerMessage(
+            data.error,
+            language,
+            t("Could not send reply.", "Impossible d envoyer la réponse.", "Antwort konnte nicht gesendet werden.", "No se pudo enviar la respuesta.", "Não foi possivel enviar a resposta.")
+          ),
           variant: "error",
         });
         return;
@@ -289,19 +301,25 @@ export default function SupportTicketDetailsPage() {
       await revalidateSupportLists();
       setStatus({
         message: data.emailError
-          ? t(
-              `Reply saved, but support email delivery failed: ${data.emailError}`,
-              `Reponse enregistree, mais l envoi de l email support a echoue : ${data.emailError}`
-            )
-          : t("Reply sent successfully.", "Reponse envoyee avec succes."),
+          ? t({
+              en: "Reply saved, but support email delivery failed.",
+              fr: "La réponse a ?t? enregistree, mais l envoi de l email support a échoué.",
+              de: "Die Antwort wurde gespeichert, aber die Zustellung der Support-E-Mail ist fehlgeschlagen.",
+              es: "La respuesta se guardo, pero la entrega del correo de soporte fallo.",
+              pt: "A resposta foi guardada, mas a entrega do email de suporte falhou.",
+            })
+          : t("Reply sent successfully.", "Réponse envoyee avec succes.", "Antwort erfolgreich gesendet.", "Respuesta enviada correctamente.", "Resposta enviada com sucesso."),
         variant: data.emailError ? "warning" : "success",
       });
-    } catch (error: any) {
+    } catch {
       setStatus({
-        message: t(
-          `Could not send reply. ${error?.message || "Please try again."}`,
-          `Impossible d envoyer la reponse. ${error?.message || "Veuillez reessayer."}`
-        ),
+        message: t({
+          en: "Could not send reply. Please try again.",
+          fr: "Impossible d envoyer la réponse. Veuillez réessayer.",
+          de: "Antwort konnte nicht gesendet werden. Bitte versuche es erneut.",
+          es: "No se pudo enviar la respuesta. Intentalo de nuevo.",
+          pt: "Não foi possivel enviar a resposta. Tente novamente.",
+        }),
         variant: "error",
       });
     } finally {
@@ -314,20 +332,20 @@ export default function SupportTicketDetailsPage() {
       <section className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-            {t("Support", "Support")}
+            {t("Support", "Support", "Support", "Soporte", "Suporte")}
           </p>
           <h1 className="mt-2 text-3xl font-bold text-slate-900 dark:text-slate-100">
-            {t("Ticket details", "Details du ticket")}
+            {t("Ticket details", "Details du ticket", "Ticketdetails", "Detalles del ticket", "Detalhes do ticket")}
           </h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            {t("Our team replies from ", "Notre equipe repond depuis ")}
+            {t("Our team replies from ", "Notre équipe repond depuis ", "Unser Team antwortet von ", "Nuestro equipo responde desde ", "A nossa equipa responde a partir de ")}
             <a href={supportMailto} className="font-medium hover:text-slate-800 dark:hover:text-slate-200">
               {supportEmail}
             </a>
           </p>
         </div>
         <Link href="/dashboard/support/tickets" className="text-sm font-semibold text-[#2563EB] hover:underline dark:text-[#3B82F6]">
-          {t("Back to all tickets", "Retour a tous les tickets")}
+          {t("Back to all tickets", "Retour a tous les tickets", "Zurück zu allen Tickets", "Volver a todos los tickets", "Voltar a todos os tickets")}
         </Link>
       </section>
 
@@ -340,26 +358,32 @@ export default function SupportTicketDetailsPage() {
           </div>
         ) : null}
         {isLoading ? (
-          <p className="text-sm text-slate-500 dark:text-slate-300">{t("Loading ticket...", "Chargement du ticket...")}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-300">{t("Loading ticket...", "Chargement du ticket...", "Ticket wird geladen...", "Cargando ticket...", "A carregar ticket...")}</p>
         ) : error ? (
           <p className="text-sm text-slate-500 dark:text-slate-300">
             {t(
               "We could not load this ticket right now. Please refresh and try again.",
-              "Nous n avons pas pu charger ce ticket pour le moment. Veuillez actualiser et reessayer."
+              "Nous n'avons pas pu charger ce ticket pour le moment. Veuillez actualiser et réessayer.",
+              "Dieses Ticket konnte derzeit nicht geladen werden. Bitte aktualisiere die Seite und versuche es erneut.",
+              "No pudimos cargar este ticket en este momento. Actualiza e intentalo de nuevo.",
+              "Não foi possivel carregar este ticket neste momento. Atualize e tente novamente."
             )}
           </p>
         ) : !ticket ? (
-          <p className="text-sm text-slate-500 dark:text-slate-300">{t("Ticket not found.", "Ticket introuvable.")}</p>
+          <p className="text-sm text-slate-500 dark:text-slate-300">{t("Ticket not found.", "Ticket introuvable.", "Ticket nicht gefunden.", "Ticket no encontrado.", "Ticket não encontrado.")}</p>
         ) : (
           <div className="space-y-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-                  {parsed.category}
+                  {localizeSupportCategory(parsed.category, language)}
                 </p>
                 <h2 className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">{parsed.subject}</h2>
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  {formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true })}
+                  {formatDistanceToNow(new Date(ticket.createdAt), {
+                    addSuffix: true,
+                    locale: getSupportDateLocale(language),
+                  })}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -368,7 +392,7 @@ export default function SupportTicketDetailsPage() {
                 </span>
                 {String(ticket.status || "").toUpperCase() === "CLOSED" ? (
                   <Button variant="secondary" onClick={updateTicketStatus} loading={statusUpdating}>
-                    {t("Reopen ticket", "Rouvrir le ticket")}
+                    {t("Reopen ticket", "Rouvrir le ticket", "Ticket erneut öffnen", "Reabrir ticket", "Reabrir ticket")}
                   </Button>
                 ) : null}
               </div>
@@ -382,7 +406,7 @@ export default function SupportTicketDetailsPage() {
             </div>
             {attachments.length > 0 ? (
               <div className="space-y-2">
-                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{t("Initial attachments", "Pieces jointes initiales")}</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{t("Initial attachments", "Pieces jointes initiales", "Ursprungliche Anhange", "Adjuntos iniciales", "Anexos iniciais")}</p>
                 <ul className="space-y-1">
                   {attachments.map((attachment) => (
                     <li key={attachment.id || attachment.filename} className="text-sm text-slate-600 dark:text-slate-300">
@@ -408,7 +432,7 @@ export default function SupportTicketDetailsPage() {
             ) : null}
             {Array.isArray(ticket.replies) && ticket.replies.length > 0 ? (
               <div className="space-y-3">
-                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{t("Conversation", "Conversation")}</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{t("Conversation", "Conversation", "Konversation", "Conversación", "Conversa")}</p>
                 <div className="space-y-2">
                   {ticket.replies.map((reply) => (
                     <div
@@ -418,11 +442,14 @@ export default function SupportTicketDetailsPage() {
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
                           {reply.senderType === "SUBSCRIBER"
-                            ? t("You", "Vous")
-                            : t("Support team", "Equipe support")}
+                            ? t("You", "Vous", "Du", "Tu", "Voce")
+                            : t("Support team", "équipe support", "Support-Team", "Equipo de soporte", "Equipa de suporte")}
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-400">
-                          {formatDistanceToNow(new Date(reply.createdAt), { addSuffix: true })}
+                          {formatDistanceToNow(new Date(reply.createdAt), {
+                            addSuffix: true,
+                            locale: getSupportDateLocale(language),
+                          })}
                         </p>
                       </div>
                       <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700 dark:text-slate-200">
@@ -431,7 +458,7 @@ export default function SupportTicketDetailsPage() {
                       {Array.isArray(reply.attachments) && reply.attachments.length > 0 ? (
                         <div className="mt-3 rounded-lg border border-dashed border-slate-300 bg-slate-50/80 px-3 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-950/55 dark:text-slate-300">
                           <p className="font-semibold">
-                            {t("Submitted attachments", "Pieces jointes soumises")}
+                            {t("Submitted attachments", "Pieces jointes soumises", "Gesendete Anhange", "Adjuntos enviados", "Anexos enviados")}
                           </p>
                           <ul className="mt-1 space-y-1">
                             {reply.attachments.map((attachment) => (
@@ -460,7 +487,10 @@ export default function SupportTicketDetailsPage() {
                         <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
                           {t(
                             "This support reply was saved, but email delivery to you failed.",
-                            "Cette reponse support a ete enregistree, mais l envoi de l email vers vous a echoue."
+                            "Cette réponse support a ?t? enregistree, mais l envoi de l email vers vous a échoué.",
+                            "Diese Support-Antwort wurde gespeichert, aber die E-Mail-Zustellung an dich ist fehlgeschlagen.",
+                            "Esta respuesta de soporte se guardo, pero fallo el envio del correo hacia ti.",
+                            "Esta resposta de suporte foi guardada, mas o envio do email para si falhou."
                           )}
                         </p>
                       ) : null}
@@ -476,23 +506,26 @@ export default function SupportTicketDetailsPage() {
             >
               <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                 {String(ticket.status || "").toUpperCase() === "CLOSED"
-                  ? t("Reply to reopen this ticket", "Repondre pour rouvrir ce ticket")
-                  : t("Reply to support", "Repondre au support")}
+                  ? t("Reply to reopen this ticket", "Repondre pour rouvrir ce ticket", "Antworte, um dieses Ticket wieder zu öffnen", "Responde para reabrir este ticket", "Responda para reabrir este ticket")
+                  : t("Reply to support", "Repondre au support", "Dem Support antworten", "Responder al soporte", "Responder ao suporte")}
               </p>
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 {t(
                   "Your reply is added to the ticket thread and emailed to support.",
-                  "Votre reponse est ajoutee au fil du ticket et envoyee par email au support."
+                  "Votre réponse est ajoutee au fil du ticket et envoyee par email au support.",
+                  "Deine Antwort wird zum Ticketverlauf hinzugefugt und per E-Mail an den Support gesendet.",
+                  "Tu respuesta se anade al hilo del ticket y se envia por correo al soporte.",
+                  "A sua resposta e adicionada ao ticket e enviada por email ao suporte."
                 )}
               </p>
               <div className="mt-4 space-y-3">
                 <Textarea
-                  label={t("Reply message", "Message de reponse")}
+                  label={t("Reply message", "Message de réponse", "Antwortnachricht", "Mensaje de respuesta", "Mensagem de resposta")}
                   value={replyMessage}
                   required
                   rows={6}
                   onChange={(event) => setReplyMessage(event.target.value)}
-                  placeholder={t("Add more details or respond to support...", "Ajoutez plus de details ou repondez au support...")}
+                  placeholder={t("Add more details or respond to support...", "Ajoutez plus de details ou repondez au support...", "Füge weitere Details hinzu oder antworte dem Support...", "Anade mas detalles o responde al soporte...", "Adicione mais detalhes ou responda ao suporte...")}
                   className={`rounded-xl border-slate-200 bg-white px-3.5 py-3 text-sm transition-colors hover:border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950/85 dark:text-slate-100 dark:placeholder:text-slate-500 dark:hover:border-slate-500 dark:focus:border-blue-400 dark:focus:ring-blue-500/25 ${
                     forceLight
                       ? "!border-[#CBD5E1] !bg-white !text-[#0F172A] placeholder:!text-slate-500 hover:!border-slate-400 focus:!border-[#2563EB] focus:!ring-[3px] focus:!ring-[rgba(37,99,235,0.15)]"
@@ -507,10 +540,10 @@ export default function SupportTicketDetailsPage() {
                   >
                     <Paperclip className="h-5 w-5 text-slate-500 dark:text-slate-300" />
                     <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                      {t("Add screenshots or documents", "Ajoutez des captures ou documents")}
+                      {t("Add screenshots or documents", "Ajoutez des captures ou documents", "Screenshots oder Dokumente hinzufügen", "Anadir capturas o documentos", "Adicionar capturas de ecran ou documentos")}
                     </p>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      {t("JPG, PNG, PDF - up to 3 files, 5MB each", "JPG, PNG, PDF - jusqu a 3 fichiers, 5 Mo chacun")}
+                      {t("JPG, PNG, PDF - up to 3 files, 5MB each", "JPG, PNG, PDF - jusqu a 3 fichiers, 5 Mo chacun", "JPG, PNG, PDF - bis zu 3 Dateien, je 5 MB", "JPG, PNG, PDF - hasta 3 archivos, 5 MB cada uno", "JPG, PNG, PDF - at? 3 ficheiros, 5 MB cada")}
                     </p>
                     <input
                       type="file"
@@ -535,7 +568,13 @@ export default function SupportTicketDetailsPage() {
                               {preview ? (
                                 <Image
                                   src={preview}
-                                  alt="attachment preview"
+                                  alt={t({
+                                    en: "Attachment preview",
+                                    fr: "Apercu de la piece jointe",
+                                    de: "Vorschau des Anhangs",
+                                    es: "Vista previa del adjunto",
+                                    pt: "Pre-visualizacao do anexo",
+                                  })}
                                   width={36}
                                   height={36}
                                   unoptimized
@@ -566,7 +605,13 @@ export default function SupportTicketDetailsPage() {
                                 )
                               }
                               className="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-                              aria-label="Remove attachment"
+                              aria-label={t({
+                                en: "Remove attachment",
+                                fr: "Supprimer la piece jointe",
+                                de: "Anhang entfernen",
+                                es: "Eliminar adjunto",
+                                pt: "Remover anexo",
+                              })}
                             >
                               <X className="h-4 w-4" />
                             </button>
@@ -580,11 +625,14 @@ export default function SupportTicketDetailsPage() {
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     {t(
                       "If the ticket is closed, sending a reply will reopen it automatically.",
-                      "Si le ticket est ferme, l envoi d une reponse le rouvrira automatiquement."
+                      "Si le ticket est ferme, l envoi d une réponse le rouvrira automatiquement.",
+                      "Wenn das Ticket geschlossen ist, wird es durch das Senden einer Antwort automatisch wieder geöffnet.",
+                      "Si el ticket esta cerrado, al enviar una respuesta se reabrira automaticamente.",
+                      "Se o ticket estiver fechado, ao enviar uma resposta ele sera reaberto automaticamente."
                     )}
                   </p>
                   <Button onClick={submitReply} loading={replying} disabled={replying || !replyMessage.trim()}>
-                    {t("Send reply", "Envoyer la reponse")}
+                    {t("Send reply", "Envoyer la réponse", "Antwort senden", "Enviar respuesta", "Enviar resposta")}
                   </Button>
                 </div>
               </div>

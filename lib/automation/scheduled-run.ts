@@ -1,4 +1,21 @@
-type AutomationRunInput = Record<string, unknown>;
+import { Prisma } from "@prisma/client";
+
+type AutomationRunInput = Prisma.InputJsonObject;
+
+type ScheduledAutomationRunOutput<TInput extends AutomationRunInput> = Prisma.InputJsonObject & {
+  trigger: "Schedule";
+  source: "Scheduler";
+  input: (TInput & {
+    scheduledFor: string;
+  }) & Prisma.InputJsonObject;
+  resumeState: Prisma.InputJsonObject & {
+    lastCompletedStepIndex: number;
+    nextStepIndex: number;
+    nextRunAt: string;
+    updatedAt: string;
+    retryState: Prisma.InputJsonObject;
+  };
+};
 
 export const parseScheduledAutomationRunAt = (value: unknown) => {
   if (!value) return new Date();
@@ -7,18 +24,20 @@ export const parseScheduledAutomationRunAt = (value: unknown) => {
   return parsed;
 };
 
-export const buildScheduledAutomationRunOutput = (
+export const buildScheduledAutomationRunOutput = <TInput extends AutomationRunInput>(
   runAt: Date,
-  input: AutomationRunInput = {}
+  input: TInput = {} as TInput
 ) => {
   const scheduledFor = runAt.toISOString();
+  const mergedInput = {
+    ...input,
+    scheduledFor,
+  };
+
   return {
     trigger: "Schedule",
     source: "Scheduler",
-    input: {
-      ...input,
-      scheduledFor,
-    },
+    input: mergedInput,
     resumeState: {
       lastCompletedStepIndex: -1,
       nextStepIndex: 0,
@@ -26,5 +45,5 @@ export const buildScheduledAutomationRunOutput = (
       updatedAt: new Date().toISOString(),
       retryState: {},
     },
-  };
+  } satisfies ScheduledAutomationRunOutput<typeof mergedInput>;
 };

@@ -8,6 +8,12 @@ import { formatDistanceToNow, format } from "date-fns";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/components/providers/language-provider";
+import {
+  getTeamActivityActionLabel,
+  getTeamDateLocale,
+  localizeTeamActivityMessage,
+  localizeTeamServerMessage,
+} from "@/lib/team/localization";
 
 const fetcher = async (url: string) => {
   const res = await fetch(url, { cache: "no-store" });
@@ -25,13 +31,14 @@ type ActivityItem = {
   actionType: string;
   createdAt: string;
   message: string;
+  metadata?: Record<string, unknown> | null;
   actor?: { name?: string | null; email?: string | null } | null;
   target?: { name?: string | null; email?: string | null } | null;
 };
 
 export default function TeamActivityPage() {
-  const { language } = useLanguage();
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const { language, t } = useLanguage();
+  const dateLocale = getTeamDateLocale(language);
   const [cursorStack, setCursorStack] = useState<string[]>([]);
   const cursor = cursorStack[cursorStack.length - 1] || "";
   const { data, error, isLoading } = useSWR<{ items: ActivityItem[]; nextCursor?: string | null }>(
@@ -50,41 +57,69 @@ export default function TeamActivityPage() {
       <div className="flex items-start justify-between gap-4 border-b border-border/60 pb-6">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-            {t("Team", "Equipe")}
+            {t("Team", "équipe", "Team", "Equipo", "Equipa")}
           </p>
           <h1 className="mt-2 text-3xl font-semibold text-foreground">
-            {t("Team Activity", "Activite de l equipe")}
+            {t("Team Activity", "Activit? de l équipe", "Teamaktivität", "Actividad del equipo", "Atividade da equipa")}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {t("Full history of workspace invites, role changes, and member updates.", "Historique complet des invitations, changements de role et mises a jour des membres.")}
+            {t(
+              "Full history of workspace invites, role changes, and member updates.",
+              "Historique complet des invitations, changements de role et mises a jour des membres.",
+              "Vollständiger Verlauf von Workspace-Einladungen, Rollenänderungen und Mitgliederaktualisierungen.",
+              "Historial completo de invitaciones, cambios de rol y actualizaciones de miembros del espacio de trabajo.",
+              "Histórico completo de convites, alteracoes de papel e atualizacoes de membros do espaco de trabalho."
+            )}
           </p>
         </div>
         <Link href="/dashboard/team" className="text-sm font-medium text-blue-600 hover:text-blue-500">
-          {t("Back to team", "Retour a l equipe")}
+          {t("Back to team", "Retour a l équipe", "Zurück zum Team", "Volver al equipo", "Voltar a equipa")}
         </Link>
       </div>
 
-      {error ? <Alert variant="error">{String(error.message || t("Activity history unavailable.", "Historique indisponible."))}</Alert> : null}
+      {error ? (
+        <Alert variant="error">
+          {localizeTeamServerMessage(
+            error.message,
+            language,
+            t(
+              "Activity history unavailable.",
+              "Historique indisponible.",
+              "Aktivitätsverlauf nicht verfügbar.",
+              "Historial de actividad no disponible.",
+              "Histórico de atividade indisponivel."
+            )
+          )}
+        </Alert>
+      ) : null}
 
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-sm font-medium text-foreground">
-              {hasItems ? t("Latest team events", "Derniers evenements d equipe") : t("Team event history", "Historique des evenements d equipe")}
+              {hasItems
+                ? t("Latest team events", "Derniers evenements d équipe", "Neueste Teamereignisse", "Ultimos eventos del equipo", "Ultimos eventos da equipa")
+                : t("Team event history", "Historique des evenements d équipe", "Verlauf der Teamereignisse", "Historial de eventos del equipo", "Histórico de eventos da equipa")}
             </p>
             {hasItems ? (
               <p className="mt-1 text-xs text-muted-foreground">
-                {t("Showing 20 events per page.", "Affiche 20 evenements par page.")}
+                {t("Showing 20 events per page.", "Affiche 20 evenements par page.", "20 Ereignisse pro Seite.", "Mostrando 20 eventos por pagina.", "A mostrar 20 eventos por pagina.")}
               </p>
             ) : (
               <p className="mt-1 text-xs text-muted-foreground">
-                {t("Recent workspace activity will appear here as your team grows.", "Les activites recentes apparaitront ici a mesure que votre equipe grandit.")}
+                {t(
+                  "Recent workspace activity will appear here as your team grows.",
+                  "Les activités recentes apparaitront ici a mesure que votre équipe grandit.",
+                  "Neuere Workspace-Aktivitäten erscheinen hier, wenn dein Team wachst.",
+                  "La actividad reciente del espacio aparecera aqui a medida que crezca tu equipo.",
+                  "A atividade recente do espaco aparecera aqui a medida que a tua equipa crescer."
+                )}
               </p>
             )}
           </div>
           {hasItems ? (
             <div className="inline-flex items-center rounded-full border border-slate-400 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-800 dark:border-border/60 dark:bg-muted/30 dark:text-muted-foreground">
-              {t(`Page ${pageNumber}`, `Page ${pageNumber}`)}
+              {t(`Page ${pageNumber}`, `Page ${pageNumber}`, `Seite ${pageNumber}`, `Pagina ${pageNumber}`, `Pagina ${pageNumber}`)}
             </div>
           ) : null}
         </div>
@@ -105,12 +140,15 @@ export default function TeamActivityPage() {
           ) : items.length === 0 ? (
             <div className="mx-auto max-w-xl py-6 text-center">
               <p className="text-lg font-semibold text-foreground">
-                {t("No team activity yet.", "Aucune activite d equipe pour le moment.")}
+                {t("No team activity yet.", "Aucune activité d équipe pour le moment.", "Noch keine Teamaktivität.", "Todavia no hay actividad del equipo.", "Ainda não ha atividade da equipa.")}
               </p>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 {t(
                   "Invites, role changes, and member updates will appear here.",
-                  "Les invitations, changements de role et mises a jour des membres apparaitront ici."
+                  "Les invitations, changements de role et mises a jour des membres apparaitront ici.",
+                  "Einladungen, Rollenänderungen und Mitgliederaktualisierungen erscheinen hier.",
+                  "Las invitaciones, cambios de rol y actualizaciones de miembros apareceran aqui.",
+                  "Os convites, alteracoes de papel e atualizacoes de membros aparecerao aqui."
                 )}
               </p>
             </div>
@@ -127,13 +165,13 @@ export default function TeamActivityPage() {
                     <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px] md:items-start">
                       <div className="min-w-0">
                         <div className="inline-flex items-center rounded-full bg-blue-200 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-900 dark:bg-blue-500/10 dark:text-blue-300">
-                          {entry.actionType.replaceAll("_", " ")}
+                          {getTeamActivityActionLabel(entry.actionType, language)}
                         </div>
-                        <p className="mt-3 text-sm font-medium leading-6 text-foreground">{entry.message}</p>
+                        <p className="mt-3 text-sm font-medium leading-6 text-foreground">{localizeTeamActivityMessage(entry, language)}</p>
                       </div>
                       <div className="text-left text-xs text-muted-foreground md:text-right">
-                        <p>{format(new Date(entry.createdAt), "MMM d, yyyy")}</p>
-                        <p className="mt-1">{formatDistanceToNow(new Date(entry.createdAt), { addSuffix: true })}</p>
+                        <p>{format(new Date(entry.createdAt), "PPP", { locale: dateLocale })}</p>
+                        <p className="mt-1">{formatDistanceToNow(new Date(entry.createdAt), { addSuffix: true, locale: dateLocale })}</p>
                       </div>
                     </div>
                   </div>
@@ -151,7 +189,7 @@ export default function TeamActivityPage() {
               disabled={cursorStack.length === 0}
               className="h-10 rounded-xl border border-border/70 bg-background px-4 font-medium shadow-sm"
             >
-              {t("Previous", "Precedent")}
+              {t("Previous", "Precedent", "Zurück", "Anterior", "Anterior")}
             </Button>
             <Button
               variant="secondary"
@@ -161,7 +199,7 @@ export default function TeamActivityPage() {
               disabled={!nextCursor}
               className="h-10 rounded-xl border border-border/70 bg-background px-4 font-medium shadow-sm"
             >
-              {t("Next", "Suivant")}
+              {t("Next", "Suivant", "Weiter", "Siguiente", "Seguinte")}
             </Button>
           </div>
         ) : null}

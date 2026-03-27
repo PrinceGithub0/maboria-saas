@@ -1,7 +1,7 @@
-export function formatDateDMY(date?: Date | null) {
+export function formatDateDMY(date?: Date | null, locale = "en-GB") {
   if (!date) return "";
   try {
-    return new Intl.DateTimeFormat("en-GB", {
+    return new Intl.DateTimeFormat(locale, {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -15,10 +15,10 @@ export function formatDateDMY(date?: Date | null) {
   }
 }
 
-export function formatDateTimeDMY(date?: Date | null) {
+export function formatDateTimeDMY(date?: Date | null, locale = "en-GB") {
   if (!date) return "";
   try {
-    return new Intl.DateTimeFormat("en-GB", {
+    return new Intl.DateTimeFormat(locale, {
       day: "2-digit",
       month: "short",
       year: "numeric",

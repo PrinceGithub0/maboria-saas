@@ -1,18 +1,17 @@
-import type { JSX } from "react";
+"use client";
 
-type Props = {
-  en: string;
-  fr: string;
+import type { JSX } from "react";
+import { useLanguage } from "@/components/providers/language-provider";
+import { getLocalizedText, type LocalizedText } from "@/lib/i18n";
+
+type Props = LocalizedText & {
   as?: keyof JSX.IntrinsicElements;
   className?: string;
 };
 
-export function LangText({ en, fr, as = "span", className }: Props) {
+export function LangText({ en, fr, de, es, pt, as = "span", className }: Props) {
   const Tag = as;
-  return (
-    <Tag className={className}>
-      <span data-lang="en">{en}</span>
-      <span data-lang="fr">{fr}</span>
-    </Tag>
-  );
+  const { language } = useLanguage();
+  const text = getLocalizedText({ en, fr, de, es, pt }, language);
+  return <Tag className={className}>{text}</Tag>;
 }

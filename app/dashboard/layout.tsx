@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { AppShell } from "@/components/layouts/app-shell";
-import { evaluateWorkspaceGate, isPlatformRole, shouldRunWorkspaceChecks } from "@/lib/global-role";
+import { evaluateWorkspaceGate, isOpsAdminRole, isPlatformRole, shouldRunWorkspaceChecks } from "@/lib/global-role";
 import { resolveOrgContext } from "@/lib/org-auth";
 import { resolveImpersonationFromRequestContext } from "@/lib/admin/impersonation";
 import { getActorSystemFlagRole } from "@/lib/system-flags";
@@ -21,6 +21,9 @@ export default async function DashboardLayout({
   const globalRole = await getActorSystemFlagRole(session.user.id);
   if (isPlatformRole(globalRole)) {
     const impersonation = await resolveImpersonationFromRequestContext(session.user.id);
+    if (!impersonation && isOpsAdminRole(globalRole)) {
+      redirect("/admin");
+    }
     const effectiveRole = impersonation ? "USER" : globalRole;
     if (impersonation) {
       const context = await resolveOrgContext(session.user.id);

@@ -33,7 +33,19 @@ export const POST = withErrorHandling(async (req: Request) => {
   if (!activeSubscription) {
     return NextResponse.json({ error: "Active subscription required before onboarding." }, { status: 403 });
   }
-  const parsed = onboardingSchema.parse(await req.json());
+  const rawBody = await req.json();
+  const parsedResult = onboardingSchema.safeParse(rawBody);
+  if (!parsedResult.success) {
+    const issue = parsedResult.error.issues[0];
+    if (issue?.path?.includes("businessPhone")) {
+      return NextResponse.json({ error: "Invalid phone number" }, { status: 400 });
+    }
+    if (issue?.path?.includes("businessName")) {
+      return NextResponse.json({ error: "Business name too short" }, { status: 400 });
+    }
+    return NextResponse.json({ error: "Invalid onboarding data" }, { status: 400 });
+  }
+  const parsed = parsedResult.data;
   const normalizedCurrency = normalizeCurrencyCode(parsed.currency || "USD");
   const normalizedCountry = normalizeCountryCode(parsed.country);
 

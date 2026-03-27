@@ -17,7 +17,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MiniAreaChart } from "@/components/charts/area-chart";
-import { formatDateDMY } from "@/lib/date";
+import { LANGUAGE_LOCALES } from "@/lib/i18n";
+import { useLanguage } from "@/components/providers/language-provider";
 
 type UsageFeatureKey =
   | "ai_requests"
@@ -78,21 +79,28 @@ const fetcher = async <T,>(url: string): Promise<T> => {
   return response.json() as Promise<T>;
 };
 
-function formatNumber(value: number) {
-  return new Intl.NumberFormat().format(value);
+function formatNumber(value: number, locale: string) {
+  return new Intl.NumberFormat(locale).format(value);
 }
 
-function formatDate(value?: string | null) {
+function formatDate(value: string | null | undefined, locale: string) {
   if (!value) return "--";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "--";
-  return formatDateDMY(date);
+  return new Intl.DateTimeFormat(locale, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
 }
 
-function toStatusLabel(status: UsageSnapshot["plan"]["status"]) {
-  if (status === "past_due") return "Past due";
-  if (status === "canceled") return "Canceled";
-  return "Active";
+function toStatusLabel(
+  status: UsageSnapshot["plan"]["status"],
+  t: ReturnType<typeof useLanguage>["t"]
+) {
+  if (status === "past_due") return t("Past due", "En retard", "Überfällig", "Vencido", "Em atraso");
+  if (status === "canceled") return t("Canceled", "Annulé", "Gekündigt", "Cancelado", "Cancelado");
+  return t("Active", "Actif", "Aktiv", "Activo", "Ativo");
 }
 
 function statusPillClass(status: UsageSnapshot["plan"]["status"]) {
@@ -126,24 +134,74 @@ function iconForFeature(feature: UsageFeatureKey) {
   return Users;
 }
 
-function chartLabel(feature: UsageFeatureKey) {
-  if (feature === "ai_requests") return "AI";
-  if (feature === "invoices") return "Invoices";
+function chartLabel(feature: UsageFeatureKey, t: ReturnType<typeof useLanguage>["t"]) {
+  if (feature === "ai_requests") return t("AI", "IA", "KI", "IA", "IA");
+  if (feature === "invoices") return t("Invoices", "Factures", "Rechnungen", "Facturas", "Faturas");
   if (feature === "whatsapp_messages") return "WhatsApp";
-  if (feature === "automations_runs") return "Automations";
-  return "Team";
+  if (feature === "automations_runs") return t("Automations", "Automatisations", "Automatisierungen", "Automatizaciónes", "Automações");
+  return t("Team", "Équipe", "Team", "Equipo", "Equipa");
 }
 
-function planLabel(plan: UsageSnapshot["plan"]["id"]) {
-  if (plan === "STARTER") return "Starter";
-  if (plan === "PRO") return "Pro";
-  if (plan === "GROWTH") return "Growth";
-  if (plan === "BUSINESS") return "Business";
-  return "Enterprise";
+function featureTitle(feature: UsageFeatureKey, t: ReturnType<typeof useLanguage>["t"]) {
+  if (feature === "ai_requests") return t("AI Usage", "Utilisation IA", "KI-Nutzung", "Uso de IA", "Utilização de IA");
+  if (feature === "invoices") return t("Invoices", "Factures", "Rechnungen", "Facturas", "Faturas");
+  if (feature === "whatsapp_messages") return t("WhatsApp Messages", "Messages WhatsApp", "WhatsApp-Nachrichten", "Mensajes de WhatsApp", "Mensagens do WhatsApp");
+  if (feature === "automations_runs") return t("Automations", "Automatisations", "Automatisierungen", "Automatizaciónes", "Automações");
+  return t("Team Members", "Membres de l équipe", "Teammitglieder", "Miembros del equipo", "Membros da equipa");
+}
+
+function featureSubtitle(feature: UsageFeatureKey, t: ReturnType<typeof useLanguage>["t"]) {
+  if (feature === "ai_requests") {
+    return t(
+      "Requests used this cycle",
+      "Requetes utilisees ce cycle",
+      "In diesem Zyklus genutzte Anfragen",
+      "Solicitudes usadas este ciclo",
+      "Pedidos utilizados neste ciclo"
+    );
+  }
+  if (feature === "invoices") {
+    return t(
+      "Invoices sent this cycle",
+      "Factures envoyees ce cycle",
+      "In diesem Zyklus gesendete Rechnungen",
+      "Facturas enviadas este ciclo",
+      "Faturas enviadas neste ciclo"
+    );
+  }
+  if (feature === "whatsapp_messages") {
+    return t(
+      "Messages sent this cycle",
+      "Messages envoyes ce cycle",
+      "In diesem Zyklus gesendete Nachrichten",
+      "Mensajes enviados este ciclo",
+      "Mensagens enviadas neste ciclo"
+    );
+  }
+  if (feature === "automations_runs") {
+    return t(
+      "Successful automation runs this cycle",
+      "Executions d automatisation reussies ce cycle",
+      "Erfolgreiche Automatisierungslaufe in diesem Zyklus",
+      "Ejecuciones de automatización correctas este ciclo",
+      "Execucoes de automação bem-sucedidas neste ciclo"
+    );
+  }
+  return t("Seats in use", "Places utilisees", "Genutzte Platze", "Plazas en uso", "Lugares em uso");
+}
+
+function planLabel(plan: UsageSnapshot["plan"]["id"], t: ReturnType<typeof useLanguage>["t"]) {
+  if (plan === "STARTER") return t("Starter", "Starter", "Starter", "Starter", "Starter");
+  if (plan === "PRO") return t("Pro", "Pro", "Pro", "Pro", "Pro");
+  if (plan === "GROWTH") return t("Growth", "Growth", "Growth", "Growth", "Growth");
+  if (plan === "BUSINESS") return t("Business", "Business", "Business", "Business", "Business");
+  return t("Enterprise", "Enterprise", "Enterprise", "Enterprise", "Enterprise");
 }
 
 export default function ReportPage() {
   const router = useRouter();
+  const { language, t } = useLanguage();
+  const locale = LANGUAGE_LOCALES[language];
   const { data, error, isLoading, mutate } = useSWR<UsageSnapshot>(
     "/api/analytics/usage?cycle=current",
     fetcher,
@@ -212,15 +270,15 @@ export default function ReportPage() {
 
   if (!data || accessError) {
     return (
-      <Card title="Report dashboard">
+      <Card title={t("Report dashboard", "Tableau de rapports", "Berichts-Dashboard", "Panel de informes", "Painel de relatórios")}>
         <div className="space-y-3">
           <p className="text-sm text-rose-700">
             {accessError
-              ? "You no longer have access to this report."
-              : "Unable to load usage metrics right now. Please refresh."}
+              ? t("You no longer have access to this report.", "Vous n'avez plus accès a ce rapport.", "Sie haben keinen Zugriff mehr auf diesen Bericht.", "Ya no tienes acceso a este informe.", "Ja não tem acesso a este relatorio.")
+              : t("Unable to load usage metrics right now. Please refresh.", "Impossible de charger les métriques d'utilisation pour le moment. Veuillez actualiser.", "Nutzungsmetriken können gerade nicht geladen werden. Bitte aktualisieren.", "No se pueden cargar las métricas de uso en este momento. Actualiza la pagina.", "Não foi possivel carregar as métricas de utilização agora. Atualize a pagina.")}
           </p>
           <Button variant="secondary" onClick={() => mutate()}>
-            Retry
+            {t("Retry", "Reessayer", "Erneut versuchen", "Reintentar", "Tentar novamente")}
           </Button>
         </div>
       </Card>
@@ -233,33 +291,33 @@ export default function ReportPage() {
         <Card className="border-amber-200 bg-amber-50 text-amber-900">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm">
-              Live report refresh failed. Showing the last available snapshot.
+              {t("Live report refresh failed. Showing the last available snapshot.", "L'actualisation du rapport a echoue. Dernier apercu disponible affiche.", "Die Live-Aktualisierung des Berichts ist fehlgeschlagen. Letzter verfuegbarer Stand wird angezeigt.", "La actualizacion en vivo del informe ha fallado. Se muestra la ultima captura disponible.", "A atualizacao em tempo real do relatorio falhou. A mostrar a ultima captura disponivel.")}
             </p>
             <Button variant="secondary" onClick={() => mutate()}>
-              Retry
+              {t("Retry", "Reessayer", "Erneut versuchen", "Reintentar", "Tentar novamente")}
             </Button>
           </div>
         </Card>
       ) : null}
       <Card
-        title="Report dashboard"
+        title={t("Report dashboard", "Tableau de rapports", "Berichts-Dashboard", "Panel de informes", "Painel de relatórios")}
         actions={
           <span
             className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1 text-xs font-semibold shadow-sm ${statusPillClass(data.plan.status)}`}
           >
             <span className={`h-1.5 w-1.5 rounded-full ${statusDotClass(data.plan.status)}`} />
-            {toStatusLabel(data.plan.status)}
+            {toStatusLabel(data.plan.status, t)}
           </span>
         }
       >
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1">
-            <p className="text-2xl font-semibold text-foreground">{planLabel(data.plan.id)} Plan</p>
+            <p className="text-2xl font-semibold text-foreground">{planLabel(data.plan.id, t)} {t("Plan", "Plan", "Plan", "Plan", "Plano")}</p>
             <p className="text-sm text-muted-foreground">
-              Cycle: {formatDate(data.cycle.startAt)} - {formatDate(data.cycle.endAt)}
+              {t("Cycle", "Cycle", "Zeitraum", "Ciclo", "Ciclo")}: {formatDate(data.cycle.startAt, locale)} - {formatDate(data.cycle.endAt, locale)}
             </p>
             <p className="text-xs text-muted-foreground">
-              Billing interval: {data.plan.billingInterval === "yearly" ? "Yearly" : "Monthly"}
+              {t("Billing interval", "Intervalle de facturation", "Abrechnungsintervall", "Intervalo de facturación", "Intervalo de faturação")}: {data.plan.billingInterval === "yearly" ? t("Yearly", "Annuel", "Jährlich", "Anual", "Anual") : t("Monthly", "Mensuel", "Monatlich", "Mensual", "Mensal")}
             </p>
           </div>
 
@@ -269,10 +327,10 @@ export default function ReportPage() {
                 <div className="space-y-2 text-right">
                   <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
                     <ShieldCheck className="h-3.5 w-3.5" />
-                    Unlimited usage enabled
+                    {t("Unlimited usage enabled", "Utilisation illimitee activee", "Unbegrenzte Nutzung aktiviert", "Uso ilimitado activado", "Utilização ilimitada ativada")}
                   </span>
                   {data.plan.apiAccessEnabled ? (
-                    <p className="text-xs font-medium text-foreground">API access enabled</p>
+                    <p className="text-xs font-medium text-foreground">{t("API access enabled", "Accès API active", "API-Zugriff aktiviert", "Acceso API activado", "Acesso API ativado")}</p>
                   ) : null}
                 </div>
                 <a
@@ -280,7 +338,7 @@ export default function ReportPage() {
                   className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-muted px-4 text-sm font-semibold text-foreground transition hover:brightness-95"
                 >
                   <Download className="h-4 w-4" />
-                  Export cycle
+                  {t("Export cycle", "Exporter le cycle", "Zyklus exportieren", "Exportar ciclo", "Exportar ciclo")}
                 </a>
               </>
             ) : (
@@ -290,10 +348,10 @@ export default function ReportPage() {
                   className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-muted px-4 text-sm font-semibold text-foreground transition hover:brightness-95"
                 >
                   <Download className="h-4 w-4" />
-                  Export cycle
+                  {t("Export cycle", "Exporter le cycle", "Zyklus exportieren", "Exportar ciclo", "Exportar ciclo")}
                 </a>
                 <Link href="/dashboard/subscription">
-                  <Button className="h-10 rounded-xl px-4">Upgrade plan</Button>
+                  <Button className="h-10 rounded-xl px-4">{t("Upgrade plan", "Passer a un plan superieur", "Plan upgraden", "Mejorar plan", "Atualizar plano")}</Button>
                 </Link>
               </>
             )}
@@ -309,8 +367,8 @@ export default function ReportPage() {
             <Card key={card.featureKey} className="space-y-4 p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-base font-semibold text-foreground">{card.title}</p>
-                  <p className="text-xs text-muted-foreground">{card.subtitle}</p>
+                  <p className="text-base font-semibold text-foreground">{featureTitle(card.featureKey, t)}</p>
+                  <p className="text-xs text-muted-foreground">{featureSubtitle(card.featureKey, t)}</p>
                 </div>
                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-foreground">
                   <Icon className="h-4 w-4" />
@@ -319,17 +377,19 @@ export default function ReportPage() {
 
               {card.unlimited ? (
                 <div className="space-y-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
-                  <p className="font-semibold text-emerald-800">Unlimited</p>
+                  <p className="font-semibold text-emerald-800">
+                    {t("Unlimited", "Illimite", "Unbegrenzt", "Ilimitado", "Ilimitado")}
+                  </p>
                   <p className="text-xs font-medium">
-                    Used this cycle: {formatNumber(card.used ?? 0)}
+                    {t("Used this cycle", "Utilise ce cycle", "In diesem Zyklus genutzt", "Usado este ciclo", "Utilizado neste ciclo")}: {formatNumber(card.used ?? 0, locale)}
                   </p>
                 </div>
               ) : (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Used / Limit</span>
+                    <span className="text-muted-foreground">{t("Used / Limit", "Utilise / Limite", "Genutzt / Limit", "Usado / Limite", "Utilizado / Limite")}</span>
                     <span className="font-semibold text-foreground">
-                      {formatNumber(card.used ?? 0)} / {formatNumber(card.limit ?? 0)}
+                      {formatNumber(card.used ?? 0, locale)} / {formatNumber(card.limit ?? 0, locale)}
                     </span>
                   </div>
                   <div className="relative h-2 overflow-hidden rounded-full border border-border/70 bg-muted">
@@ -347,8 +407,8 @@ export default function ReportPage() {
                     />
                   </div>
                   <div className={`flex items-center justify-between text-xs ${tone.text}`}>
-                    <span>{card.percentUsed ?? 0}% used</span>
-                    <span>Remaining: {formatNumber(card.remaining ?? 0)}</span>
+                    <span>{card.percentUsed ?? 0}% {t("used", "utilise", "genutzt", "usado", "utilizado")}</span>
+                    <span>{t("Remaining", "Restant", "Verbleibend", "Restante", "Restante")}: {formatNumber(card.remaining ?? 0, locale)}</span>
                   </div>
                 </div>
               )}
@@ -359,14 +419,14 @@ export default function ReportPage() {
                   className="h-9 rounded-lg px-3 text-xs"
                   onClick={() => handleViewDetails(card.featureKey)}
                 >
-                  View details
+                  {t("View details", "Voir les details", "Details ansehen", "Ver detalles", "Ver detalhes")}
                 </Button>
                 <a
                   href={card.actions.exportUrl}
                   className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-border bg-muted px-3 text-xs font-semibold text-foreground transition hover:brightness-95"
                 >
                   <Download className="h-3.5 w-3.5" />
-                  Export
+                  {t("Export", "Exporter", "Exportieren", "Exportar", "Exportar")}
                 </a>
               </div>
             </Card>
@@ -376,14 +436,14 @@ export default function ReportPage() {
 
       <div ref={trendSectionRef}>
         {!hasAnyUsage ? (
-        <Card title="Usage trend">
+        <Card title={t("Usage trend", "Tendance d'utilisation", "Nutzungstrend", "Tendencia de uso", "Tendencia de utilização")}>
           <p className="text-sm text-muted-foreground">
-            No usage yet in this cycle. Once activity starts, trend and activity rows will appear here.
+            {t("No usage yet in this cycle. Once activity starts, trend and activity rows will appear here.", "Aucune utilisation sur ce cycle pour le moment. Une fois l'activité demarree, la tendance et les lignes d'activité apparaitront ici.", "In diesem Zyklus gibt es noch keine Nutzung. Sobald Aktivität beginnt, erscheinen hier Trend und Aktivität.", "Aún no hay uso en este ciclo. Cuando empiece la actividad, la tendencia y el historial apareceran aqui.", "Ainda não ha utilização neste ciclo. Quando a atividade comecar, a tendencia e a atividade aparecerao aqui.")}
           </p>
         </Card>
       ) : (
         <Card
-          title="Usage trend"
+          title={t("Usage trend", "Tendance d'utilisation", "Nutzungstrend", "Tendencia de uso", "Tendencia de utilização")}
           className={`space-y-4 transition-all duration-300 ${
             trendFlashing ? "ring-2 ring-blue-300/80 bg-blue-50/30" : ""
           }`}
@@ -402,7 +462,7 @@ export default function ReportPage() {
                     : "border-border bg-background text-foreground hover:bg-muted"
                 }`}
               >
-                {chartLabel(feature)}
+                {chartLabel(feature, t)}
               </button>
             ))}
           </div>
@@ -411,37 +471,39 @@ export default function ReportPage() {
             <MiniAreaChart data={chartData} className="min-h-[240px]" forceAllTicks />
           ) : (
             <p className="text-sm text-muted-foreground">
-              This metric has no trend data yet for the current cycle.
+              {t("This metric has no trend data yet for the current cycle.", "Cette metrique n'a pas encore de données de tendance pour le cycle en cours.", "Für diese Kennzahl gibt es im aktuellen Zyklus noch keine Trenddaten.", "Esta metrica aún no tiene datos de tendencia para el ciclo actual.", "Esta metrica ainda não tem dados de tendencia para o ciclo atual.")}
             </p>
           )}
         </Card>
       )}
       </div>
 
-      <Card title="Recent activity" className="space-y-3">
+      <Card title={t("Recent activity", "Activit? recente", "Letzte Aktivität", "Actividad reciente", "Atividade recente")} className="space-y-3">
         {data.recentActivity.length ? (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="border-b border-border/70 text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="px-2 py-3 text-left">Date</th>
-                  <th className="px-2 py-3 text-center">Feature</th>
-                  <th className="px-2 py-3 text-center">Amount</th>
-                  <th className="px-2 py-3 text-center">Type</th>
-                  <th className="px-2 py-3 text-center">Status</th>
+                  <th className="px-2 py-3 text-left">{t("Date", "Date", "Datum", "Fecha", "Data")}</th>
+                  <th className="px-2 py-3 text-center">{t("Feature", "Fonction", "Funktion", "Caracteristica", "Funcionalidade")}</th>
+                  <th className="px-2 py-3 text-center">{t("Amount", "Montant", "Menge", "Cantidad", "Quantidade")}</th>
+                  <th className="px-2 py-3 text-center">{t("Type", "Type", "Typ", "Tipo", "Tipo")}</th>
+                  <th className="px-2 py-3 text-center">{t("Status", "Statut", "Status", "Estado", "Estado")}</th>
                 </tr>
               </thead>
               <tbody>
                 {data.recentActivity.map((item, index) => (
                   <tr key={`${item.date}-${item.featureKey}-${index}`} className="border-b border-border/40">
-                    <td className="px-2 py-3 text-left text-muted-foreground">{formatDate(item.date)}</td>
-                    <td className="px-2 py-3 text-center font-medium text-foreground">{item.label}</td>
-                    <td className="px-2 py-3 text-center text-foreground">{formatNumber(item.amount)}</td>
-                    <td className="px-2 py-3 text-center text-muted-foreground">Usage</td>
+                    <td className="px-2 py-3 text-left text-muted-foreground">{formatDate(item.date, locale)}</td>
+                    <td className="px-2 py-3 text-center font-medium text-foreground">
+                      {featureTitle(item.featureKey, t)}
+                    </td>
+                    <td className="px-2 py-3 text-center text-foreground">{formatNumber(item.amount, locale)}</td>
+                    <td className="px-2 py-3 text-center text-muted-foreground">{t("Usage", "Utilisation", "Nutzung", "Uso", "Uso")}</td>
                     <td className="px-2 py-3 text-center">
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        Recorded
+                        {t("Recorded", "Enregistre", "Erfasst", "Registrado", "Registado")}
                       </span>
                     </td>
                   </tr>
@@ -450,7 +512,7 @@ export default function ReportPage() {
             </table>
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">No recent usage activity for this cycle.</p>
+          <p className="text-sm text-muted-foreground">{t("No recent usage activity for this cycle.", "Aucune activité recente pour ce cycle.", "Keine aktuelle Nutzung in diesem Zyklus.", "No hay actividad de uso reciente en este ciclo.", "Não ha atividade recente neste ciclo.")}</p>
         )}
       </Card>
     </div>

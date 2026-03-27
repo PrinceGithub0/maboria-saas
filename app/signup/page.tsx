@@ -30,8 +30,7 @@ export default function SignupPage() {
   const [joinedWorkspace, setJoinedWorkspace] = useState(false);
   const [loading, setLoading] = useState(false);
   const logoSrc = "/branding/Maboria%20Company%20logo.png";
-  const { language } = useLanguage();
-  const t = (en: string, fr: string) => (language === "fr" ? fr : en);
+  const { t } = useLanguage();
   const searchParams = useSearchParams();
   const inviteToken = searchParams.get("invite") || undefined;
   const inviteEmail = searchParams.get("email") || "";
@@ -102,7 +101,7 @@ export default function SignupPage() {
         setError(
           t(
             "Account created, but sign-in failed. Please sign in to continue.",
-            "Compte cree, mais connexion echouee. Veuillez vous connecter."
+            "Compte cree, mais connexion échouée. Veuillez vous connecter."
           )
         );
         return;
@@ -112,7 +111,7 @@ export default function SignupPage() {
         setError(
           t(
             "Account created, but the session cookie was not set. Check NEXTAUTH_URL and your browser URL, then sign in again.",
-            "Compte cree, mais le cookie de session n a pas ete defini. Verifiez NEXTAUTH_URL et l URL du navigateur, puis reconnectez-vous."
+            "Compte cree, mais le cookie de session n'a pas ?t? defini. Verifiez NEXTAUTH_URL et l URL du navigateur, puis reconnectez-vous."
           )
         );
         return;
@@ -135,7 +134,7 @@ export default function SignupPage() {
       setError(
         t(
           "Signup succeeded, but automatic sign-in failed. Please sign in to continue.",
-          "Inscription reussie, mais connexion automatique echouee. Veuillez vous connecter."
+          "Inscription reussie, mais connexion automatique échouée. Veuillez vous connecter."
         )
       );
     } finally {
@@ -178,7 +177,7 @@ export default function SignupPage() {
                 <p className="max-w-lg text-base leading-8 text-slate-600">
                   {t(
                     "This workspace access is separate from the normal subscriber signup flow. Create your account here and your invite will be attached automatically.",
-                    "Cet acces a l espace est distinct du flux d inscription normal des abonnes. Creez votre compte ici et votre invitation sera rattachee automatiquement."
+                    "Cet accès à l'espace est distinct du flux d inscription normal des abonnes. Creez votre compte ici et votre invitation sera rattachee automatiquement."
                   )}
                 </p>
               </div>
@@ -188,11 +187,11 @@ export default function SignupPage() {
                   <p className="text-xl font-semibold text-slate-950">{inviteInviter || "Maboria team"}</p>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">{t("Access level", "Niveau d acces")}</p>
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">{t("Access level", "Niveau d accès")}</p>
                   <p className="text-xl font-semibold text-slate-950">{inviteRoleLabel}</p>
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">{t("Invitation email", "Email de l invitation")}</p>
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">{t("Invitation email", "Email de l'invitation")}</p>
                   <p className="break-all text-xl font-semibold text-slate-950">{inviteEmail}</p>
                 </div>
               </div>
@@ -202,12 +201,12 @@ export default function SignupPage() {
               <p className="mt-3 max-w-xl text-sm leading-7 text-slate-600">
                 {t(
                   "Already on Maboria? Use sign in instead. We will keep this workspace invite attached and accept it after authentication.",
-                  "Vous avez deja un compte Maboria ? Connectez-vous plutot. Nous conserverons cette invitation et l accepterons apres authentification."
+                  "Vous avez déjà un compte Maboria ? Connectez-vous plutot. Nous conserverons cette invitation et l accepterons apres authentification."
                 )}
               </p>
               <div className="mt-5">
                 <Link href={signInHref} className="inline-flex items-center rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800">
-                  {t("Already have an account? Sign in", "Vous avez deja un compte ? Connectez-vous")}
+                  {t("Already have an account? Sign in", "Vous avez déjà un compte ? Connectez-vous")}
                 </Link>
               </div>
             </div>
@@ -258,7 +257,7 @@ export default function SignupPage() {
                 <p className="text-sm font-semibold text-foreground">
                   {t(
                     joinedWorkspace ? "Continue to workspace" : "Continue to checkout",
-                    joinedWorkspace ? "Continuer vers l espace" : "Continuer vers le paiement"
+                    joinedWorkspace ? "Continuer vers l'espace" : "Continuer vers le paiement"
                   )}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -276,7 +275,7 @@ export default function SignupPage() {
                     <Button size="sm">
                       {t(
                         joinedWorkspace ? "Go to workspace" : "Go to checkout",
-                        joinedWorkspace ? "Aller a l espace" : "Aller au paiement"
+                        joinedWorkspace ? "Aller à l'espace" : "Aller au paiement"
                       )}
                     </Button>
                   </Link>
@@ -342,7 +341,7 @@ export default function SignupPage() {
                   <div>
                     <p className="text-sm font-semibold text-foreground">{t("Growth", "Growth")}</p>
                     <p className="text-xs text-muted-foreground">
-                      {t("For growing teams with higher volume.", "Pour equipes en croissance avec plus de volume.")}
+                      {t("For growing teams with higher volume.", "Pour équipes en croissance avec plus de volume.")}
                     </p>
                   </div>
                 </label>
@@ -360,7 +359,7 @@ export default function SignupPage() {
                   <div>
                     <p className="text-sm font-semibold text-foreground">{t("Business", "Business")}</p>
                     <p className="text-xs text-muted-foreground">
-                      {t("For teams running high-volume operations.", "Pour equipes qui gerent un fort volume operationnel.")}
+                      {t("For teams running high-volume operations.", "Pour équipes qui gèrent un fort volume operationnel.")}
                     </p>
                   </div>
                 </label>
@@ -395,24 +394,24 @@ export default function SignupPage() {
                   <p className="font-medium text-slate-900">{inviteInviter || "Maboria team"}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{t("Access", "Acces")}</p>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{t("Access", "Accès")}</p>
                   <p className="font-medium text-slate-900">{inviteRoleLabel}</p>
                 </div>
                 <div className="space-y-1 sm:col-span-3">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{t("Invitation email", "Email de l invitation")}</p>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{t("Invitation email", "Email de l'invitation")}</p>
                   <p className="break-all font-medium text-slate-900">{inviteEmail}</p>
                 </div>
                 <div className="space-y-2 border-t border-emerald-100 pt-4 sm:col-span-3">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-700">{t("Already registered?", "Deja inscrit ?")}</p>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-700">{t("Already registered?", "Déjà inscrit ?")}</p>
                   <p className="text-sm leading-6 text-slate-700">
                     {t(
                       "If you already have a Maboria account, sign in instead and we will attach this invite automatically.",
-                      "Si vous avez deja un compte Maboria, connectez-vous plutot et nous rattacherons automatiquement cette invitation."
+                      "Si vous avez déjà un compte Maboria, connectez-vous plutot et nous rattacherons automatiquement cette invitation."
                     )}
                   </p>
                   <div>
                     <Link href={signInHref} className="text-sm font-semibold text-sky-700 transition hover:text-sky-800">
-                      {t("Already have an account? Sign in", "Vous avez deja un compte ? Connectez-vous")}
+                      {t("Already have an account? Sign in", "Vous avez déjà un compte ? Connectez-vous")}
                     </Link>
                   </div>
                 </div>
@@ -501,7 +500,7 @@ export default function SignupPage() {
           <p className="text-xs text-muted-foreground">
             {t(
               "Secure sign up. Two-factor authentication (2FA) can be enabled after sign-in from Settings.",
-              "Inscription securisee. L authentification 2FA peut etre activee apres connexion dans Parametres."
+              "Inscription securisee. L authentification 2FA peut être activee apres connexion dans Paramêtres."
             )}
           </p>
 
@@ -512,7 +511,7 @@ export default function SignupPage() {
             disabled={inviteLinkBroken}
           >
             {hasInviteContext
-              ? t("Create account and join workspace", "Creer un compte et rejoindre l espace")
+              ? t("Create account and join workspace", "Creer un compte et rejoindre l'espace")
               : t("Create account", "Creer un compte")}
           </Button>
             </form>
