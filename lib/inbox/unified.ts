@@ -48,38 +48,35 @@ export function canViewUnifiedInboxBillingInsights(input: {
 }
 
 export async function ensureDefaultUnifiedInboxes(tenantId: string) {
-  const [email, whatsapp] = await prisma.$transaction([
-    prisma.unifiedInbox.upsert({
+  const [email, whatsapp] = await prisma.$transaction(async (tx) => {
+    let whatsappInbox = await tx.unifiedInbox.findFirst({
       where: {
-        tenantId_type: {
-          tenantId,
-          type: "EMAIL",
-        },
-      },
-      update: {},
-      create: {
-        tenantId,
-        type: "EMAIL",
-        name: "Email Inbox",
-        status: "DISCONNECTED",
-      },
-    }),
-    prisma.unifiedInbox.upsert({
-      where: {
-        tenantId_type: {
-          tenantId,
-          type: "WHATSAPP",
-        },
-      },
-      update: {},
-      create: {
         tenantId,
         type: "WHATSAPP",
-        name: "WhatsApp Inbox",
-        status: "DISCONNECTED",
       },
-    }),
-  ]);
+      orderBy: { createdAt: "asc" },
+    });
+    if (!whatsappInbox) {
+      whatsappInbox = await tx.unifiedInbox.create({
+        data: {
+          tenantId,
+          type: "WHATSAPP",
+          name: "WhatsApp Inbox",
+          status: "DISCONNECTED",
+        },
+      });
+    }
+
+    const emailInbox = await tx.unifiedInbox.findFirst({
+      where: {
+        tenantId,
+        type: "EMAIL",
+      },
+      orderBy: [{ status: "asc" }, { createdAt: "asc" }],
+    });
+
+    return [emailInbox, whatsappInbox];
+  });
   return { email, whatsapp };
 }
 

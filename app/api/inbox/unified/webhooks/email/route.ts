@@ -1,15 +1,17 @@
 import { Prisma } from "@prisma/client";
 import crypto from "crypto";
 import { NextResponse } from "next/server";
+import { Webhook } from "svix";
 import {
   applyUnifiedInboundActivity,
   ensureUnifiedConversationParticipants,
 } from "@/lib/inbox/conversation-participants";
 import {
   createOrResolveCustomerForInbound,
+  extractInboxRouteFromInboundAddress,
+  decryptInboxCredentials,
   extractInboundReplyText,
   extractConversationIdFromEmailSubject,
-  extractTenantIdFromInboundAddress,
   logChannelFailure,
   parseEmailThreadHeaders,
   parseSenderEmail,
@@ -33,6 +35,36 @@ type InboundPayload = {
   attachments?: Array<{ filename: string; contentType?: string; sizeBytes?: number; storageKey?: string }>;
 };
 
+type ResendInboundWebhookEvent = {
+  type?: string;
+  data?: {
+    email_id?: string;
+  };
+};
+
+type ResendReceivedEmail = {
+  to?: string[] | string | Array<{ email?: string | null }>;
+  from?: string | { email?: string | null };
+  subject?: string;
+  text?: string | null;
+  html?: string | null;
+  headers?: Record<string, string>;
+  message_id?: string | null;
+  attachments?: Array<{
+    id?: string | null;
+    filename?: string;
+    content_type?: string | null;
+  }>;
+};
+
+type ResendReceivedEmailApiResponse =
+  | ResendReceivedEmail
+  | {
+      data?: ResendReceivedEmail | null;
+      error?: string;
+      message?: string;
+    };
+
 function parseWebhookRateLimit() {
   const raw = Number(process.env.WEBHOOK_RATE_LIMIT || 180);
   return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 180;
@@ -52,9 +84,132 @@ function isAuthorized(req: Request) {
   return safeTokenCompare(expected, header);
 }
 
+function getSvixHeaders(headers: Headers) {
+  const id = headers.get("svix-id");
+  const timestamp = headers.get("svix-timestamp");
+  const signature = headers.get("svix-signature");
+  if (!id || !timestamp || !signature) return null;
+  return {
+    "svix-id": id,
+    "svix-timestamp": timestamp,
+    "svix-signature": signature,
+  };
+}
+
+function verifyResendWebhook(rawBody: string, headers: Headers) {
+  const svixHeaders = getSvixHeaders(headers);
+  if (!svixHeaders) {
+    return { ok: false as const, status: 401, error: "Missing webhook signature." };
+  }
+  const secret = String(process.env.RESEND_WEBHOOK_SECRET || "").trim();
+  if (!secret) {
+    return { ok: false as const, status: 500, error: "Resend webhook secret is not configured." };
+  }
+  try {
+    const event = new Webhook(secret).verify(rawBody, svixHeaders) as ResendInboundWebhookEvent;
+    return { ok: true as const, event };
+  } catch {
+    return { ok: false as const, status: 401, error: "Invalid webhook signature." };
+  }
+}
+
+function unwrapResendReceivedEmail(result: ResendReceivedEmailApiResponse): ResendReceivedEmail {
+  if (result && typeof result === "object" && "data" in result && result.data && typeof result.data === "object") {
+    return result.data;
+  }
+  return result as ResendReceivedEmail;
+}
+
+async function fetchResendReceivedEmail(emailId: string): Promise<ResendReceivedEmail> {
+  const apiKey = String(process.env.RESEND_API_KEY || "").trim();
+  if (!apiKey) {
+    throw new Error("Missing Resend API key.");
+  }
+  const response = await fetch(`https://api.resend.com/emails/receiving/${encodeURIComponent(emailId)}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+  const result = (await response.json().catch(() => ({}))) as ResendReceivedEmailApiResponse;
+  if (!response.ok) {
+    const message =
+      result && typeof result === "object" && "message" in result && typeof result.message === "string"
+        ? result.message
+        : result && typeof result === "object" && "error" in result && typeof result.error === "string"
+          ? result.error
+          : `Failed to retrieve received email (${response.status})`;
+    throw new Error(message);
+  }
+  return unwrapResendReceivedEmail(result);
+}
+
+function normalizeHeaderRecord(headers: Record<string, string> | undefined) {
+  if (!headers || typeof headers !== "object") return undefined;
+  const normalized = Object.fromEntries(
+    Object.entries(headers)
+      .filter(([key, value]) => Boolean(key) && typeof value === "string")
+      .map(([key, value]) => [key, value])
+  );
+  return Object.keys(normalized).length ? normalized : undefined;
+}
+
+function normalizeResendAddressList(value: ResendReceivedEmail["to"]) {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) =>
+        typeof item === "string" ? item : item && typeof item === "object" ? String(item.email || "") : ""
+      )
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function normalizeResendSender(value: ResendReceivedEmail["from"]) {
+  if (typeof value === "string") return value || undefined;
+  if (value && typeof value === "object" && value.email) return String(value.email);
+  return undefined;
+}
+
+function normalizeResendEmail(email: ResendReceivedEmail): InboundPayload {
+  const headers = normalizeHeaderRecord(email.headers);
+  return {
+    to: normalizeResendAddressList(email.to),
+    from: normalizeResendSender(email.from),
+    subject: email.subject || undefined,
+    text: email.text || undefined,
+    html: email.html || undefined,
+    messageId: email.message_id || headers?.["message-id"] || headers?.["Message-ID"] || undefined,
+    headers,
+    attachments: Array.isArray(email.attachments)
+      ? email.attachments
+          .filter((attachment) => Boolean(attachment?.filename))
+          .map((attachment) => ({
+            filename: String(attachment.filename),
+            contentType: attachment.content_type || undefined,
+          }))
+      : undefined,
+  };
+}
+
 function normalizeRecipients(input: string | string[] | undefined) {
   if (!input) return [];
   return Array.isArray(input) ? input.map((item) => String(item || "").trim()).filter(Boolean) : [String(input || "").trim()];
+}
+
+function extractRecipientEmails(input: string[]) {
+  return input
+    .map((value) => parseSenderEmail(value) || String(value || "").trim().toLowerCase())
+    .filter(Boolean);
 }
 
 export async function POST(req: Request) {
@@ -64,15 +219,39 @@ export async function POST(req: Request) {
   );
   if (ingestDisabled) return ingestDisabled;
 
-  if (!isAuthorized(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const rawBody = await req.text();
+  let payload: InboundPayload;
+  let provider = "email";
+  const tenantHeaderHint = req.headers.get("x-tenant-id") || "";
+
+  if (isAuthorized(req)) {
+    payload = JSON.parse(rawBody || "{}") as InboundPayload;
+  } else {
+    const verification = verifyResendWebhook(rawBody, req.headers);
+    if (!verification.ok) {
+      return NextResponse.json({ error: verification.error }, { status: verification.status });
+    }
+    if (verification.event.type !== "email.received") {
+      return NextResponse.json({ ok: true, ignored: verification.event.type || "unknown_event" });
+    }
+    const emailId = String(verification.event.data?.email_id || "").trim();
+    if (!emailId) {
+      return NextResponse.json({ error: "Resend email id missing." }, { status: 422 });
+    }
+    try {
+      payload = normalizeResendEmail(await fetchResendReceivedEmail(emailId));
+      provider = "resend";
+    } catch (error: any) {
+      return NextResponse.json(
+        { error: error?.message || "Failed to retrieve inbound email from Resend." },
+        { status: 502 }
+      );
+    }
   }
 
-  const payload = (await req.json().catch(() => ({}))) as InboundPayload;
-  const provider = "email";
-
   const recipients = normalizeRecipients(payload.to);
-  const tenantHint = req.headers.get("x-tenant-id") || extractTenantIdFromInboundAddress(recipients);
+  const inboxRoute = extractInboxRouteFromInboundAddress(recipients);
+  const tenantHint = tenantHeaderHint || inboxRoute?.tenantId || null;
 
   const headerMessageId =
     payload.messageId ||
@@ -111,7 +290,6 @@ export async function POST(req: Request) {
   }
   assertRateLimit(`unified-email-webhook:${tenant.id}`, parseWebhookRateLimit(), 60_000);
 
-  const { email: inbox } = await ensureDefaultUnifiedInboxes(tenant.id);
   const from = parseSenderEmail(String(payload.from || ""));
   if (!from) {
     return NextResponse.json({ error: "Sender email missing." }, { status: 422 });
@@ -124,19 +302,101 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Message content missing." }, { status: 422 });
   }
 
-  let conversationId = extractConversationIdFromEmailSubject(String(payload.subject || "").trim() || "");
+  await ensureDefaultUnifiedInboxes(tenant.id);
+  const emailInboxes = await prisma.unifiedInbox.findMany({
+    where: {
+      tenantId: tenant.id,
+      type: "EMAIL",
+    },
+    orderBy: [{ status: "asc" }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      tenantId: true,
+      type: true,
+      name: true,
+      status: true,
+      credentialsEncrypted: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  const mailboxIds = emailInboxes
+    .map((item) => String(decryptInboxCredentials(item.credentialsEncrypted).emailOAuth?.connectedMailboxId || "").trim())
+    .filter(Boolean);
+  const connectedMailboxes =
+    mailboxIds.length > 0
+      ? await prisma.connectedMailbox.findMany({
+          where: {
+            workspaceId: tenant.id,
+            id: { in: mailboxIds },
+          },
+          select: {
+            id: true,
+            emailAddress: true,
+          },
+        })
+      : [];
+  const mailboxById = new Map(
+    connectedMailboxes.map((mailbox) => [mailbox.id, mailbox.emailAddress.toLowerCase()])
+  );
+  const recipientEmails = extractRecipientEmails(recipients);
+
+  let conversationId =
+    String(inboxRoute?.conversationId || "").trim() ||
+    extractConversationIdFromEmailSubject(String(payload.subject || "").trim() || "");
+  let inboxId: string | null = null;
+  if (conversationId) {
+    const matchedConversation = await prisma.unifiedConversation.findFirst({
+      where: {
+        id: conversationId,
+        tenantId: tenant.id,
+      },
+      select: {
+        id: true,
+        inboxId: true,
+      },
+    });
+    conversationId = matchedConversation?.id || null;
+    inboxId = matchedConversation?.inboxId || null;
+  }
   if (!conversationId && (threadHeaders.inReplyTo || threadHeaders.references.length)) {
     const related = await prisma.unifiedMessage.findFirst({
       where: {
         tenantId: tenant.id,
-        inboxId: inbox.id,
         externalId: {
           in: [threadHeaders.inReplyTo, ...threadHeaders.references].filter(Boolean) as string[],
         },
       },
-      select: { conversationId: true },
+      select: {
+        conversationId: true,
+        inboxId: true,
+      },
     });
     conversationId = related?.conversationId || null;
+    inboxId = related?.inboxId || null;
+  }
+
+  const inbox =
+    (inboxId ? emailInboxes.find((item) => item.id === inboxId) : null) ||
+    emailInboxes.find((item) => {
+      const credentials = decryptInboxCredentials(item.credentialsEncrypted);
+      const mailboxId = String(credentials.emailOAuth?.connectedMailboxId || "").trim();
+      const smtpCandidates = [
+        String(credentials.email?.from || "").trim().toLowerCase(),
+        String(credentials.email?.username || "").trim().toLowerCase(),
+      ].filter(Boolean);
+      const oauthCandidate = mailboxId ? mailboxById.get(mailboxId) || "" : "";
+      return recipientEmails.some(
+        (email) => email === oauthCandidate || smtpCandidates.includes(email)
+      );
+    }) ||
+    emailInboxes.find((item) => item.status === "ACTIVE") ||
+    emailInboxes[0] ||
+    null;
+
+  if (!inbox) {
+    return NextResponse.json({ error: "Email inbox not configured." }, { status: 422 });
   }
 
   const customer = await createOrResolveCustomerForInbound({

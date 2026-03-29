@@ -82,7 +82,10 @@ export default function BillingPage() {
     "Dedicated account manager": { en: "Dedicated account manager", fr: "Responsable dedie", de: "Dedizierter Account Manager", es: "Gestor de cuenta dedicado", pt: "Gestor de conta dedicado" },
     "SLA & custom integrations": { en: "SLA & custom integrations", fr: "SLA et integrations sur mesure", de: "SLA und individuelle Integrationen", es: "SLA e integraciónes personalizadas", pt: "SLA e integrações personalizadas" },
   };
-  const translateFeature = (feature: string) => t(featureMap[feature] || { en: feature });
+  const translateFeature = (feature: string) =>
+    t(
+      featureMap[feature] || { en: feature, fr: feature, de: feature, es: feature, pt: feature }
+    );
   const localizeBillingError = (message?: string) => {
     const normalized = String(message || "").trim();
     if (!normalized) return t("Unable to load billing history.", "Impossible de charger l'historique de facturation.", "Der Abrechnungsverlauf konnte nicht geladen werden.", "No se pudo cargar el historial de facturación.", "Não foi possivel carregar o histórico de faturação.");

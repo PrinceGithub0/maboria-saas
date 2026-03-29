@@ -152,9 +152,73 @@ export const PUT = withErrorHandling(async (req: Request) => {
 
   const existing = await prisma.unifiedInbox.findFirst({
     where: { id, tenantId: context.orgId },
-    select: { id: true, type: true },
+    select: { id: true, type: true, credentialsEncrypted: true, status: true },
   });
   if (!existing) return NextResponse.json({ error: "Inbox not found." }, { status: 404 });
+
+  const action = String(body?.action || "").trim().toLowerCase();
+  if (action === "disconnect") {
+    const existingCredentials = decryptInboxCredentials(existing.credentialsEncrypted);
+
+    const updated = await prisma.$transaction(async (tx) => {
+      let nextCredentialsEncrypted: string | null = null;
+
+      if (existing.type === "EMAIL") {
+        const connectedMailboxId = String(existingCredentials.emailOAuth?.connectedMailboxId || "").trim();
+        if (connectedMailboxId) {
+          await tx.connectedMailbox.updateMany({
+            where: {
+              id: connectedMailboxId,
+              workspaceId: context.orgId,
+            },
+            data: {
+              status: "DISCONNECTED",
+              accessTokenEncrypted: null,
+              refreshTokenEncrypted: null,
+            },
+          });
+
+          nextCredentialsEncrypted = encryptInboxSecret(
+            JSON.stringify({
+              emailOAuth: {
+                connectedMailboxId,
+              },
+            })
+          );
+        }
+      }
+
+      const record = await tx.unifiedInbox.update({
+        where: { id: existing.id },
+        data: {
+          status: "DISCONNECTED",
+          credentialsEncrypted: nextCredentialsEncrypted,
+        },
+        select: {
+          id: true,
+          type: true,
+          name: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      await writeUnifiedAuditEvent(tx, {
+        tenantId: context.orgId,
+        actorUserId: session.user.id,
+        actionType: existing.type === "EMAIL" ? "inbox.email_disconnected" : "inbox.whatsapp_disconnected",
+        metadata: {
+          inboxId: record.id,
+          inboxType: record.type,
+        },
+      });
+
+      return record;
+    });
+
+    return NextResponse.json(updated);
+  }
 
   const nextName = body?.name ? String(body.name).trim() : undefined;
   const nextStatus = body?.status ? String(body.status).trim().toUpperCase() : undefined;

@@ -29,6 +29,12 @@ function sanitizeTagLabels(input: unknown) {
     .slice(0, 25);
 }
 
+function getAuditEventSubject(metadata: Prisma.JsonValue | null | undefined) {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+  const subject = String((metadata as Record<string, unknown>).subject || "").trim();
+  return subject || null;
+}
+
 export const GET = withErrorHandling(async (_req: Request, ctx: { params: Promise<{ id: string }> }) => {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -89,6 +95,41 @@ export const GET = withErrorHandling(async (_req: Request, ctx: { params: Promis
   });
 
   if (!conversation) return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
+
+  const member = await prisma.businessMember.findUnique({
+    where: {
+      businessId_userId: {
+        businessId: context.orgId,
+        userId: session.user.id,
+      },
+    },
+    select: { role: true },
+  });
+  const canDeleteAnyNote = member?.role === "owner" || member?.role === "admin";
+
+  const messageSubjects = conversation.messages.length
+    ? await prisma.unifiedAuditEvent.findMany({
+        where: {
+          tenantId: context.orgId,
+          conversationId: conversation.id,
+          messageId: { in: conversation.messages.map((message) => message.id) },
+          actionType: { in: ["inbound.received", "outbound.sent", "outbound.failed"] },
+        },
+        orderBy: [{ createdAt: "desc" }],
+        select: {
+          messageId: true,
+          metadata: true,
+        },
+      })
+    : [];
+
+  const subjectByMessageId = new Map<string, string>();
+  for (const event of messageSubjects) {
+    const messageId = String(event.messageId || "").trim();
+    if (!messageId || subjectByMessageId.has(messageId)) continue;
+    const subject = getAuditEventSubject(event.metadata);
+    if (subject) subjectByMessageId.set(messageId, subject);
+  }
 
   await markUnifiedConversationSeen(prisma, {
     tenantId: context.orgId,
@@ -163,8 +204,14 @@ export const GET = withErrorHandling(async (_req: Request, ctx: { params: Promis
     contact: conversation.contact,
     assignedUser: conversation.assignedUser,
     tags: conversation.tags.map((entry) => entry.tag),
-    messages: conversation.messages,
-    notes: conversation.notes,
+    messages: conversation.messages.map((message) => ({
+      ...message,
+      subject: subjectByMessageId.get(message.id) || null,
+    })),
+    notes: conversation.notes.map((note) => ({
+      ...note,
+      canDelete: canDeleteAnyNote || note.author.id === session.user.id,
+    })),
     unreadCount: 0,
     canViewBillingInsights,
     customerInsights: canViewBillingInsights

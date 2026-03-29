@@ -39,6 +39,10 @@ type WhatsAppConnection =
 type Props = {
   connection: WhatsAppConnection | null;
   onConnected?: () => Promise<unknown> | unknown;
+  compact?: boolean;
+  hideUnavailableDetails?: boolean;
+  buttonClassName?: string;
+  containerClassName?: string;
 };
 
 type EmbeddedSignupEventPayload = {
@@ -156,7 +160,14 @@ function ensureMetaSdkLoaded(appId: string, graphVersion: string) {
   });
 }
 
-export function WhatsAppEmbeddedSignupCard({ connection, onConnected }: Props) {
+export function WhatsAppEmbeddedSignupCard({
+  connection,
+  onConnected,
+  compact = false,
+  hideUnavailableDetails = false,
+  buttonClassName,
+  containerClassName,
+}: Props) {
   const { language, t } = useLanguage();
   const env = readEnv();
   const enabled = isConfiguredRuntimeValue(env.appId) && isConfiguredRuntimeValue(env.configId);
@@ -365,14 +376,14 @@ export function WhatsAppEmbeddedSignupCard({ connection, onConnected }: Props) {
   };
 
   return (
-    <div className="space-y-3">
-      {!enabled ? (
+    <div className={`space-y-3 ${containerClassName || ""}`.trim()}>
+      {!enabled && !hideUnavailableDetails ? (
         <Alert variant="warning">
           {t("WhatsApp connect is unavailable until real Meta app values are added. Missing runtime config:", "La connexion WhatsApp est indisponible tant que les vraies valeurs de l'application Meta ne sont pas ajoutees. Configuration manquante :", "WhatsApp-Verbindung ist nicht verfügbar, bis echte Meta-App-Werte hinzugefugt wurden. Fehlende Runtime-Konfiguration:", "La conexion de WhatsApp no esta disponible hasta que se agreguen los valores reales de la app de Meta. Falta esta configuración:", "A ligacao do WhatsApp esta indisponivel at? serem adicionados valores reais da app Meta. Falta esta configuração:")} {missingClientConfig.join(", ")}.
         </Alert>
       ) : null}
 
-      {connection?.mode === "whatsapp_api" ? (
+      {connection?.mode === "whatsapp_api" && !compact ? (
         <div className="rounded-2xl border border-slate-200 p-4 text-sm dark:border-slate-700">
           <p className="font-medium text-slate-900 dark:text-slate-100">
             {connection.verifiedName || "WhatsApp Business"} {t("connected", "connecte", "verbunden", "conectado", "ligado")}
@@ -409,9 +420,9 @@ export function WhatsAppEmbeddedSignupCard({ connection, onConnected }: Props) {
           loading={busy}
           disabled={!enabled || busy}
           className={
-            !enabled
+            `${!enabled
               ? "cursor-not-allowed bg-slate-300 text-slate-600 shadow-none hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-400"
-              : ""
+              : ""} ${buttonClassName || ""}`.trim()
           }
         >
           {!enabled
@@ -420,11 +431,21 @@ export function WhatsAppEmbeddedSignupCard({ connection, onConnected }: Props) {
               ? t("Reconnect WhatsApp Business", "Reconnecter WhatsApp Business", "WhatsApp Business erneut verbinden", "Reconectar WhatsApp Business", "Ligar novamente o WhatsApp Business")
               : t("Connect WhatsApp Business", "Connecter WhatsApp Business", "WhatsApp Business verbinden", "Conectar WhatsApp Business", "Ligar WhatsApp Business")}
         </Button>
-        {enabled ? (
+        {!compact && enabled ? (
           <p className="text-xs text-slate-500 dark:text-slate-400">{t("Uses Meta embedded signup. No raw API tokens are typed into your app.", "Utilise l'inscription integree Meta. Aucun jeton API brut n'est saisi dans votre application.", "Verwendet das eingebettete Meta-Signup. Es werden keine rohen API-Tokens in deine App eingegeben.", "Usa el alta integrada de Meta. No se escriben tokens API sin procesar en la app.", "Utiliza o registo incorporado da Meta. Não sao introduzidos tokens API brutos na aplicacao.")}</p>
-        ) : (
+        ) : !compact ? (
           <p className="text-xs text-slate-500 dark:text-slate-400">{t("Add the real Meta app ID, signup config ID, and app secret, then restart the app.", "Ajoutez l'identifiant reel de l'application Meta, l'identifiant de configuration d'inscription et le secret de l'application, puis redemarrez l'application.", "Füge die echte Meta-App-ID, die Signup-Konfigurations-ID und das App-Secret hinzu und starte dann die App neu.", "Agrega el ID real de la app de Meta, el ID de configuración de alta y el secreto de la app, y luego reinicia la aplicación.", "Adicione o ID real da app Meta, o ID de configuração de registo e o segredo da app, depois reinicie a aplicacao.")}</p>
-        )}
+        ) : !enabled && hideUnavailableDetails ? (
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            {t(
+              "WhatsApp is not available on this deployment yet.",
+              "WhatsApp n'est pas encore disponible sur ce deploiement.",
+              "WhatsApp ist in dieser Bereitstellung noch nicht verfugbar.",
+              "WhatsApp aun no esta disponible en este despliegue.",
+              "O WhatsApp ainda nao esta disponivel nesta implementacao."
+            )}
+          </p>
+        ) : null}
       </div>
     </div>
   );

@@ -490,11 +490,11 @@ const faqSections: FaqSection[] = [
           "Que email devo contactar?"
         ),
         answer: text(
-          "Support -> support@mail.maboria.com (app help and issues). Billing -> billing@maboria.com (subscriptions and payments). General -> info@maboria.com.",
-          "Support -> support@mail.maboria.com (aide et problemes de l application). Facturation -> billing@maboria.com (abonnements et paiements). General -> info@maboria.com.",
-          "Support -> support@mail.maboria.com (App-Hilfe und Probleme). Abrechnung -> billing@maboria.com (Abos und Zahlungen). Allgemein -> info@maboria.com.",
-          "Soporte -> support@mail.maboria.com (ayuda de la aplicación y problemas). Facturación -> billing@maboria.com (suscripciones y pagos). General -> info@maboria.com.",
-          "Suporte -> support@mail.maboria.com (ajuda na aplicacao e problemas). Faturação -> billing@maboria.com (subscricoes e pagamentos). Geral -> info@maboria.com."
+          "Support -> support@maboria.com (app help and issues). Billing -> billing@maboria.com (subscriptions and payments). General -> info@maboria.com.",
+          "Support -> support@maboria.com (aide et problemes de l application). Facturation -> billing@maboria.com (abonnements et paiements). General -> info@maboria.com.",
+          "Support -> support@maboria.com (App-Hilfe und Probleme). Abrechnung -> billing@maboria.com (Abos und Zahlungen). Allgemein -> info@maboria.com.",
+          "Soporte -> support@maboria.com (ayuda de la aplicación y problemas). Facturación -> billing@maboria.com (suscripciones y pagos). General -> info@maboria.com.",
+          "Suporte -> support@maboria.com (ajuda na aplicacao e problemas). Faturação -> billing@maboria.com (subscricoes e pagamentos). Geral -> info@maboria.com."
         ),
       },
       {

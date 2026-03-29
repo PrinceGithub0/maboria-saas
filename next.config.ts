@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   compress: true,
   poweredByHeader: false,
-  distDir: process.env.NODE_ENV === "development" ? ".next-dev" : ".next",
+  distDir: process.env.NODE_ENV === "development" ? "node_modules/.cache/next-dev" : ".next",
   images: {
     formats: ["image/avif", "image/webp"],
   },

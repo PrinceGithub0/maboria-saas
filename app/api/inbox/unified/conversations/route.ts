@@ -14,6 +14,7 @@ import {
   ensureUnifiedConversationParticipants,
   expireUnifiedConversationSnoozes,
 } from "@/lib/inbox/conversation-participants";
+import { createOrResolveCustomerForInbound, decryptInboxCredentials } from "@/lib/inbox/channels";
 import { prisma } from "@/lib/prisma";
 
 export const GET = withErrorHandling(async (req: Request) => {
@@ -123,8 +124,85 @@ export const POST = withErrorHandling(async (req: Request) => {
   const defaults = await ensureDefaultUnifiedInboxes(context.orgId);
   const body = await req.json().catch(() => ({}));
 
-  const contactId = String(body?.contactId || "").trim();
-  if (!contactId) return NextResponse.json({ error: "contactId is required." }, { status: 422 });
+  const requestedContactId = String(body?.contactId || "").trim();
+  const rawContact =
+    body?.contact && typeof body.contact === "object" && !Array.isArray(body.contact) ? body.contact : null;
+  const requestedInboxId = String(body?.inboxId || "").trim();
+  const requestedChannel = String(body?.channel || "").trim().toUpperCase();
+
+  const emailInboxes = await prisma.unifiedInbox.findMany({
+    where: {
+      tenantId: context.orgId,
+      type: "EMAIL",
+    },
+    orderBy: [{ status: "asc" }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      tenantId: true,
+      type: true,
+      name: true,
+      status: true,
+      credentialsEncrypted: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+  const activeEmailInbox =
+    emailInboxes.find((item) => {
+      const connectedMailboxId = String(
+        decryptInboxCredentials(item.credentialsEncrypted).emailOAuth?.connectedMailboxId || ""
+      ).trim();
+      return item.status === "ACTIVE" && Boolean(connectedMailboxId);
+    }) || emailInboxes.find((item) => item.status === "ACTIVE");
+
+  const inbox = requestedInboxId
+    ? await prisma.unifiedInbox.findFirst({
+        where: { id: requestedInboxId, tenantId: context.orgId },
+      })
+    : isUnifiedMessageChannel(requestedChannel)
+      ? requestedChannel === "EMAIL"
+        ? activeEmailInbox || defaults.email
+        : defaults.whatsapp
+      : defaults.whatsapp;
+
+  if (!inbox) return NextResponse.json({ error: "Inbox not found." }, { status: 404 });
+  if (requestedChannel === "EMAIL" && inbox.type !== "EMAIL") {
+    return NextResponse.json({ error: "Selected inbox is not an email inbox." }, { status: 422 });
+  }
+  if (requestedChannel === "WHATSAPP" && inbox.type !== "WHATSAPP") {
+    return NextResponse.json({ error: "Selected inbox is not a WhatsApp inbox." }, { status: 422 });
+  }
+
+  const resolvedChannel = inbox.type === "EMAIL" ? "EMAIL" : "WHATSAPP";
+
+  let contactId = requestedContactId;
+  if (!contactId) {
+    const email = String(rawContact?.email || "")
+      .trim()
+      .toLowerCase();
+    const phone = String(rawContact?.phone || "").trim();
+    const name = String(rawContact?.name || "").trim();
+
+    if (!email && !phone) {
+      return NextResponse.json({ error: "Contact email or phone is required." }, { status: 422 });
+    }
+    if (resolvedChannel === "EMAIL" && !email) {
+      return NextResponse.json({ error: "Contact email is required for email conversations." }, { status: 422 });
+    }
+    if (resolvedChannel === "WHATSAPP" && !phone) {
+      return NextResponse.json({ error: "Contact phone is required for WhatsApp conversations." }, { status: 422 });
+    }
+
+    const contact = await createOrResolveCustomerForInbound({
+      tenantId: context.orgId,
+      ownerId: context.ownerUserId,
+      channel: resolvedChannel,
+      email: email || null,
+      phone: phone || null,
+      displayName: name || null,
+    });
+    contactId = contact.id;
+  }
 
   const contact = await prisma.customer.findFirst({
     where: {
@@ -143,35 +221,61 @@ export const POST = withErrorHandling(async (req: Request) => {
   });
 
   if (!contact) return NextResponse.json({ error: "Customer not found." }, { status: 404 });
-
-  const requestedInboxId = String(body?.inboxId || "").trim();
-  const requestedChannel = String(body?.channel || "").trim().toUpperCase();
-
-  const inbox = requestedInboxId
-    ? await prisma.unifiedInbox.findFirst({
-        where: { id: requestedInboxId, tenantId: context.orgId },
-      })
-    : isUnifiedMessageChannel(requestedChannel)
-      ? requestedChannel === "EMAIL"
-        ? defaults.email
-        : defaults.whatsapp
-      : defaults.whatsapp;
-
-  if (!inbox) return NextResponse.json({ error: "Inbox not found." }, { status: 404 });
+  const requestedAssignedUserId = body?.assignedUserId ? String(body.assignedUserId) : null;
 
   const created = await prisma.$transaction(async (tx) => {
-    const conversation = await tx.unifiedConversation.create({
-      data: {
+    const existingConversation = await tx.unifiedConversation.findFirst({
+      where: {
         tenantId: context.orgId,
         inboxId: inbox.id,
         contactId,
-        status: "OPEN",
-        assignedUserId: body?.assignedUserId ? String(body.assignedUserId) : null,
-        lastMessageAt: null,
+        status: {
+          in: ["OPEN", "WAITING_ON_CUSTOMER", "SNOOZED"],
+        },
       },
+      orderBy: [{ lastMessageAt: "desc" }, { updatedAt: "desc" }, { createdAt: "desc" }],
       include: {
         inbox: { select: { id: true, name: true, type: true, status: true } },
         contact: { select: { id: true, name: true, email: true, phone: true, status: true } },
+      },
+    });
+
+    const conversation = existingConversation
+      ? requestedAssignedUserId && existingConversation.assignedUserId !== requestedAssignedUserId
+        ? await tx.unifiedConversation.update({
+            where: { id: existingConversation.id },
+            data: {
+              assignedUserId: requestedAssignedUserId,
+            },
+            include: {
+              inbox: { select: { id: true, name: true, type: true, status: true } },
+              contact: { select: { id: true, name: true, email: true, phone: true, status: true } },
+            },
+          })
+        : existingConversation
+      : await tx.unifiedConversation.create({
+          data: {
+            tenantId: context.orgId,
+            inboxId: inbox.id,
+            contactId,
+            status: "OPEN",
+            assignedUserId: requestedAssignedUserId,
+            lastMessageAt: null,
+          },
+          include: {
+            inbox: { select: { id: true, name: true, type: true, status: true } },
+            contact: { select: { id: true, name: true, email: true, phone: true, status: true } },
+          },
+        });
+
+    await writeUnifiedAuditEvent(tx, {
+      tenantId: context.orgId,
+      actorUserId: session.user.id,
+      actionType: existingConversation ? "conversation.reused" : "conversation.created",
+      conversationId: conversation.id,
+      metadata: {
+        contactId: conversation.contactId,
+        inboxId: conversation.inboxId,
       },
     });
 
@@ -180,19 +284,11 @@ export const POST = withErrorHandling(async (req: Request) => {
       conversationId: conversation.id,
     });
 
-    await writeUnifiedAuditEvent(tx, {
-      tenantId: context.orgId,
-      actorUserId: session.user.id,
-      actionType: "conversation.created",
-      conversationId: conversation.id,
-      metadata: {
-        contactId: conversation.contactId,
-        inboxId: conversation.inboxId,
-      },
-    });
-
-    return conversation;
+    return {
+      conversation,
+      reused: Boolean(existingConversation),
+    };
   });
 
-  return NextResponse.json(created, { status: 201 });
+  return NextResponse.json(created.conversation, { status: created.reused ? 200 : 201 });
 });

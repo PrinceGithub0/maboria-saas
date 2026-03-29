@@ -238,7 +238,7 @@ function collectIssuesForFile(filePath) {
       if (ts.isIdentifier(node.expression) && node.expression.text === "t") {
         const args = node.arguments;
         if (
-          args.length >= 2 &&
+          args.length >= 1 &&
           args.length < 5 &&
           isStringLike(args[0]) &&
           args.slice(1).every(isStringLike)
@@ -264,7 +264,7 @@ function collectIssuesForFile(filePath) {
               .map(getPropertyName)
               .filter((value) => value && languageKeys.has(value))
           );
-          if (keys.size >= 2) {
+          if (keys.size >= 1) {
             const missing = getMissingLanguageKeys(keys);
             const enProperty = args[0].properties.find(
               (prop) => ts.isPropertyAssignment(prop) && getPropertyName(prop) === "en"
@@ -301,7 +301,7 @@ function collectIssuesForFile(filePath) {
             .map(getPropertyName)
             .filter((value) => value && languageKeys.has(value))
         );
-        if (keys.size >= 2) {
+        if (keys.size >= 1) {
           const missing = getMissingLanguageKeys(keys);
           const enProperty = node.arguments[0].properties.find(
             (prop) => ts.isPropertyAssignment(prop) && getPropertyName(prop) === "en"
@@ -338,7 +338,7 @@ function collectIssuesForFile(filePath) {
         ts.isCallExpression(parent) ||
         ts.isJsxExpression(parent) ||
         ts.isReturnStatement(parent);
-      if (!shouldIgnoreParent && keys.size >= 2) {
+      if (!shouldIgnoreParent && keys.size >= 1) {
         const missing = getMissingLanguageKeys(keys);
         const enProperty = node.properties.find(
           (prop) => ts.isPropertyAssignment(prop) && getPropertyName(prop) === "en"

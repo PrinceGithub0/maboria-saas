@@ -6,6 +6,7 @@ import { Prisma, UnifiedInbox, UnifiedMessageChannel } from "@prisma/client";
 import { encryptInboxSecret, safeDecryptInboxSecret } from "@/lib/crypto";
 import { enforceUsageLimit } from "@/lib/entitlements";
 import { log } from "@/lib/logger";
+import { sanitizeInboundEmailDisplayText } from "@/lib/inbox/message-format";
 import {
   isOauthMailboxProvider,
   normalizeMailboxAttachments,
@@ -43,6 +44,7 @@ type DecryptedInboxCredentials = {
 
 type OutboundChannelResult = {
   externalId: string | null;
+  providerThreadId: string | null;
   deliveryStatus: "SENT" | "FAILED";
   errorCode: string | null;
   errorMessage: string | null;
@@ -152,7 +154,7 @@ function resolveOauthMailboxBinding(credentials: DecryptedInboxCredentials) {
   };
 }
 
-function parseConnectedMailboxMetadata(value: Prisma.JsonValue | null | undefined) {
+export function parseConnectedMailboxMetadata(value: Prisma.JsonValue | null | undefined) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return {} as Record<string, unknown>;
   }
@@ -183,6 +185,8 @@ async function persistConnectedMailboxTokens(input: {
     },
     select: {
       id: true,
+      workspaceId: true,
+      subscriberId: true,
       provider: true,
       status: true,
       emailAddress: true,
@@ -249,6 +253,44 @@ async function refreshConnectedMailboxAccess(input: {
   });
 }
 
+export async function getConnectedMailboxAccess(input: { mailboxId: string }) {
+  const mailbox = await prisma.connectedMailbox.findUnique({
+    where: { id: input.mailboxId },
+    select: {
+      id: true,
+      workspaceId: true,
+      subscriberId: true,
+      provider: true,
+      status: true,
+      emailAddress: true,
+      displayName: true,
+      accessTokenEncrypted: true,
+      refreshTokenEncrypted: true,
+      metadata: true,
+    },
+  });
+
+  if (!mailbox || !isOauthMailboxProvider(mailbox.provider)) {
+    return null;
+  }
+
+  let activeMailbox = mailbox;
+  let accessToken = safeDecryptInboxSecret(mailbox.accessTokenEncrypted);
+
+  if ((!accessToken || shouldRefreshMailboxAccessToken(mailbox.metadata)) && mailbox.refreshTokenEncrypted) {
+    activeMailbox = await refreshConnectedMailboxAccess({
+      mailbox,
+    });
+    accessToken = safeDecryptInboxSecret(activeMailbox.accessTokenEncrypted);
+  }
+
+  return {
+    mailbox: activeMailbox,
+    accessToken: accessToken || null,
+    metadata: parseConnectedMailboxMetadata(activeMailbox.metadata),
+  };
+}
+
 export async function sendOutboundEmail(input: {
   inbox: InboxCredentialCarrier;
   conversationId: string;
@@ -281,6 +323,7 @@ export async function sendOutboundEmail(input: {
     if (!mailbox || !isOauthMailboxProvider(mailbox.provider)) {
       return {
         externalId: null,
+        providerThreadId: null,
         deliveryStatus: "FAILED",
         errorCode: "email_oauth_mailbox_missing",
         errorMessage: "Connected mailbox is not available.",
@@ -290,6 +333,7 @@ export async function sendOutboundEmail(input: {
     if (mailbox.status !== "ACTIVE") {
       return {
         externalId: null,
+        providerThreadId: null,
         deliveryStatus: "FAILED",
         errorCode: "email_oauth_mailbox_inactive",
         errorMessage: "Connected mailbox is not active.",
@@ -309,6 +353,7 @@ export async function sendOutboundEmail(input: {
       if (!accessToken) {
         return {
           externalId: null,
+          providerThreadId: null,
           deliveryStatus: "FAILED",
           errorCode: "email_oauth_token_missing",
           errorMessage: "Connected mailbox access token is missing.",
@@ -335,6 +380,7 @@ export async function sendOutboundEmail(input: {
 
         return {
           externalId: result.externalId,
+          providerThreadId: result.providerThreadId || null,
           deliveryStatus: "SENT",
           errorCode: null,
           errorMessage: null,
@@ -373,6 +419,7 @@ export async function sendOutboundEmail(input: {
 
         return {
           externalId: result.externalId,
+          providerThreadId: result.providerThreadId || null,
           deliveryStatus: "SENT",
           errorCode: null,
           errorMessage: null,
@@ -397,6 +444,7 @@ export async function sendOutboundEmail(input: {
 
       return {
         externalId: null,
+        providerThreadId: null,
         deliveryStatus: "FAILED",
         errorCode,
         errorMessage,
@@ -408,6 +456,7 @@ export async function sendOutboundEmail(input: {
   if (!smtp.host || !smtp.user || !smtp.pass || !smtp.from) {
     return {
       externalId: null,
+      providerThreadId: null,
       deliveryStatus: "FAILED",
       errorCode: "email_config_missing",
       errorMessage: "Email credentials are not configured.",
@@ -446,6 +495,7 @@ export async function sendOutboundEmail(input: {
 
     return {
       externalId: String(info?.messageId || ""),
+      providerThreadId: null,
       deliveryStatus: "SENT",
       errorCode: null,
       errorMessage: null,
@@ -453,6 +503,7 @@ export async function sendOutboundEmail(input: {
   } catch (error: any) {
     return {
       externalId: null,
+      providerThreadId: null,
       deliveryStatus: "FAILED",
       errorCode: String(error?.code || "email_send_failed"),
       errorMessage: String(error?.message || "Failed to send email."),
@@ -488,6 +539,7 @@ export async function sendOutboundWhatsApp(input: {
   if (!config.accessToken || !config.phoneNumberId) {
     return {
       externalId: null,
+      providerThreadId: null,
       deliveryStatus: "FAILED",
       errorCode: "whatsapp_config_missing",
       errorMessage: "WhatsApp credentials are not configured.",
@@ -498,6 +550,7 @@ export async function sendOutboundWhatsApp(input: {
   if (!to) {
     return {
       externalId: null,
+      providerThreadId: null,
       deliveryStatus: "FAILED",
       errorCode: "whatsapp_phone_missing",
       errorMessage: "Customer phone number is missing.",
@@ -525,6 +578,7 @@ export async function sendOutboundWhatsApp(input: {
     if (!response.ok) {
       return {
         externalId: null,
+        providerThreadId: null,
         deliveryStatus: "FAILED",
         errorCode: String(payload?.error?.code || `http_${response.status}`),
         errorMessage: String(payload?.error?.message || "WhatsApp send failed."),
@@ -532,6 +586,7 @@ export async function sendOutboundWhatsApp(input: {
     }
     return {
       externalId: String(payload?.messages?.[0]?.id || ""),
+      providerThreadId: null,
       deliveryStatus: "SENT",
       errorCode: null,
       errorMessage: null,
@@ -539,6 +594,7 @@ export async function sendOutboundWhatsApp(input: {
   } catch (error: any) {
     return {
       externalId: null,
+      providerThreadId: null,
       deliveryStatus: "FAILED",
       errorCode: String(error?.code || "whatsapp_send_failed"),
       errorMessage: String(error?.message || "WhatsApp send failed."),
@@ -616,8 +672,40 @@ export async function markMessageDeliveryByExternalId(input: {
 }
 
 export function buildConversationEmailSubject(input: { conversationId: string; contactName?: string | null }) {
-  const label = input.contactName ? `Support: ${input.contactName}` : "Support conversation";
-  return `[Conversation #${input.conversationId}] ${label}`;
+  return input.contactName ? `Support: ${input.contactName}` : "Support conversation";
+}
+
+export function formatUnifiedInboxReplyToAddress(tenantId: string, conversationId?: string | null) {
+  const rawReplyBase =
+    process.env.EMAIL_INBOX_INBOUND ||
+    process.env.PLATFORM_EMAIL_FROM ||
+    process.env.EMAIL_INFO_FROM ||
+    process.env.EMAIL_SUPPORT_REPLY_TO ||
+    "inbox@mail.maboria.com";
+  const normalizedFrom = String(rawReplyBase || "inbox@mail.maboria.com").trim();
+  const atIndex = normalizedFrom.lastIndexOf("@");
+  if (atIndex <= 0) {
+    return conversationId ? `inbox+${tenantId}+${conversationId}@maboria.com` : `inbox+${tenantId}@maboria.com`;
+  }
+  const local = normalizedFrom.slice(0, atIndex).split("+")[0] || "inbox";
+  const domain = normalizedFrom.slice(atIndex + 1) || "maboria.com";
+  return conversationId ? `${local}+${tenantId}+${conversationId}@${domain}` : `${local}+${tenantId}@${domain}`;
+}
+
+export function extractInboxRouteFromInboundAddress(addresses: string[]) {
+  for (const entry of addresses) {
+    const value = String(entry || "");
+    const plus = value.match(
+      /[A-Za-z0-9._%+-]+\+([A-Za-z0-9_-]+)(?:\+([A-Za-z0-9_-]+))?@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/
+    );
+    if (plus?.[1]) {
+      return {
+        tenantId: plus[1],
+        conversationId: plus[2] || null,
+      };
+    }
+  }
+  return null;
 }
 
 export function extractConversationIdFromEmailSubject(subject: string) {
@@ -626,12 +714,7 @@ export function extractConversationIdFromEmailSubject(subject: string) {
 }
 
 export function extractTenantIdFromInboundAddress(addresses: string[]) {
-  for (const entry of addresses) {
-    const value = String(entry || "");
-    const plus = value.match(/[A-Za-z0-9._%+-]+\+([A-Za-z0-9_-]+)@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
-    if (plus?.[1]) return plus[1];
-  }
-  return null;
+  return extractInboxRouteFromInboundAddress(addresses)?.tenantId || null;
 }
 
 export function parseSenderEmail(value: string) {
@@ -728,14 +811,18 @@ function stripMobileSignature(text: string) {
 }
 
 export function extractInboundReplyText(input: { text?: string | null; html?: string | null }) {
-  const plain = stripMobileSignature(stripQuotedReplyText(String(input.text || "").trim()));
+  const plain = sanitizeInboundEmailDisplayText(
+    stripMobileSignature(stripQuotedReplyText(String(input.text || "").trim()))
+  );
   if (plain) return plain;
 
   const html = String(input.html || "").trim();
   if (!html) return "";
 
   const cleanedHtml = stripQuotedEmailHtml(html);
-  return stripMobileSignature(stripQuotedReplyText(htmlToTextWithBreaks(cleanedHtml)));
+  return sanitizeInboundEmailDisplayText(
+    stripMobileSignature(stripQuotedReplyText(htmlToTextWithBreaks(cleanedHtml)))
+  );
 }
 
 export async function createOrResolveCustomerForInbound(input: {

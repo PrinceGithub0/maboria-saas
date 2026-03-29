@@ -280,7 +280,10 @@ export function localizeAdminStatus(value: string | null | undefined, language: 
     ACKNOWLEDGED: { en: "Acknowledged", fr: "Pris en compte", de: "Bestätigt", es: "Reconocida", pt: "Confirmada" },
     SNOOZED: { en: "Snoozed", fr: "Reporte", de: "Zurückgestellt", es: "Pospuesta", pt: "Adiada" },
   };
-  return getLocalizedText(map[normalized] || { en: normalized || "-" }, language);
+  return getLocalizedText(
+    map[normalized] || adminText(normalized || "-", normalized || "-", normalized || "-", normalized || "-", normalized || "-"),
+    language
+  );
 }
 
 export function localizeAdminSource(value: string | null | undefined, language: Language) {
@@ -299,7 +302,10 @@ export function localizeAdminSource(value: string | null | undefined, language: 
     AUDIT: adminText("Audit logs", "Journaux d'audit", "Audit-Protokolle", "Registros de auditoria", "Registos de auditoria"),
     SYSTEM_FLAG: adminText("System flag audits", "Audits des drapeaux systeme", "System-Flag-Audits", "Auditorias de indicadores del sistema", "Auditorias de indicadores do sistema"),
   };
-  return getLocalizedText(map[normalized] || { en: normalized || "-" }, language);
+  return getLocalizedText(
+    map[normalized] || adminText(normalized || "-", normalized || "-", normalized || "-", normalized || "-", normalized || "-"),
+    language
+  );
 }
 
 export function localizeAdminProvider(value: string | null | undefined, language: Language) {
@@ -313,7 +319,17 @@ export function localizeAdminProvider(value: string | null | undefined, language
     FLUTTERWAVE: adminText("Flutterwave", "Flutterwave", "Flutterwave", "Flutterwave", "Flutterwave"),
     STRIPE: adminText("Stripe", "Stripe", "Stripe", "Stripe", "Stripe"),
   };
-  return getLocalizedText(map[normalized] || { en: String(value || "-") || "-" }, language);
+  return getLocalizedText(
+    map[normalized] ||
+      adminText(
+        String(value || "-") || "-",
+        String(value || "-") || "-",
+        String(value || "-") || "-",
+        String(value || "-") || "-",
+        String(value || "-") || "-"
+      ),
+    language
+  );
 }
 
 export function formatAdminIdentifierLabel(value: string | null | undefined) {

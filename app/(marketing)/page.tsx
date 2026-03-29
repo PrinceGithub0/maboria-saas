@@ -25,6 +25,22 @@ type FeatureGroup = {
   items: MarketingText[];
 };
 
+type InboxCompareColumn = {
+  title: MarketingText;
+  items: MarketingText[];
+};
+
+type InboxMetric = {
+  value: string;
+  label: MarketingText;
+};
+
+type InboxThread = {
+  customer: string;
+  channel: "Gmail" | "Outlook" | "WhatsApp";
+  preview: MarketingText;
+};
+
 const marketingCopy = {
   automationCloud: defineLocalizedText({
     en: "Automation Cloud",
@@ -173,6 +189,90 @@ const marketingCopy = {
     es: "Que ocurre cuando usas Maboria",
     pt: "O que acontece quando usa a Maboria",
   }),
+  inboxLabel: defineLocalizedText({
+    en: "Unified Inbox",
+    fr: "Boite de reception unifiee",
+    de: "Vereinheitlichter Posteingang",
+    es: "Bandeja unificada",
+    pt: "Caixa de entrada unificada",
+  }),
+  inboxTitle: defineLocalizedText({
+    en: "One inbox for every customer conversation.",
+    fr: "Une seule boite pour chaque conversation client.",
+    de: "Ein Posteingang fur jede Kundennachricht.",
+    es: "Una sola bandeja para cada conversacion con clientes.",
+    pt: "Uma unica caixa para cada conversa com clientes.",
+  }),
+  inboxDescription: defineLocalizedText({
+    en: "Bring Gmail, Outlook, and WhatsApp into one workspace so your team can reply faster, stay aligned, and follow up without switching tabs.",
+    fr: "Rassemblez Gmail, Outlook et WhatsApp dans un seul espace pour que votre equipe reponde plus vite, reste alignee et assure le suivi sans changer d onglet.",
+    de: "Bringe Gmail, Outlook und WhatsApp in einen Workspace, damit dein Team schneller antwortet, abgestimmt bleibt und ohne Tab-Wechsel nachfasst.",
+    es: "Reune Gmail, Outlook y WhatsApp en un solo espacio para que tu equipo responda mas rapido, se mantenga alineado y haga seguimiento sin cambiar de pestanas.",
+    pt: "Junte Gmail, Outlook e WhatsApp num unico espaco para que a sua equipa responda mais rapido, fique alinhada e faca seguimento sem mudar de separador.",
+  }),
+  inboxCta: defineLocalizedText({
+    en: "Start your unified inbox",
+    fr: "Lancer votre boite unifiee",
+    de: "Deinen Posteingang starten",
+    es: "Lanza tu bandeja unificada",
+    pt: "Inicie a sua caixa unificada",
+  }),
+  inboxPanelTitle: defineLocalizedText({
+    en: "Live channels in one shared workspace",
+    fr: "Canaux actifs dans un espace partage",
+    de: "Aktive Kanale in einem gemeinsamen Workspace",
+    es: "Canales activos en un espacio compartido",
+    pt: "Canais ativos num espaco partilhado",
+  }),
+  inboxPanelBadge: defineLocalizedText({
+    en: "Team ready",
+    fr: "Equipe prete",
+    de: "Team bereit",
+    es: "Equipo listo",
+    pt: "Equipa pronta",
+  }),
+  inboxFeedLabel: defineLocalizedText({
+    en: "Inbox feed",
+    fr: "Flux de la boite",
+    de: "Posteingangs-Feed",
+    es: "Flujo de bandeja",
+    pt: "Fluxo da caixa",
+  }),
+  inboxComposeLabel: defineLocalizedText({
+    en: "Reply from the right inbox",
+    fr: "Repondre depuis la bonne boite",
+    de: "Aus dem richtigen Postfach antworten",
+    es: "Responder desde la bandeja correcta",
+    pt: "Responder a partir da caixa certa",
+  }),
+  inboxComposeBadge: defineLocalizedText({
+    en: "AI ready",
+    fr: "IA prete",
+    de: "KI bereit",
+    es: "IA lista",
+    pt: "IA pronta",
+  }),
+  inboxFromLabel: defineLocalizedText({
+    en: "From",
+    fr: "Depuis",
+    de: "Von",
+    es: "Desde",
+    pt: "De",
+  }),
+  inboxCustomerLabel: defineLocalizedText({
+    en: "Customer",
+    fr: "Client",
+    de: "Kunde",
+    es: "Cliente",
+    pt: "Cliente",
+  }),
+  inboxDraftPreview: defineLocalizedText({
+    en: "Draft prepared. Review, edit, and send from the selected channel without losing thread history.",
+    fr: "Brouillon prepare. Relisez, modifiez et envoyez depuis le canal choisi sans perdre l historique du fil.",
+    de: "Entwurf vorbereitet. Prufe, bearbeite und sende aus dem gewahlten Kanal, ohne den Verlauf zu verlieren.",
+    es: "Borrador preparado. Revisa, edita y envia desde el canal elegido sin perder el historial del hilo.",
+    pt: "Rascunho preparado. Reveja, edite e envie a partir do canal escolhido sem perder o historico da conversa.",
+  }),
   featuresTitle: defineLocalizedText({
     en: "Everything you can automate - end to end.",
     fr: "Tout ce que vous pouvez automatiser.",
@@ -279,68 +379,212 @@ const trustBullets: MarketingText[] = [
 const workflowSteps: WorkflowStep[] = [
   defineLocalizedText({
     step: "01",
-    en: "Create invoice",
-    fr: "Creer une facture",
-    de: "Rechnung erstellen",
-    es: "Crear factura",
-    pt: "Criar fatura",
+    en: "Create an invoice or billing flow",
+    fr: "Creer une facture ou un flux de facturation",
+    de: "Erstelle eine Rechnung oder einen Abrechnungsablauf",
+    es: "Crea una factura o un flujo de cobro",
+    pt: "Crie uma fatura ou um fluxo de cobranca",
   }),
   defineLocalizedText({
     step: "02",
-    en: "Sign in to your workspace, then send by email or WhatsApp",
-    fr: "Connectez-vous a votre espace, puis envoyez par email ou WhatsApp",
-    de: "Melde dich in deinem Workspace an und sende dann per E-Mail oder WhatsApp",
-    es: "Inicia sesión en tu espacio de trabajo y luego envia por correo o WhatsApp",
-    pt: "Inicie sessão no seu espaco de trabalho e depois envie por email ou WhatsApp",
+    en: "Automation sends it by email or WhatsApp from your workspace",
+    fr: "L automatisation l envoie par email ou WhatsApp depuis votre espace",
+    de: "Die Automatisierung sendet sie aus deinem Workspace per E-Mail oder WhatsApp",
+    es: "La automatizacion lo envia por correo o WhatsApp desde tu espacio de trabajo",
+    pt: "A automacao envia por email ou WhatsApp a partir do seu espaco",
   }),
   defineLocalizedText({
     step: "03",
+    en: "Customer replies by Gmail, Outlook, or WhatsApp",
+    fr: "Le client repond par Gmail, Outlook ou WhatsApp",
+    de: "Kundin oder Kunde antwortet uber Gmail, Outlook oder WhatsApp",
+    es: "El cliente responde por Gmail, Outlook o WhatsApp",
+    pt: "O cliente responde por Gmail, Outlook ou WhatsApp",
+  }),
+  defineLocalizedText({
+    step: "04",
+    en: "The conversation lands in one unified inbox for your team",
+    fr: "La conversation arrive dans une boite unifiee pour votre equipe",
+    de: "Die Konversation landet in einem gemeinsamen Posteingang fur dein Team",
+    es: "La conversacion llega a una bandeja unificada para tu equipo",
+    pt: "A conversa chega a uma caixa unificada para a sua equipa",
+  }),
+  defineLocalizedText({
+    step: "05",
+    en: "Your team replies from one place with full customer context",
+    fr: "Votre equipe repond depuis un seul endroit avec tout le contexte client",
+    de: "Dein Team antwortet an einem Ort mit vollem Kundenkontext",
+    es: "Tu equipo responde desde un solo lugar con todo el contexto del cliente",
+    pt: "A sua equipa responde a partir de um so lugar com todo o contexto do cliente",
+  }),
+  defineLocalizedText({
+    step: "06",
     en: "Customer pays via Paystack or Flutterwave",
     fr: "Paiement via Paystack ou Flutterwave",
-    de: "Kundin oder Kunde bezahlt über Paystack oder Flutterwave",
+    de: "Kundin oder Kunde bezahlt uber Paystack oder Flutterwave",
     es: "El cliente paga con Paystack o Flutterwave",
     pt: "O cliente paga com Paystack ou Flutterwave",
   }),
   defineLocalizedText({
-    step: "04",
-    en: "Payment detected instantly",
-    fr: "Paiement detecte instantanement",
-    de: "Zahlung wird sofort erkannt",
-    es: "Pago detectado al instante",
-    pt: "Pagamento detetado instantaneamente",
-  }),
-  defineLocalizedText({
-    step: "05",
-    en: "Receipt issued automatically",
-    fr: "Recu emis automatiquement",
-    de: "Beleg wird automatisch erstellt",
-    es: "Recibo emitido automaticamente",
-    pt: "Recibo emitido automaticamente",
-  }),
-  defineLocalizedText({
-    step: "06",
-    en: "Follow-ups triggered if unpaid",
-    fr: "Relances en cas d impaye",
-    de: "Nachfassaktionen werden bei Nichtzahlung ausgelöst",
-    es: "Seguimientos activados si no se paga",
-    pt: "Seguimentos ativados se não houver pagamento",
-  }),
-  defineLocalizedText({
     step: "07",
-    en: "Activity logged for your team",
-    fr: "Activit? journalisee pour l équipe",
-    de: "Aktivität wird für dein Team protokolliert",
-    es: "Actividad registrada para tu equipo",
-    pt: "Atividade registada para a sua equipa",
+    en: "If unpaid, recurring follow-ups keep running automatically",
+    fr: "En cas d impaye, les relances recurrentes continuent automatiquement",
+    de: "Bei Nichtzahlung laufen wiederkehrende Nachfassaktionen automatisch weiter",
+    es: "Si no se paga, los seguimientos recurrentes siguen funcionando automaticamente",
+    pt: "Se nao houver pagamento, os seguimentos recorrentes continuam automaticamente",
   }),
   defineLocalizedText({
     step: "08",
-    en: "Reports generated automatically",
-    fr: "Rapports generes automatiquement",
-    de: "Berichte werden automatisch erstellt",
-    es: "Reportes generados automaticamente",
-    pt: "Relatórios gerados automaticamente",
+    en: "Receipts, team logs, and reports update automatically",
+    fr: "Les recus, journaux d equipe et rapports se mettent a jour automatiquement",
+    de: "Belege, Team-Protokolle und Berichte werden automatisch aktualisiert",
+    es: "Los recibos, registros del equipo y reportes se actualizan automaticamente",
+    pt: "Os recibos, registos da equipa e relatorios atualizam-se automaticamente",
   }),
+];
+
+const inboxComparison: InboxCompareColumn[] = [
+  {
+    title: defineLocalizedText({
+      en: "Before Maboria",
+      fr: "Avant Maboria",
+      de: "Vor Maboria",
+      es: "Antes de Maboria",
+      pt: "Antes da Maboria",
+    }),
+    items: [
+      defineLocalizedText({
+        en: "Tabs everywhere across Gmail, Outlook, and WhatsApp",
+        fr: "Des onglets partout entre Gmail, Outlook et WhatsApp",
+        de: "Zu viele Tabs in Gmail, Outlook und WhatsApp",
+        es: "Pestanas por todas partes entre Gmail, Outlook y WhatsApp",
+        pt: "Separadores por todo o lado entre Gmail, Outlook e WhatsApp",
+      }),
+      defineLocalizedText({
+        en: "Manual follow-ups and lost thread context",
+        fr: "Relances manuelles et contexte perdu",
+        de: "Manuelle Nachfassaktionen und verlorener Kontext",
+        es: "Seguimientos manuales y contexto perdido",
+        pt: "Seguimentos manuais e contexto perdido",
+      }),
+      defineLocalizedText({
+        en: "Team replies from the wrong place or too late",
+        fr: "L equipe repond depuis le mauvais endroit ou trop tard",
+        de: "Das Team antwortet vom falschen Ort oder zu spat",
+        es: "El equipo responde desde el lugar equivocado o demasiado tarde",
+        pt: "A equipa responde do lugar errado ou tarde demais",
+      }),
+    ],
+  },
+  {
+    title: defineLocalizedText({
+      en: "With Maboria",
+      fr: "Avec Maboria",
+      de: "Mit Maboria",
+      es: "Con Maboria",
+      pt: "Com a Maboria",
+    }),
+    items: [
+      defineLocalizedText({
+        en: "Gmail, Outlook, and WhatsApp in one queue",
+        fr: "Gmail, Outlook et WhatsApp dans une seule file",
+        de: "Gmail, Outlook und WhatsApp in einer Queue",
+        es: "Gmail, Outlook y WhatsApp en una sola cola",
+        pt: "Gmail, Outlook e WhatsApp numa unica fila",
+      }),
+      defineLocalizedText({
+        en: "The right sender, AI draft, and follow-up history stay together",
+        fr: "Le bon expediteur, le brouillon IA et l historique de suivi restent ensemble",
+        de: "Richtiger Absender, KI-Entwurf und Nachfassverlauf bleiben zusammen",
+        es: "El remitente correcto, el borrador de IA y el historial de seguimiento permanecen juntos",
+        pt: "O remetente certo, o rascunho de IA e o historico de seguimento ficam juntos",
+      }),
+      defineLocalizedText({
+        en: "Your team works faster from one shared workspace",
+        fr: "Votre equipe travaille plus vite depuis un espace partage",
+        de: "Dein Team arbeitet schneller aus einem gemeinsamen Workspace",
+        es: "Tu equipo trabaja mas rapido desde un espacio compartido",
+        pt: "A sua equipa trabalha mais depressa a partir de um espaco partilhado",
+      }),
+    ],
+  },
+];
+
+const inboxChannels = [
+  { name: "Gmail", src: "/brand/Gmail_2020.svg" },
+  { name: "Outlook", src: "/brand/outlook.svg" },
+  { name: "WhatsApp", src: "/brand/whatsapp-svgrepo-com.svg" },
+];
+
+const inboxChannelMap = Object.fromEntries(inboxChannels.map((channel) => [channel.name, channel.src])) as Record<InboxThread["channel"], string>;
+
+const inboxMetrics: InboxMetric[] = [
+  {
+    value: "2",
+    label: defineLocalizedText({
+      en: "email inboxes connected",
+      fr: "boites email connectees",
+      de: "verbundene E-Mail-Postfacher",
+      es: "bandejas de correo conectadas",
+      pt: "caixas de email ligadas",
+    }),
+  },
+  {
+    value: "1",
+    label: defineLocalizedText({
+      en: "WhatsApp line live",
+      fr: "ligne WhatsApp active",
+      de: "aktive WhatsApp-Leitung",
+      es: "linea de WhatsApp activa",
+      pt: "linha WhatsApp ativa",
+    }),
+  },
+  {
+    value: "1",
+    label: defineLocalizedText({
+      en: "shared team queue",
+      fr: "file partagee d equipe",
+      de: "gemeinsame Team-Queue",
+      es: "cola compartida del equipo",
+      pt: "fila partilhada da equipa",
+    }),
+  },
+];
+
+const inboxThreads: InboxThread[] = [
+  {
+    customer: "Clinique Noura",
+    channel: "Gmail",
+    preview: defineLocalizedText({
+      en: "Invoice paid. Receipt sent and follow-up closed.",
+      fr: "Facture payee. Recu envoye et suivi cloture.",
+      de: "Rechnung bezahlt. Beleg gesendet und Nachverfolgung abgeschlossen.",
+      es: "Factura pagada. Recibo enviado y seguimiento cerrado.",
+      pt: "Fatura paga. Recibo enviado e seguimento fechado.",
+    }),
+  },
+  {
+    customer: "Atelier Solis",
+    channel: "Outlook",
+    preview: defineLocalizedText({
+      en: "Customer asked for an updated invoice. Reply draft ready.",
+      fr: "Le client a demande une facture mise a jour. Brouillon de reponse pret.",
+      de: "Kunde hat nach einer aktualisierten Rechnung gefragt. Antwortentwurf ist bereit.",
+      es: "El cliente pidio una factura actualizada. Borrador de respuesta listo.",
+      pt: "O cliente pediu uma fatura atualizada. Rascunho de resposta pronto.",
+    }),
+  },
+  {
+    customer: "Casa Amari",
+    channel: "WhatsApp",
+    preview: defineLocalizedText({
+      en: "Payment reminder queued for tomorrow morning.",
+      fr: "Rappel de paiement planifie pour demain matin.",
+      de: "Zahlungserinnerung fur morgen fruh eingeplant.",
+      es: "Recordatorio de pago programado para manana por la manana.",
+      pt: "Lembrete de pagamento agendado para amanha de manha.",
+    }),
+  },
 ];
 
 const featureGroups: FeatureGroup[] = [
@@ -407,32 +651,32 @@ const featureGroups: FeatureGroup[] = [
     }),
     items: [
       defineLocalizedText({
-        en: "Manage email and WhatsApp conversations in one inbox after you sign in",
-        fr: "Gerer les conversations email et WhatsApp dans une seule boite apres connexion",
-        de: "Verwalte E-Mail- und WhatsApp-Konversationen nach der Anmeldung in einem Posteingang",
-        es: "Gestiona conversaciones de correo y WhatsApp en una sola bandeja tras iniciar sesión",
-        pt: "Gira conversas de email e WhatsApp numa unica caixa de entrada após iniciar sessão",
+        en: "Connect multiple Gmail and Outlook inboxes in one workspace",
+        fr: "Connecter plusieurs boites Gmail et Outlook dans un seul espace",
+        de: "Verbinde mehrere Gmail- und Outlook-Postfacher in einem Workspace",
+        es: "Conecta multiples bandejas de Gmail y Outlook en un solo espacio",
+        pt: "Ligue varias caixas Gmail e Outlook num unico espaco",
       }),
       defineLocalizedText({
-        en: "Send email and WhatsApp messages directly from your logged-in workspace",
-        fr: "Envoyer des messages email et WhatsApp depuis votre espace connecte",
-        de: "Sende E-Mails und WhatsApp-Nachrichten direkt aus deinem angemeldeten Workspace",
-        es: "Envia correos y mensajes de WhatsApp directamente desde tu espacio conectado",
-        pt: "Envie emails e mensagens de WhatsApp diretamente do seu espaco iniciado",
+        en: "Handle email and WhatsApp side by side in one shared queue",
+        fr: "Traiter email et WhatsApp cote a cote dans une file partagee",
+        de: "Bearbeite E-Mail und WhatsApp Seite an Seite in einer gemeinsamen Queue",
+        es: "Gestiona correo y WhatsApp lado a lado en una cola compartida",
+        pt: "Trate email e WhatsApp lado a lado numa fila partilhada",
       }),
       defineLocalizedText({
-        en: "Trigger inbox follow-ups based on payment status and workflow events.",
-        fr: "Declencher des relances de boite de reception selon le statut de paiement et les evenements du workflow.",
-        de: "Lose Posteingang-Nachfassaktionen anhand von Zahlungsstatus und Workflow-Ereignissen aus.",
-        es: "Activa seguimientos de bandeja segun el estado del pago y los eventos del flujo.",
-        pt: "Ative seguimentos da caixa de entrada com base no estado do pagamento e nos eventos do fluxo.",
+        en: "Reply from the exact inbox you choose before sending",
+        fr: "Repondre depuis la boite exacte choisie avant l envoi",
+        de: "Antworte vor dem Senden aus dem genau gewahlten Postfach",
+        es: "Responde desde la bandeja exacta que elijas antes de enviar",
+        pt: "Responda a partir da caixa exata que escolher antes de enviar",
       }),
       defineLocalizedText({
-        en: "No switching tools",
-        fr: "Pas de changement d outil",
-        de: "Kein Tool-Wechsel",
-        es: "Sin cambiar de herramienta",
-        pt: "Sem mudar de ferramenta",
+        en: "Keep assignments, AI drafts, and follow-up history in the same thread",
+        fr: "Garder les attributions, brouillons IA et suivis dans le meme fil",
+        de: "Halte Zuweisungen, KI-Entwurfe und Nachfassverlauf im selben Thread",
+        es: "Mantiene asignaciones, borradores de IA e historial de seguimiento en el mismo hilo",
+        pt: "Mantenha atribuicoes, rascunhos de IA e historico de seguimento na mesma conversa",
       }),
     ],
   },
@@ -571,6 +815,9 @@ export default function LandingPage() {
                 <Menu className="h-5 w-5" />
               </summary>
               <div className="absolute left-0 top-12 w-44 rounded-xl border border-border bg-card p-2 shadow-lg">
+                <a href="#inbox" className="block rounded-lg px-3 py-2 text-sm hover:bg-muted/60">
+                  <LangText {...marketingCopy.inboxLabel} />
+                </a>
                 <a href="#features" className="block rounded-lg px-3 py-2 text-sm hover:bg-muted/60">
                   <LangText en="Features" fr="Fonctionnalites" />
                 </a>
@@ -616,6 +863,9 @@ export default function LandingPage() {
           </div>
         </Link>
         <nav className="hidden items-center gap-6 text-sm font-medium text-muted-foreground md:flex">
+          <a href="#inbox" className="transition hover:text-foreground">
+            <LangText {...marketingCopy.inboxLabel} />
+          </a>
           <a href="#features" className="transition hover:text-foreground">
             <LangText en="Features" fr="Fonctionnalites" />
           </a>
@@ -714,6 +964,155 @@ export default function LandingPage() {
                     <span className="font-semibold">
                       <LangText en="Live" fr="Actif" />
                     </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="inbox" className="mt-14 scroll-mt-24 border-t border-border pt-8">
+          <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+            <div className="space-y-5">
+              <div className="space-y-3">
+                <p className="text-xs uppercase tracking-[0.25em] text-indigo-800 dark:text-indigo-300">
+                  <LangText {...marketingCopy.inboxLabel} />
+                </p>
+                <h2 className="text-2xl font-semibold text-foreground md:text-3xl">
+                  <LangText {...marketingCopy.inboxTitle} />
+                </h2>
+                <p className="text-sm leading-6 text-slate-900 dark:text-slate-300">
+                  <LangText {...marketingCopy.inboxDescription} />
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-4">
+                {inboxChannels.map((channel) => (
+                  <div
+                    key={channel.name}
+                    className="flex items-center gap-2 text-sm font-medium text-slate-900 dark:text-slate-100"
+                  >
+                    <Image src={channel.src} alt={channel.name} width={20} height={20} className="h-5 w-5" />
+                    <span>{channel.name}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {inboxComparison.map((column, index) => (
+                  <div
+                    key={column.title.en}
+                    className={`rounded-2xl border p-4 ${
+                      index === 0
+                        ? "border-slate-200 bg-white/70 dark:border-slate-700 dark:bg-slate-900/60"
+                        : "border-indigo-200 bg-indigo-50/80 dark:border-indigo-500/20 dark:bg-indigo-500/10"
+                    }`}
+                  >
+                    <p className="text-sm font-semibold text-foreground">
+                      <LangText {...column.title} />
+                    </p>
+                    <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-900 dark:text-slate-300">
+                      {column.items.map((item) => (
+                        <li key={item.en} className="flex items-start gap-2">
+                          <span className="mt-2 h-1.5 w-1.5 rounded-full bg-indigo-500/70" />
+                          <LangText {...item} />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <Link href="/signup">
+                  <Button size="md">
+                    <LangText {...marketingCopy.inboxCta} />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            <div className="relative">
+              <div className="absolute -left-8 -top-6 hidden h-24 w-24 rounded-full bg-indigo-500/15 blur-3xl lg:block" />
+              <div className="relative overflow-hidden rounded-[30px] border border-slate-200 bg-white/85 p-5 shadow-[0_24px_56px_-32px_rgba(15,23,42,0.35)] dark:border-slate-700 dark:bg-slate-950/85">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                      <LangText {...marketingCopy.inboxLabel} />
+                    </p>
+                    <h3 className="mt-1 text-lg font-semibold text-foreground">
+                      <LangText {...marketingCopy.inboxPanelTitle} />
+                    </h3>
+                  </div>
+                  <span className="rounded-full border border-emerald-300 bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+                    <LangText {...marketingCopy.inboxPanelBadge} />
+                  </span>
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                  {inboxMetrics.map((metric) => (
+                    <div
+                      key={metric.label.en}
+                      className="rounded-2xl border border-slate-200 bg-slate-50/90 p-4 dark:border-slate-800 dark:bg-slate-900/80"
+                    >
+                      <p className="text-2xl font-semibold text-foreground">{metric.value}</p>
+                      <p className="mt-1 text-xs uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                        <LangText {...metric.label} />
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/70">
+                  <div className="mb-3">
+                    <p className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                      <LangText {...marketingCopy.inboxFeedLabel} />
+                    </p>
+                  </div>
+                  <div className="space-y-3">
+                    {inboxThreads.map((thread) => {
+                      const channelLogo = inboxChannelMap[thread.channel];
+
+                      return (
+                        <div
+                          key={thread.customer}
+                          className="flex items-start justify-between gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 dark:border-slate-800 dark:bg-slate-950/90"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-foreground">{thread.customer}</p>
+                            <p className="mt-1 text-sm leading-6 text-slate-900 dark:text-slate-300">
+                              <LangText {...thread.preview} />
+                            </p>
+                          </div>
+                          <Image src={channelLogo} alt={thread.channel} width={24} height={24} className="mt-0.5 h-6 w-6 shrink-0" />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-indigo-200 bg-indigo-50/85 p-4 dark:border-indigo-500/20 dark:bg-indigo-500/10">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-foreground">
+                      <LangText {...marketingCopy.inboxComposeLabel} />
+                    </p>
+                    <span className="rounded-full border border-indigo-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-indigo-700 dark:border-indigo-400/30 dark:bg-slate-950 dark:text-indigo-300">
+                      <LangText {...marketingCopy.inboxComposeBadge} />
+                    </span>
+                  </div>
+                  <div className="mt-3 grid gap-2 text-sm text-slate-900 dark:text-slate-200">
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-indigo-100 bg-white/80 px-3 py-2 dark:border-indigo-400/10 dark:bg-slate-950/70">
+                      <span className="text-slate-500 dark:text-slate-400">
+                        <LangText {...marketingCopy.inboxFromLabel} />
+                      </span>
+                      <span className="font-medium text-foreground">ops@company.com</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-indigo-100 bg-white/80 px-3 py-2 dark:border-indigo-400/10 dark:bg-slate-950/70">
+                      <span className="text-slate-500 dark:text-slate-400">
+                        <LangText {...marketingCopy.inboxCustomerLabel} />
+                      </span>
+                      <span className="font-medium text-foreground">Atelier Solis</span>
+                    </div>
+                    <p className="rounded-xl border border-indigo-100 bg-white/80 px-3 py-3 leading-6 dark:border-indigo-400/10 dark:bg-slate-950/70">
+                      <LangText {...marketingCopy.inboxDraftPreview} />
+                    </p>
                   </div>
                 </div>
               </div>
@@ -950,11 +1349,11 @@ export default function LandingPage() {
               </h3>
               <div className="flex flex-col gap-2">
                 <a
-                  href="mailto:support@mail.maboria.com"
+                  href="mailto:support@maboria.com"
                   className="flex items-center gap-2 hover:text-blue-600 transition-colors"
                 >
                   <Mail size={18} />
-                  support@mail.maboria.com
+                  support@maboria.com
                 </a>
                 <a
                   href="mailto:billing@maboria.com"

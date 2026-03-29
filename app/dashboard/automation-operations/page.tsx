@@ -45,6 +45,7 @@ type RunLog = {
 const PAGE_SIZE = 24;
 const ROW_HEIGHT = 170;
 const AUTO_REFRESH_STORAGE_KEY = "automation_auto_refresh";
+const REFRESH_FEEDBACK_MS = 650;
 
 const fetcher = async (url: string) => {
   const res = await fetch(url);
@@ -195,6 +196,7 @@ export default function AutomationOperationsPage() {
     async ({ silent = false }: { silent?: boolean } = {}) => {
       if (refreshInFlightRef.current) return;
       refreshInFlightRef.current = true;
+      const startedAt = Date.now();
       if (!silent) setIsRefreshing(true);
 
       const pageScrollY = window.scrollY;
@@ -204,6 +206,12 @@ export default function AutomationOperationsPage() {
         await mutate(next, { revalidate: false, populateCache: true });
         setLastRefreshed(new Date().toISOString());
       } finally {
+        if (!silent) {
+          const elapsed = Date.now() - startedAt;
+          if (elapsed < REFRESH_FEEDBACK_MS) {
+            await new Promise((resolve) => window.setTimeout(resolve, REFRESH_FEEDBACK_MS - elapsed));
+          }
+        }
         requestAnimationFrame(() => {
           window.scrollTo({ top: pageScrollY });
           if (virtualRef.current) virtualRef.current.scrollTop = listScrollY;
@@ -714,15 +722,28 @@ export default function AutomationOperationsPage() {
               type="button"
               onClick={refreshNow}
               disabled={isRefreshing}
-              className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
+              className={clsx(
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100",
+                isRefreshing
+                  ? "border-blue-200 bg-blue-50 text-blue-700 opacity-100 dark:border-blue-400/30 dark:bg-blue-400/10 dark:text-blue-300"
+                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-60 dark:hover:bg-slate-800"
+              )}
             >
               <RefreshCw className={clsx("h-3.5 w-3.5", isRefreshing && "animate-spin")} />
-              {refreshLabel}
+              {isRefreshing
+                ? t("Refreshing...", "Actualisation...", "Aktualisiere...", "Actualizando...", "A atualizar...")
+                : refreshLabel}
             </button>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
           <p>{lastRefreshed ? `${lastUpdatedLabel} ${formatDateTime(lastRefreshed)}` : t("Live data", "Données en direct", "Live-Daten", "Datos en directo", "Dados em direto")}</p>
+          {isRefreshing ? (
+            <p className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2 py-1 font-medium text-blue-700 dark:border-blue-400/30 dark:bg-blue-400/10 dark:text-blue-300">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              {t("Refreshing data", "Actualisation des donnees", "Daten werden aktualisiert", "Actualizando datos", "A atualizar dados")}
+            </p>
+          ) : null}
           {!alerts.length ? (
             <p className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/70 bg-emerald-50 px-2 py-1 font-medium text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300">
               <ShieldCheck className="h-3.5 w-3.5" />

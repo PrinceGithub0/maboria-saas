@@ -2,6 +2,7 @@
 
 import clsx from "clsx";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, Search } from "lucide-react";
 import { getLocalizedText, type Language } from "@/lib/i18n";
 import {
@@ -36,6 +37,8 @@ export function PhoneInput({
   inputClassName,
 }: PhoneInputProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const fieldRef = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const lastEmittedRef = useRef("");
   const countryRef = useRef(normalizeCode(defaultCountry));
@@ -44,6 +47,12 @@ export function PhoneInput({
   const [query, setQuery] = useState("");
   const [country, setCountry] = useState(normalizeCode(defaultCountry));
   const [nationalNumber, setNationalNumber] = useState("");
+  const [menuPosition, setMenuPosition] = useState<{
+    left: number;
+    width: number;
+    top?: number;
+    bottom?: number;
+  } | null>(null);
 
   const normalizeText = (value: string) =>
     value
@@ -97,19 +106,64 @@ export function PhoneInput({
   useEffect(() => {
     if (!open) return;
     const handleClick = (event: MouseEvent) => {
-      if (!containerRef.current) return;
-      if (!containerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (containerRef.current?.contains(target) || menuRef.current?.contains(target)) {
+        return;
+      }
+      if (target) {
+        setOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
         setOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const id = window.setTimeout(() => searchInputRef.current?.focus(), 0);
     return () => window.clearTimeout(id);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) {
+      setMenuPosition(null);
+      return;
+    }
+
+    const updateMenuPosition = () => {
+      const rect = fieldRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const estimatedMenuHeight = 320;
+      const viewportPadding = 12;
+      const spaceBelow = window.innerHeight - rect.bottom - viewportPadding;
+      const spaceAbove = rect.top - viewportPadding;
+      const openAbove = spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow;
+
+      setMenuPosition({
+        left: Math.max(viewportPadding, rect.left),
+        width: Math.min(rect.width, window.innerWidth - viewportPadding * 2),
+        ...(openAbove
+          ? { bottom: window.innerHeight - rect.top + 8 }
+          : { top: rect.bottom + 8 }),
+      });
+    };
+
+    updateMenuPosition();
+    window.addEventListener("resize", updateMenuPosition);
+    window.addEventListener("scroll", updateMenuPosition, true);
+    return () => {
+      window.removeEventListener("resize", updateMenuPosition);
+      window.removeEventListener("scroll", updateMenuPosition, true);
+    };
   }, [open]);
 
   const dialCode = getDialCode(country);
@@ -154,8 +208,10 @@ export function PhoneInput({
         {required ? " *" : ""}
       </label>
       <div
+        ref={fieldRef}
         className={clsx(
-          "flex items-center rounded-lg border border-input bg-background px-2 py-1 text-foreground focus-within:border-indigo-400",
+          "flex items-center rounded-lg border border-input bg-background px-2 py-1 text-foreground transition focus-within:border-indigo-400",
+          open && "border-indigo-300 shadow-[0_0_0_3px_rgba(99,102,241,0.12)]",
           fieldClassName
         )}
       >
@@ -183,41 +239,52 @@ export function PhoneInput({
           )}
         />
       </div>
-      {open ? (
-        <div className="relative">
-          <div className="absolute z-50 mt-2 w-full rounded-xl border border-border bg-card p-2 shadow-xl">
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-2 py-1">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder={searchPlaceholder}
-                className="w-full bg-transparent text-sm text-foreground outline-none"
-                ref={searchInputRef}
-                autoComplete="off"
-                spellCheck={false}
-              />
-            </div>
-            <div className="mt-2 max-h-56 overflow-auto">
-              {options.map((option) => (
-                <button
-                  key={`${option.code}-${option.dialCode}`}
-                  type="button"
-                  onClick={() => {
-                    setCountry(option.code);
-                    setOpen(false);
-                  }}
-                  className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-foreground hover:bg-muted"
-                >
-                  <span className="text-base">{option.flag}</span>
-                  <span className="flex-1">{option.name}</span>
-                  <span className="text-xs text-muted-foreground">+{option.dialCode}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {open && menuPosition && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              ref={menuRef}
+              className="z-[70] rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_24px_60px_rgba(15,23,42,0.18)] dark:border-slate-700 dark:bg-slate-950"
+              style={{
+                position: "fixed",
+                left: menuPosition.left,
+                width: menuPosition.width,
+                top: menuPosition.top,
+                bottom: menuPosition.bottom,
+              }}
+            >
+              <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-2 py-1">
+                <Search className="h-4 w-4 text-muted-foreground" />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="w-full bg-transparent text-sm text-foreground outline-none"
+                  ref={searchInputRef}
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              </div>
+              <div className="mt-2 max-h-56 overflow-auto">
+                {options.map((option) => (
+                  <button
+                    key={`${option.code}-${option.dialCode}`}
+                    type="button"
+                    onClick={() => {
+                      setCountry(option.code);
+                      setOpen(false);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-foreground hover:bg-muted"
+                  >
+                    <span className="text-base">{option.flag}</span>
+                    <span className="flex-1">{option.name}</span>
+                    <span className="text-xs text-muted-foreground">+{option.dialCode}</span>
+                  </button>
+                ))}
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

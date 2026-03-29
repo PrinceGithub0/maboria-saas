@@ -20,6 +20,7 @@ import {
   decryptInboxCredentials,
   ensureOutboundQuota,
   finalizeOutboundMessage,
+  formatUnifiedInboxReplyToAddress,
   sendOutboundEmail,
   sendOutboundWhatsApp,
 } from "@/lib/inbox/channels";
@@ -224,6 +225,13 @@ export const POST = withErrorHandling(async (req: Request, ctx: { params: Promis
     }
   }
 
+  const emailCredentials = conversation.inbox.type === "EMAIL"
+    ? decryptInboxCredentials(conversation.inbox.credentialsEncrypted)
+    : null;
+  const isOauthEmailConversation = Boolean(
+    emailCredentials && String(emailCredentials.emailOAuth?.connectedMailboxId || "").trim()
+  );
+
   const created = await prisma.$transaction(async (tx) => {
     const message = await tx.unifiedMessage.create({
       data: {
@@ -286,7 +294,11 @@ export const POST = withErrorHandling(async (req: Request, ctx: { params: Promis
               }),
             html: emailHtml,
             text: content,
-            replyTo: String(body?.replyTo || "").trim() || undefined,
+            replyTo:
+              String(body?.replyTo || "").trim() ||
+              (isOauthEmailConversation
+                ? undefined
+                : formatUnifiedInboxReplyToAddress(context.orgId, conversation.id)),
             headers: {
               "X-Conversation-ID": conversation.id,
             },
@@ -314,7 +326,15 @@ export const POST = withErrorHandling(async (req: Request, ctx: { params: Promis
         messageId: created.id,
         metadata: {
           channel,
+          subject: channel === "EMAIL"
+            ? String(body?.subject || "").trim() ||
+              buildConversationEmailSubject({
+                conversationId: conversation.id,
+                contactName: conversation.contact.name,
+              })
+            : null,
           externalId: outboundResult.externalId,
+          providerThreadId: outboundResult.providerThreadId || null,
           errorCode: outboundResult.errorCode,
           errorMessage: outboundResult.errorMessage,
         },

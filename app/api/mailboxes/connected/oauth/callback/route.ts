@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { encryptInboxSecret } from "@/lib/crypto";
+import { decryptInboxCredentials } from "@/lib/inbox/channels";
 import { writeUnifiedAuditEvent } from "@/lib/inbox/unified";
 import { getConnectedMailboxProvider } from "@/lib/mailboxes/provider";
 import {
@@ -47,6 +48,16 @@ function parseMetadata(value: unknown) {
     return {} as Record<string, unknown>;
   }
   return value as Record<string, unknown>;
+}
+
+function buildUnifiedEmailInboxName(input: { provider: string; emailAddress: string; displayName?: string | null }) {
+  const providerLabel = String(input.provider || "").trim().toUpperCase() === "OUTLOOK" ? "Outlook" : "Gmail";
+  const emailAddress = String(input.emailAddress || "").trim();
+  const displayName = String(input.displayName || "").trim();
+  if (displayName && displayName.toLowerCase() !== emailAddress.toLowerCase()) {
+    return `${providerLabel} - ${displayName} (${emailAddress})`;
+  }
+  return `${providerLabel} - ${emailAddress}`;
 }
 
 export async function GET(req: Request) {
@@ -177,21 +188,51 @@ export async function GET(req: Request) {
           });
 
       if (flowState.bindUnifiedInbox) {
-        const emailInbox = await tx.unifiedInbox.upsert({
+        const emailInboxes = await tx.unifiedInbox.findMany({
           where: {
-            tenantId_type: {
-              tenantId: access.context.orgId,
-              type: "EMAIL",
-            },
-          },
-          update: {},
-          create: {
             tenantId: access.context.orgId,
             type: "EMAIL",
-            name: "Email Inbox",
-            status: "DISCONNECTED",
           },
+          select: {
+            id: true,
+            name: true,
+            credentialsEncrypted: true,
+          },
+          orderBy: { createdAt: "asc" },
         });
+
+        const existingEmailInbox =
+          emailInboxes.find((inbox) => {
+            const connectedMailboxId = String(
+              decryptInboxCredentials(inbox.credentialsEncrypted).emailOAuth?.connectedMailboxId || ""
+            ).trim();
+            return connectedMailboxId === mailbox.id;
+          }) ||
+          emailInboxes.find((inbox) =>
+            String(inbox.name || "").toLowerCase().includes(identity.emailAddress.toLowerCase())
+          );
+
+        const nextInboxName = buildUnifiedEmailInboxName({
+          provider: flowState.provider,
+          emailAddress: identity.emailAddress,
+          displayName: identity.displayName,
+        });
+
+        const emailInbox = existingEmailInbox
+          ? await tx.unifiedInbox.update({
+              where: { id: existingEmailInbox.id },
+              data: {
+                name: nextInboxName,
+              },
+            })
+          : await tx.unifiedInbox.create({
+              data: {
+                tenantId: access.context.orgId,
+                type: "EMAIL",
+                name: nextInboxName,
+                status: "DISCONNECTED",
+              },
+            });
 
         await tx.unifiedInbox.update({
           where: { id: emailInbox.id },
@@ -226,8 +267,11 @@ export async function GET(req: Request) {
       mailbox_provider: flowState.provider.toLowerCase(),
     });
   } catch (error: any) {
+    const detail = String(error?.message || "").trim();
     return redirect({
       mailbox_error: String(error?.code || "mailbox_oauth_callback_failed"),
+      mailbox_error_detail: detail ? detail.slice(0, 300) : "",
     });
   }
 }
+

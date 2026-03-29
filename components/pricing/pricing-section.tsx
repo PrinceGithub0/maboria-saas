@@ -368,7 +368,17 @@ export function PricingSection({ plans }: { plans: PlanRecord[] }) {
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
             <div className="relative flex h-full min-h-[520px] flex-col rounded-2xl border border-slate-200/80 bg-white/90 px-6 pb-6 pt-7 shadow-[0_6px_16px_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-900/88 dark:shadow-[0_18px_36px_rgba(2,6,23,0.42)]">
               <div className="space-y-2">
-                <h3 className="text-3xl font-semibold text-slate-950 dark:text-slate-50">{t(enterpriseDetail.title || { en: enterprise.label })}</h3>
+                <h3 className="text-3xl font-semibold text-slate-950 dark:text-slate-50">
+                  {t(
+                    enterpriseDetail.title || {
+                      en: enterprise.label,
+                      fr: enterprise.label,
+                      de: enterprise.label,
+                      es: enterprise.label,
+                      pt: enterprise.label,
+                    }
+                  )}
+                </h3>
                 <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                   {t(enterpriseDetail.tagline)}
                 </p>

@@ -66,8 +66,10 @@ export class MailboxOauthError extends Error {
   }
 }
 
+const GOOGLE_GMAIL_READ_SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
 const GOOGLE_GMAIL_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send";
 const MICROSOFT_GRAPH_USER_READ_SCOPE = "User.Read";
+const MICROSOFT_GRAPH_MAIL_READWRITE_SCOPE = "Mail.ReadWrite";
 const MICROSOFT_GRAPH_MAIL_SEND_SCOPE = "Mail.Send";
 const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 const MAX_TOTAL_ATTACHMENT_BYTES = 15 * 1024 * 1024;
@@ -104,7 +106,7 @@ const PROVIDER_CONFIG: Record<OauthMailboxProvider, MailboxOauthProviderConfig> 
     tokenUrl: "https://oauth2.googleapis.com/token",
     clientId: envValue("GOOGLE_MAIL_CLIENT_ID", "GOOGLE_CLIENT_ID"),
     clientSecret: envValue("GOOGLE_MAIL_CLIENT_SECRET", "GOOGLE_CLIENT_SECRET"),
-    scopes: ["openid", "email", "profile", GOOGLE_GMAIL_SEND_SCOPE],
+    scopes: ["openid", "email", "profile", GOOGLE_GMAIL_READ_SCOPE, GOOGLE_GMAIL_SEND_SCOPE],
   },
   OUTLOOK: {
     provider: "OUTLOOK",
@@ -113,7 +115,15 @@ const PROVIDER_CONFIG: Record<OauthMailboxProvider, MailboxOauthProviderConfig> 
     tokenUrl: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
     clientId: envValue("MICROSOFT_MAIL_CLIENT_ID", "MICROSOFT_CLIENT_ID", "AZURE_AD_CLIENT_ID"),
     clientSecret: envValue("MICROSOFT_MAIL_CLIENT_SECRET", "MICROSOFT_CLIENT_SECRET", "AZURE_AD_CLIENT_SECRET"),
-    scopes: ["openid", "email", "profile", "offline_access", MICROSOFT_GRAPH_USER_READ_SCOPE, MICROSOFT_GRAPH_MAIL_SEND_SCOPE],
+    scopes: [
+      "openid",
+      "email",
+      "profile",
+      "offline_access",
+      MICROSOFT_GRAPH_USER_READ_SCOPE,
+      MICROSOFT_GRAPH_MAIL_READWRITE_SCOPE,
+      MICROSOFT_GRAPH_MAIL_SEND_SCOPE,
+    ],
   },
 };
 
@@ -512,9 +522,135 @@ export async function sendOauthMailboxEmail(input: {
       );
     }
 
+    const sentMessageId = String(payload?.id || "").trim();
+    let internetMessageId: string | null = null;
+    if (sentMessageId) {
+      const metadataUrl = new URL(
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(sentMessageId)}`
+      );
+      metadataUrl.searchParams.set("format", "metadata");
+      metadataUrl.searchParams.append("metadataHeaders", "Message-ID");
+      const metadataResponse = await fetch(metadataUrl, {
+        headers: {
+          Authorization: `Bearer ${input.accessToken}`,
+        },
+      });
+      const metadataPayload = await metadataResponse.json().catch(() => ({}));
+      if (metadataResponse.ok) {
+        const headers = Array.isArray(metadataPayload?.payload?.headers) ? metadataPayload.payload.headers : [];
+        const messageIdHeader = headers.find(
+          (header: any) => String(header?.name || "").toLowerCase() === "message-id"
+        );
+        internetMessageId = String(messageIdHeader?.value || "").replace(/[<>]/g, "").trim() || null;
+      }
+    }
+
     return {
-      externalId: String(payload?.id || payload?.threadId || "").trim() || null,
+      externalId: internetMessageId || sentMessageId || null,
+      providerThreadId: String(payload?.threadId || "").trim() || null,
     };
+  }
+
+  const draftMessage = {
+    subject: input.subject,
+    body: {
+      contentType: "HTML",
+      content: input.html,
+    },
+    toRecipients: [
+      {
+        emailAddress: {
+          address: input.toEmail,
+        },
+      },
+    ],
+    ...(input.replyTo
+      ? {
+          replyTo: [
+            {
+              emailAddress: {
+                address: input.replyTo,
+              },
+            },
+          ],
+        }
+      : {}),
+    ...(input.headers && Object.keys(input.headers).length
+      ? {
+          internetMessageHeaders: Object.entries(input.headers).map(([name, value]) => ({
+            name,
+            value,
+          })),
+        }
+      : {}),
+    ...(attachments.length
+      ? {
+          attachments: attachments.map((attachment) => ({
+            "@odata.type": "#microsoft.graph.fileAttachment",
+            name: attachment.filename,
+            contentType: attachment.contentType,
+            contentBytes: attachment.content.toString("base64"),
+          })),
+        }
+      : {}),
+  };
+
+  try {
+    const createDraftResponse = await fetch("https://graph.microsoft.com/v1.0/me/messages", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${input.accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(draftMessage),
+    });
+
+    const draftPayload = await createDraftResponse.json().catch(() => ({}));
+    if (!createDraftResponse.ok) {
+      throw new MailboxOauthError(
+        String(draftPayload?.error?.message || "Outlook draft creation failed."),
+        createDraftResponse.status,
+        "mailbox_send_failed"
+      );
+    }
+
+    const draftId = String(draftPayload?.id || "").trim();
+    if (!draftId) {
+      throw new MailboxOauthError("Outlook draft creation did not return a message id.", 502, "mailbox_send_failed");
+    }
+
+    const sendResponse = await fetch(`https://graph.microsoft.com/v1.0/me/messages/${encodeURIComponent(draftId)}/send`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${input.accessToken}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!sendResponse.ok) {
+      const payload = await sendResponse.json().catch(() => ({}));
+      throw new MailboxOauthError(
+        String(payload?.error?.message || "Outlook send failed."),
+        sendResponse.status,
+        "mailbox_send_failed"
+      );
+    }
+
+    return {
+      externalId: String(draftPayload?.internetMessageId || "").replace(/[<>]/g, "").trim() || draftId,
+      providerThreadId: String(draftPayload?.conversationId || "").trim() || null,
+    };
+  } catch (error: any) {
+    const message = String(error?.message || "");
+    const status = Number(error?.status || 0);
+    const shouldFallback =
+      status === 403 ||
+      /access is denied/i.test(message) ||
+      /insufficient privileges/i.test(message);
+
+    if (!shouldFallback) {
+      throw error;
+    }
   }
 
   const response = await fetch("https://graph.microsoft.com/v1.0/me/sendMail", {
@@ -524,49 +660,7 @@ export async function sendOauthMailboxEmail(input: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      message: {
-        subject: input.subject,
-        body: {
-          contentType: "HTML",
-          content: input.html,
-        },
-        toRecipients: [
-          {
-            emailAddress: {
-              address: input.toEmail,
-            },
-          },
-        ],
-        ...(input.replyTo
-          ? {
-              replyTo: [
-                {
-                  emailAddress: {
-                    address: input.replyTo,
-                  },
-                },
-              ],
-            }
-          : {}),
-        ...(input.headers && Object.keys(input.headers).length
-          ? {
-              internetMessageHeaders: Object.entries(input.headers).map(([name, value]) => ({
-                name,
-                value,
-              })),
-            }
-          : {}),
-        ...(attachments.length
-          ? {
-              attachments: attachments.map((attachment) => ({
-                "@odata.type": "#microsoft.graph.fileAttachment",
-                name: attachment.filename,
-                contentType: attachment.contentType,
-                contentBytes: attachment.content.toString("base64"),
-              })),
-            }
-          : {}),
-      },
+      message: draftMessage,
       saveToSentItems: true,
     }),
   });
@@ -582,5 +676,6 @@ export async function sendOauthMailboxEmail(input: {
 
   return {
     externalId: response.headers.get("request-id") || response.headers.get("client-request-id") || null,
+    providerThreadId: null,
   };
 }
