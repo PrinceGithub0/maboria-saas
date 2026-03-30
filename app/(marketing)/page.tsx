@@ -1108,7 +1108,15 @@ export default function LandingPage() {
                       <span className="text-slate-500 dark:text-slate-400">
                         <LangText {...marketingCopy.inboxCustomerLabel} />
                       </span>
-                      <span className="font-medium text-foreground">Atelier Solis</span>
+                      <span className="font-medium text-foreground">
+                        <LangText
+                          en="Atelier Solis"
+                          fr="Atelier Solis"
+                          de="Atelier Solis"
+                          es="Atelier Solis"
+                          pt="Atelier Solis"
+                        />
+                      </span>
                     </div>
                     <p className="rounded-xl border border-indigo-100 bg-white/80 px-3 py-3 leading-6 dark:border-indigo-400/10 dark:bg-slate-950/70">
                       <LangText {...marketingCopy.inboxDraftPreview} />

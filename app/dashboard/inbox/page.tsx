@@ -3415,7 +3415,7 @@ export default function InboxPage() {
                         : 'border border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300'
                     } ${!whatsappChannelConnected ? 'cursor-not-allowed opacity-50' : ''}`}
                   >
-                    WhatsApp
+                    {t('WhatsApp', 'WhatsApp', 'WhatsApp', 'WhatsApp', 'WhatsApp')}
                   </button>
                 </div>
                 {composeChannel === 'EMAIL' && activeEmailSetups.length > 0 ? (
