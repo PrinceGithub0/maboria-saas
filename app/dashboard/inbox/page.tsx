@@ -220,7 +220,7 @@ const statusPillClasses: Record<ConversationStatus, string> = {
 
 const directionBubble = {
   INBOUND:
-    'border border-slate-200 bg-white text-slate-900 dark:border-slate-700/80 dark:bg-[linear-gradient(180deg,rgba(248,250,252,0.96),rgba(241,245,249,0.92))] dark:text-slate-950',
+    'border border-slate-200 bg-white text-slate-900 dark:border-slate-700/80 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.96),rgba(30,41,59,0.92))] dark:text-slate-100',
   OUTBOUND:
     'border border-indigo-200 bg-[linear-gradient(180deg,rgba(255,255,255,1),rgba(238,242,255,0.96))] text-slate-950 dark:border-indigo-400/30 dark:bg-[linear-gradient(180deg,rgba(55,48,163,0.34),rgba(30,41,59,0.82))] dark:text-slate-100',
   INTERNAL:
