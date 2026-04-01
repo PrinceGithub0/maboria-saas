@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import useSWR from "swr";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { de, es, fr, ptBR } from "date-fns/locale";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
