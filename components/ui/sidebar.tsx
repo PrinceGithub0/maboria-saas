@@ -77,7 +77,7 @@ export function Sidebar({ role }: Props) {
     Dashboard: t("Dashboard", "Tableau"),
     Website: t("Website", "Site"),
     Automations: t("Automations", "Automatisations"),
-    Workflows: t("Workflows", "Workflows"),
+    Workflows: t("Workflows", "Workflows", "Workflows", "Workflows", "Workflows"),
     AutomationOperations: t("Automation Operations", "Operations automatisation"),
     "AI Assistant": t("AI Assistant", "Assistant IA"),
     Inbox: t("Inbox", "Boite de reception"),

@@ -106,7 +106,7 @@ export function Navbar({ role }: { role?: string }) {
       Dashboard: t("Dashboard", "Tableau"),
       Website: t("Website", "Site"),
       Automations: t("Automations", "Automatisations"),
-      Workflows: t("Workflows", "Workflows"),
+      Workflows: t("Workflows", "Workflows", "Workflows", "Workflows", "Workflows"),
       AutomationOperations: t("Automation Operations", "Operations automatisation"),
       "AI Assistant": t("AI Assistant", "Assistant IA"),
       Inbox: t("Inbox", "Boite de reception"),
@@ -183,8 +183,14 @@ export function Navbar({ role }: { role?: string }) {
         ? [
             {
               id: "create-workflow",
-              label: t("Create workflow", "Creer un workflow"),
-              description: t("Build a trigger-based flow", "Creer un flux base sur des declencheurs"),
+              label: t("Create workflow", "Creer un workflow", "Workflow erstellen", "Crear workflow", "Criar workflow"),
+              description: t(
+                "Build a trigger-based flow",
+                "Creer un flux base sur des declencheurs",
+                "Einen triggerbasierten Ablauf erstellen",
+                "Crear un flujo basado en disparadores",
+                "Criar um fluxo baseado em gatilhos"
+              ),
               href: "/dashboard/workflows/new",
               icon: GitBranch,
               group: t("Create", "Creer"),
