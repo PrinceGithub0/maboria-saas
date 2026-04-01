@@ -784,21 +784,30 @@ export default function CustomerProfilePage() {
       </section>
 
       <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        <Card className="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-[0_18px_40px_rgba(2,6,23,0.45)]">
+        <Card className="min-w-0 rounded-2xl border border-slate-200 bg-white p-7 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-[0_18px_40px_rgba(2,6,23,0.45)]">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{t("Total Invoiced", "Total facture", "Gesamt in Rechnung gestellt", "Total facturado", "Total faturado")}</p>
-          <p className="mt-3 overflow-hidden text-ellipsis whitespace-nowrap text-[clamp(1.875rem,2vw+1rem,2.5rem)] font-semibold leading-none text-foreground tabular-nums">
+          <p
+            title={formatCurrency(customer.totals.invoiced, displayCurrency)}
+            className="mt-3 block w-full min-w-0 truncate text-[clamp(1.5rem,1.4vw+1rem,2.5rem)] font-semibold leading-none tracking-tight text-foreground tabular-nums"
+          >
             {formatCurrency(customer.totals.invoiced, displayCurrency)}
           </p>
         </Card>
-        <Card className="rounded-2xl border border-slate-200 bg-white p-7 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-[0_18px_40px_rgba(2,6,23,0.45)]">
+        <Card className="min-w-0 rounded-2xl border border-slate-200 bg-white p-7 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-[0_18px_40px_rgba(2,6,23,0.45)]">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{t("Total Paid", "Total paye", "Gesamt bezahlt", "Total pagado", "Total pago")}</p>
-          <p className="mt-3 overflow-hidden text-ellipsis whitespace-nowrap text-[clamp(1.875rem,2vw+1rem,2.5rem)] font-semibold leading-none text-foreground tabular-nums">
+          <p
+            title={formatCurrency(customer.totals.paid, displayCurrency)}
+            className="mt-3 block w-full min-w-0 truncate text-[clamp(1.5rem,1.4vw+1rem,2.5rem)] font-semibold leading-none tracking-tight text-foreground tabular-nums"
+          >
             {formatCurrency(customer.totals.paid, displayCurrency)}
           </p>
         </Card>
-        <Card className="rounded-2xl border border-amber-200 bg-amber-50/70 p-7 shadow-sm dark:border-amber-500/30 dark:bg-amber-500/10 dark:shadow-[0_18px_40px_rgba(2,6,23,0.45)]">
+        <Card className="min-w-0 rounded-2xl border border-amber-200 bg-amber-50/70 p-7 shadow-sm dark:border-amber-500/30 dark:bg-amber-500/10 dark:shadow-[0_18px_40px_rgba(2,6,23,0.45)]">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700 dark:text-amber-300">{t("Outstanding Balance", "Solde en attente", "Offener Betrag", "Saldo pendiente", "Saldo pendente")}</p>
-          <p className="mt-3 overflow-hidden text-ellipsis whitespace-nowrap text-[clamp(1.875rem,2vw+1rem,2.5rem)] font-semibold leading-none text-slate-900 tabular-nums dark:text-slate-50">
+          <p
+            title={formatCurrency(customer.totals.outstanding, displayCurrency)}
+            className="mt-3 block w-full min-w-0 truncate text-[clamp(1.5rem,1.4vw+1rem,2.5rem)] font-semibold leading-none tracking-tight text-slate-900 tabular-nums dark:text-slate-50"
+          >
             {formatCurrency(customer.totals.outstanding, displayCurrency)}
           </p>
         </Card>
