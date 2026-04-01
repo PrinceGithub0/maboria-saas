@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { SubscriptionPlan } from "@prisma/client";
+
 import { normalizeSubscriptionStatus } from "@/lib/subscription-access";
 import { getOrCreateBusinessForUser } from "@/lib/business";
 import { requireOrgPermission, resolveOrgContext } from "@/lib/org-auth";
@@ -16,6 +18,7 @@ type BillingAccessGranted = {
   businessId: string;
   role: "owner" | "admin" | "billing_admin" | "member";
   ownerUserId: string;
+  orgPlan: SubscriptionPlan | null;
 };
 
 export async function getBusinessRoleForUser(userId: string) {
@@ -68,6 +71,7 @@ export async function requireBillingAccess(userId: string) {
     businessId: access.context.orgId,
     role: access.context.role,
     ownerUserId: access.context.ownerUserId,
+    orgPlan: access.context.orgPlan,
   } satisfies BillingAccessGranted;
 }
 

@@ -390,6 +390,7 @@ export async function fetchMailboxOauthIdentity(input: {
 function buildMailComposerMessage(input: {
   from: string;
   to: string;
+  cc?: string[];
   subject: string;
   html: string;
   text: string;
@@ -401,6 +402,7 @@ function buildMailComposerMessage(input: {
   const composer = new MailComposer({
     from: input.from,
     to: input.to,
+    cc: input.cc,
     subject: input.subject,
     html: input.html,
     text: input.text,
@@ -477,6 +479,7 @@ export async function sendOauthMailboxEmail(input: {
   mailboxEmailAddress: string;
   mailboxDisplayName?: string | null;
   toEmail: string;
+  ccEmails?: string[];
   subject: string;
   html: string;
   text: string;
@@ -494,6 +497,7 @@ export async function sendOauthMailboxEmail(input: {
     const mime = await buildMailComposerMessage({
       from,
       to: input.toEmail,
+      cc: input.ccEmails,
       subject: input.subject,
       html: input.html,
       text: input.text,
@@ -564,6 +568,15 @@ export async function sendOauthMailboxEmail(input: {
         },
       },
     ],
+    ...(input.ccEmails?.length
+      ? {
+          ccRecipients: input.ccEmails.map((email) => ({
+            emailAddress: {
+              address: email,
+            },
+          })),
+        }
+      : {}),
     ...(input.replyTo
       ? {
           replyTo: [

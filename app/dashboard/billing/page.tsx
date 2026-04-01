@@ -281,7 +281,6 @@ export default function BillingPage() {
         <a href="mailto:billing@maboria.com" className="font-medium text-foreground hover:underline">
           billing@maboria.com
         </a>
-        .
       </p>
     </div>
   );

@@ -35,6 +35,10 @@ function escapeEmailHtml(value: string) {
     .replace(/'/g, "&#39;");
 }
 
+function isLikelyEmailAddress(value: string | null | undefined) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
+
 async function validateOutboundChannelState(input: {
   tenantId: string;
   inbox: {
@@ -163,6 +167,14 @@ export const POST = withErrorHandling(async (req: Request, ctx: { params: Promis
   const requestedChannel = String(body?.channel || "").trim().toUpperCase();
   if (requestedChannel && !isUnifiedMessageChannel(requestedChannel)) {
     return NextResponse.json({ error: "Invalid channel." }, { status: 422 });
+  }
+  const cc: string[] = Array.isArray(body?.cc)
+    ? body.cc
+        .map((entry: unknown) => String(entry || "").trim().toLowerCase())
+        .filter((entry: string): entry is string => Boolean(entry))
+    : [];
+  if (cc.some((email) => !isLikelyEmailAddress(email))) {
+    return NextResponse.json({ error: "Invalid CC email address." }, { status: 422 });
   }
   const { id } = await ctx.params;
 
@@ -299,6 +311,7 @@ export const POST = withErrorHandling(async (req: Request, ctx: { params: Promis
               (isOauthEmailConversation
                 ? undefined
                 : formatUnifiedInboxReplyToAddress(context.orgId, conversation.id)),
+            ccEmails: cc,
             headers: {
               "X-Conversation-ID": conversation.id,
             },

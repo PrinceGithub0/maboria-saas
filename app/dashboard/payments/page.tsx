@@ -926,7 +926,6 @@ export default function PaymentsPage() {
         <a href={billingMailto} className="font-medium text-slate-700 hover:underline dark:text-slate-200">
           {billingEmail}
         </a>
-        .
       </p>
         </>
       )}

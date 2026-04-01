@@ -234,7 +234,7 @@ export default function AdminTenantDetailPage() {
         ],
       },
     ];
-  }, [data, t]);
+  }, [data, language, t]);
 
   return (
     <div className="mx-auto w-full max-w-[1280px] space-y-8 overflow-x-hidden px-6 py-6 max-md:px-4 max-md:py-4">

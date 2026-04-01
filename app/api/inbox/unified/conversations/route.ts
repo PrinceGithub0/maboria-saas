@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { withErrorHandling } from "@/lib/api-handler";
+import { createOrGetCustomer } from "@/lib/customers";
 import {
   ensureDefaultUnifiedInboxes,
   isUnifiedConversationStatus,
@@ -193,18 +194,26 @@ export const POST = withErrorHandling(async (req: Request) => {
       return NextResponse.json({ error: "Contact phone is required for WhatsApp conversations." }, { status: 422 });
     }
 
-    const contact = await createOrResolveCustomerForInbound({
-      tenantId: context.orgId,
-      ownerId: context.ownerUserId,
-      channel: resolvedChannel,
-      email: email || null,
-      phone: phone || null,
-      displayName: name || null,
-    });
+    const contact = email
+      ? await createOrGetCustomer({
+          userId: context.ownerUserId,
+          name: name || email || phone || "Unknown Customer",
+          email,
+          phone: phone || null,
+          deliveryPreference: resolvedChannel === "WHATSAPP" ? "WHATSAPP" : "EMAIL",
+        })
+      : await createOrResolveCustomerForInbound({
+          tenantId: context.orgId,
+          ownerId: context.ownerUserId,
+          channel: resolvedChannel,
+          email: null,
+          phone: phone || null,
+          displayName: name || null,
+        });
     contactId = contact.id;
   }
 
-  const contact = await prisma.customer.findFirst({
+  const existingContact = await prisma.customer.findFirst({
     where: {
       id: contactId,
       deletedAt: null,
@@ -217,10 +226,20 @@ export const POST = withErrorHandling(async (req: Request) => {
         },
       },
     },
-    select: { id: true },
+    select: { id: true, kind: true },
   });
 
-  if (!contact) return NextResponse.json({ error: "Customer not found." }, { status: 404 });
+  if (!existingContact) return NextResponse.json({ error: "Customer not found." }, { status: 404 });
+  if (existingContact.kind !== "CUSTOMER") {
+    await prisma.customer.update({
+      where: { id: existingContact.id },
+      data: {
+        kind: "CUSTOMER",
+        deletedAt: null,
+        status: "ACTIVE",
+      },
+    });
+  }
   const requestedAssignedUserId = body?.assignedUserId ? String(body.assignedUserId) : null;
 
   const created = await prisma.$transaction(async (tx) => {

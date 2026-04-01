@@ -9,6 +9,7 @@ import {
   ClipboardList,
   CreditCard,
   Flag,
+  GitBranch,
   Globe2,
   Inbox,
   LayoutDashboard,
@@ -105,6 +106,7 @@ export function Navbar({ role }: { role?: string }) {
       Dashboard: t("Dashboard", "Tableau"),
       Website: t("Website", "Site"),
       Automations: t("Automations", "Automatisations"),
+      Workflows: t("Workflows", "Workflows"),
       AutomationOperations: t("Automation Operations", "Operations automatisation"),
       "AI Assistant": t("AI Assistant", "Assistant IA"),
       Inbox: t("Inbox", "Boite de reception"),
@@ -135,6 +137,7 @@ export function Navbar({ role }: { role?: string }) {
             { label: labelMap.Dashboard, href: "/dashboard", icon: LayoutDashboard },
             { label: labelMap.Website, href: "/", icon: Globe2 },
             { label: labelMap.Automations, href: "/dashboard/automations", icon: Workflow },
+            { label: labelMap.Workflows, href: "/dashboard/workflows", icon: GitBranch },
             { label: labelMap.AutomationOperations, href: "/dashboard/automation-operations", icon: ClipboardList },
             { label: labelMap["AI Assistant"], href: "/dashboard/assistant", icon: Sparkles },
             { label: labelMap.Inbox, href: "/dashboard/inbox", icon: Inbox },
@@ -178,6 +181,15 @@ export function Navbar({ role }: { role?: string }) {
       ...nav,
       ...(!isOpsAdmin
         ? [
+            {
+              id: "create-workflow",
+              label: t("Create workflow", "Creer un workflow"),
+              description: t("Build a trigger-based flow", "Creer un flux base sur des declencheurs"),
+              href: "/dashboard/workflows/new",
+              icon: GitBranch,
+              group: t("Create", "Creer"),
+              keywords: ["workflow", "flow", "trigger", "new"],
+            },
             {
               id: "create-automation",
               label: t("Create automation", "Creer une automatisation"),
@@ -355,7 +367,7 @@ export function Navbar({ role }: { role?: string }) {
                 placeholder={
                   language === "fr"
                     ? "Rechercher automatisations, factures, paiements"
-                    : "Search automations, invoices, payments"
+                    : "Search workflows, invoices, payments"
                 }
                 className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
                 aria-label={t("Search", "Rechercher", "Suchen", "Buscar", "Pesquisar")}

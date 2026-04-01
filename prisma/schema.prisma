@@ -133,6 +133,11 @@ enum CustomerStatus {
   DISABLED
 }
 
+enum CustomerKind {
+  CUSTOMER
+  CONTACT
+}
+
 enum LateFeeType {
   FIXED
   PERCENTAGE
@@ -473,6 +478,8 @@ model User {
   userActivityLogsAsActor UserActivityLog[] @relation("UserActivityTimelineActor")
   systemEventsAsUser SystemEvent[] @relation("SystemEventUser")
   systemEventsAsActor SystemEvent[] @relation("SystemEventActor")
+  customerNotesOwned CustomerNote[] @relation("CustomerNoteOwner")
+  customerNotesAuthored CustomerNote[] @relation("CustomerNoteAuthor")
 
   @@index([role])
   @@index([status])
@@ -730,6 +737,7 @@ model Customer {
   country            String?
   deliveryPreference DeliveryPreference @default(EMAIL)
   status             CustomerStatus     @default(ACTIVE)
+  kind               CustomerKind       @default(CUSTOMER)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   deletedAt          DateTime?
@@ -737,9 +745,27 @@ model Customer {
   reminderDispatches ReminderDispatch[]
   unifiedConversations UnifiedConversation[]
   customerMailboxConversations CustomerMailboxConversation[]
-
+  notes              CustomerNote[]
+  
   @@index([userId])
+  @@index([userId, kind, createdAt])
   @@unique([userId, email])
+}
+
+model CustomerNote {
+  id           String   @id @default(cuid())
+  user         User     @relation("CustomerNoteOwner", fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  customer     Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId   String
+  author       User?    @relation("CustomerNoteAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  authorUserId String?
+  content      String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId, customerId, createdAt])
+  @@index([customerId, createdAt])
 }
 
 model SubscriberSetting {

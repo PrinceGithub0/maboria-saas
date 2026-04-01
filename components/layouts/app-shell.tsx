@@ -125,7 +125,7 @@ export function AppShell({
                 Icon: LayoutDashboard,
               },
               {
-                href: "/dashboard/automations",
+                href: "/dashboard/workflows",
                 label: t("Flows", "Flux"),
                 Icon: Workflow,
               },

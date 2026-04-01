@@ -318,8 +318,15 @@ export function localizeTeamServerMessage(message: unknown, language: Language, 
 export function localizeTeamActivityMessage(entry: TeamActivityLike, language: Language) {
   const actionType = String(entry.actionType || "").trim().toUpperCase();
   const actor = participantLabel(entry.actor, { en: "Someone", fr: "Quelqu un", de: "Jemand", es: "Alguien", pt: "Alguem" }, language);
+  const targetParticipant =
+    entry.target?.name || entry.target?.email
+      ? entry.target
+      : {
+          name: typeof entry.metadata?.name === "string" ? entry.metadata.name : null,
+          email: typeof entry.metadata?.email === "string" ? entry.metadata.email : null,
+        };
   const target = participantLabel(
-    entry.target || { email: typeof entry.metadata?.email === "string" ? entry.metadata.email : null },
+    targetParticipant,
     { en: "a teammate", fr: "un collegue", de: "ein Teammitglied", es: "un companero", pt: "um colega" },
     language
   );

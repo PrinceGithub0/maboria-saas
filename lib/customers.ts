@@ -21,10 +21,13 @@ export async function getVisibleCustomerWhere(userId: string): Promise<Prisma.Cu
   });
   const ownerEmail = normalizeCustomerEmail(String(owner?.email || ""));
   if (!ownerEmail) {
-    return {};
+    return {
+      kind: "CUSTOMER",
+    };
   }
 
   return {
+    kind: "CUSTOMER",
     NOT: {
       AND: [
         { email: ownerEmail },
@@ -67,6 +70,7 @@ export async function createOrGetCustomer(input: UpsertCustomerInput) {
     postalCode: input.postalCode ?? null,
     country: input.country ?? null,
     deliveryPreference: input.deliveryPreference ?? "EMAIL",
+    kind: "CUSTOMER" as const,
   };
 
   return prisma.customer.upsert({
@@ -80,6 +84,7 @@ export async function createOrGetCustomer(input: UpsertCustomerInput) {
       name,
       deletedAt: null,
       status: "ACTIVE",
+      kind: "CUSTOMER",
       phone: input.phone ?? null,
       taxId: input.taxId ?? null,
       addressLine1: input.addressLine1 ?? null,

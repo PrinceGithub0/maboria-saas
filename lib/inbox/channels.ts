@@ -295,6 +295,7 @@ export async function sendOutboundEmail(input: {
   inbox: InboxCredentialCarrier;
   conversationId: string;
   toEmail: string;
+  ccEmails?: string[];
   subject: string;
   html: string;
   text?: string;
@@ -370,6 +371,7 @@ export async function sendOutboundEmail(input: {
           mailboxEmailAddress: activeMailbox.emailAddress,
           mailboxDisplayName: activeMailbox.displayName,
           toEmail: input.toEmail,
+          ccEmails: input.ccEmails,
           subject: input.subject,
           html: input.html,
           text,
@@ -409,6 +411,7 @@ export async function sendOutboundEmail(input: {
           mailboxEmailAddress: refreshedMailbox.emailAddress,
           mailboxDisplayName: refreshedMailbox.displayName,
           toEmail: input.toEmail,
+          ccEmails: input.ccEmails,
           subject: input.subject,
           html: input.html,
           text,
@@ -481,6 +484,7 @@ export async function sendOutboundEmail(input: {
     const info = await transport.sendMail({
       from: smtp.from,
       to: input.toEmail,
+      cc: input.ccEmails,
       subject: input.subject,
       html: input.html,
       text,
@@ -527,6 +531,33 @@ function normalizePhone(value: string) {
   if (digits.startsWith("00")) return digits.slice(2);
   if (digits.startsWith("0") && digits.length >= 10) return `234${digits.slice(1)}`;
   return digits;
+}
+
+function isLikelySystemSenderEmail(email: string | null | undefined) {
+  const normalized = String(email || "").trim().toLowerCase();
+  if (!normalized) return false;
+  const localPart = normalized.split("@")[0] || "";
+  return [
+    "noreply",
+    "no-reply",
+    "do-not-reply",
+    "donotreply",
+    "mailer-daemon",
+    "postmaster",
+    "account-security",
+    "notifications",
+  ].some((token) => localPart.includes(token));
+}
+
+async function shouldDemoteLegacyCustomerToContact(customerId: string, email: string | null | undefined) {
+  if (!isLikelySystemSenderEmail(email)) return false;
+
+  const [invoiceCount, reminderCount] = await Promise.all([
+    prisma.invoice.count({ where: { customerId } }),
+    prisma.reminderDispatch.count({ where: { customerId } }),
+  ]);
+
+  return invoiceCount === 0 && reminderCount === 0;
 }
 
 export async function sendOutboundWhatsApp(input: {
@@ -832,23 +863,34 @@ export async function createOrResolveCustomerForInbound(input: {
   email?: string | null;
   phone?: string | null;
   displayName?: string | null;
-}) {
-  const normalizedEmail = input.email?.toLowerCase().trim() || null;
-  const normalizedPhone = input.phone ? normalizePhone(input.phone) : null;
-  let existing = await prisma.customer.findFirst({
+  }) {
+    const normalizedEmail = input.email?.toLowerCase().trim() || null;
+    const normalizedPhone = input.phone ? normalizePhone(input.phone) : null;
+    let existing = await prisma.customer.findFirst({
     where: {
       userId: input.ownerId,
       deletedAt: null,
       OR: [
         ...(normalizedEmail ? [{ email: normalizedEmail }] : []),
         ...(normalizedPhone ? [{ phone: normalizedPhone }] : []),
-      ],
-    },
-  });
+        ],
+      },
+    });
 
-  if (!existing) {
-    const fallbackEmail =
-      normalizedEmail ||
+    if (
+      existing &&
+      existing.kind === "CUSTOMER" &&
+      (await shouldDemoteLegacyCustomerToContact(existing.id, normalizedEmail || existing.email))
+    ) {
+      existing = await prisma.customer.update({
+        where: { id: existing.id },
+        data: { kind: "CONTACT" },
+      });
+    }
+  
+    if (!existing) {
+      const fallbackEmail =
+        normalizedEmail ||
       `unknown+${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}@placeholder.maboria.local`;
     existing = await prisma.customer.create({
       data: {
@@ -857,6 +899,7 @@ export async function createOrResolveCustomerForInbound(input: {
         email: fallbackEmail,
         phone: normalizedPhone,
         deliveryPreference: input.channel === "WHATSAPP" ? "WHATSAPP" : "EMAIL",
+        kind: "CONTACT",
       },
     });
   }

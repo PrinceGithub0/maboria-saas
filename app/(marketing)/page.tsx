@@ -553,7 +553,7 @@ const inboxMetrics: InboxMetric[] = [
 
 const inboxThreads: InboxThread[] = [
   {
-    customer: "Clinique Noura",
+    customer: "Northline Care",
     channel: "Gmail",
     preview: defineLocalizedText({
       en: "Invoice paid. Receipt sent and follow-up closed.",
@@ -564,7 +564,7 @@ const inboxThreads: InboxThread[] = [
     }),
   },
   {
-    customer: "Atelier Solis",
+    customer: "Aster Studio",
     channel: "Outlook",
     preview: defineLocalizedText({
       en: "Customer asked for an updated invoice. Reply draft ready.",
@@ -575,7 +575,7 @@ const inboxThreads: InboxThread[] = [
     }),
   },
   {
-    customer: "Casa Amari",
+    customer: "Marlow House",
     channel: "WhatsApp",
     preview: defineLocalizedText({
       en: "Payment reminder queued for tomorrow morning.",
@@ -1110,11 +1110,11 @@ export default function LandingPage() {
                       </span>
                       <span className="font-medium text-foreground">
                         <LangText
-                          en="Atelier Solis"
-                          fr="Atelier Solis"
-                          de="Atelier Solis"
-                          es="Atelier Solis"
-                          pt="Atelier Solis"
+                          en="Aster Studio"
+                          fr="Aster Studio"
+                          de="Aster Studio"
+                          es="Aster Studio"
+                          pt="Aster Studio"
                         />
                       </span>
                     </div>

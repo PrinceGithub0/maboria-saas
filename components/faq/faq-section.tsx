@@ -349,11 +349,11 @@ const faqSections: FaqSection[] = [
           "A minha equipa pode usar a Maboria em conjunto?"
         ),
         answer: text(
-          "Yes. You can add team members and control access based on roles.",
-          "Oui. Vous pouvez ajouter des membres d équipe et controler l accès selon les roles.",
-          "Ja. Du kannst Teammitglieder hinzufuegen und den Zugriff nach Rollen steuern.",
-          "Si. Puedes agregar miembros del equipo y controlar el acceso segun los roles.",
-          "Sim. Pode adicionar membros da equipa e controlar o acesso com base em funções."
+          "Yes. Pro, Growth, Business, and Enterprise plans can add team members and control access based on roles.",
+          "Oui. Les plans Pro, Growth, Business et Enterprise peuvent ajouter des membres d equipe et controler l acces selon les roles.",
+          "Ja. Mit Pro-, Growth-, Business- und Enterprise-Plänen kannst du Teammitglieder hinzufuegen und den Zugriff nach Rollen steuern.",
+          "Si. Los planes Pro, Growth, Business y Enterprise pueden agregar miembros del equipo y controlar el acceso segun los roles.",
+          "Sim. Os planos Pro, Growth, Business e Enterprise podem adicionar membros da equipa e controlar o acesso com base em funcoes."
         ),
       },
       {

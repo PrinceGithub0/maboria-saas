@@ -1444,7 +1444,6 @@ export default function SubscriptionPage() {
         <a href={billingMailto} className="font-medium text-foreground hover:underline">
           {billingEmail}
         </a>
-        .
       </p>
     </div>
   );

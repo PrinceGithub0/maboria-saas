@@ -108,7 +108,7 @@ export default function TeamActivityPage() {
             ) : (
               <p className="mt-1 text-xs text-muted-foreground">
                 {t(
-                  "Recent workspace activity will appear here as your team grows.",
+                  "Recent workspace activity will appear here when invites, role changes, or access updates are recorded.",
                   "Les activités recentes apparaitront ici a mesure que votre équipe grandit.",
                   "Neuere Workspace-Aktivitäten erscheinen hier, wenn dein Team wachst.",
                   "La actividad reciente del espacio aparecera aqui a medida que crezca tu equipo.",

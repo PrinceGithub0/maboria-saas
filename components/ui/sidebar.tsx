@@ -19,6 +19,7 @@ import {
   Crown,
   Eye,
   Flag,
+  GitBranch,
   Globe,
   Headset,
   Inbox,
@@ -76,6 +77,7 @@ export function Sidebar({ role }: Props) {
     Dashboard: t("Dashboard", "Tableau"),
     Website: t("Website", "Site"),
     Automations: t("Automations", "Automatisations"),
+    Workflows: t("Workflows", "Workflows"),
     AutomationOperations: t("Automation Operations", "Operations automatisation"),
     "AI Assistant": t("AI Assistant", "Assistant IA"),
     Inbox: t("Inbox", "Boite de reception"),
@@ -115,6 +117,7 @@ export function Sidebar({ role }: Props) {
         { href: "/dashboard", label: labelMap.Dashboard, icon: LayoutGrid },
         { href: "/", label: labelMap.Website, icon: Globe },
         { href: "/dashboard/automations", label: labelMap.Automations, icon: Workflow },
+        { href: "/dashboard/workflows", label: labelMap.Workflows, icon: GitBranch },
         { href: "/dashboard/automation-operations", label: labelMap.AutomationOperations, icon: Activity },
         { href: "/dashboard/assistant", label: labelMap["AI Assistant"], icon: Sparkles },
         {

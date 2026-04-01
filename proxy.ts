@@ -141,6 +141,7 @@ async function handleProxy(req: NextRequest) {
     "/robots.txt",
     "/sitemap.xml",
     "/images",
+    "/brand",
     "/branding",
     "/payment-logos",
     "/announcements",
