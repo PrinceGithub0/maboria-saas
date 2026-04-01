@@ -14,8 +14,6 @@ import { LANGUAGE_LOCALES } from "@/lib/i18n";
 
 const AUTO_REFRESH_KEY = "subscriber_dashboard_auto_refresh";
 const RANGE_STATE_KEY = "subscriber_dashboard_range";
-const MAX_TIMELINE_ITEMS = 20;
-
 type DashboardRequestError = Error & {
   status?: number;
   code?: string;
@@ -142,7 +140,6 @@ export function SubscriberOverviewDashboard({
   const [fatalError, setFatalError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [visibleTimeline, setVisibleTimeline] = useState(MAX_TIMELINE_ITEMS);
   const intervalRef = useRef<number | null>(null);
   const inFlightRef = useRef(false);
 
@@ -439,7 +436,6 @@ export function SubscriberOverviewDashboard({
     try {
       const payload = await fetchSubscriberDashboardData(query);
       setData(payload);
-      setVisibleTimeline(MAX_TIMELINE_ITEMS);
     } catch (error) {
       const requestError = error as DashboardRequestError;
       const status = Number(requestError.status || 0);
@@ -511,8 +507,7 @@ export function SubscriberOverviewDashboard({
     [data, navigateWithRange, t]
   );
 
-  const timelineRows = data.timeline.slice(0, visibleTimeline);
-  const canLoadMoreTimeline = visibleTimeline < data.timeline.length;
+  const timelineRows = data.timeline;
   const sectionClass = "rounded-xl border border-slate-200 bg-white/90 p-3.5 dark:border-slate-800 dark:bg-slate-950/70";
   const metricGridClass =
     "mt-2 grid gap-px overflow-hidden rounded-xl border border-slate-200 bg-slate-200 dark:border-slate-800 dark:bg-slate-800";
@@ -812,17 +807,6 @@ export function SubscriberOverviewDashboard({
             })}
           </div>
         )}
-        {canLoadMoreTimeline ? (
-          <button
-            type="button"
-            onClick={() =>
-              setVisibleTimeline((current) => Math.min(current + MAX_TIMELINE_ITEMS, data.timeline.length))
-            }
-            className="mt-3 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-          >
-            {t("Load More", "Charger plus", "Mehr laden", "Cargar mas", "Carregar mais")}
-          </button>
-        ) : null}
       </section>
     </div>
   );
