@@ -764,7 +764,12 @@ export function SubscriberOverviewDashboard({
         {timelineRows.length === 0 ? (
           <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t("No recent system activity.", "Aucune activité systeme recente.", "Keine aktuelle Systemaktivität.", "No hay actividad reciente del sistema.", "Não ha atividade recente do sistema.")}</p>
         ) : (
-          <div className="mt-2 divide-y divide-slate-200 dark:divide-slate-800">
+          <div
+            className={clsx(
+              "mt-2 divide-y divide-slate-200 dark:divide-slate-800",
+              timelineRows.length > 4 && "max-h-[18rem] overflow-y-auto pr-1"
+            )}
+          >
             {timelineRows.map((item) => {
               const Icon =
                 item.status === "failed"

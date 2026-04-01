@@ -92,11 +92,28 @@ function parseMeta(record: unknown): Record<string, unknown> {
   return record as Record<string, unknown>;
 }
 
+function customerLabel(value: unknown): string | null {
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    return normalized || null;
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+
+  const record = value as Record<string, unknown>;
+  return (
+    customerLabel(record.name) ||
+    customerLabel(record.customerName) ||
+    customerLabel(record.email) ||
+    customerLabel(record.customerEmail) ||
+    customerLabel(record.phone)
+  );
+}
+
 function customerFromMeta(meta: Record<string, unknown>) {
   return (
-    String(meta.customerName || "").trim() ||
-    String(meta.customer || "").trim() ||
-    String(meta.customerEmail || "").trim() ||
+    customerLabel(meta.customerName) ||
+    customerLabel(meta.customer) ||
+    customerLabel(meta.customerEmail) ||
     "Deleted Customer"
   );
 }
