@@ -1,6 +1,37 @@
 import assert from "node:assert/strict";
 import Module from "node:module";
 
+const RealDate = Date;
+const FIXED_NOW = new RealDate("2026-03-20T12:00:00.000Z");
+
+class MockDate extends RealDate {
+  constructor(value?: string | number | Date) {
+    super(value ?? FIXED_NOW.toISOString());
+  }
+
+  static now() {
+    return FIXED_NOW.getTime();
+  }
+
+  static parse(value: string) {
+    return RealDate.parse(value);
+  }
+
+  static UTC(
+    year: number,
+    monthIndex: number,
+    date?: number,
+    hours?: number,
+    minutes?: number,
+    seconds?: number,
+    ms?: number
+  ) {
+    return RealDate.UTC(year, monthIndex, date, hours, minutes, seconds, ms);
+  }
+}
+
+global.Date = MockDate as DateConstructor;
+
 type SessionUser = {
   id?: string | null;
   email?: string | null;
