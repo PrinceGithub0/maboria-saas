@@ -6,15 +6,16 @@ import { prisma } from "@/lib/prisma";
 import { getOrCreateSubscriberSetting, toLateFeeSettingsSnapshot } from "@/lib/subscriber-settings";
 import { requireBillingAccess } from "@/lib/permissions";
 import { getVisibleCustomerWhere } from "@/lib/customers";
+import { isCustomerOutstandingInvoiceStatus } from "@/lib/customers/statuses";
+import { getSeatLimitForPlan } from "@/lib/org-auth";
 import {
+  buildCustomerMetricsMap,
   convertCustomerInvoiceAmount,
   convertCustomerPaymentAmount,
 } from "@/lib/customers/intelligence";
 import { deriveInvoiceDisplayStatus } from "@/lib/invoice-refund-status";
 
 type Params = { params: Promise<{ id: string }> };
-
-const OUTSTANDING_STATUSES = new Set(["SENT", "OVERDUE"]);
 
 export async function GET(_request: NextRequest, { params }: Params) {
   const { id } = await params;
@@ -29,7 +30,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
   const targetUserId = billingAccess.ownerUserId;
   const visibilityWhere = await getVisibleCustomerWhere(targetUserId);
 
-  const [customer, businessProfile, subscriberSetting] = await Promise.all([
+  const [customer, businessProfile, subscriberSetting, workspace] = await Promise.all([
     prisma.customer.findFirst({
       where: {
         ...visibilityWhere,
@@ -58,6 +59,17 @@ export async function GET(_request: NextRequest, { params }: Params) {
       select: { defaultCurrency: true },
     }),
     getOrCreateSubscriberSetting(targetUserId),
+    prisma.business.findUnique({
+      where: { id: billingAccess.businessId },
+      select: {
+        plan: true,
+        orgSubscription: {
+          select: {
+            planId: true,
+          },
+        },
+      },
+    }),
   ]);
 
   if (!customer) {
@@ -66,6 +78,19 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
   const displayCurrency = String(businessProfile?.defaultCurrency || "USD").toUpperCase();
   const lateFeePolicy = toLateFeeSettingsSnapshot(subscriberSetting);
+  const notesSharedWithTeam = getSeatLimitForPlan(workspace?.orgSubscription?.planId ?? workspace?.plan ?? null) !== 1;
+  const notes = await prisma.customerNote.findMany({
+    where: {
+      userId: targetUserId,
+      customerId: customer.id,
+    },
+    orderBy: { createdAt: "desc" },
+    include: {
+      author: {
+        select: { id: true, name: true, email: true },
+      },
+    },
+  });
 
   const invoices = await prisma.invoice.findMany({
     where: {
@@ -75,6 +100,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
     },
     select: {
       id: true,
+      customerId: true,
       invoiceNumber: true,
       total: true,
       currency: true,
@@ -102,22 +128,23 @@ export async function GET(_request: NextRequest, { params }: Params) {
         },
         orderBy: { createdAt: "desc" },
         select: {
-      id: true,
-      amount: true,
-      currency: true,
-      amountOriginal: true,
-      currencyOriginal: true,
-      amountConverted: true,
-      currencyDefault: true,
-      status: true,
-      provider: true,
-      reference: true,
-      createdAt: true,
-      refundOfId: true,
-      metadata: true,
-      invoice: {
-        select: {
           id: true,
+          invoiceId: true,
+          amount: true,
+          currency: true,
+          amountOriginal: true,
+          currencyOriginal: true,
+          amountConverted: true,
+          currencyDefault: true,
+          status: true,
+          provider: true,
+          reference: true,
+          createdAt: true,
+          refundOfId: true,
+          metadata: true,
+          invoice: {
+            select: {
+              id: true,
               invoiceNumber: true,
             },
           },
@@ -125,22 +152,20 @@ export async function GET(_request: NextRequest, { params }: Params) {
       })
     : [];
 
-  let totalInvoiced = 0;
-  let totalOutstanding = 0;
-  for (const invoice of invoices) {
-    const amount = convertCustomerInvoiceAmount(invoice, displayCurrency);
-    totalInvoiced += amount;
-    if (OUTSTANDING_STATUSES.has(invoice.status)) {
-      totalOutstanding += amount;
-    }
-  }
-
-  let totalPaid = 0;
-  for (const payment of payments) {
-    if (!["SUCCEEDED", "REFUNDED"].includes(payment.status)) continue;
-    totalPaid += convertCustomerPaymentAmount(payment, displayCurrency);
-  }
-  totalPaid = Math.max(0, totalPaid);
+  const { metricsMap, netPaymentsByInvoice } = buildCustomerMetricsMap({
+    invoices,
+    payments,
+    displayCurrency,
+  });
+  const metrics = metricsMap.get(customer.id) || {
+    invoiced: 0,
+    paid: 0,
+    outstanding: 0,
+    lastInvoiceAt: null,
+  };
+  const totalInvoiced = metrics.invoiced;
+  const totalPaid = metrics.paid;
+  const totalOutstanding = metrics.outstanding;
 
   const status =
     customer.status === "DISABLED"
@@ -238,6 +263,17 @@ export async function GET(_request: NextRequest, { params }: Params) {
       amount: Number(invoice.total || 0),
       currency: invoice.currency,
       status: deriveInvoiceDisplayStatus(invoice),
+      outstandingAmount: isCustomerOutstandingInvoiceStatus(invoice.status)
+        ? Math.max(
+            0,
+            Number(
+              (
+                convertCustomerInvoiceAmount(invoice, displayCurrency) -
+                (netPaymentsByInvoice.get(invoice.id) || 0)
+              ).toFixed(2)
+            )
+          )
+        : 0,
       issueDate: invoice.generatedAt,
       dueDate:
         (invoice.metadata as Record<string, unknown> | null)?.dueDate &&
@@ -255,6 +291,20 @@ export async function GET(_request: NextRequest, { params }: Params) {
       createdAt: payment.createdAt,
       invoiceId: payment.invoice?.id || null,
       invoiceNumber: payment.invoice?.invoiceNumber || null,
+    })),
+    notesSharedWithTeam,
+    notes: notes.map((note) => ({
+      id: note.id,
+      content: note.content,
+      createdAt: note.createdAt,
+      updatedAt: note.updatedAt,
+      author: note.author
+        ? {
+            id: note.author.id,
+            name: note.author.name,
+            email: note.author.email,
+          }
+        : null,
     })),
     activity,
     displayCurrency,

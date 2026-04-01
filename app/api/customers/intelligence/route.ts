@@ -6,12 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { customerQuerySchema } from "@/lib/validators";
 import { requireBillingAccess } from "@/lib/permissions";
 import { getVisibleCustomerWhere } from "@/lib/customers";
-import {
-  convertCustomerInvoiceAmount,
-  convertCustomerPaymentAmount,
-} from "@/lib/customers/intelligence";
-
-const OUTSTANDING_STATUSES = new Set(["SENT", "OVERDUE"]);
+import { buildCustomerMetricsMap } from "@/lib/customers/intelligence";
 
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -116,46 +111,11 @@ export async function GET(request: NextRequest) {
         },
       })
     : [];
-
-  const metricsMap = new Map<
-    string,
-    { invoiced: number; paid: number; outstanding: number; lastInvoiceAt: string | null }
-  >();
-  const invoiceCustomerMap = new Map(invoices.map((invoice) => [invoice.id, invoice.customerId]));
-
-  for (const invoice of invoices) {
-    const amount = convertCustomerInvoiceAmount(invoice, displayCurrency);
-    const current = metricsMap.get(invoice.customerId) || {
-      invoiced: 0,
-      paid: 0,
-      outstanding: 0,
-      lastInvoiceAt: null,
-    };
-    current.invoiced += amount;
-    if (OUTSTANDING_STATUSES.has(invoice.status)) {
-      current.outstanding += amount;
-    }
-    if (!current.lastInvoiceAt || new Date(invoice.generatedAt) > new Date(current.lastInvoiceAt)) {
-      current.lastInvoiceAt = invoice.generatedAt.toISOString();
-    }
-    metricsMap.set(invoice.customerId, current);
-  }
-
-  for (const payment of payments) {
-    const customerId = invoiceCustomerMap.get(payment.invoiceId);
-    if (!customerId) continue;
-    const current = metricsMap.get(customerId) || {
-      invoiced: 0,
-      paid: 0,
-      outstanding: 0,
-      lastInvoiceAt: null,
-    };
-    current.paid = Math.max(
-      0,
-      current.paid + convertCustomerPaymentAmount(payment, displayCurrency)
-    );
-    metricsMap.set(customerId, current);
-  }
+  const { metricsMap } = buildCustomerMetricsMap({
+    invoices,
+    payments,
+    displayCurrency,
+  });
 
   const items = customers.map((customer) => {
     const stats = metricsMap.get(customer.id) || {

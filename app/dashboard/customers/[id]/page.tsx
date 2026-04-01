@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { TransientAlert } from "@/components/ui/transient-alert";
+import { isCustomerReminderInvoiceStatus } from "@/lib/customers/statuses";
 import { formatCurrency } from "@/lib/currency";
 import { useLanguage } from "@/components/providers/language-provider";
 import { LANGUAGE_LOCALES } from "@/lib/i18n";
@@ -21,6 +22,7 @@ type TabKey = "overview" | "invoices" | "payments" | "activity" | "notes";
 
 type CustomerDetailResponse = {
   displayCurrency: string;
+  notesSharedWithTeam: boolean;
   lateFeePolicy?: {
     enabled: boolean;
     allowAutomationLateFee?: boolean;
@@ -68,6 +70,7 @@ type CustomerDetailResponse = {
     amount: number;
     currency: string;
     status: string;
+    outstandingAmount: number;
     issueDate: string;
     dueDate: string | null;
   }>;
@@ -92,13 +95,17 @@ type CustomerDetailResponse = {
     invoiceNumber: string | null;
     status?: string;
   }>;
-};
-
-type Note = {
-  id: string;
-  content: string;
-  createdAt: string;
-  updatedAt: string;
+  notes: Array<{
+    id: string;
+    content: string;
+    createdAt: string;
+    updatedAt: string;
+    author: {
+      id: string;
+      name: string | null;
+      email: string;
+    } | null;
+  }>;
 };
 
 const fetcher = async (url: string): Promise<CustomerDetailResponse> => {
@@ -189,6 +196,55 @@ function localizeCustomerServerMessage(
       "Não tem acesso a este cliente."
     ),
   };
+  translations["Note content is required."] = t(
+    "Note content is required.",
+    "Le contenu de la note est requis.",
+    "Der Inhalt der Notiz ist erforderlich.",
+    "El contenido de la nota es obligatorio.",
+    "O conteudo da nota e obrigatorio."
+  );
+  translations["Note not found."] = t(
+    "Note not found.",
+    "Note introuvable.",
+    "Notiz nicht gefunden.",
+    "Nota no encontrada.",
+    "Nota nao encontrada."
+  );
+  translations["Customer is disabled."] = t(
+    "Customer is disabled.",
+    "Le client est desactive.",
+    "Der Kunde ist deaktiviert.",
+    "El cliente esta desactivado.",
+    "O cliente esta desativado."
+  );
+  translations["No unpaid invoice found for this customer."] = t(
+    "No unpaid invoice found for this customer.",
+    "Aucune facture impayee trouvee pour ce client.",
+    "Keine unbezahlte Rechnung fur diesen Kunden gefunden.",
+    "No se encontro ninguna factura pendiente para este cliente.",
+    "Nao foi encontrada nenhuma fatura em aberto para este cliente."
+  );
+  translations["Customer has no contact information."] = t(
+    "Customer has no contact information.",
+    "Le client n'a aucune information de contact.",
+    "Der Kunde hat keine Kontaktinformationen.",
+    "El cliente no tiene informacion de contacto.",
+    "O cliente nao tem informacao de contacto."
+  );
+  translations["A reminder was already sent recently."] = t(
+    "A reminder was already sent recently.",
+    "Un rappel a deja ete envoye recemment.",
+    "Vor Kurzem wurde bereits eine Erinnerung gesendet.",
+    "Ya se envio un recordatorio recientemente.",
+    "Ja foi enviado um lembrete recentemente."
+  );
+  translations["Reminder limit reached for this invoice today."] = t(
+    "Reminder limit reached for this invoice today.",
+    "La limite de rappels a ete atteinte pour cette facture aujourd'hui.",
+    "Das Erinnerungslimit fur diese Rechnung wurde heute erreicht.",
+    "Se alcanzo el limite de recordatorios para esta factura hoy.",
+    "O limite de lembretes para esta fatura foi atingido hoje."
+  );
   return translations[normalized] || "";
 }
 
@@ -206,7 +262,11 @@ export default function CustomerProfilePage() {
 
   const { data, error, isLoading, mutate } = useSWR<CustomerDetailResponse>(
     id ? `/api/customers/${id}/intelligence` : null,
-    fetcher
+    fetcher,
+    {
+      dedupingInterval: 0,
+      revalidateOnMount: true,
+    }
   );
 
   const [status, setStatus] = useState<{ variant: "success" | "error" | "info" | "warning"; message: string } | null>(null);
@@ -214,9 +274,10 @@ export default function CustomerProfilePage() {
   const [showReminderModal, setShowReminderModal] = useState(false);
   const [disableSubmitting, setDisableSubmitting] = useState(false);
   const [reminderSubmitting, setReminderSubmitting] = useState(false);
-  const [notes, setNotes] = useState<Note[]>([]);
   const [noteDraft, setNoteDraft] = useState("");
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [noteSubmitting, setNoteSubmitting] = useState(false);
+  const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
 
   const formatDate = (value: string | Date | null | undefined) => {
     if (!value) return "--";
@@ -257,12 +318,18 @@ export default function CustomerProfilePage() {
         return t("Sent", "Envoyee", "Gesendet", "Enviada", "Enviada");
       case "OVERDUE":
         return t("Overdue", "En retard", "überfällig", "Vencida", "Em atraso");
+      case "FAILED":
+        return t("Failed", "Echouee", "Fehlgeschlagen", "Fallida", "Falhada");
       case "PAID":
         return t("Paid", "Payee", "Bezahlt", "Pagada", "Paga");
       case "PARTIALLY_REFUNDED":
         return t("Partially refunded", "Partiellement remboursee", "Teilweise erstattet", "Reembolsada parcialmente", "Parcialmente reembolsada");
       case "REFUNDED":
         return t("Refunded", "Remboursee", "Erstattet", "Reembolsada", "Reembolsada");
+      case "CANCELED":
+        return t("Canceled", "Annulee", "Storniert", "Cancelada", "Cancelada");
+      case "EXPIRED":
+        return t("Expired", "Expiree", "Abgelaufen", "Expirada", "Expirada");
       case "VOID":
         return t("Void", "Annulee", "Storniert", "Anulada", "Anulada");
       default:
@@ -327,57 +394,118 @@ export default function CustomerProfilePage() {
     );
   };
 
-  useEffect(() => {
-    if (!id || typeof window === "undefined") return;
-    try {
-      const raw = window.localStorage.getItem(`customer_notes_${id}`);
-      if (!raw) {
-        setNotes([]);
-        return;
-      }
-      const parsed = JSON.parse(raw) as Note[];
-      setNotes(Array.isArray(parsed) ? parsed : []);
-    } catch {
-      setNotes([]);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    if (!id || typeof window === "undefined") return;
-    window.localStorage.setItem(`customer_notes_${id}`, JSON.stringify(notes));
-  }, [id, notes]);
-
   const setTab = (tab: TabKey) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", tab);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
-  const saveNote = () => {
+  const saveNote = async () => {
+    if (!data?.customer?.id || noteSubmitting) return;
     const content = noteDraft.trim();
     if (!content) return;
-    const now = new Date().toISOString();
-    if (editingNoteId) {
-      setNotes((prev) =>
-        prev.map((note) => (note.id === editingNoteId ? { ...note, content, updatedAt: now } : note))
-      );
+    setNoteSubmitting(true);
+    try {
+      const endpoint = editingNoteId
+        ? `/api/customers/${data.customer.id}/notes/${encodeURIComponent(editingNoteId)}`
+        : `/api/customers/${data.customer.id}/notes`;
+      const response = await fetch(endpoint, {
+        method: editingNoteId ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setStatus({
+          variant: "error",
+          message:
+            (typeof payload?.error === "string" && localizeCustomerServerMessage(payload.error, t)) ||
+            t(
+              "Unable to save note.",
+              "Impossible d enregistrer la note.",
+              "Die Notiz konnte nicht gespeichert werden.",
+              "No se pudo guardar la nota.",
+              "Nao foi possivel guardar a nota."
+            ),
+        });
+        return;
+      }
+      await mutate();
       setEditingNoteId(null);
-    } else {
-      setNotes((prev) => [{ id: crypto.randomUUID(), content, createdAt: now, updatedAt: now }, ...prev]);
+      setNoteDraft("");
+      setStatus({
+        variant: "success",
+        message: editingNoteId
+          ? t("Note updated.", "Note mise a jour.", "Notiz aktualisiert.", "Nota actualizada.", "Nota atualizada.")
+          : t("Note added.", "Note ajoutee.", "Notiz hinzugefugt.", "Nota agregada.", "Nota adicionada."),
+      });
+    } catch {
+      setStatus({
+        variant: "error",
+        message: t(
+          "Unable to save note.",
+          "Impossible d enregistrer la note.",
+          "Die Notiz konnte nicht gespeichert werden.",
+          "No se pudo guardar la nota.",
+          "Nao foi possivel guardar a nota."
+        ),
+      });
+    } finally {
+      setNoteSubmitting(false);
     }
-    setNoteDraft("");
   };
 
-  const editNote = (note: Note) => {
+  const editNote = (note: CustomerDetailResponse["notes"][number]) => {
     setEditingNoteId(note.id);
     setNoteDraft(note.content);
   };
 
-  const removeNote = (noteId: string) => {
-    setNotes((prev) => prev.filter((note) => note.id !== noteId));
-    if (editingNoteId === noteId) {
-      setEditingNoteId(null);
-      setNoteDraft("");
+  const removeNote = async (noteId: string) => {
+    if (!data?.customer?.id || deletingNoteId) return;
+    setDeletingNoteId(noteId);
+    try {
+      const response = await fetch(
+        `/api/customers/${data.customer.id}/notes/${encodeURIComponent(noteId)}`,
+        { method: "DELETE" }
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setStatus({
+          variant: "error",
+          message:
+            (typeof payload?.error === "string" && localizeCustomerServerMessage(payload.error, t)) ||
+            t(
+              "Unable to delete note.",
+              "Impossible de supprimer la note.",
+              "Die Notiz konnte nicht geloscht werden.",
+              "No se pudo eliminar la nota.",
+              "Nao foi possivel eliminar a nota."
+            ),
+        });
+        return;
+      }
+      await mutate();
+      if (editingNoteId === noteId) {
+        setEditingNoteId(null);
+        setNoteDraft("");
+      }
+      setStatus({
+        variant: "success",
+        message: t("Note deleted.", "Note supprimee.", "Notiz geloscht.", "Nota eliminada.", "Nota eliminada."),
+      });
+    } catch {
+      setStatus({
+        variant: "error",
+        message: t(
+          "Unable to delete note.",
+          "Impossible de supprimer la note.",
+          "Die Notiz konnte nicht geloscht werden.",
+          "No se pudo eliminar la nota.",
+          "Nao foi possivel eliminar a nota."
+        ),
+      });
+    } finally {
+      setDeletingNoteId(null);
     }
   };
 
@@ -532,11 +660,16 @@ export default function CustomerProfilePage() {
   const customer = data?.customer;
   const displayCurrency = data?.displayCurrency || "USD";
   const canApplyLateFeeManually = Boolean(data?.lateFeePolicy?.enabled);
-  const maxChartValue = Math.max(1, ...((data?.chart || []).map((point) => point.value) || [1]));
-  const recentInvoices = data?.invoices.slice(0, 5) || [];
-  const recentPayments = data?.payments.slice(0, 5) || [];
+  const chartPoints = data?.chart.slice(-10) || [];
+  const chartValues = chartPoints.map((point) => point.value);
+  const hasNegativeChartValues = chartValues.some((value) => value < 0);
+  const maxPositiveChartValue = Math.max(0, ...chartValues, 0);
+  const maxNegativeChartValue = Math.abs(Math.min(0, ...chartValues, 0));
+  const recentInvoices = data?.invoices.slice(0, 2) || [];
+  const recentPayments = data?.payments.slice(0, 2) || [];
+  const notes = data?.notes || [];
   const hasReminderCandidate = (data?.invoices || []).some((invoice) =>
-    ["SENT", "OVERDUE"].includes(String(invoice.status || "").toUpperCase())
+    isCustomerReminderInvoiceStatus(invoice.status) && invoice.outstandingAmount > 0
   );
 
   if (isLoading) {
@@ -700,15 +833,53 @@ export default function CustomerProfilePage() {
                   <p className="text-xs text-muted-foreground">{t("Last 30 days", "30 derniers jours", "Letzte 30 Tage", "Ultimos 30 dias", "Ultimos 30 dias")}</p>
                 </div>
                 <div className="mt-5 grid grid-cols-10 items-end gap-2">
-                  {data.chart.slice(-10).map((point) => (
-                    <div key={point.date} className="flex flex-col items-center gap-2">
-                      <div
-                        className="w-full rounded-md bg-indigo-500/30"
-                        style={{ height: `${Math.max(8, Math.round((point.value / maxChartValue) * 96))}px` }}
-                      />
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400">{point.date.slice(5).replace("-", "/")}</span>
-                    </div>
-                  ))}
+                  {chartPoints.map((point) => {
+                    const positiveHeight =
+                      point.value > 0 && maxPositiveChartValue > 0
+                        ? Math.max(6, Math.round((point.value / maxPositiveChartValue) * (hasNegativeChartValues ? 44 : 96)))
+                        : 0;
+                    const negativeHeight =
+                      point.value < 0 && maxNegativeChartValue > 0
+                        ? Math.max(6, Math.round((Math.abs(point.value) / maxNegativeChartValue) * 44))
+                        : 0;
+
+                    return (
+                      <div key={point.date} className="flex flex-col items-center gap-2">
+                        <div className="relative h-24 w-full">
+                          <div
+                            className={`absolute inset-x-0 border-t border-slate-200 dark:border-slate-700 ${
+                              hasNegativeChartValues ? "top-1/2" : "bottom-0"
+                            }`}
+                          />
+                          {point.value > 0 ? (
+                            <div
+                              className="absolute inset-x-1 rounded-md bg-indigo-500/35"
+                              style={{
+                                bottom: hasNegativeChartValues ? "50%" : "0",
+                                height: `${positiveHeight}px`,
+                              }}
+                            />
+                          ) : null}
+                          {point.value < 0 ? (
+                            <div
+                              className="absolute inset-x-1 rounded-md bg-rose-400/55"
+                              style={{
+                                top: "50%",
+                                height: `${negativeHeight}px`,
+                              }}
+                            />
+                          ) : null}
+                          {point.value === 0 ? (
+                            <div
+                              className="absolute inset-x-[32%] h-1.5 rounded-full bg-slate-200 dark:bg-slate-700"
+                              style={{ top: hasNegativeChartValues ? "calc(50% - 3px)" : "calc(100% - 3px)" }}
+                            />
+                          ) : null}
+                        </div>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400">{point.date.slice(5).replace("-", "/")}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </Card>
 
@@ -773,7 +944,8 @@ export default function CustomerProfilePage() {
                   <p className="p-6 text-sm text-muted-foreground">{t("No invoices yet.", "Aucune facture pour le moment.", "Noch keine Rechnungen.", "Todavia no hay facturas.", "Ainda não existem faturas.")}</p>
                 ) : (
                   <div className="min-w-[880px]">
-                    <div className="grid grid-cols-[minmax(132px,1.25fr)_minmax(96px,0.8fr)_minmax(168px,1fr)_minmax(168px,1fr)_minmax(144px,1.05fr)_minmax(88px,auto)] items-center gap-4 border-b border-slate-200 px-5 py-3 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600 dark:border-slate-800 dark:text-slate-400 md:text-[11px]">
+                    <div className={data.invoices.length >= 5 ? "max-h-[20rem] overflow-y-auto" : ""}>
+                    <div className="sticky top-0 z-10 grid grid-cols-[minmax(132px,1.25fr)_minmax(96px,0.8fr)_minmax(168px,1fr)_minmax(168px,1fr)_minmax(144px,1.05fr)_minmax(88px,auto)] items-center gap-4 border-b border-slate-200 bg-white/95 px-5 py-3 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600 shadow-[0_14px_28px_-24px_rgba(15,23,42,0.45)] backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 dark:text-slate-400 md:text-[11px]">
                       <p className="break-words leading-tight">{t("Invoice #", "Facture #", "Rechnung #", "Factura #", "Fatura #")}</p>
                       <p className="break-words leading-tight">{t("Status", "Statut", "Status", "Estado", "Estado")}</p>
                       <p className="break-words leading-tight">{t("Issue Date", "Date emission", "Ausstellungsdatum", "Fecha de emision", "Data de emissao")}</p>
@@ -804,6 +976,7 @@ export default function CustomerProfilePage() {
                         </div>
                       ))}
                     </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -812,19 +985,44 @@ export default function CustomerProfilePage() {
 
           {activeTab === "payments" ? (
             <Card className="rounded-2xl border border-slate-200 bg-white p-0 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-[0_18px_40px_rgba(2,6,23,0.45)]">
-              <div className="divide-y divide-slate-100 dark:divide-slate-800">
+              <div className="overflow-x-auto">
                 {data.payments.length === 0 ? (
                   <p className="p-6 text-sm text-muted-foreground">{t("No payments yet.", "Aucun paiement pour le moment.", "Noch keine Zahlungen.", "Todavia no hay pagos.", "Ainda não existem pagamentos.")}</p>
                 ) : (
-                  data.payments.map((payment) => (
-                    <div key={payment.id} className="grid min-h-16 grid-cols-5 items-center gap-4 px-5 py-3 text-center text-sm hover:bg-slate-50/80 dark:hover:bg-slate-900/80">
-                      <div className="text-slate-600 dark:text-slate-400">{formatDate(payment.createdAt)}</div>
-                      <div className="font-medium text-foreground">{payment.invoiceNumber || "--"}</div>
-                      <div className="whitespace-nowrap font-semibold text-foreground tabular-nums">{formatCurrency(payment.amount, payment.currency || displayCurrency)}</div>
-                      <div className="text-slate-600 dark:text-slate-400">{payment.provider}</div>
-                      <div className="text-slate-600 dark:text-slate-400">{localizePaymentStatus(payment.status)}</div>
+                  <div className="min-w-[720px]">
+                    <div className={data.payments.length >= 4 ? "max-h-[15rem] overflow-y-auto" : ""}>
+                      <div className="sticky top-0 z-10 grid grid-cols-[minmax(132px,1fr)_minmax(148px,1.15fr)_minmax(144px,0.95fr)_minmax(120px,0.9fr)_minmax(112px,0.85fr)] items-center gap-4 border-b border-slate-200 bg-white/95 px-5 py-3 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600 shadow-[0_14px_28px_-24px_rgba(15,23,42,0.45)] backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 dark:text-slate-400 md:text-[11px]">
+                        <p className="break-words leading-tight">{t("Date", "Date", "Datum", "Fecha", "Data")}</p>
+                        <p className="break-words leading-tight">{t("Invoice #", "Facture #", "Rechnung #", "Factura #", "Fatura #")}</p>
+                        <p className="break-words leading-tight">{t("Amount", "Montant", "Betrag", "Importe", "Montante")}</p>
+                        <p className="break-words leading-tight">{t("Provider", "Fournisseur", "Anbieter", "Proveedor", "Provedor")}</p>
+                        <p className="break-words leading-tight">{t("Status", "Statut", "Status", "Estado", "Estado")}</p>
+                      </div>
+                      <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {data.payments.map((payment) => (
+                          <div
+                            key={payment.id}
+                            className="grid min-h-16 grid-cols-[minmax(132px,1fr)_minmax(148px,1.15fr)_minmax(144px,0.95fr)_minmax(120px,0.9fr)_minmax(112px,0.85fr)] items-center gap-4 px-5 py-3 text-center text-sm hover:bg-slate-50/80 dark:hover:bg-slate-900/80"
+                          >
+                            <div className="text-slate-600 dark:text-slate-400">{formatDate(payment.createdAt)}</div>
+                            <div
+                              className="truncate font-medium text-foreground"
+                              title={payment.invoiceNumber || t("Unlinked payment", "Paiement non lie", "Nicht verknupfte Zahlung", "Pago no vinculado", "Pagamento nÃ£o associado")}
+                            >
+                              {payment.invoiceNumber || "--"}
+                            </div>
+                            <div className="whitespace-nowrap font-semibold text-foreground tabular-nums">
+                              {formatCurrency(payment.amount, payment.currency || displayCurrency)}
+                            </div>
+                            <div className="truncate text-slate-600 dark:text-slate-400" title={payment.provider}>
+                              {payment.provider}
+                            </div>
+                            <div className="text-slate-600 dark:text-slate-400">{localizePaymentStatus(payment.status)}</div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  ))
+                  </div>
                 )}
               </div>
             </Card>
@@ -835,17 +1033,19 @@ export default function CustomerProfilePage() {
               {data.activity.length === 0 ? (
                 <p className="text-sm text-muted-foreground">{t("No recent activity.", "Aucune activité recente.", "Keine aktuelle Aktivität.", "No hay actividad reciente.", "Não ha atividade recente.")}</p>
               ) : (
-                <div className="relative ml-3 border-l border-slate-200 pl-6 dark:border-slate-800">
-                  <div className="space-y-6">
-                    {data.activity.map((event) => (
-                      <div key={event.id} className="relative">
-                        <span className="absolute -left-[30px] top-1 h-2.5 w-2.5 rounded-full bg-indigo-500" />
-                        <p className="text-sm font-medium text-foreground">{localizeActivityTitle(event)}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatRelative(event.timestamp)}
-                        </p>
-                      </div>
-                    ))}
+                <div className={data.activity.length >= 6 ? "max-h-[18rem] overflow-y-auto pr-2" : "pr-2"}>
+                  <div className="relative ml-3 border-l border-slate-200 pl-6 dark:border-slate-800">
+                    <div className="space-y-6">
+                      {data.activity.map((event) => (
+                        <div key={event.id} className="relative">
+                          <span className="absolute -left-[30px] top-1 h-2.5 w-2.5 rounded-full bg-indigo-500" />
+                          <p className="text-sm font-medium text-foreground">{localizeActivityTitle(event)}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatRelative(event.timestamp)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
@@ -858,13 +1058,21 @@ export default function CustomerProfilePage() {
                 <p className="text-sm font-semibold text-foreground">{t("Private Notes", "Notes privees", "Private Notizen", "Notas privadas", "Notas privadas")}</p>
               </div>
               <p className="mb-4 text-xs text-muted-foreground">
-                {t(
-                  "Saved only in this browser on this device. These notes are not shared with your team.",
-                  "Enregistrees uniquement dans ce navigateur sur cet appareil. Ces notes ne sont pas partagees avec votre équipe.",
-                  "Nur in diesem Browser auf diesem Gerat gespeichert. Diese Notizen werden nicht mit deinem Team geteilt.",
-                  "Guardadas solo en este navegador en este dispositivo. Estas notas no se comparten con tu equipo.",
-                  "Guardadas apenas neste navegador neste dispositivo. Estas notas não sao partilhadas com a sua equipa."
-                )}
+                {data?.notesSharedWithTeam
+                  ? t(
+                      "Private notes are saved to this workspace and shared with your team members who can access billing.",
+                      "Les notes privees sont enregistrees dans cet espace de travail et partagees avec les membres de votre equipe qui peuvent acceder a la facturation.",
+                      "Private Notizen werden in diesem Workspace gespeichert und mit Teammitgliedern geteilt, die Zugriff auf die Abrechnung haben.",
+                      "Las notas privadas se guardan en este espacio de trabajo y se comparten con los miembros del equipo que tienen acceso a facturacion.",
+                      "As notas privadas sao guardadas neste espaco de trabalho e partilhadas com os membros da sua equipa que podem aceder a faturacao."
+                    )
+                  : t(
+                      "Private notes are saved to this workspace.",
+                      "Les notes privees sont enregistrees dans cet espace de travail.",
+                      "Private Notizen werden in diesem Workspace gespeichert.",
+                      "Las notas privadas se guardan en este espacio de trabajo.",
+                      "As notas privadas sao guardadas neste espaco de trabalho."
+                    )}
               </p>
               <div className="space-y-3">
                 <textarea
@@ -874,7 +1082,7 @@ export default function CustomerProfilePage() {
                   className="min-h-[110px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-indigo-400 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:placeholder:text-slate-500"
                 />
                 <div className="flex items-center gap-2">
-                  <Button type="button" onClick={saveNote}>
+                  <Button type="button" onClick={() => void saveNote()} disabled={noteSubmitting}>
                     {editingNoteId
                       ? t("Update note", "Mettre a jour la note", "Notiz aktualisieren", "Actualizar nota", "Atualizar nota")
                       : t("Add note", "Ajouter une note", "Notiz hinzufügen", "Agregar nota", "Adicionar nota")}
@@ -883,6 +1091,7 @@ export default function CustomerProfilePage() {
                     <Button
                       type="button"
                       variant="secondary"
+                      disabled={noteSubmitting}
                       onClick={() => {
                         setEditingNoteId(null);
                         setNoteDraft("");
@@ -894,7 +1103,8 @@ export default function CustomerProfilePage() {
                 </div>
               </div>
 
-              <div className="mt-5 space-y-3">
+              <div className={`mt-5 overflow-y-auto pr-2 ${notes.length > 1 ? "max-h-[9.5rem]" : ""}`}>
+                <div className="space-y-3">
                 {notes.length === 0 ? (
                   <p className="text-sm text-muted-foreground">{t("No notes yet.", "Aucune note pour le moment.", "Noch keine Notizen.", "Todavia no hay notas.", "Ainda não existem notas.")}</p>
                 ) : (
@@ -902,19 +1112,30 @@ export default function CustomerProfilePage() {
                     <div key={note.id} className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/80">
                       <p className="whitespace-pre-wrap text-sm text-foreground">{note.content}</p>
                       <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{formatDateTime(note.updatedAt)}</span>
+                        <span>
+                          {formatDateTime(note.updatedAt)}
+                          {note.author?.name || note.author?.email ? ` • ${note.author?.name || note.author?.email}` : ""}
+                        </span>
                         <div className="flex items-center gap-3">
                           <button type="button" className="text-indigo-600 hover:underline" onClick={() => editNote(note)}>
                             {t("Edit", "Modifier", "Bearbeiten", "Editar", "Editar")}
                           </button>
-                          <button type="button" className="text-rose-600 hover:underline" onClick={() => removeNote(note.id)}>
-                            {t("Delete", "Supprimer", "Loschen", "Eliminar", "Eliminar")}
+                          <button
+                            type="button"
+                            className="text-rose-600 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={deletingNoteId === note.id}
+                            onClick={() => void removeNote(note.id)}
+                          >
+                            {deletingNoteId === note.id
+                              ? t("Deleting...", "Suppression...", "Loscht...", "Eliminando...", "A eliminar...")
+                              : t("Delete", "Supprimer", "Loschen", "Eliminar", "Eliminar")}
                           </button>
                         </div>
                       </div>
                     </div>
                   ))
                 )}
+                </div>
               </div>
             </Card>
           ) : null}

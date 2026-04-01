@@ -3,7 +3,7 @@ import { pickReminderInvoice } from "@/lib/customer-reminders";
 
 const makeInvoice = (input: {
   id: string;
-  status: "SENT" | "OVERDUE";
+  status: "SENT" | "OVERDUE" | "FAILED";
   generatedAt: string;
   dueDate: string;
 }) => ({
@@ -25,6 +25,12 @@ const makeInvoice = (input: {
 assert.equal(
   pickReminderInvoice([
     makeInvoice({
+      id: "failed-attempt",
+      status: "FAILED",
+      generatedAt: "2026-03-10T00:00:00.000Z",
+      dueDate: "2026-03-12T00:00:00.000Z",
+    }),
+    makeInvoice({
       id: "new-sent",
       status: "SENT",
       generatedAt: "2026-03-20T00:00:00.000Z",
@@ -39,6 +45,25 @@ assert.equal(
   ])?.id,
   "old-overdue",
   "overdue invoices should outrank newer sent invoices for reminders"
+);
+
+assert.equal(
+  pickReminderInvoice([
+    makeInvoice({
+      id: "new-sent",
+      status: "SENT",
+      generatedAt: "2026-03-15T00:00:00.000Z",
+      dueDate: "2026-03-18T00:00:00.000Z",
+    }),
+    makeInvoice({
+      id: "failed-attempt",
+      status: "FAILED",
+      generatedAt: "2026-03-14T00:00:00.000Z",
+      dueDate: "2026-03-17T00:00:00.000Z",
+    }),
+  ])?.id,
+  "failed-attempt",
+  "failed invoices should outrank sent invoices when no overdue invoice exists"
 );
 
 assert.equal(

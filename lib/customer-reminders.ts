@@ -12,6 +12,10 @@ import { assertRateLimit } from "@/lib/rate-limit";
 import { getOrCreateSubscriberSetting, toLateFeeSettingsSnapshot } from "@/lib/subscriber-settings";
 import { applyLateFee, type LateFeeResult } from "@/lib/late-fee";
 import { getVisibleCustomerWhere } from "@/lib/customers";
+import {
+  CUSTOMER_REMINDER_INVOICE_STATUSES,
+  normalizeCustomerInvoiceStatus,
+} from "@/lib/customers/statuses";
 
 const REMINDER_PER_INVOICE_PER_DAY_LIMIT = 3;
 const DEFAULT_COOLDOWN_MINUTES = 10;
@@ -57,10 +61,10 @@ export function pickReminderInvoice<T extends ReminderInvoiceRecord>(invoices: T
   if (!Array.isArray(invoices) || invoices.length === 0) return null;
 
   const prioritized = [...invoices].sort((left, right) => {
-    const leftStatus = String(left.status || "").toUpperCase();
-    const rightStatus = String(right.status || "").toUpperCase();
-    const leftPriority = leftStatus === "OVERDUE" ? 0 : 1;
-    const rightPriority = rightStatus === "OVERDUE" ? 0 : 1;
+    const leftStatus = normalizeCustomerInvoiceStatus(left.status);
+    const rightStatus = normalizeCustomerInvoiceStatus(right.status);
+    const leftPriority = leftStatus === "OVERDUE" ? 0 : leftStatus === "FAILED" ? 1 : 2;
+    const rightPriority = rightStatus === "OVERDUE" ? 0 : rightStatus === "FAILED" ? 1 : 2;
     if (leftPriority !== rightPriority) {
       return leftPriority - rightPriority;
     }
@@ -148,7 +152,7 @@ export async function sendCustomerReminder(input: {
         userId: input.userId,
         subscriptionId: null,
         customerId: input.customerId,
-        status: { in: ["OVERDUE", "SENT"] },
+        status: { in: [...CUSTOMER_REMINDER_INVOICE_STATUSES] },
       },
       select: {
         id: true,
@@ -238,39 +242,25 @@ export async function sendCustomerReminder(input: {
     };
   }
 
-  const updatedInvoice = await prisma.$transaction(async (tx) => {
-    const currentInvoice = await tx.invoice.findUnique({
-      where: { id: invoice.id },
-      select: {
-        id: true,
-        invoiceNumber: true,
-        total: true,
-        lateFeeAmount: true,
-        lateFeeTotalAccumulated: true,
-        status: true,
-        generatedAt: true,
-        currency: true,
-        metadata: true,
-      },
-    });
-    if (!currentInvoice) {
-      const error = new Error("Invoice not found.");
-      (error as any).status = 404;
-      throw error;
-    }
-
-    await tx.reminderDispatch.create({
-      data: {
-        userId: input.userId,
-        customerId: customer.id,
-        invoiceId: invoice.id,
-        channel: "PENDING",
-        dedupeKey,
-      },
-    });
-
-    return currentInvoice;
+  const updatedInvoice = await prisma.invoice.findUnique({
+    where: { id: invoice.id },
+    select: {
+      id: true,
+      invoiceNumber: true,
+      total: true,
+      lateFeeAmount: true,
+      lateFeeTotalAccumulated: true,
+      status: true,
+      generatedAt: true,
+      currency: true,
+      metadata: true,
+    },
   });
+  if (!updatedInvoice) {
+    const error = new Error("Invoice not found.");
+    (error as any).status = 404;
+    throw error;
+  }
 
   const paymentLinkToken = await getOrCreateInvoicePublicLink(updatedInvoice.id);
   const paymentLink = `${env.appUrl}/api/invoice/pay/${encodeURIComponent(paymentLinkToken.token)}`;
@@ -284,18 +274,23 @@ export async function sendCustomerReminder(input: {
     where: {
       userId: input.userId,
       invoiceId: updatedInvoice.id,
-      status: "SUCCEEDED",
+      status: { in: ["SUCCEEDED", "REFUNDED"] },
     },
     select: { amount: true, refundOfId: true },
   });
   const totalPaid = roundMoney(
-    paidRows.reduce((sum, row) => sum + (row.refundOfId ? -Number(row.amount || 0) : Number(row.amount || 0)), 0)
+    paidRows.reduce((sum, row) => sum + Number(row.amount || 0), 0)
   );
   const basePaid = Math.min(baseAmount, Math.max(0, totalPaid));
   const feePaid = Math.max(0, totalPaid - basePaid);
   const baseOutstanding = roundMoney(Math.max(0, baseAmount - basePaid));
   const feeOutstanding = roundMoney(Math.max(0, lateFeeAmount - feePaid));
   const outstanding = roundMoney(baseOutstanding + feeOutstanding);
+  if (outstanding <= 0) {
+    const error = new Error("No unpaid invoice found for this customer.");
+    (error as any).status = 400;
+    throw error;
+  }
 
   const dueDateLabel = dueDate ? dueDate.toLocaleDateString() : "--";
   const recipientName = customer.name || "Customer";
@@ -325,11 +320,20 @@ export async function sendCustomerReminder(input: {
   const fallbackWhatsapp = !shouldEmail && !shouldWhatsapp && Boolean(customer.phone);
 
   if (!shouldEmail && !shouldWhatsapp && !fallbackEmail && !fallbackWhatsapp) {
-    await prisma.reminderDispatch.deleteMany({ where: { dedupeKey } });
     const error = new Error("Customer has no contact information.");
     (error as any).status = 400;
     throw error;
   }
+
+  await prisma.reminderDispatch.create({
+    data: {
+      userId: input.userId,
+      customerId: customer.id,
+      invoiceId: invoice.id,
+      channel: "PENDING",
+      dedupeKey,
+    },
+  });
 
   const channelsSent: string[] = [];
   try {
@@ -346,7 +350,7 @@ export async function sendCustomerReminder(input: {
       assertRateLimit(`reminder:whatsapp:${input.userId}`, 20, 60_000);
       await sendWhatsAppText({
         to: String(customer.phone),
-        body: `Invoice ${updatedInvoice.invoiceNumber} is overdue.\nOriginal: ${formatCurrency(
+        body: `Invoice ${updatedInvoice.invoiceNumber} has an outstanding balance.\nOriginal: ${formatCurrency(
           baseAmount,
           currency
         )}${

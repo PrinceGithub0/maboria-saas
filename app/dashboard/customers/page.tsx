@@ -361,20 +361,35 @@ export default function CustomersPage() {
                       </div>
                     </div>
 
-                    <div className="flex min-w-0 flex-wrap items-start justify-center gap-6 lg:gap-8">
-                      <div className="space-y-0.5 text-center">
-                        <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{t("Invoiced", "Facture", "In Rechnung gestellt", "Facturado", "Faturado")}</p>
-                        <p className="text-[15px] font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(customer.metrics.invoiced, displayCurrency)}</p>
+                    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-start gap-4 lg:gap-6">
+                      <div className="min-w-0 overflow-hidden space-y-0.5 text-center">
+                        <p className="truncate leading-tight text-[11px] uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{t("Invoiced", "Facture", "In Rechnung gestellt", "Facturado", "Faturado")}</p>
+                        <p
+                          className="truncate whitespace-nowrap text-[clamp(0.88rem,0.55vw+0.7rem,0.95rem)] font-semibold text-slate-900 tabular-nums dark:text-slate-100"
+                          title={formatCurrency(customer.metrics.invoiced, displayCurrency)}
+                        >
+                          {formatCurrency(customer.metrics.invoiced, displayCurrency)}
+                        </p>
                         <p className="text-[11px] text-slate-400 dark:text-slate-500">{displayCurrency}</p>
                       </div>
-                      <div className="space-y-0.5 text-center">
-                        <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{t("Paid", "Paye", "Bezahlt", "Pagado", "Pago")}</p>
-                        <p className="text-[15px] font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(customer.metrics.paid, displayCurrency)}</p>
+                      <div className="min-w-0 overflow-hidden space-y-0.5 text-center">
+                        <p className="truncate leading-tight text-[11px] uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{t("Paid", "Paye", "Bezahlt", "Pagado", "Pago")}</p>
+                        <p
+                          className="truncate whitespace-nowrap text-[clamp(0.88rem,0.55vw+0.7rem,0.95rem)] font-semibold text-slate-900 tabular-nums dark:text-slate-100"
+                          title={formatCurrency(customer.metrics.paid, displayCurrency)}
+                        >
+                          {formatCurrency(customer.metrics.paid, displayCurrency)}
+                        </p>
                         <p className="text-[11px] text-slate-400 dark:text-slate-500">{displayCurrency}</p>
                       </div>
-                      <div className="space-y-0.5 text-center">
-                        <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{t("Outstanding", "En attente", "Offen", "Pendiente", "Pendente")}</p>
-                        <p className="text-[15px] font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(customer.metrics.outstanding, displayCurrency)}</p>
+                      <div className="min-w-0 overflow-hidden space-y-0.5 text-center">
+                        <p className="truncate leading-tight text-[11px] uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">{t("Outstanding", "En attente", "Offen", "Pendiente", "Pendente")}</p>
+                        <p
+                          className="truncate whitespace-nowrap text-[clamp(0.88rem,0.55vw+0.7rem,0.95rem)] font-semibold text-slate-900 tabular-nums dark:text-slate-100"
+                          title={formatCurrency(customer.metrics.outstanding, displayCurrency)}
+                        >
+                          {formatCurrency(customer.metrics.outstanding, displayCurrency)}
+                        </p>
                         <p className="text-[11px] text-slate-400 dark:text-slate-500">{displayCurrency}</p>
                       </div>
                     </div>
