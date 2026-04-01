@@ -71,6 +71,7 @@ type ConversationListItem = {
 };
 
 type ConversationListPayload = { items: ConversationListItem[] };
+type UnreadCountPayload = { unreadCount: number };
 
 type ConversationDetail = {
   id: string;
@@ -786,6 +787,11 @@ export default function InboxPageClient({
     () => conversationsPayload?.items ?? [],
     [conversationsPayload?.items]
   );
+  const { data: unreadCountPayload, mutate: mutateUnreadCount } = useSWR<UnreadCountPayload>(
+    '/api/inbox/unified/unread-count',
+    fetcher,
+    { revalidateOnFocus: false }
+  );
 
   const {
     data: detail,
@@ -871,6 +877,7 @@ export default function InboxPageClient({
         if (Number(data?.imported || 0) > 0 || force) {
           await Promise.all([
             mutateConversations(),
+            mutateUnreadCount(),
             mutateInboxes(),
             activeId ? mutateDetail() : Promise.resolve(),
           ]);
@@ -881,7 +888,7 @@ export default function InboxPageClient({
         mailboxSyncRef.current.running = false;
       }
     },
-    [activeId, mutateConversations, mutateDetail, mutateInboxes]
+    [activeId, mutateConversations, mutateDetail, mutateInboxes, mutateUnreadCount]
   );
 
   const inboxSetupItems = useMemo(() => {
@@ -1184,8 +1191,12 @@ export default function InboxPageClient({
           : null;
 
   const totalUnreadCount = useMemo(
-    () => conversations.reduce((sum, conversation) => sum + conversation.unreadCount, 0),
-    [conversations]
+    () =>
+      Number(
+        unreadCountPayload?.unreadCount ??
+          conversations.reduce((sum, conversation) => sum + conversation.unreadCount, 0)
+      ),
+    [conversations, unreadCountPayload?.unreadCount]
   );
 
   const activityItems = useMemo<RecentActivityItem[]>(() => {
@@ -1485,13 +1496,19 @@ export default function InboxPageClient({
           setLastSyncAt(new Date().toISOString());
         }
         mutateConversations();
+        mutateUnreadCount();
         if (activeId) mutateDetail();
       } catch {
         setLastSyncAt(new Date().toISOString());
       }
     }, 6000);
     return () => clearInterval(timer);
-  }, [activeId, lastSyncAt, mutateConversations, mutateDetail]);
+  }, [activeId, lastSyncAt, mutateConversations, mutateDetail, mutateUnreadCount]);
+
+  useEffect(() => {
+    if (!activeId || !detail || detailLoading) return;
+    void Promise.all([mutateConversations(), mutateUnreadCount()]);
+  }, [activeId, detail, detailLoading, mutateConversations, mutateUnreadCount]);
 
   useEffect(() => {
     void runMailboxSync();
@@ -3137,16 +3154,16 @@ export default function InboxPageClient({
                   <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-100">
                     <UserCircle2 className="h-5 w-5" />
                   </div>
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">
                       {t('Context', 'Contexte', 'Kontext', 'Contexto', 'Contexto')}
                     </p>
-                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 [overflow-wrap:anywhere]">
                       {detail
                         ? getPrimaryLabel(detail.contact)
                         : t('Select a conversation', 'Selectionnez une conversation', 'Wahlen Sie eine Konversation aus', 'Selecciona una conversacion', 'Selecione uma conversa')}
                     </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 [overflow-wrap:anywhere]">
                       {detail
                         ? getSecondaryLabel(detail.contact)
                         : t('Customer details will appear here.', 'Les details du client apparaitront ici.', 'Kundendetails erscheinen hier.', 'Los detalles del cliente apareceran aqui.', 'Os detalhes do cliente aparecerao aqui.')}
