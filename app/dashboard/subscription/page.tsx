@@ -465,11 +465,11 @@ export default function SubscriptionPage() {
       pt: "Concebido para pessoas que estão a comecar com automatizacoes.",
     },
     PRO: {
-      en: "Built for professionals running active workflows.",
-      fr: "Concu pour les professionnels avec des workflows actifs.",
-      de: "Für Fachleute mit aktiven Workflows entwickelt.",
-      es: "Creado para profesionales que ejecutan flujos activos.",
-      pt: "Criado para profissionais com fluxos de trabalho ativos.",
+      en: "Built for professionals running active automations.",
+      fr: "Concu pour les professionnels avec des automatisations actives.",
+      de: "Für Fachleute mit aktiven Automatisierungen entwickelt.",
+      es: "Creado para profesionales que ejecutan automatizaciones activas.",
+      pt: "Criado para profissionais com automacoes ativas.",
     },
     GROWTH: {
       en: "Optimized for scaling teams and higher execution volume.",

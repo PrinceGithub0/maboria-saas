@@ -92,6 +92,12 @@ function parseMeta(record: unknown): Record<string, unknown> {
   return record as Record<string, unknown>;
 }
 
+function asDate(value: unknown) {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(String(value));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 function customerLabel(value: unknown): string | null {
   if (typeof value === "string") {
     const normalized = value.trim();
@@ -120,6 +126,10 @@ function customerFromMeta(meta: Record<string, unknown>) {
 
 function invoiceFromMeta(meta: Record<string, unknown>) {
   return String(meta.invoiceNumber || meta.invoice || "").trim() || null;
+}
+
+function invoiceDueDate(metadata: unknown, generatedAt: Date) {
+  return asDate(parseMeta(metadata).dueDate) || generatedAt;
 }
 
 function daysInRange(from: Date, to: Date) {
@@ -306,7 +316,7 @@ export async function getSubscriberDashboardData(input: {
     invoicePayments,
     revenueWindowRows,
     invoiceRows,
-    overdueInvoices,
+    overdueInvoiceCandidates,
     automationRuns,
     automationGroups,
     activeAutomations,
@@ -384,11 +394,11 @@ export async function getSubscriberDashboardData(input: {
             userId: ownerUserId,
             subscriptionId: null,
             status: "OVERDUE",
-            generatedAt: { gte: fromDate, lte: toDate },
+            generatedAt: { lte: toDate },
           },
-          select: { total: true, currency: true },
+          select: { total: true, currency: true, generatedAt: true, metadata: true },
         })
-      : Promise.resolve([] as Array<{ total: number; currency: string }>),
+      : Promise.resolve([] as Array<{ total: number; currency: string; generatedAt: Date; metadata: unknown }>),
     prisma.automationRun.findMany({
       where: businessId
         ? { flow: { businessId }, createdAt: { gte: fromDate, lte: toDate } }
@@ -497,6 +507,8 @@ export async function getSubscriberDashboardData(input: {
     (row) => String(row.deliveryStatus).toUpperCase() === "FAILED"
   ).length;
   const messageDeliveryRate = messageSentCount > 0 ? Math.round((deliveredCount / messageSentCount) * 100) : 0;
+
+  const overdueInvoices = overdueInvoiceCandidates.filter((invoice) => invoiceDueDate(invoice.metadata, invoice.generatedAt) <= toDate);
 
   const overdueInvoicesAmount = overdueInvoices.reduce((sum, invoice) => {
     const converted = convertToDefaultCurrency({

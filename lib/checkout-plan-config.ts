@@ -3,7 +3,7 @@ import { getPlanMeta } from "./pricing";
 const PLAN_POSITIONING: Record<string, string> = {
   STARTER: "Ideal for individuals getting started with automation.",
   PRO: "More automation power, higher usage limits, and AI-assisted messaging.",
-  GROWTH: "Built for scaling operations with increased limits and advanced workflows.",
+  GROWTH: "Built for scaling operations with increased limits and advanced automations.",
   BUSINESS: "For teams managing high-volume operations with full automation flexibility.",
   PREMIUM: "For teams managing high-volume operations with full automation flexibility.",
   ENTERPRISE: "For teams managing high-volume operations with full automation flexibility.",
@@ -13,8 +13,8 @@ const PLAN_AUDIENCE: Record<string, string> = {
   STARTER: "independent operators",
   PRO: "service teams with ongoing client volume",
   GROWTH: "growing teams scaling operations",
-  BUSINESS: "structured teams with mission-critical workflows",
-  PREMIUM: "structured teams with mission-critical workflows",
+  BUSINESS: "structured teams with mission-critical automations",
+  PREMIUM: "structured teams with mission-critical automations",
   ENTERPRISE: "large organizations requiring advanced control",
 };
 

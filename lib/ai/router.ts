@@ -73,7 +73,7 @@ function getAssistantShortCircuitResponse(rawPrompt: string) {
   const isGreeting = GREETING_PATTERNS.some((re) => re.test(normalizedClean));
 
   if (isGreeting) {
-    return "Hi - how can I help with automations, invoices, billing, or workflows in Maboria?";
+    return "Hi - how can I help with automations, invoices, billing, or payments in Maboria?";
   }
 
   const hasGratitude = tokens.some((token) =>

@@ -734,7 +734,7 @@ export function SubscriberOverviewDashboard({
             <div className="mt-2 space-y-1 text-sm text-slate-700 dark:text-slate-300">
               <p>{t("Runs", "Executions", "Laufe", "Ejecuciones", "Execucoes")}: {data.modules.automation.runs}</p>
               <p>{t("Failed", "Echouees", "Fehlgeschlagen", "Fallidas", "Falhadas")}: {data.modules.automation.failed}</p>
-              <p>{t("Active workflows", "Workflows actifs", "Aktive Workflows", "Flujos activos", "Fluxos ativos")}: {data.modules.automation.active}</p>
+              <p>{t("Active automations", "Automatisations actives", "Aktive Automatisierungen", "Automatizaciones activas", "Automacoes ativas")}: {data.modules.automation.active}</p>
             </div>
             <Link href={navigateWithRange("/dashboard/automations")} className="mt-3 inline-block text-sm font-semibold text-blue-700 dark:text-blue-300">
               {t("View automations", "Voir les automatisations", "Automatisierungen ansehen", "Ver automatizaciones", "Ver automações")}

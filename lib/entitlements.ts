@@ -8,7 +8,7 @@ import { isAutomationTriggerMetadataStep } from "@/lib/automation/step-kind";
 
 export type UserPlan = "free" | "starter" | "pro" | "growth" | "business" | "enterprise";
 export type EntitlementStatus = SubscriptionStatus | "INACTIVE";
-export type EntitlementFeature = "dashboard" | "automations" | "workflows" | "invoices" | "ai" | "whatsapp";
+export type EntitlementFeature = "dashboard" | "automations" | "invoices" | "ai" | "whatsapp";
 
 export type UserEntitlement = {
   plan: UserPlan;
@@ -16,7 +16,6 @@ export type UserEntitlement = {
   isTrialActive: boolean;
   canDashboard: boolean;
   canAutomations: boolean;
-  canWorkflows: boolean;
   canInvoices: boolean;
   canAI: boolean;
   canWhatsapp: boolean;
@@ -150,7 +149,6 @@ export async function getEntitlementForUser(userId: string): Promise<UserEntitle
       isTrialActive: false,
       canDashboard: true,
       canAutomations: true,
-      canWorkflows: true,
       canInvoices: true,
       canAI: true,
       canWhatsapp: true,
@@ -167,7 +165,6 @@ export async function getEntitlementForUser(userId: string): Promise<UserEntitle
         isTrialActive: false,
         canDashboard: true,
         canAutomations: true,
-        canWorkflows: true,
         canInvoices: true,
         canAI: true,
         canWhatsapp: isPlanAtLeast(plan, "starter"),
@@ -187,7 +184,6 @@ export async function getEntitlementForUser(userId: string): Promise<UserEntitle
       isTrialActive: false,
       canDashboard: false,
       canAutomations: false,
-      canWorkflows: false,
       canInvoices: false,
       canAI: false,
       canWhatsapp: false,
@@ -226,7 +222,6 @@ export async function getEntitlementForUser(userId: string): Promise<UserEntitle
     isTrialActive: false,
     canDashboard: active,
     canAutomations: active,
-    canWorkflows: active,
     canInvoices: active,
     canAI: active,
     canWhatsapp: active && isPlanAtLeast(plan, "starter"),
@@ -235,7 +230,7 @@ export async function getEntitlementForUser(userId: string): Promise<UserEntitle
 
 export type UsageCategory = "automationRuns" | "invoices" | "aiRequests" | "whatsappMessages";
 
-export type FlowCategory = "automations" | "workflows";
+export type FlowCategory = "automations";
 
 export const planLimits: Record<
   UserPlan,
@@ -285,27 +280,21 @@ export const flowLimits: Record<
 > = {
   free: {
     automations: 0,
-    workflows: 0,
   },
   starter: {
     automations: 3,
-    workflows: 3,
   },
   pro: {
     automations: 10,
-    workflows: 10,
   },
   growth: {
     automations: 25,
-    workflows: 25,
   },
   business: {
     automations: null,
-    workflows: null,
   },
   enterprise: {
     automations: null,
-    workflows: null,
   },
 };
 
@@ -478,14 +467,7 @@ export async function enforceUsageLimit(
 
 async function getFlowCount(userId: string, category: FlowCategory) {
   const { userIds } = await ensureUsageWindow(userId);
-  const workflowFilter = {
-    OR: [{ triggers: { some: {} } }, { actions: { some: {} } }],
-  };
-
-  if (category === "workflows") {
-    return prisma.automationFlow.count({ where: { userId: { in: userIds }, ...workflowFilter } });
-  }
-
+  if (category !== "automations") return 0;
   return prisma.automationFlow.count({
     where: {
       userId: { in: userIds },

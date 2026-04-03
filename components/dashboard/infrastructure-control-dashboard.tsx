@@ -157,13 +157,13 @@ function localizeSummary(summary: string, t: Translate) {
       "A latencia dos pagamentos esta elevada. Monitorizacao em curso."
     );
   }
-  if (summary === "All automation workflows operating normally. No critical risks detected.") {
+  if (summary === "All automations operating normally. No critical risks detected.") {
     return t(
-      "All automation workflows operating normally. No critical risks detected.",
-      "Tous les workflows d'automatisation fonctionnent normalement. Aucun risque critique detecte.",
-      "Alle Automatisierungs-Workflows laufen normal. Keine kritischen Risiken erkannt.",
-      "Todos los flujos de automatización funcionan con normalidad. No se detectaron riesgos criticos.",
-      "Todos os fluxos de automação estão a funcionar normalmente. Não foram detetados riscos criticos."
+      "All automations operating normally. No critical risks detected.",
+      "Toutes les automatisations fonctionnent normalement. Aucun risque critique detecte.",
+      "Alle Automatisierungen laufen normal. Keine kritischen Risiken erkannt.",
+      "Todas las automatizaciones funcionan con normalidad. No se detectaron riesgos criticos.",
+      "Todas as automacoes estao a funcionar normalmente. Nao foram detetados riscos criticos."
     );
   }
   return summary;

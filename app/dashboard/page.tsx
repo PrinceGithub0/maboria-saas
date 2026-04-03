@@ -101,7 +101,6 @@ export default async function DashboardPage({
       orgId: access.context.orgId,
       ownerUserId: access.context.ownerUserId,
       canViewBilling: hasOrgPermission(access.context.role, "settings:payout:write"),
-      canAI: true,
     },
   });
 

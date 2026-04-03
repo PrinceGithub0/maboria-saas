@@ -24,8 +24,6 @@ Base: `/api`
 - `admin/logs` – GET activity logs (admin).
 - `support` – GET/POST support tickets.
 - `business` – GET/POST businesses for user.
-- `workflows` – GET/POST workflows (triggers+actions).
-- `workflows/[id]` – GET/PUT/DELETE workflow.
 - `automation/schedule` – POST schedule future run.
 - `notifications` – GET/POST/PUT mark read.
 - `usage` – GET/POST usage records.
@@ -34,3 +32,4 @@ Base: `/api`
 - `auth/2fa` – POST send code, PUT verify code.
 
 All endpoints return JSON. Validation via Zod where applicable; rate limiting on signup, AI, automation run. Auth required for non-public routes; admin routes require role check.
+

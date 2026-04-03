@@ -268,14 +268,6 @@ export const actionSchema = z.object({
   order: z.number().nonnegative(),
 });
 
-export const workflowSchema = z.object({
-  title: z.string().min(3),
-  description: z.string().min(5),
-  triggers: z.array(triggerSchema),
-  actions: z.array(actionSchema),
-  status: z.enum(["DRAFT", "ACTIVE", "PAUSED", "ARCHIVED"]).default("DRAFT"),
-});
-
 export const customerCreateSchema = z
   .object({
     name: z.string().min(1, "Name is required"),

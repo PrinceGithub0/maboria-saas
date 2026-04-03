@@ -29,7 +29,6 @@ export async function GET(request: NextRequest) {
       orgId: access.context.orgId,
       ownerUserId: access.context.ownerUserId,
       canViewBilling: hasOrgPermission(access.context.role, "settings:payout:write"),
-      canAI: true,
     },
   });
 

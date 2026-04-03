@@ -1,5 +1,5 @@
-import { WorkflowBuilder } from "@/components/workflows/builder";
+import { redirect } from "next/navigation";
 
 export default function NewWorkflowPage() {
-  return <WorkflowBuilder mode="create" />;
+  redirect("/dashboard/automations/new");
 }

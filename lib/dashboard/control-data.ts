@@ -167,7 +167,7 @@ function summaryFor(state: SystemState, failedLastHour: number, messagingFailure
   if (state === "degraded") {
     return "Payment latency elevated. Monitoring in progress.";
   }
-  return "All automation workflows operating normally. No critical risks detected.";
+  return "All automations operating normally. No critical risks detected.";
 }
 
 export async function getInfrastructureDashboardData(

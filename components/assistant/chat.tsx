@@ -958,7 +958,7 @@ export function AssistantChat() {
                 </p>
                 <div className="mt-4 flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
                   {[
-                    t("Draft a follow-up workflow", "Generer un workflow de relance", "Einen Folge-Workflow entwerfen", "Crear un flujo de seguimiento", "Criar um fluxo de acompanhamento"),
+                    t("Draft a follow-up automation", "Generer une automatisation de relance", "Eine Folge-Automatisierung entwerfen", "Crear una automatizacion de seguimiento", "Criar uma automacao de acompanhamento"),
                     t("Summarize weekly revenue", "Resumer les revenus de la semaine", "Wochentlichen Umsatz zusammenfassen", "Resumir los ingresos semanales", "Resumir a receita semanal"),
                     t("Diagnose a failed run", "Diagnostiquer un echec", "Einen fehlgeschlagenen Lauf analysieren", "Diagnosticar una ejecucion fallida", "Diagnosticar uma execucao falhada"),
                   ].map((item) => (

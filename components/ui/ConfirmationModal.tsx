@@ -69,14 +69,14 @@ export function ConfirmationModal({
   const icon = useMemo(() => {
     if (variant === "danger") {
       return (
-        <span className="mb-4 rounded-full bg-red-50 p-3">
-          <ExclamationTriangleIcon className="h-11 w-11 text-red-500" />
+        <span className="mb-4 rounded-full bg-red-50 p-3 dark:bg-red-500/12">
+          <ExclamationTriangleIcon className="h-11 w-11 text-red-500 dark:text-red-300" />
         </span>
       );
     }
     return (
-      <span className="mb-4 rounded-full bg-blue-50 p-3">
-        <BellIcon className="h-11 w-11 text-blue-500" />
+      <span className="mb-4 rounded-full bg-blue-50 p-3 dark:bg-blue-500/12">
+        <BellIcon className="h-11 w-11 text-blue-500 dark:text-blue-300" />
       </span>
     );
   }, [variant]);
@@ -98,14 +98,14 @@ export function ConfirmationModal({
       }}
     >
       <div
-        className={`w-[480px] bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] p-8 relative transition-all duration-[180ms] ease-out ${
+        className={`w-[480px] rounded-2xl border border-border bg-card p-8 text-foreground shadow-[0_20px_60px_rgba(0,0,0,0.15)] relative transition-all duration-[180ms] ease-out ${
           visible ? "opacity-100 scale-100" : "opacity-0 scale-95"
         }`}
       >
         <button
           type="button"
           onClick={onCancel}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+          className="absolute right-4 top-4 text-muted-foreground transition hover:text-foreground"
           aria-label={t("Close", "Fermer", "Schliessen", "Cerrar", "Fechar")}
         >
           <XMarkIcon className="h-6 w-6" />
@@ -113,10 +113,10 @@ export function ConfirmationModal({
 
         <div className="flex flex-col items-center">
           {icon}
-          <h3 className="text-xl font-semibold text-gray-900 text-center mb-3">
+          <h3 className="mb-3 text-center text-xl font-semibold text-foreground">
             {title}
           </h3>
-          <p className="text-sm text-gray-500 text-center leading-relaxed mb-7">
+          <p className="mb-7 text-center text-sm leading-relaxed text-muted-foreground">
             {description}
           </p>
         </div>
@@ -125,7 +125,7 @@ export function ConfirmationModal({
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 h-11 rounded-lg bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition"
+            className="h-11 flex-1 rounded-lg border border-border bg-muted font-medium text-foreground transition hover:bg-muted/80"
           >
             {t("Cancel", "Annuler", "Abbrechen", "Cancelar", "Cancelar")}
           </button>
@@ -133,7 +133,7 @@ export function ConfirmationModal({
             <button
               type="button"
               onClick={onSecondaryConfirm}
-              className="flex-1 h-11 rounded-lg border border-blue-200 bg-white text-blue-700 font-medium hover:bg-blue-50 transition"
+              className="h-11 flex-1 rounded-lg border border-blue-300/60 bg-background font-medium text-blue-700 transition hover:bg-blue-50 dark:border-blue-400/30 dark:bg-background dark:text-blue-300 dark:hover:bg-blue-500/10"
             >
               {secondaryConfirmLabel}
             </button>

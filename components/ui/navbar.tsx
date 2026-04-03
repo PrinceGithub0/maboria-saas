@@ -9,7 +9,6 @@ import {
   ClipboardList,
   CreditCard,
   Flag,
-  GitBranch,
   Globe2,
   Inbox,
   LayoutDashboard,
@@ -106,7 +105,6 @@ export function Navbar({ role }: { role?: string }) {
       Dashboard: t("Dashboard", "Tableau"),
       Website: t("Website", "Site"),
       Automations: t("Automations", "Automatisations"),
-      Workflows: t("Workflows", "Workflows", "Workflows", "Workflows", "Workflows"),
       AutomationOperations: t("Automation Operations", "Operations automatisation"),
       "AI Assistant": t("AI Assistant", "Assistant IA"),
       Inbox: t("Inbox", "Boite de reception"),
@@ -137,7 +135,6 @@ export function Navbar({ role }: { role?: string }) {
             { label: labelMap.Dashboard, href: "/dashboard", icon: LayoutDashboard },
             { label: labelMap.Website, href: "/", icon: Globe2 },
             { label: labelMap.Automations, href: "/dashboard/automations", icon: Workflow },
-            { label: labelMap.Workflows, href: "/dashboard/workflows", icon: GitBranch },
             { label: labelMap.AutomationOperations, href: "/dashboard/automation-operations", icon: ClipboardList },
             { label: labelMap["AI Assistant"], href: "/dashboard/assistant", icon: Sparkles },
             { label: labelMap.Inbox, href: "/dashboard/inbox", icon: Inbox },
@@ -181,21 +178,6 @@ export function Navbar({ role }: { role?: string }) {
       ...nav,
       ...(!isOpsAdmin
         ? [
-            {
-              id: "create-workflow",
-              label: t("Create workflow", "Creer un workflow", "Workflow erstellen", "Crear workflow", "Criar workflow"),
-              description: t(
-                "Build a trigger-based flow",
-                "Creer un flux base sur des declencheurs",
-                "Einen triggerbasierten Ablauf erstellen",
-                "Crear un flujo basado en disparadores",
-                "Criar um fluxo baseado em gatilhos"
-              ),
-              href: "/dashboard/workflows/new",
-              icon: GitBranch,
-              group: t("Create", "Creer"),
-              keywords: ["workflow", "flow", "trigger", "new"],
-            },
             {
               id: "create-automation",
               label: t("Create automation", "Creer une automatisation"),
@@ -370,11 +352,13 @@ export function Navbar({ role }: { role?: string }) {
                   setCommandQuery(e.target.value);
                   setCommandOpen(true);
                 }}
-                placeholder={
-                  language === "fr"
-                    ? "Rechercher automatisations, factures, paiements"
-                    : "Search workflows, invoices, payments"
-                }
+                placeholder={t(
+                  "Search automations, invoices, payments",
+                  "Rechercher automatisations, factures, paiements",
+                  "Automatisierungen, Rechnungen, Zahlungen durchsuchen",
+                  "Buscar automatizaciones, facturas, pagos",
+                  "Pesquisar automacoes, faturas, pagamentos"
+                )}
                 className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
                 aria-label={t("Search", "Rechercher", "Suchen", "Buscar", "Pesquisar")}
               />

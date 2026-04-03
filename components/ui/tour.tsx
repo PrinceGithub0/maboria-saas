@@ -17,7 +17,7 @@ const steps: Array<{ title: LocalizedText; desc: LocalizedText; href: string }> 
   },
   {
     title: text("Automations", "Automatisations"),
-    desc: text("Build or AI-generate workflows with triggers and actions.", "Creer ou generer des workflows IA avec declencheurs et actions."),
+    desc: text("Build or AI-generate automations with triggers and actions.", "Creer ou generer des automatisations IA avec declencheurs et actions."),
     href: "/dashboard/automations",
   },
   {

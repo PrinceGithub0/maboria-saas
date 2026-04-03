@@ -1,10 +1,5 @@
-import { WorkflowBuilder } from "@/components/workflows/builder";
+import { redirect } from "next/navigation";
 
-type PageProps = {
-  params: Promise<{ id: string }>;
-};
-
-export default async function WorkflowEditPage({ params }: PageProps) {
-  const { id } = await params;
-  return <WorkflowBuilder mode="edit" workflowId={id} />;
+export default function WorkflowEditPage() {
+  redirect("/dashboard/automations");
 }
