@@ -7,6 +7,8 @@ import { aiRouter } from "@/lib/ai/router";
 import { prisma } from "@/lib/prisma";
 import { enforceEntitlement, enforceUsageLimit, nextPlanAfter } from "@/lib/entitlements";
 import { buildAutomationFlowWhere, resolveAutomationScope } from "@/lib/automation/access";
+import { getAutomationPermissions, hasAutomationPermission } from "@/lib/automation/permissions";
+import { requiresFinancialAutomationPrivilege } from "@/lib/automation/step-policy";
 import {
   buildAutomationRelationsFromSteps,
   buildDashboardStepsFromRelations,
@@ -52,6 +54,37 @@ export const POST = withErrorHandling(async (req: Request) => {
     );
   }
 
+  const automationEntitlement = await enforceEntitlement(session.user.id, {
+    feature: "automations",
+    requiredPlan: "starter",
+    allowTrial: false,
+  });
+  if (!automationEntitlement.ok) {
+    return NextResponse.json(
+      {
+        error: "Upgrade required",
+        type: automationEntitlement.type,
+        requiredPlan: automationEntitlement.requiredPlan ?? "starter",
+        reason: automationEntitlement.reason,
+      },
+      { status: 403 }
+    );
+  }
+
+  const permissions = await getAutomationPermissions(session.user.id);
+  if (!hasAutomationPermission(permissions, "edit")) {
+    return NextResponse.json(
+      {
+        error: "Forbidden",
+        type: "permission_denied",
+        action: "edit_automation",
+        role: permissions.role,
+        requiredRole: "owner_or_admin",
+      },
+      { status: 403 }
+    );
+  }
+
   const { flowId, goal } = await req.json();
   assertRateLimit(`ai:flow-improve:${session.user.id}`);
 
@@ -92,11 +125,26 @@ export const POST = withErrorHandling(async (req: Request) => {
   }
 
   const relations = buildAutomationRelationsFromSteps(steps as any[]);
+  if (requiresFinancialAutomationPrivilege(steps as any[])) {
+    if (!hasAutomationPermission(permissions, "refund")) {
+      return NextResponse.json(
+        {
+          error: "Forbidden",
+          type: "permission_denied",
+          action: "financial_automation",
+          role: permissions.role,
+          requiredRole: "owner_or_admin",
+        },
+        { status: 403 }
+      );
+    }
+  }
   const updated = await prisma.automationFlow.update({
     where: { id: flowId },
     data: {
       title: improved.title || flow.title,
       description: improved.description || flow.description,
+      category: typeof improved.category === "string" ? improved.category : flow.category ?? undefined,
       steps: steps as any,
       triggers: {
         deleteMany: {},

@@ -14,7 +14,7 @@ assert.equal(isSupportedDashboardActionId("update_status"), false);
 const serialized = buildAutomationRelationsFromSteps([
   {
     type: "generateInvoice",
-    config: { startId: "payment_failed" },
+    config: { startId: "payment_failed", delayValue: 6, delayUnit: "hours" },
   },
   {
     type: "sendWhatsApp",
@@ -25,7 +25,7 @@ const serialized = buildAutomationRelationsFromSteps([
 assert.deepEqual(serialized.triggers, [
   {
     type: "invoice_status",
-    config: { statuses: ["FAILED"] },
+    config: { statuses: ["FAILED"], delayValue: 6, delayUnit: "hours" },
   },
 ]);
 assert.equal(serialized.actions.length, 1);
@@ -34,6 +34,12 @@ assert.equal(serialized.actions[0]?.order, 1);
 
 const normalizedAiSteps = buildDashboardStepsFromRelations(
   {
+    steps: [
+      {
+        type: "generateInvoice",
+        config: { startId: "invoice_paid", delayValue: 2, delayUnit: "hours" },
+      },
+    ],
     triggers: [{ type: "invoice_status", config: { statuses: ["PAID"] } }],
     actions: [{ type: "send_payment_reminder", config: { note: "Follow up" }, order: 1 }],
   },
@@ -43,7 +49,7 @@ const normalizedAiSteps = buildDashboardStepsFromRelations(
 assert.deepEqual(normalizedAiSteps, [
   {
     type: "generateInvoice",
-    config: { startId: "invoice_paid" },
+    config: { startId: "invoice_paid", delayValue: 2, delayUnit: "hours" },
   },
   {
     type: "sendWhatsApp",

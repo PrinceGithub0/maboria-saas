@@ -29,6 +29,11 @@ type ActionRecord = {
 
 const readString = (value: unknown) => String(value || "").trim();
 
+const normalizeConfigObject = (value: unknown) =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? ({ ...(value as Record<string, unknown>) } as Record<string, unknown>)
+    : {};
+
 export const SUPPORTED_DASHBOARD_START_IDS = new Set<DashboardAutomationStartId>([
   "invoice_created",
   "invoice_paid",
@@ -161,9 +166,9 @@ export const buildDashboardStepsFromRelations = (
 ) => {
   const { strict = false } = options;
   const existingSteps = Array.isArray(steps) ? steps : [];
-  const existingStartId = readString(
-    existingSteps.find((step) => isAutomationTriggerMetadataStep(step))?.config?.startId
-  ) as DashboardAutomationStartId;
+  const existingTriggerMetadataStep = existingSteps.find((step) => isAutomationTriggerMetadataStep(step));
+  const existingTriggerConfig = normalizeConfigObject(existingTriggerMetadataStep?.config);
+  const existingStartId = readString(existingTriggerConfig.startId) as DashboardAutomationStartId;
   const inferredStartId = inferDashboardStartIdFromTrigger(triggers[0]);
   const startId = existingStartId || inferredStartId || "";
 
@@ -198,7 +203,10 @@ export const buildDashboardStepsFromRelations = (
       ? [
           {
             type: "generateInvoice",
-            config: { startId },
+            config: {
+              ...existingTriggerConfig,
+              startId,
+            },
           } satisfies StepLike,
         ]
       : []),
@@ -208,7 +216,8 @@ export const buildDashboardStepsFromRelations = (
 
 export const buildAutomationRelationsFromSteps = (steps: StepLike[] = []) => {
   const triggerStep = steps.find((step) => isAutomationTriggerMetadataStep(step));
-  const startId = readString(triggerStep?.config?.startId) as DashboardAutomationStartId;
+  const triggerConfig = normalizeConfigObject(triggerStep?.config);
+  const startId = readString(triggerConfig.startId) as DashboardAutomationStartId;
 
   if (startId && !isSupportedDashboardStartId(startId)) {
     throw new Error(
@@ -216,7 +225,17 @@ export const buildAutomationRelationsFromSteps = (steps: StepLike[] = []) => {
     );
   }
 
-  const triggers = startId ? [mapStartIdToTrigger(startId)] : [];
+  const triggers = startId
+    ? [
+        {
+          ...mapStartIdToTrigger(startId),
+          config: {
+            ...normalizeConfigObject(mapStartIdToTrigger(startId).config),
+            ...Object.fromEntries(Object.entries(triggerConfig).filter(([key]) => key !== "startId")),
+          },
+        },
+      ]
+    : [];
   const actions = steps
     .filter((step) => !isAutomationTriggerMetadataStep(step))
     .map((step, index) => ({

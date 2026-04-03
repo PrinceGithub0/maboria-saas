@@ -228,6 +228,11 @@ const resolveInvoiceIdFromContext = (context: Context, input: Context) =>
     input?.invoice?.id
   );
 
+const isInvoiceStillUnpaid = (status: unknown) => {
+  const normalized = String(status || "").trim().toUpperCase();
+  return normalized === "SENT" || normalized === "OVERDUE" || normalized === "UNPAID";
+};
+
 const buildAutomationAiPrompt = (actionId: string, note: string) => {
   if (note) return note;
   switch (actionId) {
@@ -1045,6 +1050,7 @@ export async function executeAutomationRun(
   try {
     const steps = (flowSnapshot.steps as Prisma.JsonValue as any[]) ?? [];
     const context: Context = { input };
+    let shouldStopProcessing = false;
 
     const pushLog = (entry: Record<string, any>) => {
       const sanitizedEntry = sanitizeAutomationPayload(entry);
@@ -1188,6 +1194,7 @@ export async function executeAutomationRun(
     };
 
     for (let stepIndex = 0; stepIndex < steps.length; stepIndex += 1) {
+      if (shouldStopProcessing) break;
       if (stepIndex <= lastCompletedStepIndex) continue;
       const step = steps[stepIndex];
       const stepType = typeof step === "string" ? step : step?.type;
@@ -1198,7 +1205,101 @@ export async function executeAutomationRun(
         await persistProgress(stepIndex);
         continue;
       }
+      const stepId = resolveStepId(step, stepIndex, stepType);
+      const idempotencyScope = runOriginalRunId || runId;
+      const stepStartedAt = Date.now();
+      const scheduledResumeAt =
+        runMeta.resumeState.nextStepIndex === stepIndex && runMeta.resumeState.nextRunAt
+          ? new Date(runMeta.resumeState.nextRunAt)
+          : null;
+      const shouldResumeScheduledStep =
+        scheduledResumeAt instanceof Date &&
+        !Number.isNaN(scheduledResumeAt.getTime()) &&
+        scheduledResumeAt.getTime() <= Date.now();
       if (isAutomationTriggerMetadataStep(step)) {
+        const triggerRunAt = shouldResumeScheduledStep ? null : resolveStepRunAt(step, config, new Date());
+        if (triggerRunAt && triggerRunAt.getTime() > Date.now()) {
+          runMeta.resumeState = {
+            lastCompletedStepIndex: stepIndex - 1,
+            nextStepIndex: stepIndex,
+            nextRunAt: triggerRunAt.toISOString(),
+            retryState: { ...(runMeta.resumeState.retryState || {}) },
+            updatedAt: new Date().toISOString(),
+          };
+          pushLog({
+            stepIndex,
+            step: stepType,
+            result: "trigger-delay-scheduled",
+            scheduledFor: triggerRunAt.toISOString(),
+          });
+          if (runId) {
+            await markStepFinished({
+              runId,
+              stepIndex,
+              status: "SKIPPED",
+              startedAt: stepStartedAt,
+              safeOutput: { reason: "trigger-delay-scheduled", scheduledFor: triggerRunAt.toISOString() },
+            });
+          }
+          status = "PENDING";
+          break;
+        }
+
+        if (config.onlyIfUnpaid) {
+          const invoiceId = resolveInvoiceIdFromContext(context, input);
+          if (!invoiceId) {
+            pushLog({
+              stepIndex,
+              step: stepType,
+              result: "trigger-condition-skipped",
+              reason: "missing_invoice_id",
+            });
+            if (runId) {
+              await markStepFinished({
+                runId,
+                stepIndex,
+                status: "SKIPPED",
+                startedAt: stepStartedAt,
+                safeOutput: { reason: "missing_invoice_id" },
+              });
+            }
+            await persistProgress(stepIndex);
+            shouldStopProcessing = true;
+            continue;
+          }
+
+          const currentInvoice = await prisma.invoice.findFirst({
+            where: { id: invoiceId, userId: flow.userId },
+            select: { status: true },
+          });
+          if (!currentInvoice || !isInvoiceStillUnpaid(currentInvoice.status)) {
+            pushLog({
+              stepIndex,
+              step: stepType,
+              result: "trigger-condition-skipped",
+              reason: currentInvoice ? "invoice_no_longer_unpaid" : "invoice_not_found",
+              invoiceId,
+              currentStatus: currentInvoice?.status || null,
+            });
+            if (runId) {
+              await markStepFinished({
+                runId,
+                stepIndex,
+                status: "SKIPPED",
+                startedAt: stepStartedAt,
+                safeOutput: {
+                  reason: currentInvoice ? "invoice_no_longer_unpaid" : "invoice_not_found",
+                  invoiceId,
+                  currentStatus: currentInvoice?.status || null,
+                },
+              });
+            }
+            await persistProgress(stepIndex);
+            shouldStopProcessing = true;
+            continue;
+          }
+        }
+
         pushLog({
           stepIndex,
           step: stepType,
@@ -1207,9 +1308,6 @@ export async function executeAutomationRun(
         await persistProgress(stepIndex);
         continue;
       }
-      const stepId = resolveStepId(step, stepIndex, stepType);
-      const idempotencyScope = runOriginalRunId || runId;
-      const stepStartedAt = Date.now();
       if (runId && idempotencyScope) {
         await markStepStarted({
           runId,
@@ -1244,7 +1342,7 @@ export async function executeAutomationRun(
           continue;
         }
       }
-      const stepRunAt = resolveStepRunAt(step, config, new Date());
+      const stepRunAt = shouldResumeScheduledStep ? null : resolveStepRunAt(step, config, new Date());
       if (stepRunAt && stepRunAt.getTime() > Date.now()) {
         runMeta.resumeState = {
           lastCompletedStepIndex: stepIndex - 1,

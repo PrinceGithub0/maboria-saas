@@ -26,8 +26,13 @@ import {
   type AutomationTemplateStep,
   type AutomationTemplateTrigger,
 } from "@/lib/automation-templates";
+import {
+  isSupportedDashboardActionId,
+  isSupportedDashboardStartId,
+} from "@/lib/automation/dashboard-definition";
 import { useLanguage } from "@/components/providers/language-provider";
 import { getLocalizedText, LANGUAGE_LOCALES, type LocalizedText } from "@/lib/i18n";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 
 type StartId =
   | "invoice_created"
@@ -157,8 +162,9 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
   const [form, setForm] = useState({ title: "", description: "", category: "" });
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<AutomationStatus>("ACTIVE");
+  const [saveStatus, setSaveStatus] = useState<AutomationStatus>("DRAFT");
   const [isHydratingEdit, setIsHydratingEdit] = useState(mode === "edit");
+  const [hasUnsupportedContent, setHasUnsupportedContent] = useState(false);
   const [userPlan, setUserPlan] = useState<string | null>(null);
   const [planReady, setPlanReady] = useState(false);
   const [startId, setStartId] = useState<StartId | null>(null);
@@ -166,6 +172,7 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
   const [highlightActionId, setHighlightActionId] = useState<number | null>(null);
   const [dragging, setDragging] = useState<number | null>(null);
   const [hydratedTemplateId, setHydratedTemplateId] = useState<string | null>(null);
+  const [pendingDeleteActionId, setPendingDeleteActionId] = useState<number | null>(null);
   const [cfg, setCfg] = useState({ overdueDays: "3", onlyIfUnpaid: true, paidDelayHours: "0", markAsClosed: true, paymentConfirmMinutes: "5", paymentRetryHours: "6", notifyOnFailure: true, customerDelayDays: "1", messageDelayMinutes: "2" });
   const [actions, setActions] = useState<Act[]>([]);
   const templateParam = String(searchParams.get("template") || "").trim();
@@ -265,15 +272,54 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
     );
 
   const start = STARTS.find((s) => s.id === startId) ?? null;
+  const mappedTriggerConfig = useMemo(() => {
+    if (!start) return null;
+
+    const buildTimedTriggerConfig = (rawValue: string, unit: Unit, extra: Record<string, unknown> = {}) => {
+      const normalizedValue = Math.max(0, Number(rawValue || 0));
+      return {
+        startId: start.id,
+        mode: normalizedValue > 0 ? "after" : "now",
+        delayValue: normalizedValue,
+        ...(normalizedValue > 0 ? { delayUnit: unit } : {}),
+        ...extra,
+      };
+    };
+
+    switch (start.id) {
+      case "invoice_overdue":
+        return buildTimedTriggerConfig(cfg.overdueDays, "days", { onlyIfUnpaid: cfg.onlyIfUnpaid });
+      case "invoice_paid":
+        return buildTimedTriggerConfig(cfg.paidDelayHours, "hours");
+      case "payment_received":
+        return buildTimedTriggerConfig(cfg.paymentConfirmMinutes, "minutes");
+      case "payment_failed":
+        return buildTimedTriggerConfig(cfg.paymentRetryHours, "hours");
+      case "customer_created":
+        return buildTimedTriggerConfig(cfg.customerDelayDays, "days");
+      case "whatsapp_received":
+      case "email_received":
+        return buildTimedTriggerConfig(cfg.messageDelayMinutes, "minutes");
+      default:
+        return { startId: start.id };
+    }
+  }, [
+    start,
+    cfg.customerDelayDays,
+    cfg.messageDelayMinutes,
+    cfg.onlyIfUnpaid,
+    cfg.overdueDays,
+    cfg.paidDelayHours,
+    cfg.paymentConfirmMinutes,
+    cfg.paymentRetryHours,
+  ]);
   const mappedSteps = useMemo(
     () => [
-      ...(start
+      ...(start && mappedTriggerConfig
         ? [
             {
               type: start.type,
-              config: {
-                startId: start.id,
-              },
+              config: mappedTriggerConfig,
             },
           ]
         : []),
@@ -291,7 +337,7 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
         },
       })),
     ],
-    [start, actions]
+    [actions, mappedTriggerConfig, start]
   );
 
   useEffect(() => {
@@ -357,9 +403,10 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
           .map((step: any, index: number) => {
             const config = step?.config && typeof step.config === "object" ? step.config : {};
             const configuredActionId = typeof config.actionId === "string" ? config.actionId : "";
-            const matchedDef =
-              DEFS.find((def) => def.id === configuredActionId) ||
-              DEFS.find((def) => def.type === String(step?.type || ""));
+            if (!configuredActionId || !isSupportedDashboardActionId(configuredActionId)) {
+              return null;
+            }
+            const matchedDef = DEFS.find((def) => def.id === configuredActionId && def.available !== false);
             if (!matchedDef) return null;
 
             const rawDelayValue = Number(config.delayValue ?? 0);
@@ -402,16 +449,54 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
             } satisfies Act;
           })
           .filter(Boolean) as Act[];
+        const expectedActionCount = flowSteps.filter((step: any) => !isStartId(step?.config?.startId)).length;
+        const unsupportedContentDetected =
+          expectedActionCount !== hydrateActions.length ||
+          (flowSteps.length > 0 && (!nextStartId || !isSupportedDashboardStartId(nextStartId)));
 
         setForm({
           title: String(flow.title || ""),
           description: String(flow.description || ""),
           category: String(flow.category || ""),
         });
+        setHasUnsupportedContent(unsupportedContentDetected);
+        setCfg((current) => {
+          const next = { ...current };
+          const delayValue = String(Math.max(0, Number(startStep?.config?.delayValue ?? 0)));
+          if (nextStartId === "invoice_overdue") {
+            next.overdueDays = delayValue;
+            next.onlyIfUnpaid =
+              typeof startStep?.config?.onlyIfUnpaid === "boolean"
+                ? Boolean(startStep.config.onlyIfUnpaid)
+                : current.onlyIfUnpaid;
+          } else if (nextStartId === "invoice_paid") {
+            next.paidDelayHours = delayValue;
+          } else if (nextStartId === "payment_received") {
+            next.paymentConfirmMinutes = delayValue;
+          } else if (nextStartId === "payment_failed") {
+            next.paymentRetryHours = delayValue;
+          } else if (nextStartId === "customer_created") {
+            next.customerDelayDays = delayValue;
+          } else if (nextStartId === "whatsapp_received" || nextStartId === "email_received") {
+            next.messageDelayMinutes = delayValue;
+          }
+          return next;
+        });
         setStartId(nextStartId);
         setActions(hydrateActions);
         setShowCatalog(false);
         setSaveStatus(normalizeAutomationStatus(flow.status, "DRAFT"));
+        if (unsupportedContentDetected) {
+          setStatus(
+            t(
+              "This automation contains steps or triggers that are not supported by the live builder yet. Editing is blocked here to avoid losing configuration.",
+              "Cette automatisation contient des etapes ou declencheurs non pris en charge par le generateur actif. La modification est bloquee ici pour eviter toute perte de configuration.",
+              "Diese Automatisierung enthalt Schritte oder Ausloser, die vom Live-Builder noch nicht unterstutzt werden. Das Bearbeiten ist hier blockiert, um Konfigurationsverlust zu vermeiden.",
+              "Esta automatizacion contiene pasos o disparadores que el generador en vivo aun no admite. La edicion se bloquea aqui para evitar perder configuracion.",
+              "Esta automacao contem passos ou acionadores que o construtor ativo ainda nao suporta. A edicao esta bloqueada aqui para evitar perda de configuracao."
+            )
+          );
+        }
       } catch {
         if (!active) return;
         setStatus(t("Unable to load automation. Please try again.", "Impossible de charger l automatisation. Reessayez.", "Automatisierung konnte nicht geladen werden. Bitte versuche es erneut.", "No se pudo cargar la automatización. Intentalo de nuevo.", "Não foi possivel carregar a automação. Tente novamente."));
@@ -478,14 +563,22 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
   }, [mode, planReady, templateParam, userPlan, hydratedTemplateId, t]);
 
   const validationIssues = [
-    !form.title.trim() ? t("Enter an automation name.", "Entrez un nom d'automatisation.", "Gib einen Namen für die Automatisierung ein.", "Introduce un nombre para la automatización.", "Introduza um nome para a automação.") : null,
-    !form.description.trim() ? t("Enter a short description.", "Entrez une courte description.", "Gib eine kurze Beschreibung ein.", "Introduce una descripcion breve.", "Introduza uma descricao curta.") : null,
+    !form.title.trim()
+      ? t("Enter an automation name.", "Entrez un nom d'automatisation.", "Gib einen Namen für die Automatisierung ein.", "Introduce un nombre para la automatización.", "Introduza um nome para a automação.")
+      : form.title.trim().length < 3
+        ? t("Automation name must be at least 3 characters.", "Le nom de l'automatisation doit contenir au moins 3 caracteres.", "Der Name der Automatisierung muss mindestens 3 Zeichen lang sein.", "El nombre de la automatización debe tener al menos 3 caracteres.", "O nome da automação deve ter pelo menos 3 caracteres.")
+        : null,
+    !form.description.trim()
+      ? t("Enter a short description.", "Entrez une courte description.", "Gib eine kurze Beschreibung ein.", "Introduce una descripcion breve.", "Introduza uma descricao curta.")
+      : form.description.trim().length < 5
+        ? t("Description must be at least 5 characters.", "La description doit contenir au moins 5 caracteres.", "Die Beschreibung muss mindestens 5 Zeichen lang sein.", "La descripcion debe tener al menos 5 caracteres.", "A descricao deve ter pelo menos 5 caracteres.")
+        : null,
     !start ? t("Select what starts this automation.", "Sélectionnez ce qui demarre cette automatisation.", "Wähle aus, was diese Automatisierung startet.", "Selecciona que inicia esta automatización.", "Selecione o que inicia esta automação.") : null,
     actions.length === 0 ? t("Add at least one step to complete this automation.", "Ajoutez au moins une etape pour completer cette automatisation.", "Füge mindestens einen Schritt hinzu, um diese Automatisierung abzuschliessen.", "Agrega al menos un paso para completar esta automatización.", "Adicione pelo menos um passo para concluir esta automação.") : null,
   ].filter(Boolean) as string[];
-  const canSave = validationIssues.length === 0 && !loading && !isHydratingEdit;
+  const canSave = validationIssues.length === 0 && !loading && !isHydratingEdit && !hasUnsupportedContent;
 
-  const inputClass = "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+  const inputClass = "h-11 w-full rounded-xl border border-border bg-background px-3 text-foreground outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20";
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -495,37 +588,44 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
       return;
     }
     setLoading(true);
-    const payload = { ...form, steps: mappedSteps, status: saveStatus };
-    const endpoint = mode === "edit" ? `/api/automation/${encodeURIComponent(safeAutomationId)}` : "/api/automation";
-    const method = mode === "edit" ? "PATCH" : "POST";
-    const res = await fetch(endpoint, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    let json: any = {};
-    try { json = await res.json(); } catch { json = {}; }
-    if (!res.ok) {
+    try {
+      const payload = { ...form, steps: mappedSteps, status: saveStatus };
+      const endpoint = mode === "edit" ? `/api/automation/${encodeURIComponent(safeAutomationId)}` : "/api/automation";
+      const method = mode === "edit" ? "PATCH" : "POST";
+      const res = await fetch(endpoint, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      let json: any = {};
+      try { json = await res.json(); } catch { json = {}; }
+      if (!res.ok) {
+        setStatus(
+          resolveFriendlyApiMessage(
+            json,
+            mode === "edit"
+              ? t("Unable to update automation. Please try again.", "Impossible de mettre a jour l automatisation. Reessayez.", "Automatisierung konnte nicht aktualisiert werden. Bitte versuche es erneut.", "No se pudo actualizar la automatización. Intentalo de nuevo.", "Não foi possivel atualizar a automação. Tente novamente.")
+              : t("Unable to save automation. Please try again.", "Impossible d enregistrer l automatisation. Reessayez.", "Automatisierung konnte nicht gespeichert werden. Bitte versuche es erneut.", "No se pudo guardar la automatización. Intentalo de nuevo.", "Não foi possivel guardar a automação. Tente novamente."),
+            mode === "edit" ? "automation_update_failed" : "automation_create_failed"
+          )
+        );
+        return;
+      }
+      const id = mode === "edit" ? safeAutomationId : json?.id || json?.flow?.id;
+      if (!id) {
+        router.push("/dashboard/automations");
+        return;
+      }
+      router.push(`/dashboard/automations/${encodeURIComponent(id)}`);
+    } catch {
       setStatus(
-        resolveFriendlyApiMessage(
-          json,
-          mode === "edit"
-            ? t("Unable to update automation. Please try again.", "Impossible de mettre a jour l automatisation. Reessayez.", "Automatisierung konnte nicht aktualisiert werden. Bitte versuche es erneut.", "No se pudo actualizar la automatización. Intentalo de nuevo.", "Não foi possivel atualizar a automação. Tente novamente.")
-            : t("Unable to save automation. Please try again.", "Impossible d enregistrer l automatisation. Reessayez.", "Automatisierung konnte nicht gespeichert werden. Bitte versuche es erneut.", "No se pudo guardar la automatización. Intentalo de nuevo.", "Não foi possivel guardar a automação. Tente novamente."),
-          mode === "edit" ? "automation_update_failed" : "automation_create_failed"
-        )
+        mode === "edit"
+          ? t("Network error while updating automation. Please try again.", "Erreur reseau pendant la mise a jour de l automatisation. Reessayez.", "Netzwerkfehler beim Aktualisieren der Automatisierung. Bitte versuche es erneut.", "Error de red al actualizar la automatización. Intentalo de nuevo.", "Erro de rede ao atualizar a automação. Tente novamente.")
+          : t("Network error while saving automation. Please try again.", "Erreur reseau pendant l enregistrement de l automatisation. Reessayez.", "Netzwerkfehler beim Speichern der Automatisierung. Bitte versuche es erneut.", "Error de red al guardar la automatización. Intentalo de nuevo.", "Erro de rede ao guardar a automação. Tente novamente.")
       );
+    } finally {
       setLoading(false);
-      return;
     }
-    const id = mode === "edit" ? safeAutomationId : json?.id || json?.flow?.id;
-    if (!id) {
-      router.push("/dashboard/automations");
-      setLoading(false);
-      return;
-    }
-    router.push(`/dashboard/automations/${encodeURIComponent(id)}`);
-    setLoading(false);
   };
 
   const def = (id: string) => DEFS.find((d) => d.id === id);
@@ -545,8 +645,12 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
   };
   const updateAction = (id: number, patch: Partial<Act>) => setActions((p) => p.map((a) => (a.id === id ? { ...a, ...patch } : a)));
   const removeAction = (id: number) => {
-    if (typeof window !== "undefined" && !window.confirm(t("Delete this step?", "Supprimer cette etape ?", "Diesen Schritt loschen?", "Eliminar este paso?", "Eliminar este passo?"))) return;
-    setActions((p) => p.filter((a) => a.id !== id));
+    setPendingDeleteActionId(id);
+  };
+  const confirmRemoveAction = () => {
+    if (pendingDeleteActionId == null) return;
+    setActions((p) => p.filter((a) => a.id !== pendingDeleteActionId));
+    setPendingDeleteActionId(null);
   };
   const reorder = (fromId: number, toId: number) => setActions((p) => {
     const from = p.findIndex((a) => a.id === fromId); const to = p.findIndex((a) => a.id === toId);
@@ -600,6 +704,14 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
     a.mode === "now"
       ? t("Immediately", "Immediatement", "Sofort", "Inmediatamente", "Imediatamente")
       : `${a.val || "1"} ${unitLabel(a.unit)} ${t("later", "plus tard", "spater", "despues", "depois")}`;
+  const triggerDelayValue =
+    mappedTriggerConfig && "delayValue" in mappedTriggerConfig ? Number(mappedTriggerConfig.delayValue || 0) : 0;
+  const triggerDelayUnit =
+    mappedTriggerConfig && "delayUnit" in mappedTriggerConfig ? mappedTriggerConfig.delayUnit : undefined;
+  const triggerTiming =
+    triggerDelayValue > 0 && triggerDelayUnit
+      ? `${t("after", "apres", "nach", "despues de", "apos")} ${triggerDelayValue} ${unitLabel(triggerDelayUnit)}`
+      : "";
   const previewData = (() => {
     if (!actions.length) {
       return {
@@ -618,30 +730,36 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
     if (actions.length === 1) {
       const action = actions[0];
       const line = action.mode === "now" ? phrase(action.aid) : `${phrase(action.aid)} ${t("after", "apres", "nach", "despues de", "após")} ${action.val || "1"} ${unitLabel(action.unit)}`;
-      return { title: `${t("When", "Quand", "Wenn", "Cuando", "Quando")} ${startPhrase(start.id).toLocaleLowerCase(locale)}, ${t("the system will", "le systeme va", "wird das System", "el sistema va a", "o sistema vai")} ${line}.`, steps: [] as string[] };
+      return { title: `${t("When", "Quand", "Wenn", "Cuando", "Quando")} ${startPhrase(start.id).toLocaleLowerCase(locale)}${triggerTiming ? ` ${triggerTiming}` : ""}, ${t("the system will", "le systeme va", "wird das System", "el sistema va a", "o sistema vai")} ${line}.`, steps: [] as string[] };
     }
 
     return {
-      title: `${t("When", "Quand", "Wenn", "Cuando", "Quando")} ${startPhrase(start.id).toLocaleLowerCase(locale)}:`,
+      title: `${t("When", "Quand", "Wenn", "Cuando", "Quando")} ${startPhrase(start.id).toLocaleLowerCase(locale)}${triggerTiming ? ` ${triggerTiming}` : ""}:`,
       steps: actions.map((a) => (a.mode === "now" ? `${phrase(a.aid)} ${t("immediately", "immediatement", "sofort", "inmediatamente", "imediatamente")}` : `${phrase(a.aid)} ${t("after", "apres", "nach", "despues de", "após")} ${a.val || "1"} ${unitLabel(a.unit)}`)),
     };
   })();
 
   const renderStartConfig = (id: StartId) => {
-    if (id === "invoice_overdue") return <div className="space-y-3"><label className="block space-y-2 text-sm text-slate-700"><span>{t("Send reminder after", "Envoyer un rappel apres", "Erinnerung senden nach", "Enviar recordatorio despues de", "Enviar lembrete após")}</span><div className="flex items-center gap-2"><input type="number" min={0} value={cfg.overdueDays} onChange={(e) => setCfg((p) => ({ ...p, overdueDays: e.target.value }))} className={`${inputClass} max-w-[140px]`} /><span className="text-sm text-slate-600">{t("days", "jours", "Tage", "dias", "dias")}</span></div></label><label className="inline-flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={cfg.onlyIfUnpaid} onChange={(e) => setCfg((p) => ({ ...p, onlyIfUnpaid: e.target.checked }))} className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" /><span>{t("Only if invoice is still unpaid", "Seulement si la facture est toujours impayee", "Nur wenn die Rechnung noch unbezahlt ist", "Solo si la factura sigue impagada", "So se a fatura continuar por pagar")}</span></label></div>;
-    if (id === "invoice_paid") return <label className="block space-y-2 text-sm text-slate-700"><span>{t("Send confirmation after", "Envoyer la confirmation apres", "Bestätigung senden nach", "Enviar confirmacion despues de", "Enviar confirmacao após")}</span><div className="flex items-center gap-2"><input type="number" min={0} value={cfg.paidDelayHours} onChange={(e) => setCfg((p) => ({ ...p, paidDelayHours: e.target.value }))} className={`${inputClass} max-w-[140px]`} /><span className="text-sm text-slate-600">{t("hours", "heures", "Stunden", "horas", "horas")}</span></div></label>;
-    if (id === "payment_received") return <label className="block space-y-2 text-sm text-slate-700"><span>{t("Confirm payment after", "Confirmer le paiement apres", "Zahlung bestätigen nach", "Confirmar pago despues de", "Confirmar pagamento após")}</span><div className="flex items-center gap-2"><input type="number" min={0} value={cfg.paymentConfirmMinutes} onChange={(e) => setCfg((p) => ({ ...p, paymentConfirmMinutes: e.target.value }))} className={`${inputClass} max-w-[140px]`} /><span className="text-sm text-slate-600">{t("minutes", "minutes", "Minuten", "minutos", "minutos")}</span></div></label>;
-    if (id === "payment_failed") return <label className="block space-y-2 text-sm text-slate-700"><span>{t("Try again after", "Reessayer apres", "Erneut versuchen nach", "Reintentar despues de", "Tentar novamente após")}</span><div className="flex items-center gap-2"><input type="number" min={0} value={cfg.paymentRetryHours} onChange={(e) => setCfg((p) => ({ ...p, paymentRetryHours: e.target.value }))} className={`${inputClass} max-w-[140px]`} /><span className="text-sm text-slate-600">{t("hours", "heures", "Stunden", "horas", "horas")}</span></div></label>;
-    if (id === "customer_created") return <label className="block space-y-2 text-sm text-slate-700"><span>{t("Send welcome message after", "Envoyer le message de bienvenue apres", "Willkommensnachricht senden nach", "Enviar mensaje de bienvenida despues de", "Enviar mensagem de boas-vindas após")}</span><div className="flex items-center gap-2"><input type="number" min={0} value={cfg.customerDelayDays} onChange={(e) => setCfg((p) => ({ ...p, customerDelayDays: e.target.value }))} className={`${inputClass} max-w-[140px]`} /><span className="text-sm text-slate-600">{t("days", "jours", "Tage", "dias", "dias")}</span></div></label>;
-    return <label className="block space-y-2 text-sm text-slate-700"><span>{t("Send reply after", "Envoyer la réponse apres", "Antwort senden nach", "Enviar respuesta despues de", "Enviar resposta após")}</span><div className="flex items-center gap-2"><input type="number" min={0} value={cfg.messageDelayMinutes} onChange={(e) => setCfg((p) => ({ ...p, messageDelayMinutes: e.target.value }))} className={`${inputClass} max-w-[140px]`} /><span className="text-sm text-slate-600">{t("minutes", "minutes", "Minuten", "minutos", "minutos")}</span></div></label>;
+    if (id === "invoice_overdue") return <div className="space-y-3"><label className="block space-y-2 text-sm text-foreground"><span>{t("Send reminder after", "Envoyer un rappel apres", "Erinnerung senden nach", "Enviar recordatorio despues de", "Enviar lembrete após")}</span><div className="flex items-center gap-2"><input type="number" min={0} value={cfg.overdueDays} onChange={(e) => setCfg((p) => ({ ...p, overdueDays: e.target.value }))} className={`${inputClass} max-w-[140px]`} /><span className="text-sm text-slate-600">{t("days", "jours", "Tage", "dias", "dias")}</span></div></label><label className="inline-flex items-center gap-2 text-sm text-foreground"><input type="checkbox" checked={cfg.onlyIfUnpaid} onChange={(e) => setCfg((p) => ({ ...p, onlyIfUnpaid: e.target.checked }))} className="h-4 w-4 rounded border-border text-blue-600 focus:ring-blue-500" /><span>{t("Only if invoice is still unpaid", "Seulement si la facture est toujours impayee", "Nur wenn die Rechnung noch unbezahlt ist", "Solo si la factura sigue impagada", "So se a fatura continuar por pagar")}</span></label></div>;
+    if (id === "invoice_paid") return <label className="block space-y-2 text-sm text-foreground"><span>{t("Send confirmation after", "Envoyer la confirmation apres", "Bestätigung senden nach", "Enviar confirmacion despues de", "Enviar confirmacao após")}</span><div className="flex items-center gap-2"><input type="number" min={0} value={cfg.paidDelayHours} onChange={(e) => setCfg((p) => ({ ...p, paidDelayHours: e.target.value }))} className={`${inputClass} max-w-[140px]`} /><span className="text-sm text-slate-600">{t("hours", "heures", "Stunden", "horas", "horas")}</span></div></label>;
+    if (id === "payment_received") return <label className="block space-y-2 text-sm text-foreground"><span>{t("Confirm payment after", "Confirmer le paiement apres", "Zahlung bestätigen nach", "Confirmar pago despues de", "Confirmar pagamento após")}</span><div className="flex items-center gap-2"><input type="number" min={0} value={cfg.paymentConfirmMinutes} onChange={(e) => setCfg((p) => ({ ...p, paymentConfirmMinutes: e.target.value }))} className={`${inputClass} max-w-[140px]`} /><span className="text-sm text-slate-600">{t("minutes", "minutes", "Minuten", "minutos", "minutos")}</span></div></label>;
+    if (id === "payment_failed") return <label className="block space-y-2 text-sm text-foreground"><span>{t("Try again after", "Reessayer apres", "Erneut versuchen nach", "Reintentar despues de", "Tentar novamente após")}</span><div className="flex items-center gap-2"><input type="number" min={0} value={cfg.paymentRetryHours} onChange={(e) => setCfg((p) => ({ ...p, paymentRetryHours: e.target.value }))} className={`${inputClass} max-w-[140px]`} /><span className="text-sm text-slate-600">{t("hours", "heures", "Stunden", "horas", "horas")}</span></div></label>;
+    if (id === "customer_created") return <label className="block space-y-2 text-sm text-foreground"><span>{t("Send welcome message after", "Envoyer le message de bienvenue apres", "Willkommensnachricht senden nach", "Enviar mensaje de bienvenida despues de", "Enviar mensagem de boas-vindas após")}</span><div className="flex items-center gap-2"><input type="number" min={0} value={cfg.customerDelayDays} onChange={(e) => setCfg((p) => ({ ...p, customerDelayDays: e.target.value }))} className={`${inputClass} max-w-[140px]`} /><span className="text-sm text-slate-600">{t("days", "jours", "Tage", "dias", "dias")}</span></div></label>;
+    return <label className="block space-y-2 text-sm text-foreground"><span>{t("Send reply after", "Envoyer la réponse apres", "Antwort senden nach", "Enviar respuesta despues de", "Enviar resposta após")}</span><div className="flex items-center gap-2"><input type="number" min={0} value={cfg.messageDelayMinutes} onChange={(e) => setCfg((p) => ({ ...p, messageDelayMinutes: e.target.value }))} className={`${inputClass} max-w-[140px]`} /><span className="text-sm text-slate-600">{t("minutes", "minutes", "Minuten", "minutos", "minutos")}</span></div></label>;
   };
+  const statusOptions: Array<{ value: AutomationStatus; label: string }> = [
+    { value: "DRAFT", label: t("Draft", "Brouillon", "Entwurf", "Borrador", "Rascunho") },
+    { value: "ACTIVE", label: t("Active", "Actif", "Aktiv", "Activa", "Ativa") },
+    { value: "PAUSED", label: t("Paused", "En pause", "Pausiert", "Pausada", "Em pausa") },
+    { value: "ARCHIVED", label: t("Archived", "Archive", "Archiviert", "Archivada", "Arquivada") },
+  ];
 
   return (
-    <div className="-mx-4 min-h-[calc(100vh-4rem)] bg-slate-50 px-4 py-6 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 lg:py-8">
+    <div className="-mx-4 min-h-[calc(100vh-4rem)] bg-background px-4 py-6 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 lg:py-8">
       <div className="mx-auto w-full max-w-4xl space-y-8 lg:space-y-10">
         <header className="space-y-5">
           <div className="flex items-center justify-between gap-3">
-            <button type="button" onClick={() => router.push("/dashboard/automations")} className="inline-flex h-9 items-center gap-1.5 text-sm font-medium text-slate-500 transition hover:text-slate-700"><ArrowLeft className="h-4 w-4" />{t("Back to Automations", "Retour aux automatisations", "Zurück zu den Automatisierungen", "Volver a automatizaciones", "Voltar as automações")}</button>
+            <button type="button" onClick={() => router.push("/dashboard/automations")} className="inline-flex h-9 items-center gap-1.5 text-sm font-medium text-muted-foreground transition hover:text-foreground"><ArrowLeft className="h-4 w-4" />{t("Back to Automations", "Retour aux automatisations", "Zurück zu den Automatisierungen", "Volver a automatizaciones", "Voltar as automações")}</button>
             <div className="ml-auto flex max-w-sm flex-col items-end">
               <button
                 type="submit"
@@ -658,10 +776,10 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
             </div>
           </div>
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+            <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
               {mode === "edit" ? t("Edit Automation", "Modifier l'automatisation", "Automatisierung bearbeiten", "Editar automatización", "Editar automação") : t("Create Automation", "Creer une automatisation", "Automatisierung erstellen", "Crear automatización", "Criar automação")}
             </h1>
-            <p className="mt-2 text-base text-slate-600">
+            <p className="mt-2 text-base text-muted-foreground">
               {mode === "edit"
                 ? t("Update this automation and save your changes.", "Mettez a jour cette automatisation et enregistrez vos modifications.", "Aktualisiere diese Automatisierung und speichere deine Änderungen.", "Actualiza esta automatización y guarda tus cambios.", "Atualize esta automação e guarde as suas alteracoes.")
                 : t("Automate tasks so your business runs automatically.", "Automatisez les taches pour que votre activité fonctionne automatiquement.", "Automatisiere Aufgaben, damit dein Geschäft automatisch arbeitet.", "Automatiza tareas para que tu negocio funcione automaticamente.", "Automatize tarefas para que o seu negocio funcione automaticamente.")}
@@ -669,26 +787,37 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
           </div>
         </header>
         {isHydratingEdit ? (
-          <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+          <div className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground">
             {t("Loading automation...", "Chargement de l'automatisation...", "Automatisierung wird geladen...", "Cargando automatización...", "A carregar automação...")}
           </div>
         ) : null}
-        {status ? <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">{status}</div> : null}
+        {status ? <div className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground">{status}</div> : null}
         <form id="automation-form" onSubmit={save} className="space-y-10 lg:space-y-12">
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-            <h2 className="text-lg font-semibold text-slate-900">
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+            <h2 className="text-lg font-semibold text-foreground">
               {mode === "edit" ? t("Automation Details", "Details de l'automatisation", "Automatisierungsdetails", "Detalles de la automatización", "Detalhes da automação") : t("Create Automation", "Creer une automatisation", "Automatisierung erstellen", "Crear automatización", "Criar automação")}
             </h2>
-            <label className="mt-4 block space-y-2 text-sm text-slate-700"><span className="font-semibold text-slate-900">{t("Automation Name", "Nom de l'automatisation", "Name der Automatisierung", "Nombre de la automatización", "Nome da automação")}</span><input required value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} placeholder={t("Example: Invoice reminder", "Exemple : rappel de facture", "Beispiel: Rechnungserinnerung", "Ejemplo: recordatorio de factura", "Exemplo: lembrete de fatura")} className={inputClass} /></label>
-            <label className="mt-4 block space-y-2 text-sm text-slate-700"><span className="font-semibold text-slate-900">{t("Short Description", "Description courte", "Kurze Beschreibung", "Descripcion breve", "Descricao curta")}</span><textarea required value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} placeholder={t("Describe what this automation should do.", "Decrivez ce que cette automatisation doit faire.", "Beschreibe, was diese Automatisierung tun soll.", "Describe lo que debe hacer esta automatización.", "Descreva o que esta automação deve fazer.")} className="min-h-[110px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100" /></label>
-            <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t("Live preview", "Apercu en direct", "Live-Vorschau", "Vista previa en vivo", "Pre-visualizacao em direto")}</p>
-              <p className="mt-2 text-sm text-slate-700">{previewData.title}</p>
+            <label className="mt-4 block space-y-2 text-sm text-foreground"><span className="font-semibold text-foreground">{t("Automation Name", "Nom de l'automatisation", "Name der Automatisierung", "Nombre de la automatización", "Nome da automação")}</span><input required value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} placeholder={t("Example: Invoice reminder", "Exemple : rappel de facture", "Beispiel: Rechnungserinnerung", "Ejemplo: recordatorio de factura", "Exemplo: lembrete de fatura")} className={inputClass} /></label>
+            <label className="mt-4 block space-y-2 text-sm text-foreground"><span className="font-semibold text-foreground">{t("Short Description", "Description courte", "Kurze Beschreibung", "Descripcion breve", "Descricao curta")}</span><textarea required value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} placeholder={t("Describe what this automation should do.", "Decrivez ce que cette automatisation doit faire.", "Beschreibe, was diese Automatisierung tun soll.", "Describe lo que debe hacer esta automatización.", "Descreva o que esta automação deve fazer.")} className="min-h-[110px] w-full rounded-xl border border-border bg-background px-3 py-2 text-foreground outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" /></label>
+            <label className="mt-4 block space-y-2 text-sm text-foreground">
+              <span className="font-semibold text-foreground">{t("Status on Save", "Statut a l enregistrement", "Status beim Speichern", "Estado al guardar", "Estado ao guardar")}</span>
+              <select value={saveStatus} onChange={(e) => setSaveStatus(normalizeAutomationStatus(e.target.value, "DRAFT"))} className={`${inputClass} text-sm`}>
+                {statusOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              <span className="block text-xs text-muted-foreground">
+                {t("New automations default to draft so you can review before going live.", "Les nouvelles automatisations commencent en brouillon pour permettre une verification avant la mise en ligne.", "Neue Automatisierungen starten als Entwurf, damit du sie vor dem Livegang prufen kannst.", "Las nuevas automatizaciones empiezan como borrador para revisarlas antes de activarlas.", "As novas automacoes comecam como rascunho para rever antes de ativar.")}
+              </span>
+            </label>
+            <div className="mt-5 rounded-xl border border-blue-200/60 bg-blue-50/70 p-4 dark:border-blue-400/20 dark:bg-blue-500/10">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-900/70 dark:text-blue-200/80">{t("Live preview", "Apercu en direct", "Live-Vorschau", "Vista previa en vivo", "Pre-visualizacao em direto")}</p>
+              <p className="mt-2 text-sm text-foreground">{previewData.title}</p>
               {previewData.steps.length > 0 ? (
-                <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                <ul className="mt-2 space-y-1 text-sm text-foreground">
                   {previewData.steps.map((line, idx) => (
                     <li key={`${line}-${idx}`} className="flex items-start gap-2">
-                      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-slate-400" />
+                      <span className="mt-1 h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
                       <span>{line}</span>
                     </li>
                   ))}
@@ -697,20 +826,20 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
             </div>
           </section>
 
-          <section className="rounded-2xl border border-slate-300 bg-white p-5 shadow-md sm:p-6">
-            <h2 className="text-lg font-semibold text-slate-900">{t("What starts this automation?", "Qu'est-ce qui demarre cette automatisation ?", "Was startet diese Automatisierung?", "Que inicia esta automatización?", "O que inicia esta automação?")}</h2>
-            <p className="mt-2 text-sm text-slate-600">
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+            <h2 className="text-lg font-semibold text-foreground">{t("What starts this automation?", "Qu'est-ce qui demarre cette automatisation ?", "Was startet diese Automatisierung?", "Que inicia esta automatización?", "O que inicia esta automação?")}</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
               {t("Live starts are currently wired for invoice and payment events.", "Les demarrages en direct sont actuellement relies aux evenements de facture et de paiement.", "Live-Starts sind derzeit für Rechnungs- und Zahlungsereignisse aktiviert.", "Los inicios en vivo estan conectados actualmente a eventos de factura y pago.", "Os inicios em direto estão ligados atualmente aos eventos de fatura e pagamento.")}
             </p>
             <div className="mt-5 space-y-5">
               {(["Invoices", "Payments", "Customers", "Messaging"] as const).map((group) => (
                 <div key={group} className="space-y-2.5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{groupLabel(group)}</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{groupLabel(group)}</p>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {STARTS.filter((s) => s.group === group && (s.available !== false || s.id === startId)).map((s) => (
-                      <div key={s.id} className={`rounded-xl border transition ${s.id === startId ? "border-blue-300 bg-blue-50/60 ring-1 ring-blue-100" : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60"}`}>
-                        <button type="button" onClick={() => setStartId(s.id)} className="w-full px-3 py-3 text-left"><div className="flex items-start gap-3"><span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border shadow-sm ${iconStartTone(s.id)}`}>{iconStart(s.id)}</span><div><p className="text-sm font-semibold text-slate-900">{startTitle(s.id)}</p><p className="mt-0.5 text-xs text-slate-600">{startDesc(s.id)}</p></div></div></button>
-                        {s.id === startId ? <div className="border-t border-slate-200 px-3 pb-3 pt-3">{renderStartConfig(s.id)}</div> : null}
+                      <div key={s.id} className={`rounded-xl border transition ${s.id === startId ? "border-blue-300 bg-blue-500/10 ring-1 ring-blue-500/20" : "border-border bg-card hover:border-border/80 hover:bg-muted/40"}`}>
+                        <button type="button" onClick={() => setStartId(s.id)} className="w-full px-3 py-3 text-left"><div className="flex items-start gap-3"><span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border shadow-sm ${iconStartTone(s.id)}`}>{iconStart(s.id)}</span><div><p className="text-sm font-semibold text-foreground">{startTitle(s.id)}</p><p className="mt-0.5 text-xs text-muted-foreground">{startDesc(s.id)}</p></div></div></button>
+                        {s.id === startId ? <div className="border-t border-border px-3 pb-3 pt-3">{renderStartConfig(s.id)}</div> : null}
                       </div>
                     ))}
                   </div>
@@ -719,16 +848,16 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
             </div>
           </section>
 
-          <section className="rounded-2xl border border-slate-300 bg-white p-5 shadow-md sm:p-6">
-            <h2 className="text-lg font-semibold text-slate-900">{t("What should the system do?", "Que doit faire le systeme ?", "Was soll das System tun?", "Que debe hacer el sistema?", "O que deve o sistema fazer?")}</h2>
-            <p className="mt-2 text-sm text-slate-600">
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+            <h2 className="text-lg font-semibold text-foreground">{t("What should the system do?", "Que doit faire le systeme ?", "Was soll das System tun?", "Que debe hacer el sistema?", "O que deve o sistema fazer?")}</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
               {t("The catalog only shows actions that have live runtime behavior today.", "Le catalogue n affiche que les actions qui ont un comportement actif aujourd hui.", "Der Katalog zeigt nur Aktionen, die heute echtes Laufzeitverhalten haben.", "El catalogo solo muestra acciones con comportamiento real en ejecucion hoy.", "O catalogo mostra apenas ações com comportamento real em execucao hoje.")}
             </p>
-            <div className="mt-6 border-t border-slate-200 pt-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{t("Steps you have added", "Etapes ajoutees", "Hinzugefugte Schritte", "Pasos agregados", "Passos adicionados")}</p>
+            <div className="mt-6 border-t border-border pt-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t("Steps you have added", "Etapes ajoutees", "Hinzugefugte Schritte", "Pasos agregados", "Passos adicionados")}</p>
               <div className="mt-3 space-y-4">
                 {!actions.length ? (
-                  <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+                  <div className="rounded-xl border border-dashed border-border bg-muted/40 p-5 text-sm text-muted-foreground">
                     {t("No steps added yet. Add your first step below.", "Aucune etape ajoutee pour le moment. Ajoutez votre premiere etape ci-dessous.", "Noch keine Schritte hinzugefugt. Füge unten deinen ersten Schritt hinzu.", "Aún no hay pasos agregados. Agrega tu primer paso abajo.", "Ainda não ha passos adicionados. Adicione o seu primeiro passo abaixo.")}
                   </div>
                 ) : null}
@@ -744,42 +873,42 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
                     onDragEnd={() => setDragging(null)}
                     className={`rounded-xl border p-4 shadow-sm transition-all duration-300 hover:shadow ${
                       highlightActionId === a.id
-                        ? "border-blue-300 bg-blue-50 ring-2 ring-blue-100"
-                        : "border-slate-200 bg-slate-50"
+                        ? "border-blue-300 bg-blue-50 ring-2 ring-blue-100 dark:border-blue-400/40 dark:bg-blue-500/10 dark:ring-blue-400/20"
+                        : "border-border bg-muted/40"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-start gap-3">
-                        <button type="button" className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500" aria-label={t("Drag to reorder", "Glisser pour reordonner", "Zum Neusortieren ziehen", "Arrastrar para reordenar", "Arrastar para reordenar")}>
+                        <button type="button" className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground" aria-label={t("Drag to reorder", "Glisser pour reordonner", "Zum Neusortieren ziehen", "Arrastrar para reordenar", "Arrastar para reordenar")}>
                           <GripVertical className="h-4 w-4" />
                         </button>
-                        <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700">{iconAction(a.aid)}</span>
+                        <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-foreground">{iconAction(a.aid)}</span>
                         <div>
-                          <span className="inline-flex rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600">{t("Step", "Etape", "Schritt", "Paso", "Passo")} {idx + 1}</span>
-                          <p className="mt-1 text-sm font-semibold text-slate-900">{label(a.aid)}</p>
-                          <p className="mt-1 text-xs text-slate-600">{t("Template", "Modele", "Vorlage", "Plantilla", "Modelo")}: {a.note || t("Default", "Par defaut", "Standard", "Predeterminado", "Predefinido")}</p>
-                          <p className="text-xs text-slate-600">{t("Send", "Envoyer", "Senden", "Enviar", "Enviar")}: {timing(a)}</p>
+                          <span className="inline-flex rounded-full border border-border bg-background px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">{t("Step", "Etape", "Schritt", "Paso", "Passo")} {idx + 1}</span>
+                          <p className="mt-1 text-sm font-semibold text-foreground">{label(a.aid)}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{t("Template", "Modele", "Vorlage", "Plantilla", "Modelo")}: {a.note || t("Default", "Par defaut", "Standard", "Predeterminado", "Predefinido")}</p>
+                          <p className="text-xs text-muted-foreground">{t("Send", "Envoyer", "Senden", "Enviar", "Enviar")}: {timing(a)}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
-                        <button type="button" onClick={() => updateAction(a.id, { edit: !a.edit })} className="inline-flex h-8 items-center justify-center rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100">{a.edit ? t("Close", "Fermer", "Schliessen", "Cerrar", "Fechar") : t("Edit", "Modifier", "Bearbeiten", "Editar", "Editar")}</button>
-                        <button type="button" onClick={() => removeAction(a.id)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>
+                        <button type="button" onClick={() => updateAction(a.id, { edit: !a.edit })} className="inline-flex h-8 items-center justify-center rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground transition hover:bg-muted">{a.edit ? t("Close", "Fermer", "Schliessen", "Cerrar", "Fechar") : t("Edit", "Modifier", "Bearbeiten", "Editar", "Editar")}</button>
+                        <button type="button" onClick={() => removeAction(a.id)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition hover:bg-muted hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>
                       </div>
                     </div>
 
-                    <div className={`overflow-hidden transition-all duration-200 ${a.edit ? "mt-4 max-h-[900px] border-t border-slate-200 pt-3 opacity-100" : "max-h-0 opacity-0"}`}>
+                    <div className={`overflow-hidden transition-all duration-200 ${a.edit ? "mt-4 max-h-[900px] border-t border-border pt-3 opacity-100" : "max-h-0 opacity-0"}`}>
                       <div className="space-y-3">
-                        <label className="block space-y-2 text-sm text-slate-700"><span>{t("Choose action", "Choisir une action", "Aktion auswählen", "Elegir acción", "Escolher ação")}</span><div className="relative"><select value={a.aid} onChange={(e) => { const d = def(e.target.value); if (!d) return; updateAction(a.id, { aid: d.id, type: d.type }); }} className={`${inputClass} h-10 appearance-none pr-10 text-sm`}>{GROUPS.map((g) => {
+                        <label className="block space-y-2 text-sm text-foreground"><span>{t("Choose action", "Choisir une action", "Aktion auswählen", "Elegir acción", "Escolher ação")}</span><div className="relative"><select value={a.aid} onChange={(e) => { const d = def(e.target.value); if (!d) return; updateAction(a.id, { aid: d.id, type: d.type }); }} className={`${inputClass} h-10 appearance-none pr-10 text-sm`}>{GROUPS.map((g) => {
                           const options = DEFS.filter((d) => d.group === g && (d.available !== false || d.id === a.aid));
                           if (!options.length) return null;
                           return <optgroup key={g} label={groupLabel(g)}>{options.map((d) => <option key={d.id} value={d.id}>{actionLabel(d.id)}</option>)}</optgroup>;
-                        })}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /></div></label>
-                        <label className="block space-y-2 text-sm text-slate-700"><span>{t("Template or message details", "Modele ou details du message", "Vorlage oder Nachrichtendetails", "Plantilla o detalles del mensaje", "Modelo ou detalhes da mensagem")}</span><input value={a.note} onChange={(e) => updateAction(a.id, { note: e.target.value })} placeholder={t("Example: Payment Reminder", "Exemple : rappel de paiement", "Beispiel: Zahlungserinnerung", "Ejemplo: recordatorio de pago", "Exemplo: lembrete de pagamento")} className={`${inputClass} h-10 text-sm`} /></label>
+                        })}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /></div></label>
+                        <label className="block space-y-2 text-sm text-foreground"><span>{t("Template or message details", "Modele ou details du message", "Vorlage oder Nachrichtendetails", "Plantilla o detalles del mensaje", "Modelo ou detalhes da mensagem")}</span><input value={a.note} onChange={(e) => updateAction(a.id, { note: e.target.value })} placeholder={t("Example: Payment Reminder", "Exemple : rappel de paiement", "Beispiel: Zahlungserinnerung", "Ejemplo: recordatorio de pago", "Exemplo: lembrete de pagamento")} className={`${inputClass} h-10 text-sm`} /></label>
                         <div className="grid gap-3 sm:grid-cols-[minmax(0,180px)_minmax(0,1fr)] sm:items-end">
-                          <label className="block space-y-2 text-sm text-slate-700"><span>{t("Send timing", "Moment d envoi", "Sendezeitpunkt", "Momento de envio", "Momento de envio")}</span><select value={a.mode} onChange={(e) => updateAction(a.id, { mode: e.target.value as Mode })} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"><option value="now">{t("Send immediately", "Envoyer immediatement", "Sofort senden", "Enviar inmediatamente", "Enviar imediatamente")}</option><option value="after">{t("Send after", "Envoyer apres", "Senden nach", "Enviar despues de", "Enviar após")}</option></select></label>
-                          {a.mode === "after" ? <div className="grid gap-2 sm:grid-cols-[120px_1fr]"><input type="number" min={1} value={a.val} onChange={(e) => updateAction(a.id, { val: e.target.value })} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100" /><select value={a.unit} onChange={(e) => updateAction(a.id, { unit: e.target.value as Unit })} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"><option value="minutes">{t("minutes", "minutes", "Minuten", "minutos", "minutos")}</option><option value="hours">{t("hours", "heures", "Stunden", "horas", "horas")}</option><option value="days">{t("days", "jours", "Tage", "dias", "dias")}</option></select></div> : null}
+                          <label className="block space-y-2 text-sm text-foreground"><span>{t("Send timing", "Moment d envoi", "Sendezeitpunkt", "Momento de envio", "Momento de envio")}</span><select value={a.mode} onChange={(e) => updateAction(a.id, { mode: e.target.value as Mode })} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"><option value="now">{t("Send immediately", "Envoyer immediatement", "Sofort senden", "Enviar inmediatamente", "Enviar imediatamente")}</option><option value="after">{t("Send after", "Envoyer apres", "Senden nach", "Enviar despues de", "Enviar após")}</option></select></label>
+                          {a.mode === "after" ? <div className="grid gap-2 sm:grid-cols-[120px_1fr]"><input type="number" min={1} value={a.val} onChange={(e) => updateAction(a.id, { val: e.target.value })} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" /><select value={a.unit} onChange={(e) => updateAction(a.id, { unit: e.target.value as Unit })} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"><option value="minutes">{t("minutes", "minutes", "Minuten", "minutos", "minutos")}</option><option value="hours">{t("hours", "heures", "Stunden", "horas", "horas")}</option><option value="days">{t("days", "jours", "Tage", "dias", "dias")}</option></select></div> : null}
                         </div>
-                        <details className="rounded-xl border border-slate-200 bg-white p-3"><summary className="cursor-pointer text-sm font-medium text-slate-700">{t("Advanced settings", "Paramêtres avances", "Erweiterte Einstellungen", "Configuración avanzada", "Definições avancadas")}</summary><div className="mt-3 space-y-3"><label className="block space-y-2 text-sm text-slate-700"><span>{t("Run this step", "Executer cette etape", "Diesen Schritt ausfuhren", "Ejecutar este paso", "Executar este passo")}</span><select value={a.window} onChange={(e) => updateAction(a.id, { window: e.target.value as Window })} className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"><option value="anytime">{t("Anytime", "A tout moment", "Jederzeit", "En cualquier momento", "A qualquer momento")}</option><option value="business">{t("Only during business hours", "Seulement pendant les heures ouvrables", "Nur wahrend der Geschäftszeiten", "Solo durante el horario laboral", "Apenas durante o horario comercial")}</option><option value="outside">{t("Only outside business hours", "Seulement hors heures ouvrables", "Nur außerhalb der Geschäftszeiten", "Solo fuera del horario laboral", "Apenas fora do horario comercial")}</option></select></label><label className="inline-flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={a.stop} onChange={(e) => updateAction(a.id, { stop: e.target.checked })} className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" /><span>{t("Stop automation if this step fails", "Arreter l automatisation si cette etape échoué", "Automatisierung stoppen, wenn dieser Schritt fehlschlagt", "Detener la automatización si este paso falla", "Parar a automação se este passo falhar")}</span></label></div></details>
+                        <details className="rounded-xl border border-border bg-background p-3"><summary className="cursor-pointer text-sm font-medium text-foreground">{t("Advanced settings", "Paramêtres avances", "Erweiterte Einstellungen", "Configuración avanzada", "Definições avancadas")}</summary><div className="mt-3 space-y-3"><label className="block space-y-2 text-sm text-foreground"><span>{t("Run this step", "Executer cette etape", "Diesen Schritt ausfuhren", "Ejecutar este paso", "Executar este passo")}</span><select value={a.window} onChange={(e) => updateAction(a.id, { window: e.target.value as Window })} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"><option value="anytime">{t("Anytime", "A tout moment", "Jederzeit", "En cualquier momento", "A qualquer momento")}</option><option value="business">{t("Only during business hours", "Seulement pendant les heures ouvrables", "Nur wahrend der Geschäftszeiten", "Solo durante el horario laboral", "Apenas durante o horario comercial")}</option><option value="outside">{t("Only outside business hours", "Seulement hors heures ouvrables", "Nur außerhalb der Geschäftszeiten", "Solo fuera del horario laboral", "Apenas fora do horario comercial")}</option></select></label><label className="inline-flex items-center gap-2 text-sm text-foreground"><input type="checkbox" checked={a.stop} onChange={(e) => updateAction(a.id, { stop: e.target.checked })} className="h-4 w-4 rounded border-border text-blue-600 focus:ring-blue-500" /><span>{t("Stop automation if this step fails", "Arreter l automatisation si cette etape échoué", "Automatisierung stoppen, wenn dieser Schritt fehlschlagt", "Detener la automatización si este paso falla", "Parar a automação se este passo falhar")}</span></label></div></details>
                       </div>
                     </div>
                   </article>
@@ -787,26 +916,26 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
               </div>
             </div>
 
-            <div className="mt-6 border-t border-slate-200 pt-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{t("Add another step", "Ajouter une autre etape", "Weiteren Schritt hinzufügen", "Agregar otro paso", "Adicionar outro passo")}</p>
+            <div className="mt-6 border-t border-border pt-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t("Add another step", "Ajouter une autre etape", "Weiteren Schritt hinzufügen", "Agregar otro paso", "Adicionar outro passo")}</p>
               <div className="mt-3">
-                <button type="button" onClick={() => setShowCatalog(true)} className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"><Plus className="h-4 w-4" />{t("Add another step", "Ajouter une autre etape", "Weiteren Schritt hinzufügen", "Agregar otro paso", "Adicionar outro passo")}</button>
+                <button type="button" onClick={() => setShowCatalog(true)} className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground transition hover:bg-muted"><Plus className="h-4 w-4" />{t("Add another step", "Ajouter une autre etape", "Weiteren Schritt hinzufügen", "Agregar otro paso", "Adicionar outro passo")}</button>
               </div>
             </div>
 
-            <div className={`mt-6 border-t border-slate-200 transition-all duration-300 ${showCatalog ? "pt-5 opacity-100" : "pt-0 opacity-90"}`}>
+            <div className={`mt-6 border-t border-border transition-all duration-300 ${showCatalog ? "pt-5 opacity-100" : "pt-0 opacity-90"}`}>
               <div className={`overflow-hidden transition-all duration-300 ${showCatalog ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"}`}>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{t("Available actions", "Actions disponibles", "Verfügbare Aktionen", "Acciones disponibles", "Ações disponiveis")}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t("Available actions", "Actions disponibles", "Verfügbare Aktionen", "Acciones disponibles", "Ações disponiveis")}</p>
                 <div className="mt-3 grid gap-4 sm:grid-cols-2">
                   {GROUPS.map((g) => (
-                    <div key={g} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                      <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600">{iconCategory(g)}</span>
+                    <div key={g} className="rounded-xl border border-border bg-muted/40 p-4">
+                      <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-border bg-background text-muted-foreground">{iconCategory(g)}</span>
                         {groupLabel(g)}
                       </h3>
                       <div className="mt-3 space-y-2">
                         {DEFS.filter((d) => d.group === g && d.available !== false).map((d) => (
-                          <button key={d.id} type="button" onClick={() => addAction(d.id)} className="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-100"><span>{actionLabel(d.id)}</span><Plus className="h-4 w-4 text-slate-400" /></button>
+                          <button key={d.id} type="button" onClick={() => addAction(d.id)} className="flex w-full items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-left text-sm text-foreground transition hover:bg-muted"><span>{actionLabel(d.id)}</span><Plus className="h-4 w-4 text-muted-foreground" /></button>
                         ))}
                       </div>
                     </div>
@@ -833,7 +962,24 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
             </div>
           </div>
         </form>
+        <ConfirmationModal
+          open={pendingDeleteActionId !== null}
+          variant="danger"
+          title={t("Delete this step?", "Supprimer cette etape ?", "Diesen Schritt loschen?", "Eliminar este paso?", "Eliminar este passo?")}
+          description={t(
+            "This step will be removed from the automation draft.",
+            "Cette etape sera supprimee du brouillon d automatisation.",
+            "Dieser Schritt wird aus dem Automatisierungsentwurf entfernt.",
+            "Este paso se eliminara del borrador de automatizacion.",
+            "Este passo sera removido do rascunho da automacao."
+          )}
+          confirmLabel={t("Delete step", "Supprimer l etape", "Schritt loschen", "Eliminar paso", "Eliminar passo")}
+          onConfirm={confirmRemoveAction}
+          onCancel={() => setPendingDeleteActionId(null)}
+        />
       </div>
     </div>
   );
 }
+
+

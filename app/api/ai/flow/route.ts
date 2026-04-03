@@ -7,6 +7,8 @@ import { aiRouter } from "@/lib/ai/router";
 import { prisma } from "@/lib/prisma";
 import { enforceEntitlement, enforceFlowLimit, enforceUsageLimit, nextPlanAfter } from "@/lib/entitlements";
 import { resolveAutomationScope } from "@/lib/automation/access";
+import { getAutomationPermissions, hasAutomationPermission } from "@/lib/automation/permissions";
+import { requiresFinancialAutomationPrivilege } from "@/lib/automation/step-policy";
 import {
   buildAutomationRelationsFromSteps,
   buildDashboardStepsFromRelations,
@@ -47,6 +49,37 @@ export const POST = withErrorHandling(async (req: Request) => {
         reason: "AI usage limit reached",
         requiredPlan: nextPlanAfter(usage.plan),
         ...usage,
+      },
+      { status: 403 }
+    );
+  }
+
+  const automationEntitlement = await enforceEntitlement(session.user.id, {
+    feature: "automations",
+    requiredPlan: "starter",
+    allowTrial: false,
+  });
+  if (!automationEntitlement.ok) {
+    return NextResponse.json(
+      {
+        error: "Upgrade required",
+        type: automationEntitlement.type,
+        requiredPlan: automationEntitlement.requiredPlan ?? "starter",
+        reason: automationEntitlement.reason,
+      },
+      { status: 403 }
+    );
+  }
+
+  const permissions = await getAutomationPermissions(session.user.id);
+  if (!hasAutomationPermission(permissions, "create")) {
+    return NextResponse.json(
+      {
+        error: "Forbidden",
+        type: "permission_denied",
+        action: "create_automation",
+        role: permissions.role,
+        requiredRole: "owner_or_admin",
       },
       { status: 403 }
     );
@@ -102,6 +135,20 @@ export const POST = withErrorHandling(async (req: Request) => {
   }
 
   const relations = buildAutomationRelationsFromSteps(steps as any[]);
+  if (requiresFinancialAutomationPrivilege(steps as any[])) {
+    if (!hasAutomationPermission(permissions, "refund")) {
+      return NextResponse.json(
+        {
+          error: "Forbidden",
+          type: "permission_denied",
+          action: "financial_automation",
+          role: permissions.role,
+          requiredRole: "owner_or_admin",
+        },
+        { status: 403 }
+      );
+    }
+  }
   const automationScope = await resolveAutomationScope(session.user.id);
   const created = await prisma.automationFlow.create({
     data: {
@@ -109,8 +156,9 @@ export const POST = withErrorHandling(async (req: Request) => {
       businessId: automationScope.businessId ?? undefined,
       title: flow.title,
       description: flow.description || flow.title,
+      category: typeof flow.category === "string" ? flow.category : undefined,
       steps: steps as any,
-      status: "ACTIVE",
+      status: "DRAFT",
       triggers: relations.triggers.length
         ? {
             create: relations.triggers.map((trigger) => ({

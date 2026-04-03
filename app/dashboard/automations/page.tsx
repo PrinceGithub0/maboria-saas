@@ -181,14 +181,35 @@ export default function AutomationsPage() {
     setStatusMessage(null);
 
     try {
+      const detailRes = await fetch(`/api/automation/${encodeURIComponent(flowId)}`, {
+        cache: "no-store",
+      });
+      const detailJson = await detailRes.json().catch(() => ({}));
+      if (!detailRes.ok) {
+        setStatusMessage(
+          resolveAutomationErrorMessage(
+            detailJson,
+            t("Could not duplicate automation.", "Impossible de dupliquer.", "Automatisierung konnte nicht dupliziert werden.", "No se pudo duplicar la automatización.", "Não foi possivel duplicar a automação."),
+            "automation_duplicate_load_failed"
+          )
+        );
+        return;
+      }
+
+      const sourceFlow = detailJson && typeof detailJson === "object" ? detailJson : flow;
       const copyTitle = `${flow.title || t("Automation", "Automatisation", "Automatisierung", "Automatización", "Automação")} (${t("Copy", "Copie", "Kopie", "Copia", "Copia")})`;
       const res = await fetch("/api/automation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: copyTitle,
-          description: flow?.description || "",
-          steps: Array.isArray(flow?.steps) ? flow.steps : [],
+          description: sourceFlow?.description || "",
+          steps: Array.isArray(sourceFlow?.steps) ? sourceFlow.steps : [],
+          category: typeof sourceFlow?.category === "string" ? sourceFlow.category : undefined,
+          aiParams:
+            sourceFlow?.aiParams && typeof sourceFlow.aiParams === "object" && !Array.isArray(sourceFlow.aiParams)
+              ? sourceFlow.aiParams
+              : undefined,
           status: "DRAFT",
         }),
       });
@@ -258,7 +279,7 @@ export default function AutomationsPage() {
     {
       label: t("Executions This Month", "Executions ce mois", "Ausfuhrungen diesen Monat", "Ejecuciones este mes", "Execucoes este mes"),
       value: executionsThisMonth.toLocaleString(),
-      subtext: t("Across all workflows", "Tous workflows confondus", "über alle Workflows hinweg", "En todos los flujos", "Em todos os fluxos"),
+      subtext: t("Across all automations", "Toutes automatisations confondues", "uber alle Automatisierungen hinweg", "En todas las automatizaciones", "Em todas as automacoes"),
     },
     {
       label: t("Successful Runs", "Runs reussis", "Erfolgreiche Ausfuhrungen", "Ejecuciones correctas", "Execucoes bem-sucedidas"),
@@ -302,17 +323,17 @@ export default function AutomationsPage() {
   );
 
   return (
-    <div className="mx-auto w-full max-w-[1220px] space-y-8 bg-slate-50 px-4 py-6 dark:bg-transparent sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-[1220px] space-y-8 bg-background px-4 py-6 sm:px-6 lg:px-8">
       <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">{t("Automation", "Automatisation", "Automatisierung", "Automatización", "Automação")}</h1>
-          <p className="text-sm text-slate-600 dark:text-slate-300">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">{t("Automation", "Automatisation", "Automatisierung", "Automatización", "Automação")}</h1>
+          <p className="text-sm text-muted-foreground">
             {t(
-              "Create workflows that run your business automatically.",
-              "Creez des workflows qui executent votre entreprise automatiquement.",
-              "Erstelle Workflows, die dein Unternehmen automatisch ausfuhren.",
-              "Crea flujos que ejecuten tu negocio automaticamente.",
-              "Crie fluxos que executem o seu negocio automaticamente."
+              "Create automations that run your business automatically.",
+              "Creez des automatisations qui executent votre entreprise automatiquement.",
+              "Erstelle Automatisierungen, die dein Unternehmen automatisch ausfuhren.",
+              "Crea automatizaciones que ejecuten tu negocio automaticamente.",
+              "Crie automacoes que executem o seu negocio automaticamente."
             )}
           </p>
         </div>
@@ -326,15 +347,15 @@ export default function AutomationsPage() {
       </section>
 
       {statusMessage ? (
-        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">{statusMessage}</div>
+        <div className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground shadow-sm">{statusMessage}</div>
       ) : null}
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat) => (
-          <article key={stat.label} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">{stat.label}</p>
-            <p className="mt-3 text-3xl font-semibold text-slate-900 dark:text-slate-50">{stat.value}</p>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{stat.subtext}</p>
+          <article key={stat.label} className="rounded-xl border border-border bg-card p-5 shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{stat.label}</p>
+            <p className="mt-3 text-3xl font-semibold text-foreground">{stat.value}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{stat.subtext}</p>
           </article>
         ))}
       </section>
@@ -343,7 +364,7 @@ export default function AutomationsPage() {
         {isLoading ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="h-56 animate-pulse rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900" />
+              <div key={index} className="h-56 animate-pulse rounded-2xl border border-border bg-card shadow-sm" />
             ))}
           </div>
         ) : null}
@@ -359,18 +380,18 @@ export default function AutomationsPage() {
         ) : null}
 
         {!isLoading && !flowsError && sortedFlows.length === 0 ? (
-          <div className="rounded-xl border border-slate-200 bg-white px-6 py-14 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+          <div className="rounded-xl border border-border bg-card px-6 py-14 text-center shadow-sm">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground">
               <GitBranch className="h-5 w-5" />
             </div>
-            <h2 className="mt-4 text-lg font-semibold text-slate-900 dark:text-slate-50">{t("No automations yet", "Aucune automatisation", "Noch keine Automatisierungen", "Aún no hay automatizaciones", "Ainda não ha automações")}</h2>
-            <p className="mx-auto mt-2 max-w-md text-sm text-slate-600 dark:text-slate-300">
+            <h2 className="mt-4 text-lg font-semibold text-foreground">{t("No automations yet", "Aucune automatisation", "Noch keine Automatisierungen", "Aún no hay automatizaciones", "Ainda não ha automações")}</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
               {t(
-                "Create your first workflow to start automating your business.",
-                "Creez votre premier workflow pour commencer a automatiser votre entreprise.",
-                "Erstelle deinen ersten Workflow, um dein Unternehmen zu automatisieren.",
-                "Crea tu primer flujo para empezar a automatizar tu negocio.",
-                "Crie o seu primeiro fluxo para comecar a automatizar o negocio."
+                "Create your first automation to start automating your business.",
+                "Creez votre premiere automatisation pour commencer a automatiser votre entreprise.",
+                "Erstelle deine erste Automatisierung, um dein Unternehmen zu automatisieren.",
+                "Crea tu primera automatizacion para empezar a automatizar tu negocio.",
+                "Crie a sua primeira automacao para comecar a automatizar o negocio."
               )}
             </p>
             <button
@@ -395,14 +416,14 @@ export default function AutomationsPage() {
               return (
                 <article
                   key={flowId}
-                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600"
+                  className="rounded-2xl border border-border bg-card p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-border/80 hover:shadow-md"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-2">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground">
                         <GitBranch className="h-4 w-4" />
                       </span>
-                      <h3 className="truncate text-lg font-semibold text-slate-900 dark:text-slate-100">
+                      <h3 className="truncate text-lg font-semibold text-foreground">
                         {flow?.title || t("Untitled automation", "Automatisation sans titre", "Unbenannte Automatisierung", "Automatización sin título", "Automação sem título")}
                       </h3>
                     </div>
@@ -411,14 +432,14 @@ export default function AutomationsPage() {
                     </span>
                   </div>
 
-                  <p className="mt-3 truncate text-sm text-slate-600 dark:text-slate-300">{resolveSummary(flow)}</p>
+                  <p className="mt-3 truncate text-sm text-muted-foreground">{resolveSummary(flow)}</p>
 
-                  <div className="mt-4 flex items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
+                  <div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
                     <span>
-                      {t("Runs", "Executions", "Ausfuhrungen", "Ejecuciones", "Execucoes")}: <span className="font-semibold text-slate-700 dark:text-slate-200">{executionsCount}</span>
+                      {t("Runs", "Executions", "Ausfuhrungen", "Ejecuciones", "Execucoes")}: <span className="font-semibold text-foreground">{executionsCount}</span>
                     </span>
                     <span className="text-right">
-                      {t("Last run", "Derniere execution", "Letzte Ausfuhrung", "Ultima ejecucion", "Ultima execucao")}: <span className="font-semibold text-slate-700 dark:text-slate-200">{formatRelativeTime(lastRun)}</span>
+                      {t("Last run", "Derniere execution", "Letzte Ausfuhrung", "Ultima ejecucion", "Ultima execucao")}: <span className="font-semibold text-foreground">{formatRelativeTime(lastRun)}</span>
                     </span>
                   </div>
 
@@ -427,7 +448,7 @@ export default function AutomationsPage() {
                       <button
                         type="button"
                         onClick={() => router.push(`/dashboard/automations/${encodeURIComponent(flowId)}`)}
-                        className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-transparent bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 sm:w-auto"
+                        className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-border bg-muted px-3 text-xs font-semibold text-foreground transition hover:bg-muted/80 sm:w-auto"
                       >
                         <PencilLine className="h-3.5 w-3.5" />
                         {t("Edit", "Modifier", "Bearbeiten", "Editar", "Editar")}
@@ -436,7 +457,7 @@ export default function AutomationsPage() {
                         type="button"
                         disabled={isBusy("duplicate", flowId)}
                         onClick={() => duplicateFlow(flow)}
-                        className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-transparent bg-slate-100 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 disabled:opacity-60 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 sm:w-auto"
+                        className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-border bg-muted px-3 text-xs font-semibold text-foreground transition hover:bg-muted/80 disabled:opacity-60 sm:w-auto"
                       >
                         <Copy className="h-3.5 w-3.5" />
                         {t("Duplicate", "Dupliquer", "Duplizieren", "Duplicar", "Duplicar")}
@@ -451,7 +472,7 @@ export default function AutomationsPage() {
                       disabled={isBusy("toggle", flowId)}
                       onClick={() => toggleFlow(flow)}
                       className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition ${
-                        active ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-700"
+                        active ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"
                       }`}
                     >
                       <span
@@ -470,24 +491,24 @@ export default function AutomationsPage() {
 
       <section className="space-y-4">
         <div>
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-50">{t("Templates", "Modeles", "Vorlagen", "Plantillas", "Modelos")}</h2>
+          <h2 className="text-xl font-semibold text-foreground">{t("Templates", "Modeles", "Vorlagen", "Plantillas", "Modelos")}</h2>
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {localizedTemplates.map((template) => (
-            <article key={template.id} className="rounded-xl border border-slate-200 bg-slate-100/80 p-4 dark:border-slate-700 dark:bg-slate-900">
+            <article key={template.id} className="rounded-xl border border-border bg-card p-4">
               <div className="flex items-start gap-3">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-slate-600 shadow-sm dark:bg-slate-800 dark:text-slate-300">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground shadow-sm">
                   <GitBranch className="h-4 w-4" />
                 </span>
                 <div className="space-y-1">
-                  <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{template.title}</h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-300">{template.description}</p>
+                  <h3 className="text-sm font-semibold text-foreground">{template.title}</h3>
+                  <p className="text-xs text-muted-foreground">{template.description}</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => router.push(`/dashboard/automations/new?template=${encodeURIComponent(template.id)}`)}
-                className="mt-4 inline-flex h-9 items-center justify-center rounded-lg bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                className="mt-4 inline-flex h-9 items-center justify-center rounded-lg border border-border bg-muted px-3 text-xs font-semibold text-foreground shadow-sm transition hover:bg-muted/80"
               >
                 {t("Use Template", "Utiliser le modele", "Vorlage verwenden", "Usar plantilla", "Usar modelo")}
               </button>
@@ -498,3 +519,4 @@ export default function AutomationsPage() {
     </div>
   );
 }
+

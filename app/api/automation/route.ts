@@ -152,13 +152,15 @@ export const POST = withErrorHandling(async (req: Request) => {
         };
       }
     }
-    const flow = await tx.automationFlow.create({
+      const flow = await tx.automationFlow.create({
       data: {
         userId: permissions.ownerUserId,
         businessId: permissions.businessId ?? undefined,
         title: parsed.title,
         description: parsed.description,
         steps: parsed.steps as any,
+        category: parsed.category ?? undefined,
+        aiParams: (parsed.aiParams as any) ?? undefined,
         status: parsed.status as any,
         triggers: triggers.length
           ? {
