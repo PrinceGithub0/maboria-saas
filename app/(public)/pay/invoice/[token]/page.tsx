@@ -86,7 +86,7 @@ export default async function PublicInvoicePage({ params, searchParams }: PagePr
         <div className="rounded-2xl border border-border bg-card p-6 text-sm text-foreground">
           {t(
             "This invoice has an unsupported currency. Please contact the sender.",
-            "Cette facture utilise une devise non prise en charge. Veuillez contacter l'expediteur.",
+            "Cette facture utilis? une devise non prise en charge. Veuillez contacter l'exp?diteur.",
             "Diese Rechnung verwendet eine nicht unterstutzte Währung. Bitte kontaktiere den Absender.",
             "Esta factura usa una moneda no compatible. Contacta con el emisor.",
             "Esta fatura utiliza uma moeda não suportada. Contacte o remetente."
@@ -140,6 +140,7 @@ export default async function PublicInvoicePage({ params, searchParams }: PagePr
         }}
         billTo={customer}
         note={note}
+        compliance={(invoice.metadata as any)?.compliance || null}
       />
 
       {isPaid ? (
@@ -148,7 +149,7 @@ export default async function PublicInvoicePage({ params, searchParams }: PagePr
           <p className="mt-1 text-sm text-emerald-800">
             {t(
               "Your payment was received successfully and your invoice is now marked as paid.",
-              "Votre paiement a bien ?t? recu et votre facture est maintenant marquee comme payee.",
+              "Votre paiement a bien \u00e9t\u00e9 re\u00e7u et votre facture est maintenant marqu\u00e9e comme pay\u00e9e.",
               "Deine Zahlung wurde erfolgreich erhalten und deine Rechnung ist nun als bezahlt markiert.",
               "Tu pago se recibio correctamente y tu factura ya figura como pagada.",
               "O seu pagamento foi recebido com sucesso e a sua fatura esta agora marcada como paga."
@@ -167,11 +168,11 @@ export default async function PublicInvoicePage({ params, searchParams }: PagePr
             </div>
             <div>
               <p className="text-xs uppercase tracking-wide text-emerald-700/80">{t("Payment provider", "Fournisseur de paiement", "Zahlungsanbieter", "Proveedor de pago", "Fornecedor de pagamento")}</p>
-              <p className="font-semibold text-emerald-950">{paymentProviderLabel || t("Secure checkout", "Paiement securise", "Sicherer Checkout", "Pago seguro", "Checkout seguro")}</p>
+              <p className="font-semibold text-emerald-950">{paymentProviderLabel || t("Secure checkout", "Paiement s?curis?", "Sicherer Checkout", "Pago seguro", "Checkout seguro")}</p>
             </div>
             <div>
               <p className="text-xs uppercase tracking-wide text-emerald-700/80">{t("Receipt", "Recu", "Beleg", "Recibo", "Recibo")}</p>
-              <p className="font-semibold text-emerald-950">{t("Sent to the available email address", "Envoye ? l'adresse e-mail disponible", "An die verfügbare E-Mail-Adresse gesendet", "Enviado a la direccion de correo disponible", "Enviado para o endereco de email disponível")}</p>
+              <p className="font-semibold text-emerald-950">{t("Sent to the available email address", "Envoy\u00e9 \u00e0 l'adresse e-mail disponible", "An die verf\u00fcgbare E-Mail-Adresse gesendet", "Enviado a la direcci?n de correo disponible", "Enviado para o endereco de email dispon\u00edvel")}</p>
             </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
@@ -185,7 +186,7 @@ export default async function PublicInvoicePage({ params, searchParams }: PagePr
               href={invoicePath}
               className="inline-flex items-center justify-center rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
             >
-              {t("Return to business", "Retour ? l'entreprise", "Zurück zum Unternehmen", "Volver al negocio", "Voltar ao negocio")}
+              {t("Return to business", "Retour \u00e0 l'entreprise", "Zur\u00fcck zum Unternehmen", "Volver al negocio", "Voltar ao negocio")}
             </Link>
           </div>
         </div>
@@ -194,16 +195,16 @@ export default async function PublicInvoicePage({ params, searchParams }: PagePr
         <div className="mt-6 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           {t(
             "Payment could not be confirmed. Please try again or contact the sender.",
-            "Le paiement n'a pas pu être confirme. Veuillez réessayer ou contacter l'expediteur.",
+            "Le paiement n'a pas pu être confirme. Veuillez réessayer ou contacter l'exp?diteur.",
             "Die Zahlung konnte nicht bestatigt werden. Bitte versuche es erneut oder kontaktiere den Absender.",
             "No se pudo confirmar el pago. Intentalo de nuevo o contacta con el emisor.",
-            "Não foi possivel confirmar o pagamento. Tente novamente ou contacte o remetente."
+            "Não foi poss?vel confirmar o pagamento. Tente novamente ou contacte o remetente."
           )}
         </div>
       ) : null}
 
       <div className="mt-8 text-center text-xs text-muted-foreground">
-        <div>{t("This invoice was generated by Maboria.", "Cette facture a ?t? generee par Maboria.", "Diese Rechnung wurde von Maboria erstellt.", "Esta factura fue generada por Maboria.", "Esta fatura foi gerada pela Maboria.")}</div>
+        <div>{t("This invoice was generated by Maboria.", "Cette facture a \u00e9t\u00e9 g\u00e9n\u00e9r\u00e9e par Maboria.", "Diese Rechnung wurde von Maboria erstellt.", "Esta factura fue generada por Maboria.", "Esta fatura foi gerada pela Maboria.")}</div>
         <div>
           <Link href="https://www.maboria.com" className="underline">
             www.maboria.com

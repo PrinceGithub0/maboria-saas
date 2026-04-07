@@ -13,6 +13,7 @@ import {
   INVOICE_TOTALS_VALUE_WIDTH,
 } from "@/lib/invoice-totals-layout";
 import { formatVatRateLabel } from "@/lib/vat";
+import type { InvoiceComplianceResult } from "@/lib/invoicing/types";
 
 type InvoicePreviewProps = {
   invoiceNumber: string;
@@ -54,6 +55,7 @@ type InvoicePreviewProps = {
     taxId?: string | null;
   } | null;
   note?: string | null;
+  compliance?: Partial<InvoiceComplianceResult> | null;
   variant?: "default" | "dashboard" | "compact";
 };
 
@@ -109,7 +111,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
       case "PARTIALLY_REFUNDED":
         return {
           label: "PARTIALLY REFUNDED",
-          fr: "PARTIELLEMENT REMBOURSEE",
+          fr: "PARTIELLEMENT REMBOURSÉE",
           de: "TEILWEISE ERSTATTET",
           es: "PARCIALMENTE REEMBOLSADA",
           pt: "PARCIALMENTE REEMBOLSADA",
@@ -119,7 +121,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
         return {
           label: "OVERDUE",
           fr: "EN RETARD",
-          de: "UBERFALLIG",
+          de: "ÜBERFÄLLIG",
           es: "VENCIDA",
           pt: "EM ATRASO",
           toneClass: "bg-rose-500/15 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
@@ -234,6 +236,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
   const paymentProviderLabel = String(props.paymentProviderLabel || "").trim();
   const formattedTotalDue = formatCurrency(totalDue, props.currency);
   const vatRateLabel = formatVatRateLabel(props.totals.vatRate, props.business.vatRateDisplay);
+  const taxLabelWithRate = `${String(props.compliance?.taxLabel || "VAT").trim() || "VAT"} (${vatRateLabel}%)`;
   const isDashboardDocument = previewVariant === "dashboard" && Array.isArray(props.items);
   const billToName = props.billTo?.name?.trim() || null;
 
@@ -275,24 +278,24 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 </div>
                 {props.poNumber ? (
                   <div className="flex items-start justify-between gap-4 lg:justify-end lg:text-right">
-                    <span className="text-muted-foreground">{t("PO Number", "Bon de commande", "Bestellnummer", "Numero OC", "Numero OC")}</span>
+                    <span className="text-muted-foreground">{t("PO Number", "Bon de commande", "Bestellnummer", "N?mero OC", "N?mero OC")}</span>
                     <span className="max-w-[65%] break-words font-semibold text-foreground">{props.poNumber}</span>
                   </div>
                 ) : null}
                 <div className="flex items-start justify-between gap-4 lg:justify-end lg:text-right">
-                  <span className="text-muted-foreground">{t("Issue Date", "Date d emission", "Ausstellungsdatum", "Fecha de emision", "Data de emissao")}</span>
+                  <span className="text-muted-foreground">{t("Issue Date", "Date d’émission", "Ausstellungsdatum", "Fecha de emisión", "Data de emissão")}</span>
                   <span className="font-semibold text-foreground">{formatDateDMY(props.issuedAt)}</span>
                 </div>
                 {props.dueDate ? (
                   <div className="flex items-start justify-between gap-4 lg:justify-end lg:text-right">
-                    <span className="text-muted-foreground">{t("Due Date", "Echeance", "Falligkeitsdatum", "Fecha de vencimiento", "Data de vencimento")}</span>
+                    <span className="text-muted-foreground">{t("Due Date", "Échéance", "Fälligkeitsdatum", "Fecha de vencimiento", "Data de vencimento")}</span>
                     <span className="font-semibold text-foreground">{formatDateDMY(props.dueDate)}</span>
                   </div>
                 ) : null}
               </div>
               <div className="border-t border-slate-200/80 pt-4 dark:border-slate-700/80">
                 <p className="text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                  {t("Total due", "Total du", "Gesamtbetrag fallig", "Total adeudado", "Total em divida")}
+                  {t("Total due", "Total dû", "Gesamtbetrag fällig", "Total adeudado", "Total em dívida")}
                 </p>
                 <div
                   className={getSingleLineAmountClass(
@@ -461,7 +464,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 {showTax ? (
                   <div className="flex items-start justify-between gap-4">
                     <span className="text-muted-foreground">
-                      {t("Tax", "Taxe", "Steuer", "Impuesto", "Imposto")} ({vatRateLabel}%)
+                      {taxLabelWithRate}
                     </span>
                     <span
                       className={getSingleLineAmountClass(
@@ -523,7 +526,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 <div className="border-t border-slate-200/80 pt-4 dark:border-slate-700/80">
                   <div className="flex items-start justify-between gap-4">
                     <span className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                      {t("Total due", "Total du", "Gesamtbetrag fallig", "Total adeudado", "Total em divida")}
+                      {t("Total due", "Total dû", "Gesamtbetrag fällig", "Total adeudado", "Total em dívida")}
                     </span>
                     <span
                       className={getSingleLineAmountClass(
@@ -545,14 +548,14 @@ export function InvoicePreview(props: InvoicePreviewProps) {
               {props.dueDate
                 ? t(
                     "Payment is expected by the due date shown above.",
-                    "Le paiement est attendu avant l echeance indiquee ci-dessus.",
-                    "Die Zahlung wird bis zum oben angegebenen Falligkeitsdatum erwartet.",
+                    "Le paiement est attendu avant l’échéance indiquée ci-dessus.",
+                    "Die Zahlung wird bis zum oben angegebenen Fälligkeitsdatum erwartet.",
                     "Se espera el pago antes de la fecha de vencimiento indicada arriba.",
-                    "O pagamento e esperado at? a data de vencimento indicada acima."
+                    "O pagamento é esperado até à data de vencimento indicada acima."
                   )
                 : t(
                     "This invoice is ready to be shared with your customer.",
-                    "Cette facture est prete a être partagee avec votre client.",
+                    "Cette facture est pr?te a être partagee avec votre client.",
                     "Diese Rechnung kann jetzt mit deinem Kunden geteilt werden.",
                     "Esta factura esta lista para compartirse con tu cliente.",
                     "Esta fatura esta pronta para ser partilhada com o seu cliente."
@@ -596,7 +599,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-indigo-700/80 dark:text-indigo-200/90">
-                  {t("Total due", "Total du", "Gesamtbetrag fallig", "Total adeudado", "Total em divida")}
+                  {t("Total due", "Total dû", "Gesamtbetrag fällig", "Total adeudado", "Total em dívida")}
                   </p>
                   <div
                     className={getSingleLineAmountClass(
@@ -621,17 +624,17 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 </div>
                 {props.poNumber ? (
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-muted-foreground">{t("PO Number", "Bon de commande", "Bestellnummer", "Numero OC", "Numero OC")}</span>
+                    <span className="text-muted-foreground">{t("PO Number", "Bon de commande", "Bestellnummer", "N?mero OC", "N?mero OC")}</span>
                     <span className="max-w-[60%] break-words text-right font-semibold text-foreground">{props.poNumber}</span>
                   </div>
                 ) : null}
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-muted-foreground">{t("Issue Date", "Date d emission", "Ausstellungsdatum", "Fecha de emision", "Data de emissao")}</span>
+                  <span className="text-muted-foreground">{t("Issue Date", "Date d’émission", "Ausstellungsdatum", "Fecha de emisión", "Data de emissão")}</span>
                   <span className="font-semibold text-foreground">{formatDateDMY(props.issuedAt)}</span>
                 </div>
                 {props.dueDate ? (
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-muted-foreground">{t("Due", "Echeance", "Fallig", "Vence", "Vence")}</span>
+                    <span className="text-muted-foreground">{t("Due", "Échéance", "Fällig", "Vence", "Vence")}</span>
                     <span className="font-semibold text-foreground">{formatDateDMY(props.dueDate)}</span>
                   </div>
                 ) : null}
@@ -641,7 +644,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                   {t("SSL encrypted", "SSL chiffre", "SSL-verschlusselt", "SSL cifrado", "SSL encriptado")}
                 </span>
                 <span className="rounded-full border border-slate-200/80 bg-white/80 px-2.5 py-1 dark:border-slate-700/80 dark:bg-slate-950/60">
-                  {paymentProviderLabel || t("Secure payment route", "Route de paiement securisee", "Sicherer Zahlungsweg", "Ruta de pago segura", "Rota de pagamento segura")}
+                  {paymentProviderLabel || t("Secure payment route", "Route de paiement s?curis?e", "Sicherer Zahlungsweg", "Ruta de pago segura", "Rota de pagamento segura")}
                 </span>
               </div>
               <div className="mt-5">
@@ -650,11 +653,11 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                     href={props.paymentLink}
                     className="inline-flex w-full items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#6657ff_0%,#5547f0_48%,#4338ca_100%)] px-4 py-3 text-sm font-semibold text-white shadow-[0_22px_46px_-22px_rgba(79,70,229,0.88)] hover:bg-[linear-gradient(135deg,#7163ff_0%,#5f51f4_48%,#4b3fd4_100%)]"
                   >
-                    {t("Pay Now Securely", "Payer de maniere securisee", "Jetzt sicher bezahlen", "Pagar ahora de forma segura", "Pagar agora com seguranca")}
+                    {t("Pay Now Securely", "Payer de maniere s?curis?e", "Jetzt sicher bezahlen", "Pagar ahora de forma segura", "Pagar agora com seguran?a")}
                   </a>
                 ) : (
                   <span className="inline-flex w-full items-center justify-center rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
-                    {t("Payment unavailable", "Paiement indisponible", "Zahlung nicht verfügbar", "Pago no disponible", "Pagamento indisponivel")}
+                    {t("Payment unavailable", "Paiement indisponible", "Zahlung nicht verfügbar", "Pago no disponible", "Pagamento indispon?vel")}
                   </span>
                 )}
               </div>
@@ -726,7 +729,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 </div>
                 {showTax ? (
                   <div className="rounded-full border border-slate-200/80 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 dark:border-slate-700/80 dark:bg-slate-900 dark:text-slate-300">
-                    {t("VAT", "TVA", "MwSt.", "IVA", "IVA")} ({vatRateLabel}%)
+                    {taxLabelWithRate}
                   </div>
                 ) : null}
               </div>
@@ -798,7 +801,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
               <div className="mt-5 border-t border-slate-200/80 pt-4 dark:border-slate-700/80">
                 <div className="flex items-start justify-between gap-3">
                   <span className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                    {t("Total Due", "Total du", "Gesamtbetrag fallig", "Total adeudado", "Total em divida")}
+                    {t("Total Due", "Total dû", "Gesamtbetrag fällig", "Total adeudado", "Total em dívida")}
                   </span>
                   <span
                     className={getSingleLineAmountClass(
@@ -828,8 +831,8 @@ export function InvoicePreview(props: InvoicePreviewProps) {
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200/80 pt-4 text-sm text-muted-foreground dark:border-slate-700/80">
             <span>
               {props.dueDate
-                ? t("Payment is expected by the due date shown above.", "Le paiement est attendu avant l echeance indiquee ci-dessus.", "Die Zahlung wird bis zum oben angegebenen Falligkeitsdatum erwartet.", "Se espera el pago antes de la fecha de vencimiento indicada arriba.", "O pagamento e esperado at? a data de vencimento indicada acima.")
-                : t("Please complete payment using the secure checkout link.", "Veuillez effectuer le paiement via le lien securise.", "Bitte schliesse die Zahlung über den sicheren Checkout-Link ab.", "Completa el pago usando el enlace seguro de pago.", "Conclua o pagamento usando a ligacao segura de checkout.")}
+                ? t("Payment is expected by the due date shown above.", "Le paiement est attendu avant l’échéance indiquée ci-dessus.", "Die Zahlung wird bis zum oben angegebenen Fälligkeitsdatum erwartet.", "Se espera el pago antes de la fecha de vencimiento indicada arriba.", "O pagamento é esperado até à data de vencimento indicada acima.")
+                : t("Please complete payment using the secure checkout link.", "Veuillez effectuer le paiement via le lien s?curis?.", "Bitte schliesse die Zahlung über den sicheren Checkout-Link ab.", "Completa el pago usando el enlace seguro de pago.", "Conclua o pagamento usando a liga??o segura de checkout.")}
             </span>
             <span className="font-semibold text-foreground">
               {t("Generated with Maboria", "Genere avec Maboria", "Erstellt mit Maboria", "Generado con Maboria", "Gerado com a Maboria")}
@@ -893,11 +896,11 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                     </span>
                   </>
                 ) : null}
-                <span className="font-semibold text-foreground">Issue Date:</span>
+                <span className="font-semibold text-foreground">{t("Issue Date:", "Date d’émission:", "Ausstellungsdatum:", "Fecha de emisión:", "Data de emissão:")}</span>
                 <span className="text-left text-foreground">{formatDateDMY(props.issuedAt)}</span>
                 {props.dueDate ? (
                   <>
-                <span className="font-semibold text-foreground">{t("Due Date:", "Echeance:", "Falligkeitsdatum:", "Fecha de vencimiento:", "Data de vencimento:")}</span>
+                <span className="font-semibold text-foreground">{t("Due Date:", "Échéance:", "Fälligkeitsdatum:", "Fecha de vencimiento:", "Data de vencimento:")}</span>
                     <span className="text-left text-foreground">
                       {formatDateDMY(props.dueDate)}
                     </span>
@@ -958,7 +961,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
 
           <div className={`invoice-section grid gap-6 ${isCompactPreview ? "grid-cols-1" : "grid-cols-[1.2fr_0.8fr] max-md:grid-cols-1"}`}>
             <div className="flex h-full flex-col p-1">
-              <h4 className="text-sm font-semibold text-foreground">{t("Invoice Details", "Details", "Rechnungsdetails", "Detalles de la factura", "Detalhes da fatura")}</h4>
+              <h4 className="text-sm font-semibold text-foreground">{t("Invoice Details", "D?tails", "Rechnungsdetails", "Detalles de la factura", "Detalhes da fatura")}</h4>
               <div className="mt-4 space-y-3 text-sm text-muted-foreground">
                 {isCompactPreview ? (
                   <div className="font-medium text-foreground">
@@ -976,7 +979,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
               {showTax ? (
                 <div className="mt-4 max-w-[118px] p-0 text-xs text-muted-foreground">
                   <div className="font-semibold text-foreground">
-                    {t("VAT", "TVA", "MwSt.", "IVA", "IVA")} ({vatRateLabel}%)
+                    {taxLabelWithRate}
                   </div>
                   <div className="mt-1 tabular-nums text-foreground">
                     {formatCurrency(props.totals.taxAmount, props.currency)}
@@ -986,7 +989,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
             </div>
 
             <div className="flex h-full flex-col p-1">
-            <h4 className="text-sm font-semibold text-foreground">{t("Total Due", "Total du", "Gesamtbetrag fallig", "Total adeudado", "Total em divida")}</h4>
+            <h4 className="text-sm font-semibold text-foreground">{t("Total Due", "Total dû", "Gesamtbetrag fällig", "Total adeudado", "Total em dívida")}</h4>
               <div
                 className={
                   isCompactPreview
@@ -1164,7 +1167,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                     }}
                   >
                     <span className="whitespace-nowrap text-left text-muted-foreground">
-                      {t("VAT", "TVA", "MwSt.", "IVA", "IVA")} ({vatRateLabel}%)
+                      {taxLabelWithRate}
                     </span>
                     <span
                       className={getSingleLineAmountClass(
@@ -1232,7 +1235,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                     columnGap: 10,
                   }}
                 >
-                  <span className="whitespace-nowrap text-left">{t("Total Due", "Total du", "Gesamtbetrag fallig", "Total adeudado", "Total em divida")}</span>
+                  <span className="whitespace-nowrap text-left">{t("Total Due", "Total dû", "Gesamtbetrag fällig", "Total adeudado", "Total em dívida")}</span>
                   <span
                     className={getSingleLineAmountClass(
                       formattedTotalDue,
@@ -1259,8 +1262,8 @@ export function InvoicePreview(props: InvoicePreviewProps) {
           <div className={`invoice-section text-center text-sm text-muted-foreground ${isCompactPreview ? "pt-4" : "pt-6"}`}>
             {t(
               "Please make the payment by the due date. Thank you for your business.",
-              "Veuillez payer avant l echeance. Merci pour votre confiance.",
-              "Bitte zahle bis zum Falligkeitsdatum. Vielen Dank für dein Vertrauen.",
+              "Veuillez payer avant l’échéance. Merci pour votre confiance.",
+              "Bitte zahle bis zum Fälligkeitsdatum. Vielen Dank für dein Vertrauen.",
               "Realiza el pago antes de la fecha de vencimiento. Gracias por tu confianza.",
               "Efetue o pagamento at? a data de vencimento. Obrigado pela sua confianca."
             )}
@@ -1298,17 +1301,17 @@ export function InvoicePreview(props: InvoicePreviewProps) {
             </div>
             {props.poNumber ? (
               <div className="inline-flex items-baseline justify-end gap-2">
-                <span className="font-semibold text-foreground">{t("PO Number:", "Bon de commande :", "Bestellnummer:", "Numero OC:", "Numero OC:")}</span>
+                <span className="font-semibold text-foreground">{t("PO Number:", "Bon de commande :", "Bestellnummer:", "N?mero OC:", "N?mero OC:")}</span>
                 <span className="min-w-[150px] text-left text-foreground">{props.poNumber}</span>
               </div>
             ) : null}
             <div className="inline-flex items-baseline justify-end gap-2">
-              <span className="font-semibold text-foreground">{t("Issue Date:", "Date d emission :", "Ausstellungsdatum:", "Fecha de emision:", "Data de emissao:")}</span>
+              <span className="font-semibold text-foreground">{t("Issue Date:", "Date d’émission :", "Ausstellungsdatum:", "Fecha de emisión:", "Data de emissão:")}</span>
               <span className="min-w-[150px] text-left text-foreground">{formatDateDMY(props.issuedAt)}</span>
             </div>
             {props.dueDate ? (
               <div className="inline-flex items-baseline justify-end gap-2">
-                <span className="font-semibold text-foreground">{t("Due Date:", "Echeance:", "Falligkeitsdatum:", "Fecha de vencimiento:", "Data de vencimento:")}</span>
+                <span className="font-semibold text-foreground">{t("Due Date:", "Échéance:", "Fälligkeitsdatum:", "Fecha de vencimiento:", "Data de vencimento:")}</span>
                 <span className="min-w-[150px] text-left text-foreground">{formatDateDMY(props.dueDate)}</span>
               </div>
             ) : null}
@@ -1370,7 +1373,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
 
         <div className="invoice-section grid grid-cols-[1.2fr_0.8fr] gap-6">
           <div className="flex h-full flex-col p-1">
-            <h4 className="text-sm font-semibold text-foreground">{t("Invoice Details", "Details", "Rechnungsdetails", "Detalles de la factura", "Detalhes da fatura")}</h4>
+            <h4 className="text-sm font-semibold text-foreground">{t("Invoice Details", "D?tails", "Rechnungsdetails", "Detalles de la factura", "Detalhes da fatura")}</h4>
               <div className="mt-4 space-y-3 text-sm text-muted-foreground">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-semibold text-foreground">{t("Description", "Description", "Beschreibung", "Descripcion", "Descricao")}:</span>
@@ -1389,12 +1392,12 @@ export function InvoicePreview(props: InvoicePreviewProps) {
             ) : null}
           </div>
           <div className="flex h-full flex-col p-1">
-            <h4 className="text-sm font-semibold text-foreground">{t("Amount Due", "Montant du", "Falliger Betrag", "Importe adeudado", "Montante em divida")}</h4>
+            <h4 className="text-sm font-semibold text-foreground">{t("Amount Due", "Montant dû", "Fälliger Betrag", "Importe adeudado", "Montante em dívida")}</h4>
             <div className="mt-4 text-3xl font-semibold text-foreground">
               {formatCurrency(totalDue, props.currency)}
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
-              {t("Secure payment checkout", "Paiement securise", "Sicherer Zahlungs-Checkout", "Pago seguro", "Checkout de pagamento seguro")}
+              {t("Secure payment checkout", "Paiement s?curis?", "Sicherer Zahlungs-Checkout", "Pago seguro", "Checkout de pagamento seguro")}
             </p>
             {paymentProviderLabel ? (
               <p className="mt-1 text-xs font-semibold text-foreground">
@@ -1406,7 +1409,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 {t("SSL encrypted", "SSL chiffre", "SSL-verschlusselt", "SSL cifrado", "SSL encriptado")}
               </span>
               <span className="rounded-full border border-border/70 bg-background/80 px-2.5 py-1">
-                {t("Trusted payment provider", "Prestataire de paiement securise", "Vertrauenswurdiger Zahlungsanbieter", "Proveedor de pago confiable", "Prestador de pagamento confiavel")}
+                {t("Trusted payment provider", "Prestataire de paiement s?curis?", "Vertrauenswurdiger Zahlungsanbieter", "Proveedor de pago confiable", "Prestador de pagamento confiavel")}
               </span>
             </div>
             <div className="mt-4">
@@ -1415,18 +1418,18 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                   href={props.paymentLink}
                   className="inline-flex w-full items-center justify-center rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-500"
                 >
-                  {t("Pay Now Securely", "Payer de maniere securisee", "Jetzt sicher bezahlen", "Pagar ahora de forma segura", "Pagar agora com seguranca")}
+                  {t("Pay Now Securely", "Payer de maniere s?curis?e", "Jetzt sicher bezahlen", "Pagar ahora de forma segura", "Pagar agora com seguran?a")}
                 </a>
               ) : (
                 <span className="inline-flex w-full items-center justify-center rounded-full border border-border bg-muted px-4 py-2 text-sm text-muted-foreground">
-                  {t("Payment unavailable", "Paiement indisponible", "Zahlung nicht verfügbar", "Pago no disponible", "Pagamento indisponivel")}
+                  {t("Payment unavailable", "Paiement indisponible", "Zahlung nicht verfügbar", "Pago no disponible", "Pagamento indispon?vel")}
                 </span>
               )}
             </div>
             <p className="mt-3 text-[11px] text-muted-foreground">
               {t(
                 "Your payment details are encrypted and handled on a secure provider page.",
-                "Les details de paiement sont chiffres et traites sur une page securisee."
+                "Les d?tails de paiement sont chiffres et traites sur une page s?curis?e."
               )}
             </p>
           </div>
@@ -1537,7 +1540,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                   columnGap: 10,
                 }}
               >
-                <span className="whitespace-nowrap text-left">{t("Total Due", "Total du", "Gesamtbetrag fallig", "Total adeudado", "Total em divida")}</span>
+                <span className="whitespace-nowrap text-left">{t("Total Due", "Total dû", "Gesamtbetrag fällig", "Total adeudado", "Total em dívida")}</span>
                 <span
                   className={getSingleLineAmountClass(
                     formattedTotalDue,
@@ -1570,7 +1573,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
         ) : null}
 
         <p className="invoice-section text-center text-xs font-semibold text-muted-foreground">
-          {t("This invoice was generated with Maboria.", "Facture generee avec Maboria.", "Diese Rechnung wurde mit Maboria erstellt.", "Esta factura fue generada con Maboria.", "Esta fatura foi gerada com a Maboria.")}
+          {t("This invoice was generated with Maboria.", "Facture g?n?r?e avec Maboria.", "Diese Rechnung wurde mit Maboria erstellt.", "Esta factura fue generada con Maboria.", "Esta fatura foi gerada com a Maboria.")}
         </p>
       </div>
     </Card>

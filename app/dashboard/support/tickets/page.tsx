@@ -211,7 +211,7 @@ export default function SupportTicketsPage() {
               "Nous n'avons pas pu charger vos tickets support pour le moment. Veuillez actualiser et réessayer.",
               "Deine Support-Tickets konnten derzeit nicht geladen werden. Bitte aktualisiere die Seite und versuche es erneut.",
               "No pudimos cargar tus tickets de soporte en este momento. Actualiza e intentalo de nuevo.",
-              "Não foi possivel carregar os seus tickets de suporte neste momento. Atualize e tente novamente."
+              "Não foi poss?vel carregar os seus tickets de suporte neste momento. Atualize e tente novamente."
             )}
           </div>
         ) : filteredItems.length === 0 ? (
@@ -231,7 +231,7 @@ export default function SupportTicketsPage() {
                 ? t(
                     "Try clearing your search or changing the selected status.",
                     "Essayez d effacer votre recherche ou de changer le statut selectionne.",
-                    "Versuche, deine Suche zu leeren oder den gewahlten Status zu andern.",
+                    "Versuche, deine Suche zu leeren oder den gewahlten Status zu ?ndern.",
                     "Prueba a borrar tu busqueda o cambiar el estado seleccionado.",
                     "Tente limpar a pesquisa ou alterar o estado selecionado."
                   )
@@ -307,7 +307,7 @@ export default function SupportTicketsPage() {
             })}
             <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                {t("Showing 20 tickets per page.", "Affichage de 20 tickets par page.", "Es werden 20 Tickets pro Seite angezeigt.", "Se muestran 20 tickets por pagina.", "A mostrar 20 tickets por pagina.")}
+                {t("Showing 20 tickets per page.", "Affichage de 20 tickets par page.", "Es werden 20 Tickets pro Seite angezeigt.", "Se muestran 20 tickets por p?gina.", "A mostrar 20 tickets por p?gina.")}
               </p>
               <div className="flex items-center gap-2">
                 <button

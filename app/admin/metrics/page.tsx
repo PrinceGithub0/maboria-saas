@@ -166,15 +166,15 @@ function formatPercent(value: number) {
 }
 
 function formatLastUpdated(iso: string | undefined, locale: string, t: (value: CompleteLocalizedText) => string) {
-  if (!iso) return t(text("Last updated just now", "Mis a jour à l'instant", "Gerade aktualisiert", "Actualizado hace un momento", "Atualizado agora mesmo"));
+  if (!iso) return t(text("Last updated just now", "Mis ? jour à l'instant", "Gerade aktualisiert", "Actualizado hace un momento", "Atualizado agora mesmo"));
   const timestamp = new Date(iso).getTime();
-  if (!Number.isFinite(timestamp)) return t(text("Last updated just now", "Mis a jour à l'instant", "Gerade aktualisiert", "Actualizado hace un momento", "Atualizado agora mesmo"));
+  if (!Number.isFinite(timestamp)) return t(text("Last updated just now", "Mis ? jour à l'instant", "Gerade aktualisiert", "Actualizado hace un momento", "Atualizado agora mesmo"));
   const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / (1000 * 60)));
   const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
-  if (minutes < 1) return t(text("Last updated just now", "Mis a jour à l'instant", "Gerade aktualisiert", "Actualizado hace un momento", "Atualizado agora mesmo"));
-  if (minutes < 60) return `${t(text("Last updated", "Mis a jour", "Zuletzt aktualisiert", "Ultima actualizacion", "Ultima atualizacao"))} ${rtf.format(-minutes, "minute")}`;
+  if (minutes < 1) return t(text("Last updated just now", "Mis ? jour à l'instant", "Gerade aktualisiert", "Actualizado hace un momento", "Atualizado agora mesmo"));
+  if (minutes < 60) return `${t(text("Last updated", "Mis ? jour", "Zuletzt aktualisiert", "?ltima actualizacion", "?ltima atualiza??o"))} ${rtf.format(-minutes, "minute")}`;
   const hours = Math.floor(minutes / 60);
-  return `${t(text("Last updated", "Mis a jour", "Zuletzt aktualisiert", "Ultima actualizacion", "Ultima atualizacao"))} ${rtf.format(-hours, "hour")}`;
+  return `${t(text("Last updated", "Mis ? jour", "Zuletzt aktualisiert", "?ltima actualizacion", "?ltima atualiza??o"))} ${rtf.format(-hours, "hour")}`;
 }
 
 function StatusBadge({ level }: { level: EngineStatusLevel; label: string }) {
@@ -493,7 +493,7 @@ export default function AdminMetricsPage() {
             {t("Subscription engine financial and retention performance.", "Performance financiere et de rétention du moteur d'abonnement.", "Finanz- und Bindungsleistung der Abonnement-Engine.", "Rendimiento financiero y de retención del motor de suscripciones.", "Desempenho financeiro e de retenção do motor de subscricoes.")}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {t("Provider settles in local currency; reporting normalized to USD.", "Le fournisseur regle en devise locale ; le reporting est normalise en USD.", "Der Anbieter rechnet in lokaler Währung ab; das Reporting wird auf USD normalisiert.", "El proveedor liquida en moneda local; los informes se normalizan a USD.", "O fornecedor liquida em moeda local; os relatórios sao normalizados para USD.")}
+            {t("Provider settles in local currency; reporting normalized to USD.", "Le fournisseur regle en devise locale ; le reporting est normalise en USD.", "Der Anbieter rechnet in lokaler Währung ab; das Reporting wird auf USD normalisiert.", "El proveedor liquida en moneda local; los informes se normalizan a USD.", "O fornecedor liquida em moeda local; os relatórios s?o normalizados para USD.")}
           </p>
         </div>
         <div className="flex flex-col items-end gap-2">
@@ -518,7 +518,7 @@ export default function AdminMetricsPage() {
 
       {error ? (
         <section className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-rose-800 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-200">
-          <p className="text-sm font-medium">{t("Unable to load engine metrics right now.", "Impossible de charger les métriques moteur pour le moment.", "Engine-Metriken koennen derzeit nicht geladen werden.", "No se pueden cargar las métricas del motor en este momento.", "Não foi possivel carregar as métricas do motor neste momento.")}</p>
+          <p className="text-sm font-medium">{t("Unable to load engine metrics right now.", "Impossible de charger les métriques moteur pour le moment.", "Engine-Metriken koennen derzeit nicht geladen werden.", "No se pueden cargar las métricas del motor en este momento.", "Não foi poss?vel carregar as métricas do motor neste momento.")}</p>
           <button
             type="button"
             onClick={() => void mutate()}
@@ -560,7 +560,7 @@ export default function AdminMetricsPage() {
               </div>
               <div className="xl:border-r xl:border-border/60">
                 <MetricItem
-                  label={t("30-Day Growth", "Croissance sur 30 jours", "30-Tage-Wachstum", "Crecimiento de 30 dias", "Crescimento de 30 dias")}
+                  label={t("30-Day Growth", "Croissance sur 30 jours", "30-Tage-Wachstum", "Crecimiento de 30 d?as", "Crescimento de 30 dias")}
                   value={formatPercent(kpis.growth30d.value)}
                   context={kpis.growth30d.context}
                   deltaValue={kpis.growth30d.deltaPercent}
@@ -655,13 +655,13 @@ export default function AdminMetricsPage() {
                 <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("Subscribers at Risk", "Abonnes a risque", "Gefährdete Abonnenten", "Suscriptores en riesgo", "Subscritores em risco")}</p>
                 <p className="mt-1 text-2xl font-semibold text-foreground">{churnRetention.subscribersAtRisk}</p>
                 <div className="mt-1">
-                  <Delta value={churnRetention.atRiskDelta7d} compareLabel={t("since last week", "depuis la semaine derniere", "seit letzter Woche", "desde la semana pasada", "desde a semana passada")} mode="muted" precision={0} />
+                  <Delta value={churnRetention.atRiskDelta7d} compareLabel={t("since last week", "depuis la semaine derni?re", "seit letzter Woche", "desde la semana pasada", "desde a semana passada")} mode="muted" precision={0} />
                 </div>
               </div>
               <div className="rounded-xl border border-border/60 p-4">
                 <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("Voluntary Churn", "Churn volontaire", "Freiwillige Abwänderung", "Cancelación voluntaria", "Churn voluntario")}</p>
                 <p className="mt-1 text-2xl font-semibold text-foreground">{formatPercent(churnRetention.voluntaryChurnRate30d)}</p>
-                <p className="text-xs text-muted-foreground">{t("Last 30 days", "30 derniers jours", "Letzte 30 Tage", "Ultimos 30 dias", "Ultimos 30 dias")}</p>
+                <p className="text-xs text-muted-foreground">{t("Last 30 days", "30 derniers jours", "Letzte 30 Tage", "?ltimos 30 d?as", "?ltimos 30 dias")}</p>
               </div>
               <div className="rounded-xl border border-border/60 p-4">
                 <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("Involuntary Churn", "Churn involontaire", "Unfreiwillige Abwänderung", "Cancelación involuntaria", "Churn involuntario")}</p>
@@ -708,7 +708,7 @@ export default function AdminMetricsPage() {
                 <p className="mt-2 text-2xl font-semibold text-foreground">{paymentHealth.failedCharges7d}</p>
               </div>
               <div className="min-w-0 rounded-xl border border-border/60 p-4">
-                <p className="text-xs uppercase leading-5 tracking-[0.1em] text-muted-foreground break-words">{t("Retry Success Rate", "Taux de succes des relances", "Erfolgsquote bei Wiederholungen", "Tasa de exito de reintentos", "Taxa de sucesso das tentativas")}</p>
+                <p className="text-xs uppercase leading-5 tracking-[0.1em] text-muted-foreground break-words">{t("Retry Success Rate", "Taux de succes des relances", "Erfolgsquote bei Wiederholungen", "Tasa de ?xito de reintentos", "Taxa de sucesso das tentativas")}</p>
                 <p className="mt-2 text-2xl font-semibold text-foreground">{formatPercent(paymentHealth.retrySuccessRate7d)}</p>
                 <div className="mt-1">
                   <Delta value={paymentHealth.retrySuccessRateDelta.deltaPercent} suffix="%" compareLabel={t("vs last period", "vs periode précédente", "gegenüber letzter Periode", "vs periodo anterior", "vs periodo anterior")} mode="muted" className="max-w-full" />

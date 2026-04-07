@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { withErrorHandling } from "@/lib/api-handler";
+import { assertRateLimit } from "@/lib/rate-limit";
 import { enforceEntitlement } from "@/lib/entitlements";
 import { executeAutomationRun } from "@/lib/automation/engine";
 import { readFlowSnapshotFromRunOutput } from "@/lib/automation/versioning";
@@ -49,6 +50,8 @@ export const POST = withErrorHandling(async (req: Request) => {
     cookieHeader: req.headers.get("cookie"),
   });
   if (impersonationBlocked) return impersonationBlocked;
+  assertRateLimit(`admin:automation-retry-safe:${actorUserId}`, 10, 60_000);
+  assertRateLimit("admin:automation-retry-safe:global", 60, 60_000);
 
   const entitlement = await enforceEntitlement(actorUserId, {
     feature: "automations",
@@ -72,6 +75,7 @@ export const POST = withErrorHandling(async (req: Request) => {
   if (!runId) {
     return NextResponse.json({ error: "runId is required" }, { status: 400 });
   }
+  assertRateLimit(`admin:automation-retry-safe:run:${actorUserId}:${runId}`, 10, 60_000);
 
   const run = await prisma.automationRun.findUnique({
     where: { id: runId },

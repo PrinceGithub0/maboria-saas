@@ -261,8 +261,8 @@ function installMocks() {
           state.seatLimitPlanCalls.push(plan ?? null);
           const normalized = String(plan || "STARTER").toUpperCase();
           if (normalized === "PRO") return 3;
-          if (normalized === "GROWTH") return 5;
-          if (normalized === "BUSINESS" || normalized === "PREMIUM") return 10;
+          if (normalized === "GROWTH") return 8;
+          if (normalized === "BUSINESS" || normalized === "PREMIUM") return 15;
           if (normalized === "ENTERPRISE") return null;
           return 1;
         },

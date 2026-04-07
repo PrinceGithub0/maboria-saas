@@ -89,14 +89,8 @@ export function CheckoutPanel({
   const router = useRouter();
   const planConfig = useMemo(() => getCheckoutPlanConfig(plan), [plan]);
 
-  const price = useMemo(
-    () => (billing === "yearly" ? yearlyPrice : monthlyPrice),
-    [billing, monthlyPrice, yearlyPrice]
-  );
-  const displayPrice = useMemo(
-    () => formatDisplayPrice(price, currency),
-    [price, currency]
-  );
+  const price = useMemo(() => (billing === "yearly" ? yearlyPrice : monthlyPrice), [billing, monthlyPrice, yearlyPrice]);
+  const displayPrice = useMemo(() => formatDisplayPrice(price, currency), [price, currency]);
 
   const onCheckout = async () => {
     if (!price) return;
@@ -123,7 +117,7 @@ export function CheckoutPanel({
               "Impossible de lancer le paiement",
               "Checkout kann nicht gestartet werden",
               "No se puede iniciar el checkout",
-              "Não foi possivel iniciar o checkout"
+              "Não foi possível iniciar o checkout"
             )
         );
       }
@@ -139,8 +133,8 @@ export function CheckoutPanel({
           "Unable to start checkout. Please try again.",
           "Impossible de lancer le paiement. Veuillez réessayer.",
           "Checkout kann nicht gestartet werden. Bitte versuche es erneut.",
-          "No se pudo iniciar el checkout. Intentalo de nuevo.",
-          "Não foi possivel iniciar o checkout. Tente novamente."
+          "No se pudo iniciar el checkout. Inténtalo de nuevo.",
+          "Não foi possível iniciar o checkout. Tente novamente."
         )
       );
       setLoading(false);
@@ -154,7 +148,7 @@ export function CheckoutPanel({
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-500">
-                {t("Selected Plan", "Plan selectionne", "Ausgewahlter Plan", "Plan seleccionado", "Plano selecionado")}: {planConfig.planName}
+                {t("Selected Plan", "Plan sélectionné", "Ausgewählter Plan", "Plan seleccionado", "Plano selecionado")}: {planConfig.planName}
               </p>
               <h2 className="text-3xl font-semibold tracking-tight text-slate-900">
                 {planConfig.planName}
@@ -197,7 +191,7 @@ export function CheckoutPanel({
                   "Tarification indisponible",
                   "Preis nicht verfügbar",
                   "Precio no disponible",
-                  "Preco indisponivel"
+                  "Preço indisponível"
                 )}
             </p>
             <p className="text-base text-slate-500">
@@ -219,7 +213,7 @@ export function CheckoutPanel({
           </ul>
 
           <p className="border-t border-[#EAEAEA] pt-6 text-sm text-slate-500">
-            {t("Best for", "Ideal pour", "Ideal für", "Ideal para", "Ideal para")} {planConfig.targetAudience}
+            {t("Best for", "Idéal pour", "Ideal für", "Ideal para", "Ideal para")} {planConfig.targetAudience}
           </p>
         </div>
       </section>
@@ -235,17 +229,16 @@ export function CheckoutPanel({
         >
           {loading
             ? t("Redirecting...", "Redirection...", "Weiterleitung...", "Redirigiendo...", "A redirecionar...")
-            : t("Subscribe securely", "Souscrire en toute sécurité", "Sicher abonnieren", "Suscribirse de forma segura", "Subscrever em seguranca")}
+            : t("Subscribe securely", "Souscrire en toute sécurité", "Sicher abonnieren", "Suscribirse de forma segura", "Subscrever em segurança")}
         </button>
         <p className="mt-5 flex items-center justify-center gap-2 text-[13px] font-medium text-[#6B7280] sm:mt-6 sm:text-sm">
           <TrustLockIcon />
-          <span>{t("SSL Encrypted", "SSL chiffre", "SSL-verschlusselt", "Cifrado SSL", "Encriptado SSL")}</span>
+          <span>{t("SSL Encrypted", "SSL chiffré", "SSL-verschlüsselt", "Cifrado SSL", "Encriptado SSL")}</span>
           <span>{"\u00B7"}</span>
           <TrustShieldCheckIcon />
-          <span>{t("Secure global payment processing", "Traitement securise des paiements mondiaux", "Sichere globale Zahlungsabwicklung", "Procesamiento global de pagos seguro", "Processamento global de pagamentos seguro")}</span>
+          <span>{t("Secure global payment processing", "Traitement sécurisé des paiements mondiaux", "Sichere globale Zahlungsabwicklung", "Procesamiento global de pagos seguro", "Processamento global de pagamentos seguro")}</span>
         </p>
       </div>
     </div>
   );
 }
-

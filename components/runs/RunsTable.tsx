@@ -61,7 +61,7 @@ export function RunsTable({
 
   const sortableHeaders = useMemo(
     () => ({
-      createdAt: t("Created", "Cree le"),
+      createdAt: t("Created", "Cr?? le"),
       runStatus: t("Status", "Statut"),
       duration: t("Duration", "Durée"),
     }),
@@ -291,7 +291,7 @@ export function RunsTable({
               <td colSpan={6} className="px-6 py-10 text-center text-sm text-muted-foreground">
                 {t(
                   "No runs yet. Start an automation to see executions here.",
-                  "Aucune execution. Lancez une automatisation pour voir les runs ici."
+                  "Aucune ex?cution. Lancez une automatisation pour voir les runs ici."
                 )}
               </td>
             </tr>
@@ -408,7 +408,7 @@ export function RunsTable({
           <div className="rounded-2xl border border-border/70 bg-background px-6 py-10 text-center text-sm text-muted-foreground">
             {t(
               "No runs yet. Start an automation to see executions here.",
-              "Aucune execution. Lancez une automatisation pour voir les runs ici."
+              "Aucune ex?cution. Lancez une automatisation pour voir les runs ici."
             )}
           </div>
         )}

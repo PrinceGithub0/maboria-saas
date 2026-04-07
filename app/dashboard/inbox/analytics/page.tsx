@@ -62,15 +62,15 @@ export default function InboxAnalyticsPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className={pageEyebrowClass}>
-              {t("Inbox", "Boite de reception", "Posteingang", "Bandeja de entrada", "Caixa de entrada")}
+              {t("Inbox", "Bo?te de reception", "Posteingang", "Bandeja de entrada", "Caixa de entrada")}
             </p>
             <h1 className={pageTitleClass}>
               {t(
                 "Inbox analytics",
-                "Analytique de la boite de reception",
+                "Analytique de la boîte de réception",
                 "Posteingangsanalysen",
-                "Analitica de la bandeja de entrada",
-                "Analitica da caixa de entrada",
+                "Anal?tica de la bandeja de entrada",
+                "Anal?tica da caixa de entrada",
               )}
             </h1>
           </div>
@@ -93,15 +93,15 @@ export default function InboxAnalyticsPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className={pageEyebrowClass}>
-              {t("Inbox", "Boite de reception", "Posteingang", "Bandeja de entrada", "Caixa de entrada")}
+              {t("Inbox", "Bo?te de reception", "Posteingang", "Bandeja de entrada", "Caixa de entrada")}
             </p>
             <h1 className={pageTitleClass}>
               {t(
                 "Inbox analytics",
-                "Analytique de la boite de reception",
+                "Analytique de la boîte de réception",
                 "Posteingangsanalysen",
-                "Analitica de la bandeja de entrada",
-                "Analitica da caixa de entrada",
+                "Anal?tica de la bandeja de entrada",
+                "Anal?tica da caixa de entrada",
               )}
             </h1>
           </div>
@@ -115,10 +115,10 @@ export default function InboxAnalyticsPage() {
                 language,
                 t(
                   "Unable to load inbox analytics.",
-                  "Impossible de charger l'analytique de la boite de reception.",
-                  "Posteingangsanalysen kÃ¶nnen nicht geladen werden.",
-                  "No se puede cargar la analitica de la bandeja de entrada.",
-                  "NÃ£o foi possivel carregar a analitica da caixa de entrada.",
+                  "Impossible de charger l'analytique de la boîte de réception.",
+                  "Posteingangsanalysen k\u00f6nnen nicht geladen werden.",
+                  "No se puede cargar la analítica de la bandeja de entrada.",
+                  "N\u00e3o foi poss\u00edvel carregar a anal\u00edtica da caixa de entrada.",
                 ),
               )}
             </span>
@@ -140,15 +140,15 @@ export default function InboxAnalyticsPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className={pageEyebrowClass}>
-            {t("Inbox", "Boite de reception", "Posteingang", "Bandeja de entrada", "Caixa de entrada")}
+            {t("Inbox", "Bo?te de reception", "Posteingang", "Bandeja de entrada", "Caixa de entrada")}
           </p>
           <h1 className={pageTitleClass}>
             {t(
               "Inbox analytics",
-              "Analytique de la boite de reception",
+              "Analytique de la boîte de réception",
               "Posteingangsanalysen",
-              "Analitica de la bandeja de entrada",
-              "Analitica da caixa de entrada",
+              "Anal?tica de la bandeja de entrada",
+              "Anal?tica da caixa de entrada",
             )}
           </h1>
         </div>
@@ -209,11 +209,11 @@ export default function InboxAnalyticsPage() {
               {t("Message volume", "Volume de messages", "Nachrichtenvolumen", "Volumen de mensajes", "Volume de mensagens")}
             </p>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              {t("Last 14 days", "14 derniers jours", "Letzte 14 Tage", "Ultimos 14 dias", "Ultimos 14 dias")}
+              {t("Last 14 days", "14 derniers jours", "Letzte 14 Tage", "?ltimos 14 d?as", "?ltimos 14 dias")}
             </p>
           </div>
           <p className="text-xs text-slate-400 dark:text-slate-500">
-            {t("Updated", "Mis a jour", "Aktualisiert", "Actualizado", "Atualizado")}{" "}
+            {t("Updated", "Mis ? jour", "Aktualisiert", "Actualizado", "Atualizado")}{" "}
             {new Intl.DateTimeFormat(locale, {
               day: "2-digit",
               month: "short",

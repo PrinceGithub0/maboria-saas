@@ -44,6 +44,9 @@ type UpsertCustomerInput = {
   email: string;
   phone?: string | null;
   taxId?: string | null;
+  companyName?: string | null;
+  registrationNumber?: string | null;
+  branchCode?: string | null;
   addressLine1?: string | null;
   addressLine2?: string | null;
   city?: string | null;
@@ -63,6 +66,9 @@ export async function createOrGetCustomer(input: UpsertCustomerInput) {
     email,
     phone: input.phone ?? null,
     taxId: input.taxId ?? null,
+    companyName: input.companyName ?? null,
+    registrationNumber: input.registrationNumber ?? null,
+    branchCode: input.branchCode ?? null,
     addressLine1: input.addressLine1 ?? null,
     addressLine2: input.addressLine2 ?? null,
     city: input.city ?? null,
@@ -87,6 +93,9 @@ export async function createOrGetCustomer(input: UpsertCustomerInput) {
       kind: "CUSTOMER",
       phone: input.phone ?? null,
       taxId: input.taxId ?? null,
+      companyName: input.companyName ?? null,
+      registrationNumber: input.registrationNumber ?? null,
+      branchCode: input.branchCode ?? null,
       addressLine1: input.addressLine1 ?? null,
       addressLine2: input.addressLine2 ?? null,
       city: input.city ?? null,

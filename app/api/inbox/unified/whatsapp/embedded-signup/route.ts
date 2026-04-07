@@ -7,6 +7,7 @@ import { encryptInboxSecret } from "@/lib/crypto";
 import { ensureDefaultUnifiedInboxes, writeUnifiedAuditEvent } from "@/lib/inbox/unified";
 import { requireOrgPermission } from "@/lib/org-auth";
 import { prisma } from "@/lib/prisma";
+import { canAddWorkspaceConnections, hasWhatsAppInboxConnection } from "@/lib/workspace-connections";
 import {
   exchangeEmbeddedSignupCodeForToken,
   fetchEmbeddedSignupPhoneProfile,
@@ -53,6 +54,24 @@ export const POST = withErrorHandling(async (req: Request) => {
   const { whatsapp } = await ensureDefaultUnifiedInboxes(access.context.orgId);
   const verifyToken = String(process.env.INBOX_INBOUND_TOKEN || "").trim();
   const appSecret = config.appSecret;
+
+  if (!hasWhatsAppInboxConnection(whatsapp.credentialsEncrypted, whatsapp.status)) {
+    const connectionCapacity = await canAddWorkspaceConnections({
+      workspaceId: access.context.orgId,
+      plan: access.context.orgPlan,
+    });
+    if (!connectionCapacity.ok) {
+      return NextResponse.json(
+        {
+          error: "Workspace connection limit reached.",
+          code: "CONNECTION_LIMIT_REACHED",
+          connectionLimit: connectionCapacity.limit,
+          connectionsUsed: connectionCapacity.used,
+        },
+        { status: 409 }
+      );
+    }
+  }
 
   const updatedInbox = await prisma.$transaction(async (tx) => {
     await tx.business.update({

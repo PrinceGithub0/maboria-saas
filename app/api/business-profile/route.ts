@@ -72,9 +72,16 @@ export const GET = withRequestLogging(withErrorHandling(async () => {
       country: true,
       defaultCurrency: true,
       businessAddress: true,
+      addressLine1: true,
+      addressLine2: true,
+      city: true,
+      state: true,
+      postalCode: true,
       businessEmail: true,
       businessPhone: true,
       taxId: true,
+      registrationNumber: true,
+      branchCode: true,
       vatEnabled: true,
       vatRate: true,
       vatRateDisplay: true,
@@ -173,9 +180,16 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
       country,
       defaultCurrency: currency,
       businessAddress: parsed.businessAddress?.trim(),
+      addressLine1: parsed.addressLine1?.trim() || addressFields.streetAddress || null,
+      addressLine2: parsed.addressLine2?.trim() || null,
+      city: parsed.city?.trim() || addressFields.city || null,
+      state: parsed.state?.trim() || addressFields.region || null,
+      postalCode: parsed.postalCode?.trim() || addressFields.postalCode || null,
       businessEmail: parsed.businessEmail?.toLowerCase().trim(),
       businessPhone: parsed.businessPhone?.trim(),
       taxId: normalizeBusinessTaxId({ vatEnabled: parsed.vatEnabled, taxId: parsed.taxId }),
+      registrationNumber: parsed.registrationNumber?.trim() || null,
+      branchCode: parsed.branchCode?.trim() || null,
       vatEnabled: vatSettings.enabled,
       vatRate: vatSettings.enabled ? vatSettings.rate : 0,
       vatRateDisplay,
@@ -251,13 +265,27 @@ export const PUT = withRequestLogging(withErrorHandling(async (req: Request) => 
     }
     updateData.defaultCurrency = currency;
   }
-  if (parsed.businessAddress !== undefined) updateData.businessAddress = parsed.businessAddress?.trim();
+  if (parsed.businessAddress !== undefined) {
+    updateData.businessAddress = parsed.businessAddress?.trim();
+    const parsedAddress = parseBusinessAddress(parsed.businessAddress);
+    if (parsed.addressLine1 === undefined) updateData.addressLine1 = parsedAddress.streetAddress || null;
+    if (parsed.city === undefined) updateData.city = parsedAddress.city || null;
+    if (parsed.state === undefined) updateData.state = parsedAddress.region || null;
+    if (parsed.postalCode === undefined) updateData.postalCode = parsedAddress.postalCode || null;
+  }
+  if (parsed.addressLine1 !== undefined) updateData.addressLine1 = parsed.addressLine1?.trim() || null;
+  if (parsed.addressLine2 !== undefined) updateData.addressLine2 = parsed.addressLine2?.trim() || null;
+  if (parsed.city !== undefined) updateData.city = parsed.city?.trim() || null;
+  if (parsed.state !== undefined) updateData.state = parsed.state?.trim() || null;
+  if (parsed.postalCode !== undefined) updateData.postalCode = parsed.postalCode?.trim() || null;
   if (parsed.businessEmail !== undefined) updateData.businessEmail = parsed.businessEmail?.toLowerCase().trim();
   if (parsed.businessPhone !== undefined) updateData.businessPhone = parsed.businessPhone?.trim();
   if (Object.prototype.hasOwnProperty.call(body, "taxId")) {
     const nextTaxId = typeof body.taxId === "string" ? body.taxId.trim() : "";
     updateData.taxId = nextTaxId || null;
   }
+  if (parsed.registrationNumber !== undefined) updateData.registrationNumber = parsed.registrationNumber?.trim() || null;
+  if (parsed.branchCode !== undefined) updateData.branchCode = parsed.branchCode?.trim() || null;
   if (parsed.vatEnabled !== undefined) {
     updateData.vatEnabled = parsed.vatEnabled;
     if (parsed.vatEnabled === false && parsed.vatRate === undefined) {
@@ -282,9 +310,16 @@ export const PUT = withRequestLogging(withErrorHandling(async (req: Request) => 
     country: updateData.country ?? existing.country,
     defaultCurrency: updateData.defaultCurrency ?? existing.defaultCurrency,
     businessAddress: updateData.businessAddress ?? existing.businessAddress,
+    addressLine1: updateData.addressLine1 ?? existing.addressLine1,
+    addressLine2: updateData.addressLine2 ?? existing.addressLine2,
+    city: updateData.city ?? existing.city,
+    state: updateData.state ?? existing.state,
+    postalCode: updateData.postalCode ?? existing.postalCode,
     businessEmail: updateData.businessEmail ?? existing.businessEmail,
     businessPhone: updateData.businessPhone ?? existing.businessPhone,
     taxId: updateData.taxId ?? existing.taxId,
+    registrationNumber: updateData.registrationNumber ?? existing.registrationNumber,
+    branchCode: updateData.branchCode ?? existing.branchCode,
     vatEnabled: updateData.vatEnabled ?? existing.vatEnabled ?? false,
     vatRate: updateData.vatRate ?? existing.vatRate ?? 0,
     vatRateDisplay: updateData.vatRateDisplay ?? existing.vatRateDisplay ?? null,

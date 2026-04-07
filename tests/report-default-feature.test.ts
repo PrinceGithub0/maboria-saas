@@ -4,8 +4,8 @@ import { pickDefaultTrendFeature } from "@/lib/usage/report";
 const emptySeries = {
   ai_requests: [{ date: "2026-03-01", value: 0 }],
   invoices: [{ date: "2026-03-01", value: 0 }],
-  whatsapp_messages: [{ date: "2026-03-01", value: 0 }],
   automations_runs: [{ date: "2026-03-01", value: 0 }],
+  workspace_connections: [],
   team_members_seats: [],
 };
 
@@ -14,7 +14,6 @@ assert.equal(
     totalsByFeature: new Map([
       ["ai_requests", 0],
       ["invoices", 4],
-      ["whatsapp_messages", 0],
       ["automations_runs", 0],
     ]),
     series: emptySeries,
@@ -28,7 +27,6 @@ assert.equal(
     totalsByFeature: new Map([
       ["ai_requests", 0],
       ["invoices", 0],
-      ["whatsapp_messages", 0],
       ["automations_runs", 0],
     ]),
     series: {

@@ -5,10 +5,34 @@ import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { requireBillingAccess } from "@/lib/permissions";
-import { getVisibleCustomerWhere } from "@/lib/customers";
+import { buildPlaceholderCustomerEmail, getVisibleCustomerWhere } from "@/lib/customers";
 import { customerCreateSchema } from "@/lib/validators";
 
 type Params = { params: Promise<{ id: string }> };
+type CustomerAction =
+  | "restore"
+  | "disable"
+  | "block_email"
+  | "allow_email"
+  | "block_whatsapp"
+  | "allow_whatsapp"
+  | "restrict_processing"
+  | "resume_processing"
+  | "erase";
+
+function isSupportedCustomerAction(value: unknown): value is CustomerAction {
+  return (
+    value === "restore" ||
+    value === "disable" ||
+    value === "block_email" ||
+    value === "allow_email" ||
+    value === "block_whatsapp" ||
+    value === "allow_whatsapp" ||
+    value === "restrict_processing" ||
+    value === "resume_processing" ||
+    value === "erase"
+  );
+}
 
 export async function GET(_request: NextRequest, { params }: Params) {
   const { id } = await params;
@@ -31,6 +55,9 @@ export async function GET(_request: NextRequest, { params }: Params) {
       email: true,
       phone: true,
       taxId: true,
+      companyName: true,
+      registrationNumber: true,
+      branchCode: true,
       addressLine1: true,
       addressLine2: true,
       city: true,
@@ -38,7 +65,13 @@ export async function GET(_request: NextRequest, { params }: Params) {
       postalCode: true,
       country: true,
       deliveryPreference: true,
+      emailOptOut: true,
+      whatsappOptOut: true,
+      processingRestrictedAt: true,
+      consentCapturedAt: true,
+      consentSource: true,
       status: true,
+      erasedAt: true,
       createdAt: true,
     },
   });
@@ -121,23 +154,33 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const visibilityWhere = await getVisibleCustomerWhere(targetUserId);
 
   const body = await request.json().catch(() => ({}));
-  if (body?.action !== "restore" && body?.action !== "disable") {
+  if (!isSupportedCustomerAction(body?.action)) {
     return NextResponse.json({ error: "Unsupported action" }, { status: 400 });
   }
 
   const customer = await prisma.customer.findFirst({
     where: { ...visibilityWhere, id, userId: targetUserId },
-    select: { id: true },
+    select: {
+      id: true,
+      erasedAt: true,
+      status: true,
+    },
   });
   if (!customer) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   if (body?.action === "restore") {
+    if (customer.erasedAt) {
+      return NextResponse.json(
+        { error: "Erased customers cannot be restored." },
+        { status: 409 }
+      );
+    }
     await prisma.$transaction([
       prisma.customer.update({
         where: { id: customer.id },
-        data: { deletedAt: null, status: "ACTIVE" },
+        data: { deletedAt: null, status: "ACTIVE", processingRestrictedAt: null },
       }),
       prisma.activityLog.create({
         data: {
@@ -152,6 +195,176 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         data: {
           userId: targetUserId,
           action: "CUSTOMER_ENABLED",
+          metadata: { customerId: customer.id, actorUserId: session.user.id },
+        },
+      }),
+    ]);
+  } else if (body?.action === "block_email" || body?.action === "allow_email") {
+    const emailOptOut = body.action === "block_email";
+    await prisma.$transaction([
+      prisma.customer.update({
+        where: { id: customer.id },
+        data: {
+          emailOptOut,
+          consentCapturedAt: new Date(),
+          consentSource: emailOptOut ? "manual_opt_out" : "manual_opt_in",
+        },
+      }),
+      prisma.activityLog.create({
+        data: {
+          userId: targetUserId,
+          action: emailOptOut ? "CUSTOMER_EMAIL_OPT_OUT" : "CUSTOMER_EMAIL_OPT_IN",
+          resourceType: "customer",
+          resourceId: customer.id,
+          metadata: { actorUserId: session.user.id },
+        },
+      }),
+      prisma.auditLog.create({
+        data: {
+          userId: targetUserId,
+          action: emailOptOut ? "CUSTOMER_EMAIL_OPT_OUT" : "CUSTOMER_EMAIL_OPT_IN",
+          metadata: { customerId: customer.id, actorUserId: session.user.id },
+        },
+      }),
+    ]);
+  } else if (body?.action === "block_whatsapp" || body?.action === "allow_whatsapp") {
+    const whatsappOptOut = body.action === "block_whatsapp";
+    await prisma.$transaction([
+      prisma.customer.update({
+        where: { id: customer.id },
+        data: {
+          whatsappOptOut,
+          consentCapturedAt: new Date(),
+          consentSource: whatsappOptOut ? "manual_opt_out" : "manual_opt_in",
+        },
+      }),
+      prisma.activityLog.create({
+        data: {
+          userId: targetUserId,
+          action: whatsappOptOut ? "CUSTOMER_WHATSAPP_OPT_OUT" : "CUSTOMER_WHATSAPP_OPT_IN",
+          resourceType: "customer",
+          resourceId: customer.id,
+          metadata: { actorUserId: session.user.id },
+        },
+      }),
+      prisma.auditLog.create({
+        data: {
+          userId: targetUserId,
+          action: whatsappOptOut ? "CUSTOMER_WHATSAPP_OPT_OUT" : "CUSTOMER_WHATSAPP_OPT_IN",
+          metadata: { customerId: customer.id, actorUserId: session.user.id },
+        },
+      }),
+    ]);
+  } else if (body?.action === "restrict_processing") {
+    await prisma.$transaction([
+      prisma.customer.update({
+        where: { id: customer.id },
+        data: {
+          processingRestrictedAt: new Date(),
+          status: "DISABLED",
+          deletedAt: new Date(),
+        },
+      }),
+      prisma.activityLog.create({
+        data: {
+          userId: targetUserId,
+          action: "CUSTOMER_PROCESSING_RESTRICTED",
+          resourceType: "customer",
+          resourceId: customer.id,
+          metadata: { actorUserId: session.user.id },
+        },
+      }),
+      prisma.auditLog.create({
+        data: {
+          userId: targetUserId,
+          action: "CUSTOMER_PROCESSING_RESTRICTED",
+          metadata: { customerId: customer.id, actorUserId: session.user.id },
+        },
+      }),
+    ]);
+  } else if (body?.action === "resume_processing") {
+    if (customer.erasedAt) {
+      return NextResponse.json(
+        { error: "Erased customers cannot resume processing." },
+        { status: 409 }
+      );
+    }
+    await prisma.$transaction([
+      prisma.customer.update({
+        where: { id: customer.id },
+        data: {
+          processingRestrictedAt: null,
+          status: customer.status === "DISABLED" ? "ACTIVE" : customer.status,
+          deletedAt: null,
+        },
+      }),
+      prisma.activityLog.create({
+        data: {
+          userId: targetUserId,
+          action: "CUSTOMER_PROCESSING_RESUMED",
+          resourceType: "customer",
+          resourceId: customer.id,
+          metadata: { actorUserId: session.user.id },
+        },
+      }),
+      prisma.auditLog.create({
+        data: {
+          userId: targetUserId,
+          action: "CUSTOMER_PROCESSING_RESUMED",
+          metadata: { customerId: customer.id, actorUserId: session.user.id },
+        },
+      }),
+    ]);
+  } else if (body?.action === "erase") {
+    const redactedEmail = buildPlaceholderCustomerEmail(`erased-${customer.id}`);
+    const now = new Date();
+    await prisma.$transaction([
+      prisma.customer.update({
+        where: { id: customer.id },
+        data: {
+          name: "Erased Customer",
+          email: redactedEmail,
+          phone: null,
+          taxId: null,
+          companyName: null,
+          registrationNumber: null,
+          branchCode: null,
+          addressLine1: null,
+          addressLine2: null,
+          city: null,
+          state: null,
+          postalCode: null,
+          country: null,
+          deliveryPreference: "EMAIL",
+          emailOptOut: true,
+          whatsappOptOut: true,
+          processingRestrictedAt: now,
+          consentCapturedAt: now,
+          consentSource: "erasure_redaction",
+          status: "DISABLED",
+          deletedAt: now,
+          erasedAt: now,
+        },
+      }),
+      prisma.customerNote.deleteMany({
+        where: {
+          userId: targetUserId,
+          customerId: customer.id,
+        },
+      }),
+      prisma.activityLog.create({
+        data: {
+          userId: targetUserId,
+          action: "CUSTOMER_ERASED",
+          resourceType: "customer",
+          resourceId: customer.id,
+          metadata: { actorUserId: session.user.id },
+        },
+      }),
+      prisma.auditLog.create({
+        data: {
+          userId: targetUserId,
+          action: "CUSTOMER_ERASED",
           metadata: { customerId: customer.id, actorUserId: session.user.id },
         },
       }),
@@ -213,10 +426,18 @@ export async function PUT(request: NextRequest, { params }: Params) {
 
   const customer = await prisma.customer.findFirst({
     where: { ...visibilityWhere, id, userId: targetUserId },
-    select: { id: true, phone: true, deliveryPreference: true },
+    select: {
+      id: true,
+      phone: true,
+      deliveryPreference: true,
+      erasedAt: true,
+    },
   });
   if (!customer) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  if (customer.erasedAt) {
+    return NextResponse.json({ error: "Erased customers cannot be edited." }, { status: 409 });
   }
 
   const nextPhone =
@@ -243,6 +464,11 @@ export async function PUT(request: NextRequest, { params }: Params) {
         ...(parsed.data.email !== undefined ? { email: parsed.data.email.trim().toLowerCase() } : {}),
         ...(parsed.data.phone !== undefined ? { phone: parsed.data.phone || null } : {}),
         ...(parsed.data.taxId !== undefined ? { taxId: parsed.data.taxId || null } : {}),
+        ...(parsed.data.companyName !== undefined ? { companyName: parsed.data.companyName || null } : {}),
+        ...(parsed.data.registrationNumber !== undefined
+          ? { registrationNumber: parsed.data.registrationNumber || null }
+          : {}),
+        ...(parsed.data.branchCode !== undefined ? { branchCode: parsed.data.branchCode || null } : {}),
         ...(parsed.data.addressLine1 !== undefined ? { addressLine1: parsed.data.addressLine1 || null } : {}),
         ...(parsed.data.addressLine2 !== undefined ? { addressLine2: parsed.data.addressLine2 || null } : {}),
         ...(parsed.data.city !== undefined ? { city: parsed.data.city || null } : {}),

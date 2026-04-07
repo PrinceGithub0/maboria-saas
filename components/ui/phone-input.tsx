@@ -171,10 +171,10 @@ export function PhoneInput({
   const phonePlaceholder = getLocalizedText(
     {
       en: "Phone number",
-      fr: "Numero de telephone",
+      fr: "Num?ro de t?l?phone",
       de: "Telefonnummer",
-      es: "Numero de telefono",
-      pt: "Numero de telefone",
+      es: "N?mero de tel?fono",
+      pt: "N?mero de telefone",
     },
     locale
   );
@@ -183,8 +183,8 @@ export function PhoneInput({
       en: "Search country",
       fr: "Rechercher un pays",
       de: "Land suchen",
-      es: "Buscar pais",
-      pt: "Pesquisar pais",
+      es: "Buscar pa?s",
+      pt: "Pesquisar pa?s",
     },
     locale
   );

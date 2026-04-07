@@ -61,7 +61,7 @@ const types = ["ALL", "SYSTEM", "AUTOMATION", "SLA", "SUPPORT", "SECURITY", "BIL
 const ranges = ["24h", "7d", "30d"] as const;
 const STATUS_LABELS = {
   ALL: { en: "All statuses", fr: "Tous les statuts", de: "Alle Status", es: "Todos los estados", pt: "Todos os estados" },
-  UNREAD: { en: "Unread", fr: "Non lu", de: "Ungelesen", es: "No leido", pt: "Nao lida" },
+  UNREAD: { en: "Unread", fr: "Non lu", de: "Ungelesen", es: "No leido", pt: "N?o lida" },
   READ: { en: "Read", fr: "Lu", de: "Gelesen", es: "Leida", pt: "Lida" },
   ACKNOWLEDGED: { en: "Acknowledged", fr: "Pris en compte", de: "Bestatigt", es: "Reconocida", pt: "Confirmada" },
   RESOLVED: { en: "Resolved", fr: "Resolue", de: "Gelost", es: "Resuelta", pt: "Resolvida" },
@@ -76,11 +76,11 @@ const SEVERITY_LABELS = {
 const TYPE_LABELS = {
   ALL: { en: "All types", fr: "Tous les types", de: "Alle Typen", es: "Todos los tipos", pt: "Todos os tipos" },
   SYSTEM: { en: "System", fr: "Systeme", de: "System", es: "Sistema", pt: "Sistema" },
-  AUTOMATION: { en: "Automation", fr: "Automatisation", de: "Automatisierung", es: "Automatizacion", pt: "Automacao" },
+  AUTOMATION: { en: "Automation", fr: "Automatisation", de: "Automatisierung", es: "Automatizaci?n", pt: "Automa??o" },
   SLA: { en: "SLA", fr: "SLA", de: "SLA", es: "SLA", pt: "SLA" },
   SUPPORT: { en: "Support", fr: "Support", de: "Support", es: "Soporte", pt: "Suporte" },
-  SECURITY: { en: "Security", fr: "Securite", de: "Sicherheit", es: "Seguridad", pt: "Seguranca" },
-  BILLING: { en: "Billing", fr: "Facturation", de: "Abrechnung", es: "Facturacion", pt: "Faturacao" },
+  SECURITY: { en: "Security", fr: "Securite", de: "Sicherheit", es: "Seguridad", pt: "Seguran?a" },
+  BILLING: { en: "Billing", fr: "Facturation", de: "Abrechnung", es: "Facturaci?n", pt: "Fatura??o" },
   INCIDENT: { en: "Incident", fr: "Incident", de: "Vorfall", es: "Incidente", pt: "Incidente" },
 } as const;
 
@@ -173,7 +173,7 @@ export default function AdminNotificationsPage() {
       if (!res.ok) throw new Error(String((json as { error?: string }).error || "Action failed"));
       await mutate();
       await mutateDetail();
-      setToast(action === "ACK" ? t("Notification acknowledged", "Notification accusee", "Benachrichtigung bestätigt", "Notificacion reconocida", "Notificacao confirmada") : action === "RESOLVE" ? t("Resolved", "Résolu", "Geloest", "Resuelto", "Resolvido") : t("Updated", "Mis a jour", "Aktualisiert", "Actualizado", "Atualizado"));
+      setToast(action === "ACK" ? t("Notification acknowledged", "Notification accusee", "Benachrichtigung bestätigt", "Notificacion reconocida", "Notificacao confirmada") : action === "RESOLVE" ? t("Resolved", "Résolu", "Geloest", "Resuelto", "Resolvido") : t("Updated", "Mis ? jour", "Aktualisiert", "Actualizado", "Atualizado"));
       setTimeout(() => setToast(""), 3000);
     } catch (e) {
       setToast(
@@ -181,9 +181,9 @@ export default function AdminNotificationsPage() {
           ? localizeAdminServerMessage(
               e.message,
               language,
-              t("Action failed", "Echec de l'action", "Aktion fehlgeschlagen", "La acción fallo", "A ação falhou")
+              t("Action failed", "?chec de l'action", "Aktion fehlgeschlagen", "La acción fallo", "A ação falhou")
             )
-          : t("Action failed", "Echec de l'action", "Aktion fehlgeschlagen", "La acción fallo", "A ação falhou")
+          : t("Action failed", "?chec de l'action", "Aktion fehlgeschlagen", "La acción fallo", "A ação falhou")
       );
       setTimeout(() => setToast(""), 3000);
     } finally {
@@ -211,7 +211,7 @@ export default function AdminNotificationsPage() {
               "Impossible de charger les notifications pour le moment.",
               "Benachrichtigungen koennen derzeit nicht geladen werden.",
               "No se pueden cargar las notificaciones en este momento.",
-              "Nao foi possivel carregar as notificacoes neste momento."
+              "N?o foi poss?vel carregar as notificacoes neste momento."
             )
           )}
         </Alert>
@@ -251,7 +251,7 @@ export default function AdminNotificationsPage() {
           <select value={severity} onChange={(e) => { setSeverity(e.target.value as typeof severity); setPage(1); }} className="h-10 rounded-md border border-border/70 bg-background px-3 text-sm">{severities.map((s) => <option key={s} value={s}>{t(SEVERITY_LABELS[s])}</option>)}</select>
           <select value={type} onChange={(e) => { setType(e.target.value as typeof type); setPage(1); }} className="h-10 rounded-md border border-border/70 bg-background px-3 text-sm">{types.map((s) => <option key={s} value={s}>{t(TYPE_LABELS[s])}</option>)}</select>
           <div className="flex items-center gap-2">
-            <select value={timeRange} onChange={(e) => { setTimeRange(e.target.value as typeof timeRange); setPage(1); }} className="h-10 rounded-md border border-border/70 bg-background px-3 text-sm">{ranges.map((r) => <option key={r} value={r}>{r === "24h" ? t("Last 24 hours", "Dernieres 24 heures", "Letzte 24 Stunden", "Ultimas 24 horas", "Ultimas 24 horas") : r === "7d" ? t("Last 7 days", "Derniers 7 jours", "Letzte 7 Tage", "Ultimos 7 dias", "Ultimos 7 dias") : t("Last 30 days", "Derniers 30 jours", "Letzte 30 Tage", "Ultimos 30 dias", "Ultimos 30 dias")}</option>)}</select>
+            <select value={timeRange} onChange={(e) => { setTimeRange(e.target.value as typeof timeRange); setPage(1); }} className="h-10 rounded-md border border-border/70 bg-background px-3 text-sm">{ranges.map((r) => <option key={r} value={r}>{r === "24h" ? t("Last 24 hours", "Dernieres 24 heures", "Letzte 24 Stunden", "?ltimas 24 horas", "Ultimas 24 horas") : r === "7d" ? t("Last 7 days", "Derniers 7 jours", "Letzte 7 Tage", "?ltimos 7 d?as", "?ltimos 7 dias") : t("Last 30 days", "Derniers 30 jours", "Letzte 30 Tage", "?ltimos 30 d?as", "?ltimos 30 dias")}</option>)}</select>
             <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
               <input type="checkbox" checked={mineOnly} onChange={(e) => setMineOnly(e.target.checked)} className="h-4 w-4 rounded border-border" />
               {t("Mine only", "Les miennes uniquement", "Nur meine", "Solo mias", "Apenas minhas")}
@@ -263,7 +263,7 @@ export default function AdminNotificationsPage() {
       <section className="grid min-h-[560px] gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,430px)]">
         <div className="rounded-xl border border-border/70 bg-card">
           <div className="grid grid-cols-[96px_minmax(0,1fr)_56px_84px_92px] gap-2 border-b border-border/70 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-            <span>{t("Severity", "Severite", "Schweregrad", "Severidad", "Severidade")}</span><span>{t("Title", "Titre", "Titel", "Titulo", "Titulo")}</span><span>{t("Count", "Nb.", "Anz.", "Num.", "N.o")}</span><span>{t("Status", "Statut", "Status", "Estado", "Estado")}</span><span>{t("Last seen", "Derniere vue", "Zuletzt", "Ultima vez", "Ultima vez")}</span>
+            <span>{t("Severity", "Severite", "Schweregrad", "Severidad", "Severidade")}</span><span>{t("Title", "Titre", "Titel", "Titulo", "Titulo")}</span><span>{t("Count", "Nb.", "Anz.", "Num.", "N.o")}</span><span>{t("Status", "Statut", "Status", "Estado", "Estado")}</span><span>{t("Last seen", "Derni?re vue", "Zuletzt", "?ltima vez", "?ltima vez")}</span>
           </div>
           <div className="max-h-[620px] overflow-y-auto">
             {isLoading ? (
@@ -288,7 +288,7 @@ export default function AdminNotificationsPage() {
             ))}
           </div>
           <div className="flex items-center justify-between border-t border-border/70 px-3 py-2 text-xs text-muted-foreground">
-            <span>{t("Page", "Page", "Seite", "Pagina", "Pagina")} {page} {t("of", "sur", "von", "de", "de")} {pageCount}</span>
+            <span>{t("Page", "Page", "Seite", "P?gina", "P?gina")} {page} {t("of", "sur", "von", "de", "de")} {pageCount}</span>
             <div className="flex items-center gap-1">
               <Button size="sm" variant="ghost" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>{"<"}</Button>
               <Button size="sm" variant="secondary">{page}</Button>

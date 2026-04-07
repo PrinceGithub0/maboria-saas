@@ -66,7 +66,7 @@ const text = (en: string, fr: string, de: string, es: string, pt: string): Compl
 const tabs: Array<{ id: LogTab; label: CompleteLocalizedText }> = [
   { id: "all", label: text("All", "Tous", "Alle", "Todos", "Todos") },
   { id: "errors", label: text("Errors", "Erreurs", "Fehler", "Errores", "Erros") },
-  { id: "security", label: text("Security", "Sécurité", "Sicherheit", "Seguridad", "Seguranca") },
+  { id: "security", label: text("Security", "Sécurité", "Sicherheit", "Seguridad", "Seguran?a") },
   { id: "webhooks", label: text("Webhooks", "Webhooks", "Webhooks", "Webhooks", "Webhooks") },
   { id: "billing", label: text("Billing", "Facturation", "Abrechnung", "Facturación", "Faturação") },
   { id: "infrastructure", label: text("Infrastructure", "Infrastructure", "Infrastruktur", "Infraestructura", "Infraestrutura") },
@@ -137,10 +137,10 @@ function serviceLabel(
 ) {
   const normalized = String(service || "").trim().toUpperCase();
   const map: Record<string, CompleteLocalizedText> = {
-    AUTOMATION: text("Automation", "Automatisation", "Automatisierung", "Automatizacion", "Automacao"),
-    BILLING: text("Billing", "Facturation", "Abrechnung", "Facturacion", "Faturacao"),
+    AUTOMATION: text("Automation", "Automatisation", "Automatisierung", "Automatizaci?n", "Automa??o"),
+    BILLING: text("Billing", "Facturation", "Abrechnung", "Facturaci?n", "Fatura??o"),
     WEBHOOKS: text("Webhooks", "Webhooks", "Webhooks", "Webhooks", "Webhooks"),
-    SECURITY: text("Security", "Securite", "Sicherheit", "Seguridad", "Seguranca"),
+    SECURITY: text("Security", "Securite", "Sicherheit", "Seguridad", "Seguran?a"),
     SUPPORT: text("Support", "Support", "Support", "Soporte", "Suporte"),
     INFRASTRUCTURE: text("Infrastructure", "Infrastructure", "Infrastruktur", "Infraestructura", "Infraestrutura"),
     CORE: text("Core", "Noyau", "Kern", "Nucleo", "Nucleo"),
@@ -170,9 +170,9 @@ function timeRangeLabel(
   range: TimeRangePreset,
   t: (value: CompleteLocalizedText) => string
 ) {
-  if (range === "24h") return t(text("Last 24 hours", "Dernieres 24 heures", "Letzte 24 Stunden", "Ultimas 24 horas", "Ultimas 24 horas"));
-  if (range === "7d") return t(text("Last 7 days", "Derniers 7 jours", "Letzte 7 Tage", "Ultimos 7 dias", "Ultimos 7 dias"));
-  if (range === "30d") return t(text("Last 30 days", "Derniers 30 jours", "Letzte 30 Tage", "Ultimos 30 dias", "Ultimos 30 dias"));
+  if (range === "24h") return t(text("Last 24 hours", "Dernieres 24 heures", "Letzte 24 Stunden", "?ltimas 24 horas", "Ultimas 24 horas"));
+  if (range === "7d") return t(text("Last 7 days", "Derniers 7 jours", "Letzte 7 Tage", "?ltimos 7 d?as", "?ltimos 7 dias"));
+  if (range === "30d") return t(text("Last 30 days", "Derniers 30 jours", "Letzte 30 Tage", "?ltimos 30 d?as", "?ltimos 30 dias"));
   if (range === "custom") return t(text("Custom range", "Plage personnalisee", "Benutzerdefinierter Bereich", "Rango personalizado", "Intervalo personalizado"));
   return t(text("All time", "Toute la periode", "Gesamter Zeitraum", "Todo el tiempo", "Todo o periodo"));
 }
@@ -571,18 +571,18 @@ export default function AdminLogsPage() {
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold text-foreground">{t("System Logs", "Journaux systeme", "Systemprotokolle", "Registros del sistema", "Registos do sistema")}</h1>
-            <p className="text-sm text-muted-foreground">{t("View system activity, security events, and operational history.", "Consultez l'activité systeme, les evenements de sécurité et l'historique operationnel.", "Systemaktivität, Sicherheitsereignisse und Betriebshistorie anzeigen.", "Ver la actividad del sistema, los eventos de seguridad y el historial operativo.", "Ver a atividade do sistema, os eventos de seguranca e o histórico operaciónal.")}</p>
+            <p className="text-sm text-muted-foreground">{t("View system activity, security events, and operational history.", "Consultez l'activité systeme, les ?v?nements de sécurité et l'historique operationnel.", "Systemaktivität, Sicherheitsereignisse und Betriebshistorie anzeigen.", "Ver la actividad del sistema, los eventos de seguridad y el historial operativo.", "Ver a atividade do sistema, os eventos de seguran?a e o histórico operaciónal.")}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-            <span title={t("Old logs are archived automatically.", "Les anciens journaux sont archives automatiquement.", "Alte Protokolle werden automatisch archiviert.", "Los registros antiguos se archivan automaticamente.", "Os registos antigos sao arquivados automaticamente.")} className="rounded-full border border-border/70 bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
-              {t("Retention: 30 days", "Retention : 30 jours", "Aufbewahrung: 30 Tage", "Retencion: 30 dias", "Retencao: 30 dias")}
+            <span title={t("Old logs are archived automatically.", "Les anciens journaux sont archives automatiquement.", "Alte Protokolle werden automatisch archiviert.", "Los registros antiguos se archivan autom?ticamente.", "Os registos antigos s?o arquivados automaticamente.")} className="rounded-full border border-border/70 bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
+              {t("Retention: 30 days", "Retention : 30 jours", "Aufbewahrung: 30 Tage", "Retencion: 30 d?as", "Retencao: 30 dias")}
             </span>
             <select value={timezone} onChange={(e) => setTimezone(e.target.value as TimezoneMode)} className="h-9 rounded-md border border-border/70 bg-background px-2 text-sm">
               <option value="local">{t("Local", "Locale", "Lokal", "Local", "Local")}</option>
               <option value="utc">UTC</option>
             </select>
             <select value={liveMode} onChange={(e) => setLiveMode(e.target.value as LiveMode)} className="h-9 rounded-md border border-border/70 bg-background px-2 text-sm">
-              <option value="off">{t("Live: Off", "Direct : arret", "Live: aus", "En directo: desactivado", "Em direto: desligado")}</option>
+              <option value="off">{t("Live: Off", "Direct : arr?t", "Live: aus", "En directo: desactivado", "Em direto: desligado")}</option>
               <option value="15">{t("Live: 15s", "Direct : 15 s", "Live: 15 s", "En directo: 15 s", "Em direto: 15 s")}</option>
               <option value="30">{t("Live: 30s", "Direct : 30 s", "Live: 30 s", "En directo: 30 s", "Em direto: 30 s")}</option>
               <option value="60">{t("Live: 60s", "Direct : 60 s", "Live: 60 s", "En directo: 60 s", "Em direto: 60 s")}</option>
@@ -621,9 +621,9 @@ export default function AdminLogsPage() {
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 xl:w-[560px]">
             <select value={timeRange} onChange={(e) => applyTimeRange(e.target.value as TimeRangePreset)} className="h-11 rounded-md border border-border/70 bg-background px-3 text-sm">
               <option value="all">{t("All time", "Toute la periode", "Gesamter Zeitraum", "Todo el tiempo", "Todo o periodo")}</option>
-              <option value="24h">{t("Last 24 hours", "Dernieres 24 heures", "Letzte 24 Stunden", "Ultimas 24 horas", "Ultimas 24 horas")}</option>
-              <option value="7d">{t("Last 7 days", "Derniers 7 jours", "Letzte 7 Tage", "Ultimos 7 dias", "Ultimos 7 dias")}</option>
-              <option value="30d">{t("Last 30 days", "Derniers 30 jours", "Letzte 30 Tage", "Ultimos 30 dias", "Ultimos 30 dias")}</option>
+              <option value="24h">{t("Last 24 hours", "Dernieres 24 heures", "Letzte 24 Stunden", "?ltimas 24 horas", "Ultimas 24 horas")}</option>
+              <option value="7d">{t("Last 7 days", "Derniers 7 jours", "Letzte 7 Tage", "?ltimos 7 d?as", "?ltimos 7 dias")}</option>
+              <option value="30d">{t("Last 30 days", "Derniers 30 jours", "Letzte 30 Tage", "?ltimos 30 d?as", "?ltimos 30 dias")}</option>
               <option value="custom">{t("Custom range", "Plage personnalisee", "Benutzerdefinierter Bereich", "Rango personalizado", "Intervalo personalizado")}</option>
             </select>
             <select
@@ -701,9 +701,9 @@ export default function AdminLogsPage() {
                 <div className="mt-3 flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">{t("Shortcuts: `/` search, `R` refresh, `Esc` collapse", "Raccourcis : `/` recherche, `R` rafraichir, `Esc` replier", "Kurzbefehle: `/` suchen, `R` aktualisieren, `Esc` einklappen", "Atajos: `/` buscar, `R` actualizar, `Esc` contraer", "Atalhos: `/` pesquisar, `R` atualizar, `Esc` recolher")}</span>
                   <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" onClick={resetFilters}>{t("Reset", "Reinitialiser", "Zurücksetzen", "Restablecer", "Repor")}</Button>
+                    <Button variant="ghost" size="sm" onClick={resetFilters}>{t("Reset", "R?initialiser", "Zurücksetzen", "Restablecer", "Repor")}</Button>
                     <Button variant="ghost" size="sm" onClick={refreshLogs} disabled={manualRefreshing}>
-                      {manualRefreshing ? t("Refreshing...", "Rafraichissement...", "Wird aktualisiert...", "Actualizando...", "A atualizar...") : t("Refresh", "Rafraichir", "Aktualisieren", "Actualizar", "Atualizar")}
+                      {manualRefreshing ? t("Refreshing...", "Rafra?chissement...", "Wird aktualisiert...", "Actualizando...", "A atualizar...") : t("Refresh", "Rafraichir", "Aktualisieren", "Actualizar", "Atualizar")}
                     </Button>
                   </div>
                 </div>
@@ -781,14 +781,14 @@ export default function AdminLogsPage() {
             </div>
           </details>
           <Button variant="ghost" size="sm" onClick={refreshLogs} disabled={manualRefreshing}>
-            {manualRefreshing ? t("Refreshing...", "Rafraichissement...", "Wird aktualisiert...", "Actualizando...", "A atualizar...") : t("Refresh", "Rafraichir", "Aktualisieren", "Actualizar", "Atualizar")}
+            {manualRefreshing ? t("Refreshing...", "Rafra?chissement...", "Wird aktualisiert...", "Actualizando...", "A atualizar...") : t("Refresh", "Rafraichir", "Aktualisieren", "Actualizar", "Atualizar")}
           </Button>
         </div>
       </section>
 
       {error ? (
         <div className="space-y-2">
-          <Alert variant="error">{t("Failed to load logs. Retry.", "Echec du chargement des journaux. Reessayez.", "Protokolle konnten nicht geladen werden. Erneut versuchen.", "No se pudieron cargar los registros. Reintenta.", "Não foi possivel carregar os registos. Tente novamente.")}</Alert>
+          <Alert variant="error">{t("Failed to load logs. Retry.", "?chec du chargement des journaux. R?essayez.", "Protokolle konnten nicht geladen werden. Erneut versuchen.", "No se pudieron cargar los registros. Reintenta.", "Não foi poss?vel carregar os registos. Tente novamente.")}</Alert>
           <Button variant="secondary" onClick={refreshLogs} disabled={manualRefreshing}>
             {manualRefreshing ? t("Retrying...", "Nouvelle tentative...", "Versuche erneut...", "Reintentando...", "A tentar novamente...") : t("Retry", "Reessayer", "Erneut versuchen", "Reintentar", "Tentar novamente")}
           </Button>
@@ -907,7 +907,7 @@ export default function AdminLogsPage() {
           <div className="flex items-center gap-2">
             <Button variant="ghost" disabled={page <= 1} onClick={() => setPage((prev) => Math.max(1, prev - 1))}>{t("Previous", "Precedent", "Zurueck", "Anterior", "Anterior")}</Button>
             <span className="text-xs text-muted-foreground">
-              {t("Page", "Page", "Seite", "Pagina", "Pagina")} {page}{pageCount ? ` ${t("of", "sur", "von", "de", "de")} ${pageCount}` : ""}
+              {t("Page", "Page", "Seite", "P?gina", "P?gina")} {page}{pageCount ? ` ${t("of", "sur", "von", "de", "de")} ${pageCount}` : ""}
             </span>
             <Button
               variant="ghost"

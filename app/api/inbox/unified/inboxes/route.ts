@@ -8,6 +8,11 @@ import { decryptInboxCredentials } from "@/lib/inbox/channels";
 import { ensureDefaultUnifiedInboxes, requireUnifiedInboxAccess, writeUnifiedAuditEvent } from "@/lib/inbox/unified";
 import { getMailboxOauthProviderAvailability } from "@/lib/mailboxes/oauth";
 import { prisma } from "@/lib/prisma";
+import {
+  canAddWorkspaceConnections,
+  hasDirectEmailInboxConnection,
+  hasWhatsAppInboxConnection,
+} from "@/lib/workspace-connections";
 
 const emailCredentialsSchema = z.object({
   host: z.string().min(1),
@@ -223,6 +228,7 @@ export const PUT = withErrorHandling(async (req: Request) => {
   const nextName = body?.name ? String(body.name).trim() : undefined;
   const nextStatus = body?.status ? String(body.status).trim().toUpperCase() : undefined;
   const credentialsInput = body?.credentials && typeof body.credentials === "object" ? body.credentials : undefined;
+  const currentCredentialsEncrypted = existing.credentialsEncrypted;
   let credentialsEncrypted: string | undefined;
   if (credentialsInput) {
     if (existing.type === "EMAIL") {
@@ -239,6 +245,38 @@ export const PUT = withErrorHandling(async (req: Request) => {
       credentialsEncrypted = encryptInboxSecret(JSON.stringify({ whatsapp: parsed.data }));
     } else {
       return NextResponse.json({ error: "Unsupported inbox type." }, { status: 422 });
+    }
+  }
+
+  const resolvedStatus =
+    nextStatus === "ACTIVE" || nextStatus === "DISCONNECTED" || nextStatus === "ERROR" || nextStatus === "DISABLED"
+      ? nextStatus
+      : existing.status;
+  const nextCredentialsEncrypted = credentialsEncrypted ?? currentCredentialsEncrypted;
+  const currentConsumesConnection =
+    existing.type === "EMAIL"
+      ? hasDirectEmailInboxConnection(currentCredentialsEncrypted, existing.status)
+      : hasWhatsAppInboxConnection(currentCredentialsEncrypted, existing.status);
+  const nextConsumesConnection =
+    existing.type === "EMAIL"
+      ? hasDirectEmailInboxConnection(nextCredentialsEncrypted, resolvedStatus)
+      : hasWhatsAppInboxConnection(nextCredentialsEncrypted, resolvedStatus);
+
+  if (!currentConsumesConnection && nextConsumesConnection) {
+    const connectionCapacity = await canAddWorkspaceConnections({
+      workspaceId: context.orgId,
+      plan: context.orgPlan,
+    });
+    if (!connectionCapacity.ok) {
+      return NextResponse.json(
+        {
+          error: "Workspace connection limit reached.",
+          code: "CONNECTION_LIMIT_REACHED",
+          connectionLimit: connectionCapacity.limit,
+          connectionsUsed: connectionCapacity.used,
+        },
+        { status: 409 }
+      );
     }
   }
 

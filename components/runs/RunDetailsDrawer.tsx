@@ -142,13 +142,13 @@ export function RunDetailsDrawer({
         className="relative ml-auto flex h-full w-full max-w-2xl flex-col bg-background shadow-2xl max-md:max-w-full"
         role="dialog"
         aria-modal="true"
-        aria-label={t("Run log", "Journal d execution")}
+        aria-label={t("Run log", "Journal d ex?cution")}
       >
         <div className="sticky top-0 z-10 border-b border-border bg-background px-6 py-4">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1">
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                {t("Run log", "Journal d execution")}
+                {t("Run log", "Journal d ex?cution")}
               </p>
               <h2 className="text-lg font-semibold text-foreground">
                 {run.flow?.title || t("Flow", "Flux")}

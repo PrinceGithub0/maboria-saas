@@ -3,7 +3,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import { log } from "./logger";
-import { enforceEntitlement, enforceUsageLimit } from "./entitlements";
+import { enforceEntitlement } from "./entitlements";
 import { recordAnalyticsEvent } from "./analytics";
 
 const WHATSAPP_ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN || "";
@@ -307,19 +307,6 @@ export async function notifyInvoiceCreated({
     return;
   }
 
-  const usage = await enforceUsageLimit(userId, "whatsappMessages");
-  if (!usage.ok) {
-    log("info", "whatsapp_send_blocked", {
-      userId,
-      invoiceNumber,
-      reason: "limit_reached",
-      plan: usage.plan,
-      limit: usage.limit,
-      used: usage.used,
-    });
-    return;
-  }
-
   const profile = await prisma.businessProfile.findUnique({ where: { userId } });
   if (!profile?.businessPhone) {
     log("info", "whatsapp_invoice_skipped_no_phone", { userId, invoiceNumber });
@@ -394,19 +381,6 @@ export async function notifyPaymentSucceeded({
       reason: entitlement.reason,
       type: entitlement.type,
       requiredPlan: entitlement.requiredPlan,
-    });
-    return;
-  }
-
-  const usage = await enforceUsageLimit(userId, "whatsappMessages");
-  if (!usage.ok) {
-    log("info", "whatsapp_send_blocked", {
-      userId,
-      reference,
-      reason: "limit_reached",
-      plan: usage.plan,
-      limit: usage.limit,
-      used: usage.used,
     });
     return;
   }

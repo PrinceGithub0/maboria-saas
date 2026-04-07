@@ -70,7 +70,7 @@ export default function DocsPage() {
         </p>
       </section>
       <section>
-        <h2 className="text-xl font-semibold">{t("Deployment steps", "Etapes de deploiement")}</h2>
+        <h2 className="text-xl font-semibold">{t("Deployment steps", "Etapes de d?ploiement")}</h2>
         <ol className="text-sm text-muted-foreground list-decimal pl-4">
           <li>{t("Set env vars from .env.production.example", "Definir les variables .env.production.example")}</li>
           <li>{t("Provision Postgres + run prisma migrate deploy", "Provisionner Postgres + prisma migrate deploy")}</li>

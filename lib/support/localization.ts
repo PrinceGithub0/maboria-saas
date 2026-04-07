@@ -39,7 +39,7 @@ export const SUPPORT_CATEGORY_OPTIONS: Array<{
   },
   {
     value: "account-security",
-    label: { en: "Account & Security", fr: "Compte et sécurité", de: "Konto und Sicherheit", es: "Cuenta y seguridad", pt: "Conta e seguranca" },
+    label: { en: "Account & Security", fr: "Compte et sécurité", de: "Konto und Sicherheit", es: "Cuenta y seguridad", pt: "Conta e seguran?a" },
     aliases: ["account & security", "compte et sécurité", "konto und sicherheit", "cuenta y seguridad", "conta e seguranca"],
   },
   {
@@ -100,7 +100,7 @@ const SUPPORT_SERVER_MESSAGES: Record<string, LocalizedText> = {
     fr: "Espace de travail introuvable.",
     de: "Workspace nicht gefunden.",
     es: "Espacio de trabajo no encontrado.",
-    pt: "Espaco de trabalho não encontrado.",
+    pt: "Espa?o de trabalho não encontrado.",
   },
   "Attachment is invalid or exceeds 5MB.": {
     en: "Attachment is invalid or exceeds 5MB.",
@@ -114,7 +114,7 @@ const SUPPORT_SERVER_MESSAGES: Record<string, LocalizedText> = {
     fr: "Impossible de soumettre le ticket.",
     de: "Ticket konnte nicht gesendet werden.",
     es: "No se pudo enviar el ticket.",
-    pt: "Não foi possivel submeter o ticket.",
+    pt: "Não foi poss?vel submeter o ticket.",
   },
   "Not found": { en: "Not found.", fr: "Introuvable.", de: "Nicht gefunden.", es: "No encontrado.", pt: "Não encontrado." },
   "Subscribers can only reopen tickets.": {
@@ -133,7 +133,7 @@ const SUPPORT_SERVER_MESSAGES: Record<string, LocalizedText> = {
   },
   "Ticket was updated. Refresh and try again.": {
     en: "Ticket was updated. Refresh and try again.",
-    fr: "Le ticket a ?t? mis ? jour. Actualisez et reessayez.",
+    fr: "Le ticket a \u00e9t\u00e9 mis \u00e0 jour. Actualisez et r\u00e9essayez.",
     de: "Das Ticket wurde aktualisiert. Bitte aktualisieren und erneut versuchen.",
     es: "El ticket fue actualizado. Actualiza e intentalo de nuevo.",
     pt: "O ticket foi atualizado. Atualize e tente novamente.",
@@ -147,7 +147,7 @@ const SUPPORT_SERVER_MESSAGES: Record<string, LocalizedText> = {
   },
   "Support is currently disabled.": {
     en: "Support is currently disabled.",
-    fr: "Le support est actuellement desactive.",
+    fr: "Le support est actuellement d?sactiv?.",
     de: "Der Support ist derzeit deaktiviert.",
     es: "El soporte esta desactivado en este momento.",
     pt: "O suporte esta desativado neste momento.",

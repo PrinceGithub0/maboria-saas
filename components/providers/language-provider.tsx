@@ -1,20 +1,34 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createIntl,
+  createIntlCache,
+  RawIntlProvider,
+} from "react-intl";
 import {
   DEFAULT_LANGUAGE,
+  LANGUAGE_LOCALES,
   getLocalizedText,
   type Language,
   type LocalizedText,
   normalizeLanguage,
 } from "@/lib/i18n";
+import {
+  DEFAULT_MESSAGE_CATALOG,
+  getMessageCatalog,
+  type MessageKey,
+  type MessageValues,
+} from "@/lib/i18n-catalog";
 
 const STORAGE_KEY = "maboria_language";
 const COOKIE_KEY = "maboria_language";
+const intlCache = createIntlCache();
 
 type LanguageContextValue = {
   language: Language;
   setLanguage: (language: Language) => void;
+  m: (id: MessageKey, values?: MessageValues) => string;
   t: {
     (text: LocalizedText): string;
     (en: string, fr?: string, de?: string, es?: string, pt?: string): string;
@@ -61,9 +75,44 @@ export function LanguageProvider({ children, initialLanguage }: { children: Reac
   );
   const t = tImpl as LanguageContextValue["t"];
 
-  const value: LanguageContextValue = { language, setLanguage, t };
+  const messages = useMemo(() => getMessageCatalog(language), [language]);
+  const intl = useMemo(
+    () =>
+      createIntl(
+        {
+          locale: LANGUAGE_LOCALES[language],
+          defaultLocale: LANGUAGE_LOCALES.en,
+          messages,
+          onError(error) {
+            if (error.code === "MISSING_TRANSLATION") {
+              return;
+            }
+            console.error(error);
+          },
+        },
+        intlCache
+      ),
+    [language, messages]
+  );
+  const m = useCallback<LanguageContextValue["m"]>(
+    (id, values) =>
+      intl.formatMessage(
+        {
+          id,
+          defaultMessage: DEFAULT_MESSAGE_CATALOG[id],
+        },
+        values
+      ),
+    [intl]
+  );
 
-  return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
+  const value: LanguageContextValue = { language, setLanguage, m, t };
+
+  return (
+    <RawIntlProvider value={intl}>
+      <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>
+    </RawIntlProvider>
+  );
 }
 
 export function useLanguage() {

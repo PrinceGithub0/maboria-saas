@@ -41,11 +41,27 @@ export const automationFlowSchema = z.object({
   status: z.enum(["DRAFT", "ACTIVE", "PAUSED", "ARCHIVED"]).default("DRAFT"),
 });
 
+const optionalInvoiceString = z.preprocess(
+  (value) => {
+    if (typeof value !== "string") return value;
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : undefined;
+  },
+  z.string().optional()
+);
+
 export const invoiceItemSchema = z.object({
   name: z.string(),
   quantity: z.number().positive(),
   price: z.number().nonnegative(),
   description: z.string().optional(),
+  unitCode: optionalInvoiceString,
+  classificationCode: optionalInvoiceString,
+  taxCategory: optionalInvoiceString,
+  taxExemptionReason: optionalInvoiceString,
+  incomeClassification: optionalInvoiceString,
+  taxAmount: z.number().nonnegative().optional(),
+  taxRate: z.number().min(0).max(100).optional(),
 });
 
 const optionalEmail = z.preprocess(
@@ -125,6 +141,8 @@ export const invoiceSchema = z.object({
   customerType: z.enum(["INDIVIDUAL", "BUSINESS"]).optional(),
   customerCompany: optionalString,
   customerTaxId: optionalString,
+  buyerType: z.enum(["B2B", "B2C"]).optional(),
+  supplyType: z.enum(["SAAS", "SERVICES", "GOODS"]).optional(),
   note: optionalString,
   issueDate: z.string().optional(),
   dueDate: z.string().optional(),
@@ -196,6 +214,11 @@ export const businessProfileCreateSchema = z.object({
   country: countryCodeSchema,
   defaultCurrency: z.string().length(3),
   businessAddress: optionalString,
+  addressLine1: optionalString,
+  addressLine2: optionalString,
+  city: optionalString,
+  state: optionalString,
+  postalCode: optionalString,
   businessEmail: requiredEmail,
   businessPhone: requiredE164,
   vatEnabled: z.boolean().optional(),
@@ -210,6 +233,22 @@ export const businessProfileCreateSchema = z.object({
     },
     z.string().min(2).max(64).optional()
   ),
+  registrationNumber: z.preprocess(
+    (value) => {
+      if (typeof value !== "string") return value;
+      const trimmed = value.trim();
+      return trimmed.length ? trimmed : undefined;
+    },
+    z.string().min(2).max(80).optional()
+  ),
+  branchCode: z.preprocess(
+    (value) => {
+      if (typeof value !== "string") return value;
+      const trimmed = value.trim();
+      return trimmed.length ? trimmed : undefined;
+    },
+    z.string().min(1).max(40).optional()
+  ),
 });
 
 export const businessProfileUpdateSchema = z.object({
@@ -217,6 +256,11 @@ export const businessProfileUpdateSchema = z.object({
   country: countryCodeSchema.optional(),
   defaultCurrency: z.string().length(3).optional(),
   businessAddress: optionalString,
+  addressLine1: optionalString,
+  addressLine2: optionalString,
+  city: optionalString,
+  state: optionalString,
+  postalCode: optionalString,
   businessEmail: optionalEmail,
   businessPhone: optionalE164,
   vatEnabled: z.boolean().optional(),
@@ -230,6 +274,22 @@ export const businessProfileUpdateSchema = z.object({
       return trimmed.length ? trimmed : undefined;
     },
     z.string().min(2).max(64).optional()
+  ),
+  registrationNumber: z.preprocess(
+    (value) => {
+      if (typeof value !== "string") return value;
+      const trimmed = value.trim();
+      return trimmed.length ? trimmed : undefined;
+    },
+    z.string().min(2).max(80).optional()
+  ),
+  branchCode: z.preprocess(
+    (value) => {
+      if (typeof value !== "string") return value;
+      const trimmed = value.trim();
+      return trimmed.length ? trimmed : undefined;
+    },
+    z.string().min(1).max(40).optional()
   ),
 });
 
@@ -256,6 +316,29 @@ export const merchantAccountCreateSchema = z.object({
   phone: z.string().trim().min(6),
 });
 
+export const eInvoicingConnectionSchema = z.object({
+  provider: z.enum([
+    "MYINVOIS",
+    "RO_EFACTURA",
+    "MYDATA",
+    "ZATCA",
+    "IT_SDI",
+    "MX_CFDI",
+    "BR_NFE",
+    "CL_DTE",
+    "CO_DIAN",
+    "PE_SUNAT",
+    "HU_NAV",
+    "MD_EFACTURA",
+  ]),
+  country: countryCodeSchema,
+  sandbox: z.boolean().optional(),
+  status: z.enum(["ACTIVE", "DISABLED", "ERROR"]).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+  credentials: z.record(z.string(), z.unknown()).optional(),
+  clearCredentials: z.boolean().optional(),
+});
+
 export const triggerSchema = z.object({
   type: z.string(),
   config: z.record(z.string(), z.any()),
@@ -274,6 +357,9 @@ export const customerCreateSchema = z
     email: z.string().email("Invalid email address"),
     phone: optionalString,
     taxId: optionalString,
+    companyName: optionalString,
+    registrationNumber: optionalString,
+    branchCode: optionalString,
     addressLine1: z.string().trim().min(1, "Address is required"),
     addressLine2: optionalString,
     city: z.string().trim().min(1, "City is required"),

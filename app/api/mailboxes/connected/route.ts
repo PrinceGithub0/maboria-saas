@@ -6,6 +6,7 @@ import { withErrorHandling } from "@/lib/api-handler";
 import { requireOrgPermission } from "@/lib/org-auth";
 import { getConnectedMailboxProvider, isConnectedMailboxProvider, listConnectedMailboxProviders } from "@/lib/mailboxes/provider";
 import { createConnectedMailboxRecord, listConnectedMailboxes } from "@/lib/mailboxes/service";
+import { canAddWorkspaceConnections } from "@/lib/workspace-connections";
 
 export const GET = withErrorHandling(async () => {
   const session = await getServerSession(authOptions);
@@ -55,6 +56,22 @@ export const POST = withErrorHandling(async (req: Request) => {
   }
   if (!emailAddress || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailAddress)) {
     return NextResponse.json({ error: "Valid emailAddress is required." }, { status: 422 });
+  }
+
+  const connectionCapacity = await canAddWorkspaceConnections({
+    workspaceId: access.context.orgId,
+    plan: access.context.orgPlan,
+  });
+  if (!connectionCapacity.ok) {
+    return NextResponse.json(
+      {
+        error: "Workspace connection limit reached.",
+        code: "CONNECTION_LIMIT_REACHED",
+        connectionLimit: connectionCapacity.limit,
+        connectionsUsed: connectionCapacity.used,
+      },
+      { status: 409 }
+    );
   }
 
   try {

@@ -4,7 +4,6 @@ import crypto from "crypto";
 import nodemailer from "nodemailer";
 import { Prisma, UnifiedInbox, UnifiedMessageChannel } from "@prisma/client";
 import { encryptInboxSecret, safeDecryptInboxSecret } from "@/lib/crypto";
-import { enforceUsageLimit } from "@/lib/entitlements";
 import { log } from "@/lib/logger";
 import { sanitizeInboundEmailDisplayText } from "@/lib/inbox/message-format";
 import {
@@ -14,7 +13,7 @@ import {
   sendOauthMailboxEmail,
 } from "@/lib/mailboxes/oauth";
 import { prisma } from "@/lib/prisma";
-import { billingPeriodKey, incrementUnifiedUsageCounter } from "@/lib/inbox/unified";
+import { incrementUnifiedUsageCounter } from "@/lib/inbox/unified";
 
 type DecryptedInboxCredentials = {
   email?: {
@@ -50,6 +49,19 @@ type OutboundChannelResult = {
   errorMessage: string | null;
 };
 
+type OutboundQuotaResult =
+  | { ok: true }
+  | {
+      ok: false;
+      status: number;
+      error: string;
+      details?: {
+        plan?: string | null;
+        used?: number | null;
+        limit?: number | null;
+      };
+    };
+
 type InboxCredentialCarrier = Pick<UnifiedInbox, "id" | "credentialsEncrypted" | "type">;
 
 type OutboundEmailAttachment = {
@@ -76,62 +88,8 @@ export async function ensureOutboundQuota(input: {
   tenantId: string;
   channel: UnifiedMessageChannel;
   orgPlan: string | null;
-}) {
-  if (input.channel === "WHATSAPP") {
-    const quota = await enforceUsageLimit(input.userId, "whatsappMessages");
-    if (!quota.ok) {
-      return {
-        ok: false as const,
-        status: 402,
-        error: "Upgrade required for WhatsApp usage.",
-        details: {
-          plan: quota.plan,
-          used: quota.used,
-          limit: quota.limit,
-        },
-      };
-    }
-    return { ok: true as const };
-  }
-
-  const planKey = String(input.orgPlan || "").toUpperCase();
-  const monthKey = billingPeriodKey(new Date());
-  const usage = await prisma.unifiedUsageCounter.findUnique({
-    where: {
-      tenantId_billingPeriod: {
-        tenantId: input.tenantId,
-        billingPeriod: monthKey,
-      },
-    },
-    select: { emailMessagesSent: true },
-  });
-
-  const limit =
-    planKey === "STARTER"
-      ? 250
-      : planKey === "PRO"
-        ? 2000
-        : planKey === "GROWTH"
-          ? 6000
-          : planKey === "BUSINESS" || planKey === "PREMIUM"
-            ? 15000
-            : planKey === "ENTERPRISE"
-              ? null
-              : 250;
-
-  if (limit !== null && (usage?.emailMessagesSent ?? 0) >= limit) {
-    return {
-      ok: false as const,
-      status: 402,
-      error: "Email message limit reached for this billing period.",
-      details: {
-        plan: planKey || "STARTER",
-        used: usage?.emailMessagesSent ?? 0,
-        limit,
-      },
-    };
-  }
-
+}): Promise<OutboundQuotaResult> {
+  void input;
   return { ok: true as const };
 }
 

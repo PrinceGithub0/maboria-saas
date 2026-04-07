@@ -73,9 +73,9 @@ export function AppShell({
           ? localizeAdminServerMessage(
               error.message,
               language,
-              t("Unable to stop impersonation.", "Impossible d'arreter l'impersonation.", "Identitaetsuebernahme kann nicht beendet werden.", "No se puede detener la suplantacion.", "Nao foi possivel parar a impersonacao.")
+              t("Unable to stop impersonation.", "Impossible d'arreter l'impersonation.", "Identitaetsuebernahme kann nicht beendet werden.", "No se puede detener la suplantacion.", "N?o foi poss?vel parar a impersonacao.")
             )
-          : t("Unable to stop impersonation.", "Impossible d'arreter l'impersonation.", "Identitaetsuebernahme kann nicht beendet werden.", "No se puede detener la suplantacion.", "Nao foi possivel parar a impersonacao.")
+          : t("Unable to stop impersonation.", "Impossible d'arreter l'impersonation.", "Identitaetsuebernahme kann nicht beendet werden.", "No se puede detener la suplantacion.", "N?o foi poss?vel parar a impersonacao.")
       );
       setStoppingImpersonation(false);
     }

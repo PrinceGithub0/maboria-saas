@@ -19,34 +19,31 @@ export function UpgradeModal({
   title?: string;
   description?: string;
 }) {
-  const { t } = useLanguage();
+  const { m } = useLanguage();
+
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title={title ?? t("Upgrade required", "Mise a niveau requise")}
+      title={title ?? m("upgrade.required.title")}
     >
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="success">{t("Plan", "Plan")}</Badge>
+          <Badge variant="success">{m("common.plan")}</Badge>
           <span className="text-sm text-foreground">
-            {t("This feature requires", "Cette fonctionnalite demande")}{" "}
+            {m("upgrade.required.featureRequires")}{" "}
             <span className="font-semibold text-foreground">{requiredPlan.toUpperCase()}</span>.
           </span>
         </div>
         <p className="text-sm text-muted-foreground">
-          {description ??
-            t(
-              "Upgrade your plan to unlock this feature. Your account and data stay the same.",
-              "Ameliorez votre plan pour debloquer cette fonction. Votre compte et vos données restent identiques."
-            )}
+          {description ?? m("upgrade.required.description")}
         </p>
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
           <Button variant="secondary" onClick={onClose}>
-            {t("Not now", "Pas maintenant")}
+            {m("common.notNow")}
           </Button>
           <Link href="/dashboard/subscription" onClick={onClose}>
-            <Button>{t("View plans", "Voir les plans")}</Button>
+            <Button>{m("subscription.viewPlans")}</Button>
           </Link>
         </div>
       </div>

@@ -8,6 +8,7 @@ import {
   UsageFeatureKey,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getWorkspaceConnectionUsage } from "@/lib/workspace-connections";
 import type {
   AdminTenantAccessStatus,
   AdminTenantDetailResponse,
@@ -368,7 +369,7 @@ export async function getAdminTenantDetail(tenantId: string): Promise<AdminTenan
   const periodEnd =
     business.orgSubscription?.currentCycleEndAt || new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
 
-  const [usageByFeature, latestUsageCounter, auditLogs, systemLogs, lastAuditActivity] = await Promise.all([
+  const [usageByFeature, latestUsageCounter, auditLogs, systemLogs, lastAuditActivity, workspaceConnections] = await Promise.all([
     prisma.usageEvent.groupBy({
       by: ["featureKey"],
       where: {
@@ -411,6 +412,7 @@ export async function getAdminTenantDetail(tenantId: string): Promise<AdminTenan
       orderBy: { createdAt: "desc" },
       select: { createdAt: true },
     }),
+    getWorkspaceConnectionUsage(tenantId),
   ]);
 
   const usageMap = new Map<UsageFeatureKey, number>();
@@ -421,8 +423,8 @@ export async function getAdminTenantDetail(tenantId: string): Promise<AdminTenan
   const usageCounters = [
     { feature: "ai_requests", quantity: usageMap.get("AI_REQUESTS") || 0 },
     { feature: "invoices", quantity: usageMap.get("INVOICES") || 0 },
-    { feature: "whatsapp_messages", quantity: usageMap.get("WHATSAPP_MESSAGES") || 0 },
     { feature: "automations_runs", quantity: usageMap.get("AUTOMATIONS_RUNS") || 0 },
+    { feature: "workspace_connections", quantity: workspaceConnections.used },
     { feature: "team_members_seats", quantity: usageMap.get("TEAM_MEMBERS_SEATS") || 0 },
   ];
 
@@ -522,6 +524,7 @@ export async function getAdminTenantDetail(tenantId: string): Promise<AdminTenan
             updatedAt: latestUsageCounter.updatedAt.toISOString(),
           }
         : null,
+      messagingActivityUpdatedAt: latestUsageCounter?.updatedAt?.toISOString() || null,
     },
     billing: {
       provider: business.orgSubscription?.provider || null,

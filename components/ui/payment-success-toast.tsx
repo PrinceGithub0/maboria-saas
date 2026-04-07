@@ -61,7 +61,7 @@ export function PaymentSuccessToast() {
           <p className="font-medium">
             {t(
               "Payment successful",
-              "Paiement reussi",
+              "Paiement r?ussi",
               "Zahlung erfolgreich",
               "Pago correcto",
               "Pagamento bem-sucedido"
@@ -78,7 +78,7 @@ export function PaymentSuccessToast() {
                 )
               : t(
                   "Your payment was successful.",
-                  "Votre paiement est reussi.",
+                  "Votre paiement est r?ussi.",
                   "Deine Zahlung war erfolgreich.",
                   "Tu pago se ha realizado correctamente.",
                   "O seu pagamento foi bem-sucedido."

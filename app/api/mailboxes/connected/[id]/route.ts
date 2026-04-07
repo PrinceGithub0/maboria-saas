@@ -5,6 +5,7 @@ import { withErrorHandling } from "@/lib/api-handler";
 import { requireOrgPermission } from "@/lib/org-auth";
 import { prisma } from "@/lib/prisma";
 import { updateConnectedMailboxStatus } from "@/lib/mailboxes/service";
+import { canAddWorkspaceConnections, mailboxStatusConsumesConnection } from "@/lib/workspace-connections";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -55,6 +56,38 @@ export const PATCH = withErrorHandling(async (req: Request, { params }: Params) 
   const status = String(body?.status || "").trim().toUpperCase();
   if (!["PENDING", "ACTIVE", "DISCONNECTED", "ERROR"].includes(status)) {
     return NextResponse.json({ error: "Valid mailbox status is required." }, { status: 422 });
+  }
+
+  const existing = await prisma.connectedMailbox.findFirst({
+    where: {
+      id,
+      workspaceId: access.context.orgId,
+    },
+    select: {
+      id: true,
+      status: true,
+    },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "Mailbox not found." }, { status: 404 });
+  }
+
+  if (!mailboxStatusConsumesConnection(existing.status) && mailboxStatusConsumesConnection(status)) {
+    const connectionCapacity = await canAddWorkspaceConnections({
+      workspaceId: access.context.orgId,
+      plan: access.context.orgPlan,
+    });
+    if (!connectionCapacity.ok) {
+      return NextResponse.json(
+        {
+          error: "Workspace connection limit reached.",
+          code: "CONNECTION_LIMIT_REACHED",
+          connectionLimit: connectionCapacity.limit,
+          connectionsUsed: connectionCapacity.used,
+        },
+        { status: 409 }
+      );
+    }
   }
 
   const updated = await updateConnectedMailboxStatus({

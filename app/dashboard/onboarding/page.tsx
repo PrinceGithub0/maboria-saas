@@ -41,7 +41,7 @@ function localizeOnboardingError(error: unknown, t: Translate) {
       "Impossible de terminer l onboarding.",
       "Onboarding konnte nicht abgeschlossen werden.",
       "No se pudo completar la incorporacion.",
-      "Não foi possivel concluir a configuração inicial."
+      "Não foi poss?vel concluir a configuração inicial."
     );
   }
 
@@ -71,14 +71,14 @@ function localizeOnboardingError(error: unknown, t: Translate) {
       "Select a supported country.",
       "Sélectionnez un pays pris en charge.",
       "Wähle ein unterstutztes Land aus.",
-      "Selecciona un pais compatible.",
-      "Selecione um pais suportado."
+      "Selecciona un pa?s compatible.",
+      "Selecione um pa?s suportado."
     ),
     "Invalid phone number": t(
       "Enter a valid business phone in international format, for example +14155550123.",
-      "Saisissez un numero professionnel valide au format international, par exemple +14155550123.",
+      "Saisissez un num?ro professionnel valide au format international, par exemple +14155550123.",
       "Gib eine gültige internationale Geschäftstelefonnummer ein, zum Beispiel +14155550123.",
-      "Introduce un telefono comercial valido en formato internacional, por ejemplo +14155550123.",
+      "Introduce un tel?fono comercial valido en formato internacional, por ejemplo +14155550123.",
       "Introduza um telefone comercial valido em formato internacional, por exemplo +14155550123."
     ),
     "Business name too short": t(
@@ -116,7 +116,7 @@ function validateBusinessProfileStep(
   if (!PHONE_PATTERN.test(form.businessPhone.trim())) {
     errors.businessPhone = t(
       "Enter a valid business phone in international format, for example +14155550123.",
-      "Saisissez un numero professionnel valide au format international, par exemple +14155550123."
+      "Saisissez un num?ro professionnel valide au format international, par exemple +14155550123."
     );
   }
 
@@ -162,7 +162,7 @@ export default function OnboardingWizard() {
       title: t("Invoice reminder sequence", "Sequence de rappel de facture"),
       description: t(
         "Open a ready-made overdue reminder in the automation builder.",
-        "Ouvrez un rappel de retard pret a l emploi dans le builder."
+        "Ouvrez un rappel de retard pr?t a l emploi dans le builder."
       ),
     },
     {
@@ -240,7 +240,7 @@ export default function OnboardingWizard() {
           "Impossible de terminer l onboarding.",
           "Onboarding konnte nicht abgeschlossen werden.",
           "No se pudo completar la incorporacion.",
-          "Não foi possivel concluir a configuração inicial."
+          "Não foi poss?vel concluir a configuração inicial."
         )
       );
     } finally {
@@ -283,7 +283,7 @@ export default function OnboardingWizard() {
             />
             <div className="space-y-1">
               <PhoneInput
-                label={t("Business phone", "Telephone entreprise")}
+                label={t("Business phone", "T?l?phone entreprise")}
                 value={form.businessPhone}
                 required
                 locale={language}

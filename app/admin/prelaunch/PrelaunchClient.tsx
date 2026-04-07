@@ -146,13 +146,13 @@ export default function PrelaunchClient() {
               language,
               t(
                 "Failed to run diagnostics.",
-                "Echec du diagnostic.",
+                "?chec du diagnostic.",
                 "Diagnose konnte nicht ausgefuehrt werden.",
-                "No se pudieron ejecutar los diagnosticos.",
-                "Nao foi possivel executar os diagnosticos."
+                "No se pudieron ejecutar los diagn?sticos.",
+                "N?o foi poss?vel executar os diagn?sticos."
               )
             )
-          : t("Failed to run diagnostics.", "Echec du diagnostic.", "Diagnose konnte nicht ausgeführt werden.", "No se pudieron ejecutar los diagnosticos.", "Não foi possivel executar os diagnosticos.")
+          : t("Failed to run diagnostics.", "?chec du diagnostic.", "Diagnose konnte nicht ausgeführt werden.", "No se pudieron ejecutar los diagn?sticos.", "Não foi poss?vel executar os diagn?sticos.")
       );
     } finally {
       setIsRunning(false);
@@ -164,20 +164,20 @@ export default function PrelaunchClient() {
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">{t("Admin", "Admin", "Admin", "Admin", "Admin")}</p>
-          <h1 className="text-3xl font-semibold text-foreground">{t("Pre-Launch Diagnostics", "Diagnostic pre-lancement", "Pre-Launch-Diagnose", "Diagnosticos previos al lanzamiento", "Diagnosticos pre-lancamento")}</h1>
+          <h1 className="text-3xl font-semibold text-foreground">{t("Pre-Launch Diagnostics", "Diagnostic pre-lancement", "Pre-Launch-Diagnose", "Diagn?sticos previos al lanzamiento", "Diagn?sticos pre-lancamento")}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {t("Verify platform readiness before production launch.", "Verifiez la preparation de la plateforme avant le lancement.", "Prüfe die Plattformbereitschaft vor dem Produktionsstart.", "Verifica la preparacion de la plataforma antes del lanzamiento en producción.", "Verifique a prontidao da plataforma antes do lancamento em produção.")}
+            {t("Verify platform readiness before production launch.", "V?rifiez la preparation de la plateforme avant le lancement.", "Prüfe die Plattformbereitschaft vor dem Produktionsstart.", "Verifica la preparacion de la plataforma antes del lanzamiento en producción.", "Verifique a prontidao da plataforma antes do lancamento em produção.")}
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
-            {t("Last run:", "Derniere execution:", "Letzte Ausfuhrung:", "Ultima ejecucion:", "Ultima execucao:")}{" "}
-            {renderLastRunAt ? formatDateTimeDMY(new Date(renderLastRunAt), LANGUAGE_LOCALES[language]) : t("Not available", "Indisponible", "Nicht verfuegbar", "No disponible", "Indisponivel")}{" "}
+            {t("Last run:", "Derni?re ex?cution:", "Letzte Ausfuhrung:", "?ltima ejecuci?n:", "?ltima execu??o:")}{" "}
+            {renderLastRunAt ? formatDateTimeDMY(new Date(renderLastRunAt), LANGUAGE_LOCALES[language]) : t("Not available", "Indisponible", "Nicht verfuegbar", "No disponible", "Indispon?vel")}{" "}
             <span className="mx-2">|</span>
             {t("Triggered by:", "Declenche par:", "Ausgelöst von:", "Iniciado por:", "Acionado por:")} {renderTriggeredBy || t("Unknown", "Inconnu", "Unbekannt", "Desconocido", "Desconhecido")}
           </p>
         </div>
         <Button type="button" onClick={runChecks} disabled={isValidating || isRunning} loading={isRunning}>
           {isRunning
-            ? t("Running diagnostics...", "Diagnostic en cours...", "Diagnose lauft...", "Ejecutando diagnosticos...", "A executar diagnosticos...")
+            ? t("Running diagnostics...", "Diagnostic en cours...", "Diagnose lauft...", "Ejecutando diagn?sticos...", "A executar diagn?sticos...")
             : t("Run checks", "Lancer les controles", "Prufungen ausfuhren", "Ejecutar comprobaciones", "Executar verificacoes")}
         </Button>
       </header>
@@ -185,7 +185,7 @@ export default function PrelaunchClient() {
       {error ? (
         <Alert variant="error">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <span>{t("Failed to load diagnostics.", "Echec du chargement du diagnostic.", "Diagnose konnte nicht geladen werden.", "No se pudieron cargar los diagnosticos.", "Não foi possivel carregar os diagnosticos.")}</span>
+            <span>{t("Failed to load diagnostics.", "?chec du chargement du diagnostic.", "Diagnose konnte nicht geladen werden.", "No se pudieron cargar los diagn?sticos.", "Não foi poss?vel carregar os diagn?sticos.")}</span>
             <Button size="sm" variant="secondary" onClick={() => void mutate()}>
               {t("Retry", "Reessayer", "Erneut versuchen", "Reintentar", "Tentar novamente")}
             </Button>
@@ -193,7 +193,7 @@ export default function PrelaunchClient() {
         </Alert>
       ) : null}
 
-      <Card title={t("System Diagnostics", "Diagnostic systeme", "Systemdiagnose", "Diagnosticos del sistema", "Diagnosticos do sistema")}>
+      <Card title={t("System Diagnostics", "Diagnostic systeme", "Systemdiagnose", "Diagn?sticos del sistema", "Diagn?sticos do sistema")}>
         {isLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 7 }).map((_, index) => (
@@ -208,7 +208,7 @@ export default function PrelaunchClient() {
               }`}
             >
               {normalized.checks.length === 0 ? (
-                <p className="text-slate-500 dark:text-slate-300">{t("No diagnostics available.", "Aucun diagnostic disponible.", "Keine Diagnose verfügbar.", "No hay diagnosticos disponibles.", "Não ha diagnosticos disponiveis.")}</p>
+                <p className="text-slate-500 dark:text-slate-300">{t("No diagnostics available.", "Aucun diagnostic disponible.", "Keine Diagnose verfügbar.", "No hay diagn?sticos disponibles.", "Não ha diagn?sticos dispon?veis.")}</p>
               ) : (
                 <ul className="space-y-1.5">
                   {normalized.checks.map((check) => (

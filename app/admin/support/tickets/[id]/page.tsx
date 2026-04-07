@@ -808,7 +808,7 @@ export default function AdminSupportTicketDetailPage() {
                       language,
                       t(
                         "Support action failed.",
-                        "L'action de support a echoue.",
+                        "L'action de support a ?chou?.",
                         "Support-Aktion fehlgeschlagen.",
                         "La accion de soporte fallo.",
                         "A acao de suporte falhou."
@@ -841,7 +841,7 @@ export default function AdminSupportTicketDetailPage() {
                   "Impossible de charger le detail du ticket.",
                   "Ticketdetails konnten nicht geladen werden.",
                   "No se pudo cargar el detalle del ticket.",
-                  "Não foi possivel carregar o detalhe do ticket."
+                  "Não foi poss?vel carregar o detalhe do ticket."
                 )
             )}
           </Alert>
@@ -1193,7 +1193,7 @@ export default function AdminSupportTicketDetailPage() {
                     onChange={(event) => void setStatus(event.target.value as TicketStatus)}
                     disabled={saving === "status"}
                     className={FILTER_SELECT_CLASS}
-                    aria-label={t("Update ticket status", "Mettre a jour le statut du ticket", "Ticketstatus aktualisieren", "Actualizar estado del ticket", "Atualizar estado do ticket")}
+                    aria-label={t("Update ticket status", "Mettre ? jour le statut du ticket", "Ticketstatus aktualisieren", "Actualizar estado del ticket", "Atualizar estado do ticket")}
                   >
                     <option value="OPEN">{t("Open", "Ouvert", "Offen", "Abierto", "Aberto")}</option>
                     <option value="PENDING">{t("Pending", "En attente", "Ausstehend", "Pendiente", "Pendente")}</option>
@@ -1210,7 +1210,7 @@ export default function AdminSupportTicketDetailPage() {
                     onChange={(event) => void setPriority(event.target.value as TicketPriority)}
                     disabled={saving === "priority"}
                     className={FILTER_SELECT_CLASS}
-                    aria-label={t("Update ticket priority", "Mettre a jour la priorité du ticket", "Ticketprioritat aktualisieren", "Actualizar prioridad del ticket", "Atualizar prioridade do ticket")}
+                    aria-label={t("Update ticket priority", "Mettre ? jour la priorité du ticket", "Ticketprioritat aktualisieren", "Actualizar prioridad del ticket", "Atualizar prioridade do ticket")}
                   >
                     <option value="LOW">{t("Low", "Bas", "Niedrig", "Baja", "Baixa")}</option>
                     <option value="MEDIUM">{t("Medium", "Moyen", "Mittel", "Media", "Media")}</option>
@@ -1249,7 +1249,7 @@ export default function AdminSupportTicketDetailPage() {
                     {t("Ticket metadata", "Metadonnees du ticket", "Ticket-Metadaten", "Metadatos del ticket", "Metadados do ticket")}
                   </p>
                   <p className="text-muted-foreground">
-                    {t("Updated", "Mis a jour", "Aktualisiert", "Actualizado", "Atualizado")} {formatDateTimeDMY(new Date(ticket.lastActivityAt), LANGUAGE_LOCALES[language])}
+                    {t("Updated", "Mis ? jour", "Aktualisiert", "Actualizado", "Atualizado")} {formatDateTimeDMY(new Date(ticket.lastActivityAt), LANGUAGE_LOCALES[language])}
                   </p>
                   <p className="text-muted-foreground">
                     {t("First response", "Premiere réponse", "Erste Antwort", "Primera respuesta", "Primeira resposta")}{" "}
@@ -1302,7 +1302,7 @@ export default function AdminSupportTicketDetailPage() {
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">
-                      {t("SLA not available.", "SLA indisponible.", "SLA nicht verfügbar.", "SLA no disponible.", "SLA indisponivel.")}
+                      {t("SLA not available.", "SLA indisponible.", "SLA nicht verfügbar.", "SLA no disponible.", "SLA indispon?vel.")}
                     </p>
                   )}
                 </div>

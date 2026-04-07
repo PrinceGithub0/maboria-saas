@@ -107,7 +107,7 @@ export function Navbar({ role }: { role?: string }) {
       Automations: t("Automations", "Automatisations"),
       AutomationOperations: t("Automation Operations", "Operations automatisation"),
       "AI Assistant": t("AI Assistant", "Assistant IA"),
-      Inbox: t("Inbox", "Boite de reception"),
+      Inbox: t("Inbox", "Bo?te de reception"),
       Team: t("Team", "équipe"),
       Invoices: t("Invoices", "Factures"),
       Customers: t("Customers", "Clients"),
@@ -464,7 +464,7 @@ export function Navbar({ role }: { role?: string }) {
           >
             <button
               className="absolute inset-0 z-0 bg-slate-950/60 backdrop-blur-sm"
-              aria-label={t("Close navigation", "Fermer la navigation", "Navigation schliessen", "Cerrar navegacion", "Fechar navegacao")}
+              aria-label={t("Close navigation", "Fermer la navigation", "Navigation schließen", "Cerrar navegación", "Fechar navegação")}
               onClick={() => setMenuOpen(false)}
             />
             <motion.aside
@@ -486,7 +486,7 @@ export function Navbar({ role }: { role?: string }) {
                 </div>
                 <button
                   className="rounded-lg border border-border bg-card p-1.5 text-muted-foreground hover:bg-muted"
-                  aria-label={t("Close menu", "Fermer le menu", "Menue schliessen", "Cerrar menu", "Fechar menu")}
+                  aria-label={t("Close menu", "Fermer le menu", "Menü schließen", "Cerrar menú", "Fechar menu")}
                   onClick={() => setMenuOpen(false)}
                 >
                   <X className="h-4 w-4" />
@@ -526,4 +526,3 @@ export function Navbar({ role }: { role?: string }) {
     </>
   );
 }
-

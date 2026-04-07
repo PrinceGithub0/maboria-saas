@@ -217,7 +217,7 @@ export default function AdminSupportPage() {
   const priorityOptions = PRIORITY_OPTIONS.map((value) => ({ value, label: priorityLabel(value) }));
   const sortLabel = (value: (typeof SORT_OPTIONS)[number]) => {
     if (value === "OLDEST") return t("Oldest", "Plus ancien", "Alteste", "Mas antiguo", "Mais antigo");
-    if (value === "LAST_UPDATED") return t("Last updated", "Derniere mise a jour", "Zuletzt aktualisiert", "Ultima actualizacion", "Ultima atualizacao");
+    if (value === "LAST_UPDATED") return t("Last updated", "Derni?re mise ? jour", "Zuletzt aktualisiert", "?ltima actualizacion", "?ltima atualiza??o");
     return t("Newest", "Plus recent", "Neueste", "Mas reciente", "Mais recente");
   };
   const sortOptions = SORT_OPTIONS.map((value) => ({ value, label: sortLabel(value) }));
@@ -243,7 +243,7 @@ export default function AdminSupportPage() {
                 "Impossible de charger les tickets de support.",
                 "Support-Tickets konnten nicht geladen werden.",
                 "No se pudieron cargar los tickets de soporte.",
-                "Não foi possivel carregar os tickets de suporte."
+                "Não foi poss?vel carregar os tickets de suporte."
               )
           )}
         </Alert>
@@ -360,7 +360,7 @@ export default function AdminSupportPage() {
                   "Aucun apercu du message disponible.",
                   "Keine Nachrichtenvorschau verfuegbar.",
                   "No hay vista previa del mensaje.",
-                  "Nenhuma pre-visualizacao da mensagem disponivel."
+                  "Nenhuma pre-visualiza??o da mensagem dispon?vel."
                 );
               const rowHref = `/admin/support/tickets/${ticket.id}${queryString ? `?${queryString}` : ""}`;
               return (
@@ -406,7 +406,7 @@ export default function AdminSupportPage() {
 
         <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3 dark:border-border/70">
           <p className="text-xs text-muted-foreground">
-            {t("Page", "Page", "Seite", "Pagina", "Pagina")} {pagination?.page || 1} {t("of", "sur", "von", "de", "de")} {pagination?.totalPages || 1}
+            {t("Page", "Page", "Seite", "P?gina", "P?gina")} {pagination?.page || 1} {t("of", "sur", "von", "de", "de")} {pagination?.totalPages || 1}
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -414,7 +414,7 @@ export default function AdminSupportPage() {
               size="sm"
               disabled={!pagination?.hasPreviousPage}
               onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-              aria-label={t("Previous support tickets page", "Page précédente des tickets", "Vorherige Support-Ticket-Seite", "Pagina anterior de tickets de soporte", "Pagina anterior dos tickets de suporte")}
+              aria-label={t("Previous support tickets page", "Page précédente des tickets", "Vorherige Support-Ticket-Seite", "P?gina anterior de tickets de soporte", "P?gina anterior dos tickets de suporte")}
             >
               {t("Previous", "Precedent", "Zurück", "Anterior", "Anterior")}
             </Button>
@@ -423,7 +423,7 @@ export default function AdminSupportPage() {
               size="sm"
               disabled={!pagination?.hasNextPage}
               onClick={() => setPage((prev) => prev + 1)}
-              aria-label={t("Next support tickets page", "Page suivante des tickets", "Nächste Support-Ticket-Seite", "Pagina siguiente de tickets de soporte", "Pagina seguinte dos tickets de suporte")}
+              aria-label={t("Next support tickets page", "Page suivante des tickets", "Nächste Support-Ticket-Seite", "P?gina siguiente de tickets de soporte", "P?gina seguinte dos tickets de suporte")}
             >
               {t("Next", "Suivant", "Weiter", "Siguiente", "Seguinte")}
             </Button>

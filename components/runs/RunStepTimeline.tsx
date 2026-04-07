@@ -228,8 +228,8 @@ export function RunStepTimeline({
                     className="text-xs font-semibold text-indigo-600 hover:text-indigo-500"
                   >
                     {isExpanded
-                      ? t("Hide details", "Masquer details")
-                      : t("Show details", "Afficher details")}
+                      ? t("Hide details", "Masquer d?tails")
+                      : t("Show details", "Afficher d?tails")}
                   </button>
                 )}
 

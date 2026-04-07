@@ -25,9 +25,9 @@ const CREATE_SUPER_ADMIN_ACTION = "CREATE_SUPER_ADMIN";
 const PLAN_SEAT_LIMITS: Record<string, number | null> = {
   STARTER: 1,
   PRO: 3,
-  GROWTH: 5,
-  BUSINESS: 10,
-  PREMIUM: 10,
+  GROWTH: 8,
+  BUSINESS: 15,
+  PREMIUM: 15,
   ENTERPRISE: null,
 };
 

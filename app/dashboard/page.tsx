@@ -47,7 +47,7 @@ export default async function DashboardPage({
           ? access.message === "Organization access has been disabled."
             ? localize({
                 en: "Organization access has been disabled.",
-                fr: "L accès à l'organisation a ?t? desactive.",
+                fr: "L'acc\u00e8s \u00e0 l'organisation a \u00e9t\u00e9 d\u00e9sactiv\u00e9.",
                 de: "Der Organisationszugriff wurde deaktiviert.",
                 es: "El acceso a la organización ha sido deshabilitado.",
                 pt: "O acesso a organização foi desativado.",

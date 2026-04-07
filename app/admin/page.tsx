@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
@@ -170,7 +170,7 @@ function buildRiskItems(
       id: "webhook",
       title: t("Webhook retry spike detected", "Pic de nouvelles tentatives webhook detecte", "Anstieg bei Webhook-Wiederholungen erkannt", "Pico de reintentos de webhook detectado", "Pico de repeticoes de webhook detetado"),
       severity: input.webhookFailures24h >= 10 ? "HIGH" : "MEDIUM",
-      context: `${metricText(input.webhookFailures24h)} ${t("failures in the last 24 hours.", "echecs au cours des dernieres 24 heures.", "Fehler in den letzten 24 Stunden.", "fallos en las ultimas 24 horas.", "falhas nas ultimas 24 horas.")}`,
+      context: `${metricText(input.webhookFailures24h)} ${t("failures in the last 24 hours.", "echecs au cours des dernieres 24 heures.", "Fehler in den letzten 24 Stunden.", "fallos en las ?ltimas 24 horas.", "falhas nas ultimas 24 horas.")}`,
       href: "/admin/logs",
     });
   }
@@ -188,7 +188,7 @@ function buildRiskItems(
       id: "payments",
       title: t("Failed subscription payments rising", "Les paiements d'abonnement échoués augmentent", "Fehlgeschlagene Abo-Zahlungen nehmen zu", "Los pagos fallidos de suscripciones aumentan", "Os pagamentos falhados de subscricoes estão a aumentar"),
       severity: input.failedPayments30d >= 20 ? "HIGH" : "MEDIUM",
-      context: `${metricText(input.failedPayments30d)} ${t("failed subscription charges in 30 days.", "paiements d'abonnement échoués en 30 jours.", "fehlgeschlagene Abo-Belastungen in 30 Tagen.", "cobros fallidos de suscripciones en 30 dias.", "cobrancas falhadas de subscricoes em 30 dias.")}`,
+      context: `${metricText(input.failedPayments30d)} ${t("failed subscription charges in 30 days.", "paiements d'abonnement échoués en 30 jours.", "fehlgeschlagene Abo-Belastungen in 30 Tagen.", "cobros fallidos de suscripciones en 30 d?as.", "cobrancas falhadas de subscricoes em 30 dias.")}`,
       href: "/admin/users",
     });
   }
@@ -647,6 +647,30 @@ export default async function AdminPage({
       {hasHighRisk ? riskSection : null}
 
       <section className="rounded-2xl border border-border/70 bg-card p-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">
+              {t("Invoicing readiness", "Preparation facturation", "Rechnungsbereitschaft", "Preparacion de facturacion", "Prontidao de faturacao")}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {t(
+                "Review launch state, legal evidence coverage, and e-invoicing blockers by country.",
+                "Examinez l etat de lancement, la couverture des sources juridiques et les blocages e-facturation par pays.",
+                "Pruefe Launch-Status, juristische Quellenabdeckung und E-Rechnungsblocker pro Land.",
+                "Revisa el estado de lanzamiento, la cobertura legal y los bloqueos de facturacion electronica por pais.",
+                "Reveja o estado de lancamento, a cobertura juridica e os bloqueios de faturacao eletronica por pais."
+              )}
+            </p>
+          </div>
+          <Link href="/admin/invoicing-readiness">
+            <Button size="sm" variant="secondary">
+              {t("Open Readiness Matrix", "Ouvrir la matrice", "Matrix oeffnen", "Abrir matriz", "Abrir matriz")}
+            </Button>
+          </Link>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-border/70 bg-card p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-foreground">{t("Revenue snapshot", "Aperçu des revenus", "Umsatzueberblick", "Resumen de ingresos", "Resumo da receita")}</h2>
@@ -675,7 +699,7 @@ export default async function AdminPage({
             <p className="mt-1 text-2xl font-semibold text-foreground">{formatCurrency(currentMrrRevenue, "USD")}</p>
           </div>
           <div className="text-center">
-            <p className="text-xs uppercase leading-5 tracking-[0.1em] text-muted-foreground break-words">{t("30-day growth", "Croissance sur 30 jours", "30-Tage-Wachstum", "Crecimiento de 30 dias", "Crescimento de 30 dias")}</p>
+            <p className="text-xs uppercase leading-5 tracking-[0.1em] text-muted-foreground break-words">{t("30-day growth", "Croissance sur 30 jours", "30-Tage-Wachstum", "Crecimiento de 30 d?as", "Crescimento de 30 dias")}</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{toPercent(growth30d)}</p>
           </div>
           <div className="text-center">
@@ -743,7 +767,7 @@ export default async function AdminPage({
               <span className="font-semibold text-foreground">{metricText(pendingRenewalsNow)}</span>
             </div>
             <div className="flex items-center justify-between border-b border-border/50 pb-2">
-              <span className="text-muted-foreground">{t("Succeeded (24h)", "Reussi (24h)", "Erfolgreich (24h)", "Exitosos (24h)", "Concluidos (24h)")}</span>
+              <span className="text-muted-foreground">{t("Succeeded (24h)", "R?ussi (24h)", "Erfolgreich (24h)", "Exitosos (24h)", "Concluidos (24h)")}</span>
               <span className="font-semibold text-foreground">{metricText(successfulRenewals24h)}</span>
             </div>
             <div className="flex items-center justify-between border-b border-border/50 pb-2">
@@ -751,11 +775,11 @@ export default async function AdminPage({
               <span className="font-semibold text-foreground">{metricText(failedRenewals24h)}</span>
             </div>
             <div className="rounded-xl border border-border/60 bg-muted/15 px-4 py-3">
-              <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("Last processor run", "Derniere execution du processeur", "Letzter Prozesslauf", "Ultima ejecucion del procesador", "Ultima execucao do processador")}</p>
+              <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("Last processor run", "Derni?re ex?cution du processeur", "Letzter Prozesslauf", "?ltima ejecuci?n del procesador", "?ltima execu??o do processador")}</p>
               <p className="mt-2 text-sm font-semibold text-foreground">
                 {latestRenewalProcessorRun?.timestamp
                   ? formatDateTimeDMY(latestRenewalProcessorRun.timestamp, LANGUAGE_LOCALES[language])
-                  : t("No renewal job run recorded yet", "Aucune execution du job de renouvellement enregistree pour l'instant", "Noch kein Lauf des Verlaengerungsjobs aufgezeichnet", "Aún no hay ejecuciones registradas del proceso de renovacion", "Ainda não ha execucoes registadas do processo de renovacao")}
+                  : t("No renewal job run recorded yet", "Aucune ex?cution du job de renouvellement enregistree pour l'instant", "Noch kein Lauf des Verlaengerungsjobs aufgezeichnet", "Aún no hay ejecuciones registradas del proceso de renovacion", "Ainda não ha execucoes registadas do processo de renovacao")}
               </p>
               {latestRenewalProcessorRun?.timestamp ? (
                 <p className="mt-2 text-xs text-muted-foreground">
@@ -801,4 +825,3 @@ export default async function AdminPage({
     </div>
   );
 }
-

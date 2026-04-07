@@ -69,10 +69,10 @@ export function getSeatLimitForPlan(plan: SubscriptionPlan | null) {
     case "PRO":
       return 3;
     case "GROWTH":
-      return 5;
+      return 8;
     case "BUSINESS":
     case "PREMIUM":
-      return 10;
+      return 15;
     case "ENTERPRISE":
       return null;
     default:

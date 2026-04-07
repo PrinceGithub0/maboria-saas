@@ -12,7 +12,7 @@ const ADMIN_SERVER_MESSAGES: Array<{ match: RegExp; label: AdminLocalizedText }>
       fr: "Impossible de charger les données d'administration pour le moment.",
       de: "Administrationsdaten können derzeit nicht geladen werden.",
       es: "No se pueden cargar los datos de administración en este momento.",
-      pt: "Não foi possivel carregar os dados de administração neste momento.",
+      pt: "Não foi poss?vel carregar os dados de administração neste momento.",
     },
   },
   {
@@ -32,17 +32,17 @@ const ADMIN_SERVER_MESSAGES: Array<{ match: RegExp; label: AdminLocalizedText }>
       fr: "L'action d'administration n'a pas pu être terminée.",
       de: "Die Admin-Aktion konnte nicht abgeschlossen werden.",
       es: "No se pudo completar la acción de administración.",
-      pt: "Não foi possivel concluir a ação de administração.",
+      pt: "Não foi poss?vel concluir a ação de administração.",
     },
   },
   {
     match: /retry/i,
     label: {
       en: "The operation did not succeed. Please try again.",
-      fr: "L'operation n'a pas reussi. Veuillez réessayer.",
+      fr: "L'operation n'a pas r?ussi. Veuillez réessayer.",
       de: "Der Vorgang war nicht erfolgreich. Bitte versuche es erneut.",
       es: "La operación no se completo. Intentalo de nuevo.",
-      pt: "A operacao não foi concluida. Tente novamente.",
+      pt: "A operacao não foi conclu?da. Tente novamente.",
     },
   },
 ];
@@ -268,7 +268,7 @@ export function localizeAdminStatus(value: string | null | undefined, language: 
   const normalized = String(value || "").trim().toUpperCase();
   const map: Record<string, AdminLocalizedText> = {
     ACTIVE: { en: "Active", fr: "Actif", de: "Aktiv", es: "Activo", pt: "Ativo" },
-    DISABLED: { en: "Disabled", fr: "Desactive", de: "Deaktiviert", es: "Desactivado", pt: "Desativado" },
+    DISABLED: { en: "Disabled", fr: "D?sactiv?", de: "Deaktiviert", es: "Desactivado", pt: "Desativado" },
     SUSPENDED: { en: "Suspended", fr: "Suspendu", de: "Gesperrt", es: "Suspendido", pt: "Suspenso" },
     PENDING: { en: "Pending", fr: "En attente", de: "Ausstehend", es: "Pendiente", pt: "Pendente" },
     RESOLVED: { en: "Resolved", fr: "Résolue", de: "Geloest", es: "Resuelta", pt: "Resolvida" },

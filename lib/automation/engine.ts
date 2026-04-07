@@ -28,6 +28,7 @@ import { logUserActivity } from "../user-activity";
 import { emitSystemEvent } from "../system-events";
 import { isAutomationTriggerMetadataStep } from "./step-kind";
 import { getOrCreateInvoicePublicLink } from "../invoice-public-link";
+import { resolveCustomerContactPolicy } from "../customers/compliance";
 
 type Context = Record<string, any>;
 type ExecuteAutomationMeta = {
@@ -916,6 +917,10 @@ export async function executeAutomationRun(
             email: true,
             phone: true,
             deliveryPreference: true,
+            emailOptOut: true,
+            whatsappOptOut: true,
+            processingRestrictedAt: true,
+            erasedAt: true,
           },
         },
       },
@@ -1547,6 +1552,10 @@ export async function executeAutomationRun(
               invoiceContext?.customer &&
               business
             ) {
+              const contactPolicy = resolveCustomerContactPolicy(invoiceContext.customer);
+              if (!contactPolicy.shouldEmail) {
+                throw new Error(contactPolicy.blockedReason || "Customer contact policy blocks email delivery.");
+              }
               await sendInvoiceEmailToCustomer(
                 invoiceContext.invoice,
                 business,
@@ -1568,6 +1577,12 @@ export async function executeAutomationRun(
               context.input?.invoice?.customerEmail,
               invoiceContext?.customer?.email
             );
+            if (invoiceContext?.customer && to === String(invoiceContext.customer.email || "").trim()) {
+              const contactPolicy = resolveCustomerContactPolicy(invoiceContext.customer);
+              if (!contactPolicy.shouldEmail) {
+                throw new Error(contactPolicy.blockedReason || "Customer contact policy blocks email delivery.");
+              }
+            }
             if (!to) {
               pushLog({ stepIndex, step: stepType, skipped: true, reason: "Missing recipient email" });
               break;
@@ -1663,6 +1678,14 @@ export async function executeAutomationRun(
               context.input?.invoice?.customerPhone,
               invoiceContext?.customer?.phone
             );
+            if (invoiceContext?.customer && to === String(invoiceContext.customer.phone || "").trim()) {
+              const contactPolicy = resolveCustomerContactPolicy(invoiceContext.customer);
+              if (!contactPolicy.shouldWhatsapp) {
+                throw new Error(
+                  contactPolicy.blockedReason || "Customer contact policy blocks WhatsApp delivery."
+                );
+              }
+            }
             const text =
               pickFirstString(config.text) ||
               buildAutomationWhatsAppText({

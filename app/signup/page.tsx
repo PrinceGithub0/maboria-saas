@@ -82,7 +82,7 @@ export default function SignupPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(localizeServerMessage(data.error, language, t("Signup failed", "Echec de l inscription")));
+        setError(localizeServerMessage(data.error, language, t("Signup failed", "?chec de l inscription")));
         return;
       }
       setUserId(data.userId || null);
@@ -102,7 +102,7 @@ export default function SignupPage() {
         setError(
           t(
             "Account created, but sign-in failed. Please sign in to continue.",
-            "Compte cree, mais connexion échouée. Veuillez vous connecter."
+            "Compte cr?e, mais connexion échouée. Veuillez vous connecter."
           )
         );
         return;
@@ -112,7 +112,7 @@ export default function SignupPage() {
         setError(
           t(
             "Account created, but the session cookie was not set. Check NEXTAUTH_URL and your browser URL, then sign in again.",
-            "Compte cree, mais le cookie de session n'a pas ?t? defini. Verifiez NEXTAUTH_URL et l URL du navigateur, puis reconnectez-vous."
+            "Compte cr\u00e9\u00e9, mais le cookie de session n'a pas \u00e9t\u00e9 d\u00e9fini. V\u00e9rifiez NEXTAUTH_URL et l'URL du navigateur, puis reconnectez-vous."
           )
         );
         return;
@@ -122,7 +122,7 @@ export default function SignupPage() {
         setError(
           t(
             "Account created, but the session is empty. Check NEXTAUTH_URL, clear cookies, then sign in again.",
-            "Compte cree, mais la session est vide. Verifiez NEXTAUTH_URL, supprimez les cookies, puis reconnectez-vous."
+            "Compte cr?e, mais la session est vide. V?rifiez NEXTAUTH_URL, supprimez les cookies, puis reconnectez-vous."
           )
         );
         return;
@@ -135,7 +135,7 @@ export default function SignupPage() {
       setError(
         t(
           "Signup succeeded, but automatic sign-in failed. Please sign in to continue.",
-          "Inscription reussie, mais connexion automatique échouée. Veuillez vous connecter."
+          "Inscription r?ussie, mais connexion automatique échouée. Veuillez vous connecter."
         )
       );
     } finally {
@@ -178,7 +178,7 @@ export default function SignupPage() {
                 <p className="max-w-lg text-base leading-8 text-slate-600">
                   {t(
                     "This workspace access is separate from the normal subscriber signup flow. Create your account here and your invite will be attached automatically.",
-                    "Cet accès à l'espace est distinct du flux d inscription normal des abonnes. Creez votre compte ici et votre invitation sera rattachee automatiquement."
+                    "Cet accès à l'espace est distinct du flux d inscription normal des abonnes. Cr?ez votre compte ici et votre invitation sera rattachee automatiquement."
                   )}
                 </p>
               </div>
@@ -223,7 +223,7 @@ export default function SignupPage() {
               <div className="space-y-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">MABORIA</p>
                 <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-                  {t("Create your account", "Creez votre compte")}
+                  {t("Create your account", "Cr?ez votre compte")}
                 </h1>
                 <p className="text-sm text-muted-foreground">
                   {t(
@@ -236,7 +236,7 @@ export default function SignupPage() {
 
             {error && (
               <Alert className="mt-5" variant="error">
-                {localizeServerMessage(error, language, t("Signup failed", "Echec de l inscription"))}
+                {localizeServerMessage(error, language, t("Signup failed", "?chec de l inscription"))}
               </Alert>
             )}
             {success && (
@@ -389,7 +389,7 @@ export default function SignupPage() {
                 <p className="mt-2 text-sm leading-6 text-slate-600">
                   {t(
                     "Create your account to accept this invite. No subscription checkout is required for invited teammates.",
-                    "Creez votre compte pour accepter cette invitation. Aucun paiement d abonnement n est requis pour les membres invites."
+                    "Cr?ez votre compte pour accepter cette invitation. Aucun paiement d abonnement n est requis pour les membres invites."
                   )}
                 </p>
               </div>
@@ -428,7 +428,7 @@ export default function SignupPage() {
             <Alert variant="error">
               {t(
                 "This invite opened without its secure token. Do not continue with a normal signup. Open the latest invite email or ask for a resend.",
-                "Cette invitation s est ouverte sans son jeton securise. Ne poursuivez pas une inscription normale. Ouvrez le dernier email d invitation ou demandez un renvoi."
+                "Cette invitation s est ouverte sans son jeton s?curis?. Ne poursuivez pas une inscription normale. Ouvrez le dernier email d invitation ou demandez un renvoi."
               )}
             </Alert>
           ) : null}
@@ -484,7 +484,7 @@ export default function SignupPage() {
                 type={showPassword ? "text" : "password"}
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
-                placeholder={t("Create a secure password", "Creez un mot de passe securise")}
+                placeholder={t("Create a secure password", "Cr?ez un mot de passe s?curis?")}
                 autoComplete="new-password"
                 className="h-11 w-full rounded-lg border border-input bg-background pl-10 pr-10 text-foreground placeholder:text-muted-foreground focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-300/40"
                 minLength={MIN_PASSWORD_LENGTH}
@@ -505,7 +505,7 @@ export default function SignupPage() {
           <p className="text-xs text-muted-foreground">
             {t(
               "Secure sign up. Two-factor authentication (2FA) can be enabled after sign-in from Settings.",
-              "Inscription securisee. L authentification 2FA peut être activee apres connexion dans Paramêtres."
+              "Inscription s?curis?e. L authentification 2FA peut être activee apres connexion dans Paramêtres."
             )}
           </p>
 

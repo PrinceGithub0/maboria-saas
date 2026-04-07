@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
@@ -40,6 +40,41 @@ export default function LoginPage() {
     }
   }, [email, inviteEmail]);
 
+  const resolveLoginFailureMessage = (caught: unknown) => {
+    const message = caught instanceof Error ? caught.message.trim() : "";
+    if (!message) {
+      return t("Sign in failed. Please try again.", "Connexion échouée. Réessayez.");
+    }
+
+    const normalized = message.toLowerCase();
+    if (
+      normalized.includes("failed to fetch") ||
+      normalized.includes("fetch failed") ||
+      normalized.includes("networkerror") ||
+      normalized.includes("load failed")
+    ) {
+      return t({
+        en: "The sign-in request could not reach the auth endpoint. If you are using a tunnel or custom dev URL, make sure NEXTAUTH_URL and APP_URL match the browser URL.",
+        fr: "La requete de connexion n'a pas pu joindre l'endpoint d'authentification. Si vous utilisez un tunnel ou une URL de dev personnalisee, v?rifiez que NEXTAUTH_URL et APP_URL correspondent a l'URL du navigateur.",
+        de: "The sign-in request could not reach the auth endpoint. If you are using a tunnel or custom dev URL, make sure NEXTAUTH_URL and APP_URL match the browser URL.",
+        es: "The sign-in request could not reach the auth endpoint. If you are using a tunnel or custom dev URL, make sure NEXTAUTH_URL and APP_URL match the browser URL.",
+        pt: "The sign-in request could not reach the auth endpoint. If you are using a tunnel or custom dev URL, make sure NEXTAUTH_URL and APP_URL match the browser URL.",
+      });
+    }
+
+    if (normalized.includes("unexpected token") || normalized.includes("json")) {
+      return t({
+        en: "The auth endpoint returned an invalid response. Check the server log for the failing /api/auth request.",
+        fr: "L'endpoint d'authentification a retourne une r?ponse invalide. V?rifiez le journal serveur pour la requete /api/auth en ?chec.",
+        de: "The auth endpoint returned an invalid response. Check the server log for the failing /api/auth request.",
+        es: "The auth endpoint returned an invalid response. Check the server log for the failing /api/auth request.",
+        pt: "The auth endpoint returned an invalid response. Check the server log for the failing /api/auth request.",
+      });
+    }
+
+    return message;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -52,7 +87,7 @@ export default function LoginPage() {
         otp: otp || undefined,
       });
       if (!res) {
-        setError(t("Sign in failed. Please try again.", "Connexion échouée. Reessayez."));
+        setError(t("Sign in failed. Please try again.", "Connexion \u00e9chou\u00e9e. R\u00e9essayez."));
         return;
       }
       if (res.error) {
@@ -68,7 +103,7 @@ export default function LoginPage() {
         setError(
           t(
             "Sign in succeeded, but session cookie was not set. Check NEXTAUTH_URL and your browser URL.",
-            "Connexion reussie, mais le cookie de session n'a pas ?t? defini. Verifiez NEXTAUTH_URL et l'URL du navigateur."
+            "Connexion réussie, mais le cookie de session n'a pas été défini. Vérifiez NEXTAUTH_URL et l'URL du navigateur."
           )
         );
         return;
@@ -78,7 +113,7 @@ export default function LoginPage() {
         setError(
           t(
             "Sign in succeeded, but session is empty. Check NEXTAUTH_URL and clear cookies.",
-            "Connexion reussie, mais la session est vide. Verifiez NEXTAUTH_URL et supprimez les cookies."
+            "Connexion réussie, mais la session est vide. Vérifiez NEXTAUTH_URL et supprimez les cookies."
           )
         );
         return;
@@ -100,7 +135,7 @@ export default function LoginPage() {
               language,
               t(
                 "Signed in, but the workspace invitation could not be accepted.",
-                "Connexion reussie, mais l'invitation à l'espace n'a pas pu être acceptee."
+                "Connexion r\u00e9ussie, mais l'invitation \u00e0 l'espace n'a pas pu \u00eatre accept\u00e9e."
               )
             )
           );
@@ -113,8 +148,9 @@ export default function LoginPage() {
         return;
       }
       window.location.href = postLoginHref;
-    } catch {
-      setError(t("Sign in failed. Please try again.", "Connexion échouée. Reessayez."));
+    } catch (caught) {
+      console.error("LOGIN_CLIENT_ERROR", caught);
+      setError(resolveLoginFailureMessage(caught));
     } finally {
       setLoading(false);
     }
@@ -152,7 +188,7 @@ export default function LoginPage() {
                 <p className="max-w-lg text-base leading-8 text-slate-600">
                   {t(
                     "This access flow is reserved for invited teammates. Sign in with your existing account and we will attach the workspace invite automatically.",
-                    "Ce flux d accès est reserve aux membres invites. Connectez-vous avec votre compte existant et nous rattacherons automatiquement l'invitation."
+                    "Ce flux d'acc\u00e8s est r\u00e9serv\u00e9 aux membres invit\u00e9s. Connectez-vous avec votre compte existant et nous rattacherons automatiquement l'invitation."
                   )}
                 </p>
               </div>
@@ -162,7 +198,7 @@ export default function LoginPage() {
                   <p className="text-xl font-semibold text-slate-950">{inviteInviter || "Maboria team"}</p>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">{t("Access level", "Niveau d accès")}</p>
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-slate-500">{t("Access level", "Niveau d'acc\u00e8s")}</p>
                   <p className="text-xl font-semibold text-slate-950">{inviteRoleLabel}</p>
                 </div>
                 <div className="space-y-2 md:col-span-2">
@@ -176,7 +212,7 @@ export default function LoginPage() {
               <p className="mt-3 max-w-xl text-sm leading-7 text-slate-600">
                 {t(
                   "Existing teammates can accept the invite without creating a duplicate account. If you do not have an account yet, use the create account link below and the invite will stay attached.",
-                  "Les membres existants peuvent accepter l'invitation sans creer de compte en double. Si vous n'avez pas encore de compte, utilisez le lien de creation ci-dessous et l'invitation restera attachee."
+                  "Les membres existants peuvent accepter l'invitation sans creer de compte en double. Si vous n'avez pas encore de compte, utilisez le lien de cr?ation ci-dessous et l'invitation restera attachee."
                 )}
               </p>
             </div>
@@ -195,7 +231,7 @@ export default function LoginPage() {
                 <p className="text-sm text-muted-foreground">
                   {t(
                     "Sign in to manage invoices, automation, and billing.",
-                    "Connectez-vous pour gerer factures, automatisation et facturation."
+                    "Connectez-vous pour gérer factures, automatisation et facturation."
                   )}
                 </p>
               </div>
@@ -205,7 +241,7 @@ export default function LoginPage() {
               <Alert className="mt-5" variant="success">
                 {t(
                   "Your password has been updated successfully. You can now sign in.",
-                  "Votre mot de passe a ?t? mis ? jour avec succes. Vous pouvez maintenant vous connecter."
+                  "Votre mot de passe a été mis à jour avec succès. Vous pouvez maintenant vous connecter."
                 )}
               </Alert>
             )}
@@ -221,7 +257,7 @@ export default function LoginPage() {
                 </div>
                 <div>
                   <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
-                    {t("Accept your team access", "Acceptez votre accès équipe")}
+                    {t("Accept your team access", "Acceptez votre acc\u00e8s \u00e0 l'\u00e9quipe")}
                   </h2>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
                     {inviteOrg
@@ -231,7 +267,7 @@ export default function LoginPage() {
                         )
                       : t(
                           "Sign in to accept your workspace invitation.",
-                          "Connectez-vous pour accepter votre invitation à l'espace de travail."
+                          "Connectez-vous pour accepter votre invitation \u00e0 l'espace de travail."
                         )}
                   </p>
                 </div>
@@ -250,7 +286,7 @@ export default function LoginPage() {
             {params.get("message") && <Alert className="mt-5" variant="success">{params.get("message")}</Alert>}
             {error && (
               <Alert className="mt-5" variant="error">
-                {localizeServerMessage(error, language, t("Sign in failed. Please try again.", "Connexion Ã©chouÃ©e. Reessayez."))}
+                {localizeServerMessage(error, language, t("Sign in failed. Please try again.", "Connexion \u00e9chou\u00e9e. R\u00e9essayez."))}
               </Alert>
             )}
 
@@ -332,7 +368,7 @@ export default function LoginPage() {
                 {t("Create account", "Creer un compte")}
               </Link>
               <Link href={forgotPasswordHref} className="transition hover:text-indigo-500 dark:hover:text-indigo-300">
-                {t("Forgot password?", "Mot de passe oublie ?")}
+                {t("Forgot password?", "Mot de passe oublié ?")}
               </Link>
             </div>
             <div className="mt-3 text-center text-sm text-muted-foreground">
@@ -346,3 +382,4 @@ export default function LoginPage() {
     </div>
   );
 }
+

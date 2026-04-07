@@ -20,6 +20,7 @@ import { BUSINESS_CURRENCIES, formatBusinessCurrencyOption, getBusinessCurrencyF
 import { formatCurrency, formatCurrencyWithCode } from "@/lib/currency";
 import { parseDateInput } from "@/lib/date";
 import { calculateTotalsFromAmounts } from "@/lib/invoice-calculations";
+import { resolveInvoiceCompliance } from "@/lib/invoicing/resolve-compliance";
 import {
   buildInvoiceIssuerCode,
   buildInvoiceNumberDraft,
@@ -36,9 +37,12 @@ import { ChevronLeft, ChevronRight, Eye, MoreHorizontal, Paperclip, PencilLine, 
 type CustomerRecord = {
   id: string;
   name: string;
+  companyName?: string | null;
   email: string;
   phone?: string | null;
   taxId?: string | null;
+  registrationNumber?: string | null;
+  branchCode?: string | null;
   addressLine1?: string | null;
   addressLine2?: string | null;
   city?: string | null;
@@ -74,6 +78,9 @@ type InvoiceHistoryResponse = {
   summary: InvoiceHistorySummary;
   suggestedInvoiceNumber?: string;
 };
+
+type InvoiceBuyerType = "B2B" | "B2C";
+type InvoiceSupplyType = "SAAS" | "SERVICES" | "GOODS";
 
 const MAX_INVOICE_SUPPORTING_FILES = 5;
 const ALLOWED_INVOICE_SUPPORTING_FILE_TYPES = ["image/jpeg", "image/png", "application/pdf"] as const;
@@ -146,6 +153,18 @@ const heroMetricCardClass =
 const heroMetricLabelClass =
   "flex min-h-[2.1rem] items-center justify-center text-center text-[0.6rem] font-semibold uppercase leading-5 tracking-[0.22em] text-slate-500 dark:text-slate-400";
 
+const compliancePreviewCardClass =
+  "min-w-0 rounded-xl border border-slate-200/80 bg-white/90 p-3 dark:border-slate-700/80 dark:bg-slate-950/70";
+
+const compliancePreviewLabelClass =
+  "flex min-h-[2.4rem] items-start text-[0.64rem] font-semibold uppercase leading-4 tracking-[0.12em] text-slate-500 [overflow-wrap:anywhere] dark:text-slate-400";
+
+const compliancePreviewCompactLabelClass =
+  "flex min-h-[2.4rem] items-start text-[0.62rem] font-semibold uppercase leading-4 tracking-[0.08em] text-slate-500 dark:text-slate-400";
+
+const compliancePreviewValueClass =
+  "mt-1 break-words text-sm font-semibold text-slate-950 dark:text-slate-50";
+
 const fetcher = async (url: string) => {
   const res = await fetch(url, { cache: "no-store" });
   const data = await res.json().catch(() => ({}));
@@ -196,20 +215,20 @@ function localizeInvoiceStatus(
   const normalized = String(value || "").toUpperCase();
   const labels: Record<string, string> = {
     DRAFT: t("DRAFT", "BROUILLON", "ENTWURF", "BORRADOR", "RASCUNHO"),
-    SENT: t("SENT", "ENVOYEE", "GESENDET", "ENVIADA", "ENVIADA"),
-    OVERDUE: t("OVERDUE", "EN RETARD", "UBERFALLIG", "VENCIDA", "EM ATRASO"),
-    UNPAID: t("UNPAID", "IMPAYEE", "UNBEZAHLT", "IMPAGADA", "NAO PAGA"),
-    PAID: t("PAID", "PAYEE", "BEZAHLT", "PAGADA", "PAGA"),
-    REFUNDED: t("REFUNDED", "REMBOURSEE", "ERSTATTET", "REEMBOLSADA", "REEMBOLSADA"),
+    SENT: t("SENT", "ENVOYÉE", "GESENDET", "ENVIADA", "ENVIADA"),
+    OVERDUE: t("OVERDUE", "EN RETARD", "ÜBERFÄLLIG", "VENCIDA", "EM ATRASO"),
+    UNPAID: t("UNPAID", "IMPAYÉE", "UNBEZAHLT", "IMPAGADA", "NÃO PAGA"),
+    PAID: t("PAID", "PAYÉE", "BEZAHLT", "PAGADA", "PAGA"),
+    REFUNDED: t("REFUNDED", "REMBOURSÉE", "ERSTATTET", "REEMBOLSADA", "REEMBOLSADA"),
     PARTIALLY_REFUNDED: t(
       "PARTIALLY REFUNDED",
-      "PARTIELLEMENT REMBOURSEE",
+      "PARTIELLEMENT REMBOURSÉE",
       "TEILWEISE ERSTATTET",
       "PARCIALMENTE REEMBOLSADA",
       "PARCIALMENTE REEMBOLSADA"
     ),
-    CANCELED: t("CANCELED", "ANNULEE", "STORNIERT", "CANCELADA", "CANCELADA"),
-    FAILED: t("FAILED", "ECHEC", "FEHLGESCHLAGEN", "FALLIDA", "FALHOU"),
+    CANCELED: t("CANCELED", "ANNULÉE", "STORNIERT", "CANCELADA", "CANCELADA"),
+    FAILED: t("FAILED", "ÉCHEC", "FEHLGESCHLAGEN", "FALLIDA", "FALHOU"),
   };
   return labels[normalized] || normalized;
 }
@@ -217,7 +236,7 @@ function localizeInvoiceStatus(
 export default function InvoicesPage() {
   const { data: session, status: sessionStatus } = useSession();
   const searchParams = useSearchParams();
-  const { language, t } = useLanguage();
+  const { language, m, t } = useLanguage();
   const todayValue = new Date().toISOString().slice(0, 10);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -254,6 +273,8 @@ export default function InvoicesPage() {
     currency: "USD",
     status: "DRAFT",
     customerId: "",
+    buyerType: "B2C" as InvoiceBuyerType,
+    supplyType: "SERVICES" as InvoiceSupplyType,
     issueDate: todayValue,
     dueDate: "",
     note: "",
@@ -266,15 +287,19 @@ export default function InvoicesPage() {
   const [customerDropdownOpen, setCustomerDropdownOpen] = useState(false);
   const [selectedCustomerSnapshot, setSelectedCustomerSnapshot] = useState<CustomerRecord | null>(null);
   const [hasManualCurrencySelection, setHasManualCurrencySelection] = useState(false);
+  const [hasManualBuyerTypeSelection, setHasManualBuyerTypeSelection] = useState(false);
   const [creatingCustomer, setCreatingCustomer] = useState(false);
   const [submittingInvoiceStatus, setSubmittingInvoiceStatus] = useState<"DRAFT" | "SENT" | null>(null);
   const [editingPriceIndex, setEditingPriceIndex] = useState<number | null>(null);
   const [priceDraft, setPriceDraft] = useState("");
   const [newCustomerForm, setNewCustomerForm] = useState({
     name: "",
+    companyName: "",
     email: "",
     phone: "",
     taxId: "",
+    registrationNumber: "",
+    branchCode: "",
     addressLine1: "",
     addressLine2: "",
     city: "",
@@ -294,10 +319,15 @@ export default function InvoicesPage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [editForm, setEditForm] = useState({
     customerName: "",
+    customerCompanyName: "",
     customerEmail: "",
     customerTaxId: "",
+    customerRegistrationNumber: "",
+    customerBranchCode: "",
     customerStreet: "",
+    customerAddressLine2: "",
     customerCity: "",
+    customerState: "",
     customerPostalCode: "",
     customerCountry: "",
   });
@@ -306,11 +336,15 @@ export default function InvoicesPage() {
     country: "US",
     defaultCurrency: "USD",
     streetAddress: "",
+    addressLine2: "",
     city: "",
+    state: "",
     postalCode: "",
     businessEmail: "",
     businessPhone: "",
     taxId: "",
+    registrationNumber: "",
+    branchCode: "",
   });
   const [profileStatus, setProfileStatus] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -375,9 +409,9 @@ export default function InvoicesPage() {
         nextError = t(
           "Only JPG, PNG, or PDF files are supported.",
           "Seuls les fichiers JPG, PNG, ou PDF sont acceptes.",
-          "Nur JPG-, PNG- oder PDF-Dateien werden unterstutzt.",
+          "Nur JPG-, PNG- oder PDF-Dateien werden unterst?tzt.",
           "Solo se admiten archivos JPG, PNG o PDF.",
-          "Apenas sao suportados ficheiros JPG, PNG ou PDF."
+          "Apenas s?o suportados ficheiros JPG, PNG ou PDF."
         );
         continue;
       }
@@ -466,9 +500,12 @@ export default function InvoicesPage() {
   const preferredCustomerCountry = String(businessProfile?.data?.country || "").toUpperCase();
   const buildFreshCustomerForm = () => ({
     name: "",
+    companyName: "",
     email: "",
     phone: "",
     taxId: "",
+    registrationNumber: "",
+    branchCode: "",
     addressLine1: "",
     addressLine2: "",
     city: "",
@@ -499,6 +536,8 @@ export default function InvoicesPage() {
     currency,
     status: "DRAFT",
     customerId: "",
+    buyerType: "B2C" as InvoiceBuyerType,
+    supplyType: "SERVICES" as InvoiceSupplyType,
     issueDate: todayValue,
     dueDate: "",
     note: "",
@@ -509,6 +548,7 @@ export default function InvoicesPage() {
     setStatus(null);
     setInvoiceActionStatus(null);
     setHasManualCurrencySelection(false);
+    setHasManualBuyerTypeSelection(false);
     setForm(buildFreshInvoiceForm(nextCurrency));
     setSupportingFiles([]);
     setSupportingFilesError(null);
@@ -620,6 +660,13 @@ export default function InvoicesPage() {
     (selectedCustomerSnapshot?.id === form.customerId ? selectedCustomerSnapshot : null) ||
     customerItems.find((item) => item.id === form.customerId) ||
     invoiceCustomerMatch;
+  useEffect(() => {
+    if (hasManualBuyerTypeSelection) return;
+    const nextBuyerType: InvoiceBuyerType = String(selectedCustomer?.taxId || "").trim() ? "B2B" : "B2C";
+    setForm((prev) =>
+      prev.buyerType === nextBuyerType ? prev : { ...prev, buyerType: nextBuyerType }
+    );
+  }, [hasManualBuyerTypeSelection, selectedCustomer?.id, selectedCustomer?.taxId]);
   const requestedCustomerId = String(searchParams.get("customerId") || "").trim();
   const requestedCustomerKey =
     sessionStatus === "authenticated" &&
@@ -670,7 +717,7 @@ export default function InvoicesPage() {
       setInvoiceActionStatus({
         message: t(
           "This customer is disabled. Restore them before creating a new invoice.",
-          "Ce client est desactive. Restaurez-le avant de creer une nouvelle facture.",
+          "Ce client est d?sactiv?. Restaurez-le avant de creer une nouvelle facture.",
           "Dieser Kunde ist deaktiviert. Stelle ihn wieder her, bevor du eine neue Rechnung erstellst.",
           "Este cliente esta desactivado. Restauralo antes de crear una nueva factura.",
           "Este cliente esta desativado. Restaure-o antes de criar uma nova fatura."
@@ -696,6 +743,42 @@ export default function InvoicesPage() {
       defaultCurrency: preferred,
     }));
   }, [businessProfile?.data?.id, me?.preferredCurrency]);
+
+  useEffect(() => {
+    if (!businessProfile?.data?.id) return;
+    const parsedAddress = parseBusinessAddress(businessProfile.data.businessAddress);
+    setProfileForm({
+      businessName: businessProfile.data.businessName || "",
+      country: businessProfile.data.country || "US",
+      defaultCurrency: businessProfile.data.defaultCurrency || "USD",
+      streetAddress: businessProfile.data.addressLine1 || parsedAddress.streetAddress || "",
+      addressLine2: businessProfile.data.addressLine2 || "",
+      city: businessProfile.data.city || parsedAddress.city || "",
+      state: businessProfile.data.state || parsedAddress.region || "",
+      postalCode: businessProfile.data.postalCode || parsedAddress.postalCode || "",
+      businessEmail: businessProfile.data.businessEmail || "",
+      businessPhone: businessProfile.data.businessPhone || "",
+      taxId: businessProfile.data.taxId || "",
+      registrationNumber: businessProfile.data.registrationNumber || "",
+      branchCode: businessProfile.data.branchCode || "",
+    });
+  }, [
+    businessProfile?.data?.id,
+    businessProfile?.data?.businessName,
+    businessProfile?.data?.country,
+    businessProfile?.data?.defaultCurrency,
+    businessProfile?.data?.businessAddress,
+    businessProfile?.data?.addressLine1,
+    businessProfile?.data?.addressLine2,
+    businessProfile?.data?.city,
+    businessProfile?.data?.state,
+    businessProfile?.data?.postalCode,
+    businessProfile?.data?.businessEmail,
+    businessProfile?.data?.businessPhone,
+    businessProfile?.data?.taxId,
+    businessProfile?.data?.registrationNumber,
+    businessProfile?.data?.branchCode,
+  ]);
 
   useEffect(() => {
     if (profileLogoFile) {
@@ -747,8 +830,9 @@ export default function InvoicesPage() {
     }
     const addressFields = {
       streetAddress: profileForm.streetAddress,
+      addressLine2: profileForm.addressLine2,
       city: profileForm.city,
-      region: "",
+      region: profileForm.state,
       postalCode: profileForm.postalCode,
     };
     if (!hasRequiredAddress(addressFields)) {
@@ -761,9 +845,16 @@ export default function InvoicesPage() {
       country: profileForm.country,
       defaultCurrency: profileForm.defaultCurrency,
       businessAddress: formattedAddress,
+      addressLine1: profileForm.streetAddress,
+      addressLine2: profileForm.addressLine2,
+      city: profileForm.city,
+      state: profileForm.state,
+      postalCode: profileForm.postalCode,
       businessEmail: profileForm.businessEmail,
       businessPhone: profileForm.businessPhone,
       taxId: profileForm.taxId,
+      registrationNumber: profileForm.registrationNumber,
+      branchCode: profileForm.branchCode,
     };
     const res = await fetch("/api/business-profile", {
       method: "POST",
@@ -779,7 +870,7 @@ export default function InvoicesPage() {
             "Impossible de creer le profil.",
             "Das Unternehmensprofil konnte nicht erstellt werden.",
             "No se pudo crear el perfil de empresa.",
-            "Não foi possivel criar o perfil da empresa."
+            "Não foi poss?vel criar o perfil da empresa."
           )
       );
       return;
@@ -787,7 +878,7 @@ export default function InvoicesPage() {
     setProfileStatus(
       t(
         "Business profile saved.",
-        "Profil enregistre.",
+        "Profil enregistr?.",
         "Unternehmensprofil gespeichert.",
         "Perfil de empresa guardado.",
         "Perfil da empresa guardado."
@@ -809,7 +900,7 @@ export default function InvoicesPage() {
             (typeof uploadData.error === "string" && localizeInvoiceServerMessage(uploadData.error, t)) ||
               t(
                 "Logo upload failed.",
-                "Echec du télevérsement du logo.",
+                "?chec du télevérsement du logo.",
                 "Das Hochladen des Logos ist fehlgeschlagen.",
                 "La subida del logotipo fallo.",
                 "O carregamento do logotipo falhou."
@@ -823,7 +914,7 @@ export default function InvoicesPage() {
         setProfileLogoError(
           t(
             "Logo upload failed.",
-            "Echec du télevérsement du logo.",
+            "?chec du télevérsement du logo.",
             "Das Hochladen des Logos ist fehlgeschlagen.",
             "La subida del logotipo fallo.",
             "O carregamento do logotipo falhou."
@@ -849,7 +940,7 @@ export default function InvoicesPage() {
               "Impossible de supprimer le logo.",
               "Das Logo konnte nicht entfernt werden.",
               "No se pudo eliminar el logotipo.",
-              "Não foi possivel remover o logotipo."
+              "Não foi poss?vel remover o logotipo."
             )
         );
         return;
@@ -862,7 +953,7 @@ export default function InvoicesPage() {
           "Impossible de supprimer le logo.",
           "Das Logo konnte nicht entfernt werden.",
           "No se pudo eliminar el logotipo.",
-          "Não foi possivel remover o logotipo."
+          "Não foi poss?vel remover o logotipo."
         )
       );
     }
@@ -890,10 +981,167 @@ export default function InvoicesPage() {
   const formattedDraftTotalWithCode = formatCurrencyWithCode(draftTotals.total, form.currency);
   const showDraftTax =
     Boolean(draftTotals.vatEnabled) && Number(draftTotals.vatRate || 0) > 0;
+  const invoiceCompliancePreview = useMemo(
+    () =>
+      resolveInvoiceCompliance({
+        sellerCountry: businessProfile?.data?.country,
+        sellerTaxId: businessProfile?.data?.taxId,
+        buyerCountry: selectedCustomer?.country,
+        buyerTaxId: selectedCustomer?.taxId,
+        buyerType: form.buyerType,
+        customerClassification: form.buyerType === "B2B" ? "BUSINESS" : "INDIVIDUAL",
+        supplyType: form.supplyType,
+        itemNames: form.items.map((item) => String(item.name || "")),
+      }),
+    [
+      businessProfile?.data?.country,
+      businessProfile?.data?.taxId,
+      form.buyerType,
+      form.items,
+      form.supplyType,
+      selectedCustomer?.country,
+      selectedCustomer?.taxId,
+    ]
+  );
+  const sendBlockingReason = useMemo(() => {
+    if (form.buyerType === "B2B" && invoiceCompliancePreview.requiresBuyerTaxId) {
+      const missingBuyerTaxId = invoiceCompliancePreview.warnings.some(
+        (warning) => warning.code === "buyer_tax_id_recommended"
+      );
+      if (missingBuyerTaxId) {
+        return m("invoice.compliance.addBuyerTaxIdBusiness");
+      }
+    }
+    if (invoiceCompliancePreview.requiresSellerTaxId) {
+      const missingSellerTaxId = invoiceCompliancePreview.warnings.some(
+        (warning) => warning.code === "seller_tax_id_recommended"
+      );
+      if (missingSellerTaxId) {
+        return t(
+          "Add your business tax ID before sending this invoice.",
+          "Ajoutez l ID fiscal de votre entreprise avant d envoyer cette facture.",
+          "Fuge die Steuer-ID deines Unternehmens hinzu, bevor du diese Rechnung sendest.",
+          "Agrega el ID fiscal de tu empresa antes de enviar esta factura.",
+          "Adicione o ID fiscal da sua empresa antes de enviar esta fatura."
+        );
+      }
+    }
+    if (
+      invoiceCompliancePreview.warnings.some((warning) => warning.code === "buyer_country_missing")
+    ) {
+      return t(
+        "Add the customer country before sending this invoice.",
+        "Ajoutez le pays du client avant d envoyer cette facture.",
+        "Fuge das Land des Kunden hinzu, bevor du diese Rechnung sendest.",
+        "Agrega el pa?s del cliente antes de enviar esta factura.",
+        "Adicione o pa?s do cliente antes de enviar esta fatura."
+      );
+    }
+    return null;
+  }, [form.buyerType, invoiceCompliancePreview, m, t]);
   const draftVatRateLabel = formatVatRateLabel(
     draftTotals.vatRate,
     businessProfile?.data?.vatRateDisplay
   );
+  const supportLevelLabel = (level: string) => {
+    if (level === "ADVANCED") {
+      return t("Advanced support", "Support avance", "Erweiterte Unterstutzung", "Soporte avanzado", "Suporte avancado");
+    }
+    if (level === "LIMITED") {
+      return t("Limited support", "Support limite", "Begrenzte Unterstutzung", "Soporte limitado", "Suporte limitado");
+    }
+    return t("Standard support", "Support standard", "Standard-Unterstutzung", "Soporte estandar", "Suporte padrao");
+  };
+  const supportLevelClass = (level: string) => {
+    if (level === "ADVANCED") {
+      return "border-emerald-200/80 bg-emerald-50 text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-500/10 dark:text-emerald-200";
+    }
+    if (level === "LIMITED") {
+      return "border-amber-200/80 bg-amber-50 text-amber-700 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-200";
+    }
+    return "border-slate-200/80 bg-slate-50 text-slate-700 dark:border-slate-700/80 dark:bg-slate-900/80 dark:text-slate-200";
+  };
+  const regionLabel = (region: string | null) => {
+    if (region === "NORTH_AMERICA") {
+      return t("North America", "Amerique du Nord", "Nordamerika", "Norteamerica", "America do Norte");
+    }
+    if (region === "SOUTH_AMERICA") {
+      return t("South America", "Amerique du Sud", "Sudamerika", "Sudamerica", "America do Sul");
+    }
+    if (region === "EUROPE") {
+      return t("Europe", "Europe", "Europa", "Europa", "Europa");
+    }
+    if (region === "AFRICA") {
+      return t("Africa", "Afrique", "Afrika", "Africa", "Africa");
+    }
+    if (region === "ASIA") {
+      return t("Asia", "Asie", "Asien", "Asia", "Asia");
+    }
+    if (region === "OCEANIA") {
+      return t("Australia / Oceania", "Australie / Oceanie", "Australien / Ozeanien", "Australia / Oceania", "Australia / Oceania");
+    }
+    return t("Unknown", "Inconnu", "Unbekannt", "Desconocido", "Desconhecido");
+  };
+  const localizedComplianceWarning = (code: string, fallback: string) => {
+    if (code === "seller_country_missing") {
+      return t(
+        "Add your business country in settings before issuing invoices.",
+        "Ajoutez le pays de votre entreprise dans les parametres avant d emettre des factures.",
+        "Fuge vor dem Ausstellen von Rechnungen dein Unternehmensland in den Einstellungen hinzu.",
+        "Agrega el pa?s de tu empresa en configuraci?n antes de emitir facturas.",
+        "Adicione o pa?s da empresa nas definicoes antes de emitir faturas."
+      );
+    }
+    if (code === "buyer_country_missing") {
+      return t(
+        "Add the customer country to improve cross-border tax handling.",
+        "Ajoutez le pays du client pour ameliorer la gestion fiscale transfrontaliere.",
+        "Fuge das Kundenland hinzu, um die grenzuberschreitende Steuerbehandlung zu verbessern.",
+        "Agrega el pa?s del cliente para mejorar el tratamiento fiscal internacional.",
+        "Adicione o pa?s do cliente para melhorar o tratamento fiscal internacional."
+      );
+    }
+    if (code === "buyer_tax_id_recommended") {
+      return m("invoice.compliance.recommendBuyerTaxIdBusiness");
+    }
+    if (code === "seller_tax_id_recommended") {
+      return t(
+        "Seller tax ID should be completed before sending this invoice.",
+        "L identifiant fiscal du vendeur doit etre complete avant l envoi de cette facture.",
+        "Die Steuer-ID des Verkaufers sollte vor dem Senden dieser Rechnung ausgefullt werden.",
+        "El identificador fiscal del vendedor debe completarse antes de enviar esta factura.",
+        "O identificador fiscal do vendedor deve ser preenchido antes de enviar esta fatura."
+      );
+    }
+    if (code === "cross_border_manual_review") {
+      return t(
+        "Cross-border tax treatment should be reviewed before final issuance.",
+        "Le traitement fiscal transfrontalier doit etre verifie avant l emission finale.",
+        "Die grenzuberschreitende Steuerbehandlung sollte vor der endgultigen Ausstellung gepruft werden.",
+        "El tratamiento fiscal transfronterizo debe revisarse antes de la emision final.",
+        "O tratamento fiscal transfronteirico deve ser revisto antes da emissao final."
+      );
+    }
+    if (code === "country_limited_support") {
+      return t(
+        "This country currently has limited local invoice compliance support.",
+        "Ce pays dispose actuellement d un support limite pour la conformite locale des factures.",
+        "Dieses Land hat derzeit nur begrenzte Unterstutzung f?r lokale Rechnungskonformitat.",
+        "Este pa?s tiene actualmente soporte limitado para el cumplimiento local de facturas.",
+        "Este pa?s tem atualmente suporte limitado para conformidade local de fatura??o."
+      );
+    }
+    if (code === "country_requires_e_invoicing") {
+      return t(
+        "This country may require local e-invoicing or government clearance outside the standard PDF invoice.",
+        "Ce pays peut exiger une facturation electronique locale ou une validation administrative au-dela du PDF standard.",
+        "Dieses Land kann lokale E-Rechnung oder behordliche Freigabe ausserhalb der Standard-PDF-Rechnung verlangen.",
+        "Este pa?s puede requerir facturaci?n electronica local o validacion gubernamental fuera de la factura PDF estandar.",
+        "Este pa?s pode exigir fatura??o eletronica local ou validacao governamental fora da fatura PDF padrao."
+      );
+    }
+    return fallback;
+  };
   const preferredInvoiceCurrencyFlag = getBusinessCurrencyFlag(preferredInvoiceCurrency);
   const previewIssueDate = parseDateInput(form.issueDate) || new Date();
   const previewDueDate = form.dueDate ? parseDateInput(form.dueDate) : undefined;
@@ -941,6 +1189,37 @@ export default function InvoicesPage() {
     if (normalized === "DRAFT") return "border-slate-200 bg-slate-100 text-slate-700";
     if (normalized === "FAILED") return "border-rose-200 bg-rose-100 text-rose-700";
     return "border-slate-200 bg-slate-100 text-slate-700";
+  };
+  const complianceBadgeClass = (variant: "blocked" | "review" | "ok") => {
+    if (variant === "blocked") {
+      return "border-rose-200 bg-rose-50 text-rose-700";
+    }
+    if (variant === "review") {
+      return "border-amber-200 bg-amber-50 text-amber-700";
+    }
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  };
+  const resolveComplianceBadge = (row: any) => {
+    const record = row?.complianceRecord;
+    const validation = row?.metadata?.complianceValidation;
+    const blockingIssueCount = Number(record?.blockingIssueCount ?? validation?.blockingIssueCount ?? 0);
+    const warningIssueCount = Number(record?.warningIssueCount ?? validation?.warningIssueCount ?? 0);
+    if (blockingIssueCount > 0) {
+      return {
+        label: t("Blocked", "Bloqué", "Blockiert", "Bloqueado", "Bloqueado"),
+        variant: "blocked" as const,
+      };
+    }
+    if (warningIssueCount > 0) {
+      return {
+        label: t("Review", "À vérifier", "Prüfen", "Revisar", "Rever"),
+        variant: "review" as const,
+      };
+    }
+    return {
+      label: t("OK", "Conforme", "OK", "Correcto", "OK"),
+      variant: "ok" as const,
+    };
   };
   const filteredInvoices = scopedInvoices;
   const pagedInvoiceTotal = Number(invoices?.total || 0);
@@ -1018,13 +1297,23 @@ export default function InvoicesPage() {
     return {
       id: customer.id || invoice?.customerId || "",
       name: customer.name ?? meta?.customerName ?? "",
+      companyName: customer.companyName ?? meta?.customerCompanyName ?? meta?.customer_company_name ?? "",
       email: customer.email ?? meta?.customerEmail ?? "",
       taxId: customer.taxId ?? meta?.customerTaxId ?? meta?.customer_tax_id ?? "",
+      registrationNumber:
+        customer.registrationNumber ?? meta?.customerRegistrationNumber ?? meta?.customer_registration_number ?? "",
+      branchCode: customer.branchCode ?? meta?.customerBranchCode ?? meta?.customer_branch_code ?? "",
       street:
         customer.streetAddress ??
         customer.street ??
         meta?.customerStreet ??
         parsedAddress.streetAddress,
+      addressLine2:
+        customer.addressLine2 ??
+        meta?.customerAddressLine2 ??
+        meta?.customer_address_line2 ??
+        "",
+      state: customer.state ?? meta?.customerState ?? meta?.customer_state ?? "",
       city: customer.city ?? meta?.customerCity ?? parsedAddress.city,
       postalCode:
         customer.postalCode ??
@@ -1040,10 +1329,15 @@ export default function InvoicesPage() {
     setEditStatus(null);
     setEditForm({
       customerName: customer.name || "",
+      customerCompanyName: customer.companyName || "",
       customerEmail: customer.email || "",
       customerTaxId: customer.taxId || "",
+      customerRegistrationNumber: customer.registrationNumber || "",
+      customerBranchCode: customer.branchCode || "",
       customerStreet: customer.street || "",
+      customerAddressLine2: customer.addressLine2 || "",
       customerCity: customer.city || "",
+      customerState: customer.state || "",
       customerPostalCode: customer.postalCode || "",
       customerCountry: customer.country || "",
     });
@@ -1057,10 +1351,10 @@ export default function InvoicesPage() {
       setEditStatus({
         message: t(
           "Customer not found for update.",
-          "Client introuvable pour mise a jour.",
+          "Client introuvable pour mise ? jour.",
           "Kunde für die Aktualisierung nicht gefunden.",
           "No se encontro el cliente para actualizar.",
-          "Cliente não encontrado para atualizacao."
+          "Cliente não encontrado para atualiza??o."
         ),
         variant: "error",
       });
@@ -1071,9 +1365,15 @@ export default function InvoicesPage() {
     setStatus(null);
     const payload = {
       name: editForm.customerName.trim() || undefined,
+      companyName: editForm.customerCompanyName.trim() || undefined,
       email: editForm.customerEmail.trim().toLowerCase() || undefined,
+      taxId: editForm.customerTaxId.trim() || undefined,
+      registrationNumber: editForm.customerRegistrationNumber.trim() || undefined,
+      branchCode: editForm.customerBranchCode.trim() || undefined,
       addressLine1: editForm.customerStreet.trim() || undefined,
+      addressLine2: editForm.customerAddressLine2.trim() || undefined,
       city: editForm.customerCity.trim() || undefined,
+      state: editForm.customerState.trim() || undefined,
       postalCode: editForm.customerPostalCode.trim() || undefined,
       country: editForm.customerCountry.trim() || undefined,
     };
@@ -1090,10 +1390,10 @@ export default function InvoicesPage() {
             (typeof data?.error === "string" && localizeInvoiceServerMessage(data.error, t)) ||
             t(
               "Could not update customer details.",
-              "Impossible de mettre a jour le client.",
+              "Impossible de mettre ? jour le client.",
               "Kundendaten konnten nicht aktualisiert werden.",
               "No se pudieron actualizar los datos del cliente.",
-              "Não foi possivel atualizar os dados do cliente."
+              "Não foi poss?vel atualizar os dados do cliente."
             ),
           variant: "error",
         });
@@ -1102,13 +1402,33 @@ export default function InvoicesPage() {
       setEditStatus({
         message: t(
           "Customer details updated.",
-          "Details client mis ? jour.",
+          "D?tails client mis ? jour.",
           "Kundendaten aktualisiert.",
           "Datos del cliente actualizados.",
           "Dados do cliente atualizados."
         ),
         variant: "success",
       });
+      if (data?.id && String(data.id) === String(form.customerId || customerId)) {
+        setSelectedCustomerSnapshot((prev) =>
+          prev && String(prev.id) === String(data.id)
+            ? {
+                ...prev,
+                name: data.name ?? prev.name,
+                email: data.email ?? prev.email,
+                phone: data.phone ?? prev.phone,
+                taxId: data.taxId ?? null,
+                addressLine1: data.addressLine1 ?? prev.addressLine1,
+                addressLine2: data.addressLine2 ?? prev.addressLine2,
+                city: data.city ?? prev.city,
+                state: data.state ?? prev.state,
+                postalCode: data.postalCode ?? prev.postalCode,
+                country: data.country ?? prev.country,
+                deliveryPreference: data.deliveryPreference ?? prev.deliveryPreference,
+              }
+            : prev
+        );
+      }
       mutate();
       setEditOpen(false);
       setEditingInvoice(null);
@@ -1116,10 +1436,10 @@ export default function InvoicesPage() {
       setEditStatus({
         message: t(
           "Could not update customer details.",
-          "Impossible de mettre a jour le client.",
+          "Impossible de mettre ? jour le client.",
           "Kundendaten konnten nicht aktualisiert werden.",
           "No se pudieron actualizar los datos del cliente.",
-          "Não foi possivel atualizar os dados do cliente."
+          "Não foi poss?vel atualizar os dados do cliente."
         ),
         variant: "error",
       });
@@ -1167,7 +1487,7 @@ export default function InvoicesPage() {
               "Impossible d envoyer la facture.",
               "Rechnung konnte nicht gesendet werden.",
               "No se pudo enviar la factura.",
-              "Não foi possivel enviar a fatura."
+              "Não foi poss?vel enviar a fatura."
             ),
           variant: "error",
         });
@@ -1185,7 +1505,7 @@ export default function InvoicesPage() {
           "Impossible d envoyer la facture.",
           "Rechnung konnte nicht gesendet werden.",
           "No se pudo enviar la factura.",
-          "Não foi possivel enviar a fatura."
+          "Não foi poss?vel enviar a fatura."
         ),
         variant: "error",
       });
@@ -1216,7 +1536,7 @@ export default function InvoicesPage() {
               "Impossible de supprimer le brouillon.",
               "Rechnungsentwurf konnte nicht gelöscht werden.",
               "No se pudo eliminar el borrador de factura.",
-              "Não foi possivel eliminar o rascunho da fatura."
+              "Não foi poss?vel eliminar o rascunho da fatura."
             ),
           variant: "error",
         });
@@ -1240,7 +1560,7 @@ export default function InvoicesPage() {
           "Impossible de supprimer le brouillon.",
           "Rechnungsentwurf konnte nicht gelöscht werden.",
           "No se pudo eliminar el borrador de factura.",
-          "Não foi possivel eliminar o rascunho da fatura."
+          "Não foi poss?vel eliminar o rascunho da fatura."
         ),
         variant: "error",
       });
@@ -1276,6 +1596,8 @@ export default function InvoicesPage() {
       currency: string;
       status: string;
       customerId: string;
+      buyerType: InvoiceBuyerType;
+      supplyType: InvoiceSupplyType;
       issueDate?: string;
       dueDate?: string;
       note?: string;
@@ -1285,6 +1607,8 @@ export default function InvoicesPage() {
       ...form,
       status: nextStatus,
       customerId: form.customerId,
+      buyerType: form.buyerType,
+      supplyType: form.supplyType,
       invoiceNumber: form.invoiceNumber.trim(),
       poNumber: form.poNumber.trim() || undefined,
       note: form.note.trim() || undefined,
@@ -1353,7 +1677,7 @@ export default function InvoicesPage() {
               "Mise a niveau requise.",
               "Upgrade erforderlich.",
               "Actualización requerida.",
-              "Atualizacao necessária."
+              "Atualiza??o necessária."
             )}${
               required
                 ? ` ${t(
@@ -1376,7 +1700,7 @@ export default function InvoicesPage() {
                 "Impossible de creer la facture.",
                 "Rechnung konnte nicht erstellt werden.",
                 "No se pudo crear la factura.",
-                "Não foi possivel criar a fatura."
+                "Não foi poss?vel criar a fatura."
               ),
             variant: "error",
           });
@@ -1406,7 +1730,7 @@ export default function InvoicesPage() {
           setInvoiceActionStatus({
             message: t(
               "Invoice generated.",
-              "Facture generee.",
+              "Facture g?n?r?e.",
               "Rechnung erstellt.",
               "Factura generada.",
               "Fatura gerada."
@@ -1417,6 +1741,7 @@ export default function InvoicesPage() {
         mutate();
         const nextCurrency = preferredInvoiceCurrency;
         setHasManualCurrencySelection(false);
+        setHasManualBuyerTypeSelection(false);
         setForm(buildFreshInvoiceForm(nextCurrency));
         setSupportingFiles([]);
         setSupportingFilesError(null);
@@ -1429,10 +1754,10 @@ export default function InvoicesPage() {
       setInvoiceActionStatus({
         message: t(
           "Could not create invoice. Please try again.",
-          "Impossible de creer la facture. Reessayez.",
+          "Impossible de creer la facture. R?essayez.",
           "Rechnung konnte nicht erstellt werden. Bitte versuche es erneut.",
           "No se pudo crear la factura. Intentalo de nuevo.",
-          "Não foi possivel criar a fatura. Tente novamente."
+          "Não foi poss?vel criar a fatura. Tente novamente."
         ),
         variant: "error",
       });
@@ -1460,10 +1785,10 @@ export default function InvoicesPage() {
       setStatus({
         message: t(
           "Name, email, delivery method, address, city, state, and country are required. Phone is required for WhatsApp delivery.",
-          "Nom, email, mode de livraison, adresse, ville, etat et pays sont requis. Le telephone est requis pour WhatsApp.",
+          "Nom, email, mode de livraison, adresse, ville, etat et pays sont requis. Le t?l?phone est requis pour WhatsApp.",
           "Name, E-Mail, Zustellmethode, Adresse, Stadt, Bundesland und Land sind erforderlich. Für die WhatsApp-Zustellung ist eine Telefonnummer erforderlich.",
-          "Nombre, correo, método de entrega, direccion, ciudad, estado y pais son obligatorios. El telefono es obligatorio para la entrega por WhatsApp.",
-          "Nome, email, método de entrega, endereco, cidade, estado e pais sao obrigatorios. O telefone e obrigatório para entrega por WhatsApp."
+          "Nombre, correo, método de entrega, direcci?n, ciudad, estado y pa?s son obligatorios. El tel?fono es obligatorio para la entrega por WhatsApp.",
+          "Nome, email, método de entrega, endereco, cidade, estado e pa?s s?o obrigatorios. O telefone e obrigatório para entrega por WhatsApp."
         ),
         variant: "error",
       });
@@ -1489,7 +1814,7 @@ export default function InvoicesPage() {
               "Impossible de creer le client.",
               "Kunde konnte nicht erstellt werden.",
               "No se pudo crear el cliente.",
-              "Não foi possivel criar o cliente."
+              "Não foi poss?vel criar o cliente."
             ),
           variant: "error",
         });
@@ -1521,7 +1846,7 @@ export default function InvoicesPage() {
           "Impossible de creer le client.",
           "Kunde konnte nicht erstellt werden.",
           "No se pudo crear el cliente.",
-          "Não foi possivel criar o cliente."
+          "Não foi poss?vel criar o cliente."
         ),
         variant: "error",
       });
@@ -1560,10 +1885,10 @@ export default function InvoicesPage() {
               <p className="max-w-[42rem] text-[0.95rem] leading-6 text-slate-600 dark:text-slate-300">
                 {t(
                   "Create, manage, and send polished invoices from one focused workspace.",
-                  "Creez, gerez et envoyez des factures elegantes depuis un espace de travail unique.",
+                  "Cr?ez, g?rez et envoyez des factures elegantes depuis un espace de travail unique.",
                   "Erstelle, verwalte und versende professionelle Rechnungen in einem fokussierten Arbeitsbereich.",
                   "Crea, gestiona y envia facturas profesionales desde un unico espacio de trabajo.",
-                  "Crie, gira e envie faturas profissionais a partir de um unico espaco de trabalho."
+                  "Crie, gira e envie faturas profissionais a partir de um unico espa?o de trabalho."
                 )}
               </p>
             </div>
@@ -1636,16 +1961,16 @@ export default function InvoicesPage() {
             <div className="space-y-3.5">
               <div className="space-y-2">
                 <p className="inline-flex items-center rounded-full border border-slate-200/80 bg-slate-50/85 px-3 py-1 text-[0.64rem] font-semibold uppercase tracking-[0.22em] text-slate-500 dark:border-slate-700/80 dark:bg-slate-900/75 dark:text-slate-400">
-                  {t("Workspace", "Espace de travail", "Arbeitsbereich", "Espacio de trabajo", "Espaco de trabalho")}
+                  {t("Workspace", "Espace de travail", "Arbeitsbereich", "Espacio de trabajo", "Espa?o de trabalho")}
                 </p>
                 <p className="text-[1.02rem] font-semibold leading-[1.08] tracking-[-0.03em] text-slate-950 dark:text-slate-50 sm:text-[1.08rem]">
-                  {t("Start a fresh invoice or jump into history.", "Creez une nouvelle facture ou ouvrez l'historique.", "Starte eine neue Rechnung oder wechsle in den Verlauf.", "Empieza una factura nueva o ve al historial.", "Comece uma nova fatura ou avance para o histórico.")}
+                  {t("Start a fresh invoice or jump into history.", "Cr?ez une nouvelle facture ou ouvrez l'historique.", "Starte eine neue Rechnung oder wechsle in den Verlauf.", "Empieza una factura nueva o ve al historial.", "Comece uma nova fatura ou avance para o histórico.")}
                 </p>
                 <p className="text-[0.87rem] leading-6 text-slate-600 dark:text-slate-300">
                   {t(
                     "Everything updates live while you build, so totals, customer details, and delivery settings stay in sync.",
-                    "Tout se met a jour en direct pendant la creation pour garder les totaux, le client et les reglages d envoi parfaitement synchronises.",
-                    "Alles wird wahrend der Erstellung live aktualisiert, damit Summen, Kundendaten und Zustelleinstellungen synchron bleiben.",
+                    "Tout se met à jour en direct pendant la création pour garder les totaux, le client et les réglages d’envoi parfaitement synchronisés.",
+                    "Alles wird während der Erstellung live aktualisiert, damit Summen, Kundendaten und Zustelleinstellungen synchron bleiben.",
                     "Todo se actualiza en vivo mientras trabajas, para que totales, datos del cliente y ajustes de entrega permanezcan sincronizados.",
                     "Tudo se atualiza em tempo real enquanto cria, para manter totais, dados do cliente e definições de entrega sincronizados."
                   )}
@@ -1670,7 +1995,7 @@ export default function InvoicesPage() {
               <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[20px] border border-slate-200/80 bg-slate-200/80 dark:border-slate-800 dark:bg-slate-800">
                 <div className="bg-white/92 px-3 py-2 text-center dark:bg-slate-950/84">
                   <p className="text-[0.58rem] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-                    {t("Live preview", "Apercu direct", "Live-Vorschau", "Vista previa en vivo", "Pre-visualizacao ao vivo")}
+                    {t("Live preview", "Apercu direct", "Live-Vorschau", "Vista previa en vivo", "Pre-visualiza??o ao vivo")}
                   </p>
                   <p className="mt-1 text-[0.94rem] font-semibold tracking-[-0.02em] text-slate-950 dark:text-slate-50">
                     {t("Always on", "Toujours visible", "Immer aktiv", "Siempre activo", "Sempre ativo")}
@@ -1681,7 +2006,7 @@ export default function InvoicesPage() {
                     {t("Delivery", "Envoi", "Zustellung", "Entrega", "Entrega")}
                   </p>
                   <p className="mt-1 text-[0.94rem] font-semibold tracking-[-0.02em] text-slate-950 dark:text-slate-50">
-                    {t("Ready to send", "Pret a envoyer", "Bereit zum Senden", "Lista para enviar", "Pronta para enviar")}
+                    {t("Ready to send", "Pr?t a envoyer", "Bereit zum Senden", "Lista para enviar", "Pronta para enviar")}
                   </p>
                 </div>
               </div>
@@ -1729,7 +2054,7 @@ export default function InvoicesPage() {
               required
             />
             <CountrySelect
-              label={t("Country", "Pays", "Land", "Pais", "Pais")}
+              label={t("Country", "Pays", "Land", "Pa?s", "Pa?s")}
               value={profileForm.country}
               locale={language}
               required
@@ -1757,17 +2082,22 @@ export default function InvoicesPage() {
               required
             />
             <PhoneInput
-              label={t("Business phone", "Telephone entreprise", "Unternehmenstelefon", "Telefono de la empresa", "Telefone da empresa")}
+              label={t("Business phone", "T?l?phone entreprise", "Unternehmenstelefon", "Tel?fono de la empresa", "Telefonee da empresa")}
               value={profileForm.businessPhone}
               required
               locale={language}
               onChange={(value) => setProfileForm({ ...profileForm, businessPhone: value })}
             />
             <Input
-              label={t("Street address", "Adresse", "Strassenadresse", "Direccion", "Endereco")}
+              label={t("Address line 1", "Adresse ligne 1", "Adresszeile 1", "Linea de direcci?n 1", "Linha de endereco 1")}
               value={profileForm.streetAddress}
               onChange={(e) => setProfileForm({ ...profileForm, streetAddress: e.target.value })}
               required
+            />
+            <Input
+              label={t("Address line 2 (optional)", "Adresse ligne 2 (optionnelle)", "Adresszeile 2 (optional)", "Linea de direcci?n 2 (opcional)", "Linha de endereco 2 (opcional)")}
+              value={profileForm.addressLine2}
+              onChange={(e) => setProfileForm({ ...profileForm, addressLine2: e.target.value })}
             />
             <Input
               label={t("City", "Ville", "Stadt", "Ciudad", "Cidade")}
@@ -1776,17 +2106,32 @@ export default function InvoicesPage() {
               required
             />
             <Input
+              label={t("State / Province / Region (optional)", "Etat / province / region (optionnel)", "Bundesland / Region (optional)", "Estado / provincia / region (opcional)", "Estado / provincia / regiao (opcional)")}
+              value={profileForm.state}
+              onChange={(e) => setProfileForm({ ...profileForm, state: e.target.value })}
+            />
+            <Input
               label={t("Postal code / ZIP (optional)", "Code postal / ZIP (optionnel)", "Postleitzahl / ZIP (optional)", "Código postal / ZIP (opcional)", "Código postal / ZIP (opcional)")}
               value={profileForm.postalCode}
               onChange={(e) => setProfileForm({ ...profileForm, postalCode: e.target.value })}
             />
+            <Input
+              label={t("Business registration number (optional)", "Num?ro d immatriculation de l entreprise (optionnel)", "Handelsregisternummer (optional)", "N?mero de registro de la empresa (opcional)", "N?mero de registro da empresa (opcional)")}
+              value={profileForm.registrationNumber}
+              onChange={(e) => setProfileForm({ ...profileForm, registrationNumber: e.target.value })}
+            />
+            <Input
+              label={t("Branch code (optional)", "Code de succursale (optionnel)", "Filialcode (optional)", "C?digo de sucursal (opcional)", "C?digo da filial (opcional)")}
+              value={profileForm.branchCode}
+              onChange={(e) => setProfileForm({ ...profileForm, branchCode: e.target.value })}
+            />
             <label className="col-span-2 flex flex-col gap-1 text-sm text-foreground max-md:order-9 max-md:col-span-1 md:col-span-1">
               <span className="flex items-center gap-2">
-                {t("Business logo (optional)", "Logo entreprise (optionnel)", "Unternehmenslogo (optional)", "Logo de la empresa (opcional)", "Logotipo da empresa (opcional)")}
+                {m("branding.logo.optional")}
                 <span ref={profileLogoInfoRef} className="relative">
                   <button
                     type="button"
-                    aria-label={t("Logo upload info", "Infos télevérsement logo", "Info zum Logo-Upload", "Información sobre la carga del logo", "Informações sobre o envio do logotipo")}
+                    aria-label={m("branding.logo.uploadInfo")}
                     onClick={(event) => {
                       event.stopPropagation();
                       setProfileLogoInfoOpen((open) => !open);
@@ -1800,8 +2145,8 @@ export default function InvoicesPage() {
                       profileLogoInfoOpen ? "opacity-100" : "pointer-events-none opacity-0"
                     }`}
                   >
-                    <div>{t("Accepted formats: PNG, JPG, SVG", "Formats acceptes : PNG, JPG, SVG", "Akzeptierte Formate: PNG, JPG, SVG", "Formatos aceptados: PNG, JPG, SVG", "Formatos aceites: PNG, JPG, SVG")}</div>
-                    <div>{t("Max size: 2MB", "Taille max : 2MB", "Maximale Grosse: 2 MB", "Tamano maximo: 2 MB", "Tamanho maximo: 2 MB")}</div>
+                    <div>{m("branding.logo.acceptedFormats")}</div>
+                    <div>{m("branding.logo.maxSize")}</div>
                   </div>
               </span>
             </span>
@@ -1820,7 +2165,7 @@ export default function InvoicesPage() {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={profileLogoPreviewUrl}
-                      alt={t("Business logo preview", "Apercu du logo", "Vorschau des Unternehmenslogos", "Vista previa del logo de la empresa", "Pre-visualizacao do logotipo da empresa")}
+                      alt={m("branding.logo.preview")}
                       className="h-full w-full object-contain"
                     />
                   </div>
@@ -1830,14 +2175,14 @@ export default function InvoicesPage() {
                       onClick={() => profileLogoInputRef.current?.click()}
                       className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-foreground"
                     >
-                      {t("Change logo", "Modifier le logo", "Logo andern", "Cambiar logo", "Alterar logotipo")}
+                      {m("branding.logo.change")}
                     </button>
                     <button
                       type="button"
                       onClick={removeProfileLogo}
                       className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-foreground"
                     >
-                      {t("Remove logo", "Supprimer le logo", "Logo entfernen", "Eliminar logo", "Remover logotipo")}
+                      {m("branding.logo.remove")}
                     </button>
                   </div>
                 </div>
@@ -1851,7 +2196,7 @@ export default function InvoicesPage() {
                 onChange={(e) => setProfileForm({ ...profileForm, taxId: e.target.value })}
               />
             </div>
-            <div className="col-span-2 max-md:col-span-1 max-md:order-10">
+            <div className="col-span-2 max-md:col-span-1 max-md:order-9">
               <Button type="submit" className="max-md:w-full">
                 {t("Save business profile", "Enregistrer le profil", "Unternehmensprofil speichern", "Guardar perfil de empresa", "Guardar perfil da empresa")}
               </Button>
@@ -1867,7 +2212,7 @@ export default function InvoicesPage() {
             >
               <form className="grid grid-cols-2 gap-x-4 gap-y-8 max-md:grid-cols-1 max-md:gap-4" onSubmit={createInvoice}>
             <Input
-              label={t("Invoice number", "Numero de facture", "Rechnungsnummer", "Numero de factura", "Numero da fatura")}
+              label={t("Invoice number", "Num?ro de facture", "Rechnungsnummer", "N?mero de factura", "N?mero da fatura")}
               value={form.invoiceNumber}
               onChange={(e) => setForm({ ...form, invoiceNumber: e.target.value })}
             />
@@ -1885,6 +2230,11 @@ export default function InvoicesPage() {
                         {selectedCustomer.phone ? (
                           <p className="mt-1 truncate text-[13px] text-slate-500 dark:text-slate-300">{selectedCustomer.phone}</p>
                         ) : null}
+                        {selectedCustomer.taxId ? (
+                          <p className="mt-1 truncate text-[13px] text-slate-500 dark:text-slate-300">
+                            {t("Tax ID", "ID fiscal", "Steuer-ID", "ID fiscal", "NIF")}: {selectedCustomer.taxId}
+                          </p>
+                        ) : null}
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
@@ -1893,7 +2243,21 @@ export default function InvoicesPage() {
                           className="h-9 rounded-full border border-slate-300/90 bg-slate-50 px-4 text-xs font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] hover:bg-slate-100 dark:border-slate-600/80 dark:bg-slate-900 dark:text-slate-100 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] dark:hover:bg-slate-800"
                           onClick={beginCustomerChange}
                         >
-                          {t("Change", "Changer", "Andern", "Cambiar", "Alterar")}
+                          {m("common.change")}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="h-9 rounded-full px-3 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-50"
+                          onClick={() =>
+                            openEditCustomer({
+                              customerId: selectedCustomer.id,
+                              customer: selectedCustomer,
+                              metadata: { customer: selectedCustomer },
+                            })
+                          }
+                        >
+                          {t("Edit details", "Modifier", "Bearbeiten", "Editar", "Editar")}
                         </Button>
                         <Button
                           type="button"
@@ -2046,12 +2410,152 @@ export default function InvoicesPage() {
                 ))}
               </select>
             </label>
+            <label className="flex flex-col gap-1 text-sm text-foreground">
+              {m("invoice.buyerType.label")}
+              <select
+                value={form.buyerType}
+                onChange={(e) => {
+                  setHasManualBuyerTypeSelection(true);
+                  setForm((prev) => ({ ...prev, buyerType: e.target.value as InvoiceBuyerType }));
+                }}
+                className="h-11 rounded-lg border border-input bg-background px-3 text-foreground focus:border-indigo-400 focus:outline-none"
+              >
+                <option value="B2C">{m("invoice.buyerType.consumer")}</option>
+                <option value="B2B">{m("invoice.buyerType.business")}</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-sm text-foreground">
+              {t("Supply type", "Type de fourniture", "Leistungsart", "Tipo de suministro", "Tipo de fornecimento")}
+              <select
+                value={form.supplyType}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, supplyType: e.target.value as InvoiceSupplyType }))
+                }
+                className="h-11 rounded-lg border border-input bg-background px-3 text-foreground focus:border-indigo-400 focus:outline-none"
+              >
+                <option value="SAAS">{t("SaaS", "SaaS", "SaaS", "SaaS", "SaaS")}</option>
+                <option value="SERVICES">{t("Services", "Services", "Dienstleistungen", "Servicios", "Servicos")}</option>
+                <option value="GOODS">{t("Goods", "Biens", "Waren", "Bienes", "Bens")}</option>
+              </select>
+            </label>
             <Input
-              label={t("PO number (optional)", "Numero BC (optionnel)", "Bestellnummer (optional)", "Numero de orden de compra (opcional)", "Numero da ordem de compra (opcional)")}
+              label={t("PO number (optional)", "Num?ro BC (optionnel)", "Bestellnummer (optional)", "N?mero de orden de compra (opcional)", "N?mero da ordem de compra (opcional)")}
               value={form.poNumber}
               onChange={(e) => setForm({ ...form, poNumber: e.target.value })}
               placeholder={t("Purchase order", "Bon de commande", "Bestellung", "Orden de compra", "Ordem de compra")}
             />
+            <div className="col-span-2 max-md:col-span-1">
+              <div className="rounded-2xl border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] p-5 shadow-[0_16px_34px_-30px_rgba(15,23,42,0.35)] dark:border-slate-700/80 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.96),rgba(15,23,42,0.88))] dark:shadow-[0_20px_40px_-30px_rgba(2,6,23,0.95)]">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-950 dark:text-slate-50">
+                      {t("Global compliance preview", "Apercu de conformite globale", "Globale Compliance-Vorschau", "Vista previa de cumplimiento global", "Pre-visualiza??o de conformidade global")}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-300">
+                      {t(
+                        "Region is used for rollout and support. Country still drives the actual invoice rule.",
+                        "La region sert au d?ploiement et au support. Le pays definit toujours la regle de facture.",
+                        "Die Region dient Rollout und Support. Das Land bestimmt weiterhin die eigentliche Rechnungsregel.",
+                        "La region se usa para despliegue y soporte. El pa?s sigue determinando la regla real de la factura.",
+                        "A regiao serve para rollout e suporte. O pa?s continua a determinar a regra real da fatura."
+                      )}
+                    </p>
+                  </div>
+                  <span className={`rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] ${supportLevelClass(invoiceCompliancePreview.supportLevel)}`}>
+                    {supportLevelLabel(invoiceCompliancePreview.supportLevel)}
+                  </span>
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className={compliancePreviewCardClass}>
+                    <p className={language === "de" ? compliancePreviewCompactLabelClass : compliancePreviewLabelClass}>
+                      {t("Seller region", "Region vendeur", "Verkaufsregion", "Region del vendedor", "Regiao do vendedor")}
+                    </p>
+                    <p className={compliancePreviewValueClass}>
+                      {regionLabel(invoiceCompliancePreview.sellerRegion)}
+                    </p>
+                  </div>
+                  <div className={compliancePreviewCardClass}>
+                    <p className={compliancePreviewLabelClass}>
+                      {t("Buyer region", "Region acheteur", "Kauferregion", "Region del comprador", "Regiao do comprador")}
+                    </p>
+                    <p className={compliancePreviewValueClass}>
+                      {regionLabel(invoiceCompliancePreview.buyerRegion)}
+                    </p>
+                  </div>
+                  <div className={compliancePreviewCardClass}>
+                    <p className={compliancePreviewLabelClass}>
+                      {t("Tax system", "Systeme fiscal", "Steuersystem", "Sistema fiscal", "Sistema fiscal")}
+                    </p>
+                    <p className={compliancePreviewValueClass}>
+                      {invoiceCompliancePreview.taxSystem || t("Manual review", "Verification manuelle", "Manuelle Prufung", "Revision manual", "Revisao manual")}
+                    </p>
+                  </div>
+                  <div className={compliancePreviewCardClass}>
+                    <p className={compliancePreviewLabelClass}>
+                      {t("Tax treatment", "Traitement fiscal", "Besteuerung", "Tratamiento fiscal", "Tratamento fiscal")}
+                    </p>
+                    <p className={compliancePreviewValueClass}>
+                      {invoiceCompliancePreview.reverseChargeApplies
+                        ? t("Reverse charge", "Autoliquidation", "Reverse Charge", "Inversion del sujeto pasivo", "Autoliquidacao")
+                        : invoiceCompliancePreview.taxTreatment === "MANUAL_REVIEW"
+                          ? t("Manual review", "Verification manuelle", "Manuelle Prufung", "Revision manual", "Revisao manual")
+                          : t("Standard tax", "Taxe standard", "Standard", "Impuesto estandar", "Imposto padrao")}
+                    </p>
+                  </div>
+                </div>
+                {invoiceCompliancePreview.warnings.length ? (
+                  <div className="mt-4 rounded-2xl border border-amber-200/80 bg-amber-50/90 p-4 dark:border-amber-400/20 dark:bg-amber-500/10">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800 dark:text-amber-200">
+                      {t("Compliance checks", "Controles de conformite", "Compliance-Prufungen", "Controles de cumplimiento", "Verificacoes de conformidade")}
+                    </p>
+                    <div className="mt-3 space-y-2">
+                      {invoiceCompliancePreview.warnings.map((warning) => (
+                        <p key={warning.code} className="text-sm text-amber-900 dark:text-amber-100">
+                          {localizedComplianceWarning(warning.code, warning.message)}
+                        </p>
+                      ))}
+                    </div>
+                    {form.buyerType === "B2B" &&
+                    selectedCustomer &&
+                    !String(selectedCustomer.taxId || "").trim() &&
+                    invoiceCompliancePreview.warnings.some(
+                      (warning) => warning.code === "buyer_tax_id_recommended"
+                    ) ? (
+                      <div className="mt-4">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="h-10 rounded-full border border-amber-300/80 bg-white/90 px-4 text-sm font-semibold text-amber-900 hover:bg-white dark:border-amber-300/20 dark:bg-slate-950/70 dark:text-amber-100 dark:hover:bg-slate-950"
+                          onClick={() =>
+                            openEditCustomer({
+                              customerId: selectedCustomer.id,
+                              customer: selectedCustomer,
+                              metadata: { customer: selectedCustomer },
+                            })
+                          }
+                        >
+                          {t(
+                            "Add customer tax ID",
+                            "Ajouter l ID fiscal du client",
+                            "Steuer-ID des Kunden hinzufugen",
+                            "Agregar ID fiscal del cliente",
+                            "Adicionar o ID fiscal do cliente"
+                          )}
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+                {sendBlockingReason ? (
+                  <div className="mt-4 rounded-2xl border border-rose-200/80 bg-rose-50/90 p-4 dark:border-rose-400/20 dark:bg-rose-500/10">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-800 dark:text-rose-200">
+                      {t("Send blocked", "Envoi bloque", "Senden blockiert", "Envio bloqueado", "Envio bloqueado")}
+                    </p>
+                    <p className="mt-2 text-sm text-rose-900 dark:text-rose-100">{sendBlockingReason}</p>
+                  </div>
+                ) : null}
+              </div>
+            </div>
             <div className="col-span-2 min-w-0 max-md:col-span-1">
               <div className="min-w-0 rounded-2xl border border-border bg-muted/10 p-6">
                 <div className="flex items-center justify-between gap-3">
@@ -2086,7 +2590,7 @@ export default function InvoicesPage() {
                                 autoResizeDescription(node);
                               }}
                               value={item.name}
-                              placeholder={t("Item details", "Details de l article", "Artikeldetails", "Detalles del item", "Detalhes do item")}
+                              placeholder={t("Item details", "D?tails de l article", "Artikeldetails", "Detalles del item", "Detalhes do item")}
                               onChange={(e) =>
                                 setForm((prev) => {
                                   const next = [...prev.items];
@@ -2291,7 +2795,7 @@ export default function InvoicesPage() {
                               "Ajoutez jusqu a 5 fichiers JPG, PNG, ou PDF a envoyer avec le PDF de la facture. Ces fichiers sont transmis avec l envoi, mais n apparaissent jamais sur la facture elle-meme.",
                               "Füge bis zu 5 JPG-, PNG- oder PDF-Dateien hinzu, die zusammen mit dem Rechnungs-PDF gesendet werden. Diese Dateien werden mit dem Rechnungspaket zugestellt, erscheinen aber nie auf der Rechnung selbst.",
                               "Adjunta hasta 5 archivos JPG, PNG o PDF para enviarlos junto con el PDF de la factura. Estos archivos se entregan con el paquete de factura, pero nunca aparecen en la factura.",
-                              "Anexa at? 5 ficheiros JPG, PNG ou PDF para enviar com o PDF da fatura. Estes ficheiros sao entregues com o pacote da fatura, mas nunca aparecem na propria fatura."
+                              "Anexa at? 5 ficheiros JPG, PNG ou PDF para enviar com o PDF da fatura. Estes ficheiros s?o entregues com o pacote da fatura, mas nunca aparecem na pr?pria fatura."
                             )}
                           </p>
                         </div>
@@ -2438,7 +2942,7 @@ export default function InvoicesPage() {
                     type="button"
                     className="h-12 rounded-2xl bg-[linear-gradient(135deg,#6657ff_0%,#5547f0_48%,#4338ca_100%)] px-7 text-[0.95rem] font-semibold text-white shadow-[0_24px_50px_-24px_rgba(79,70,229,0.9)] ring-1 ring-white/10 hover:bg-[linear-gradient(135deg,#7163ff_0%,#5f51f4_48%,#4b3fd4_100%)] dark:shadow-[0_28px_56px_-26px_rgba(79,70,229,0.82)] sm:min-w-[184px]"
                     loading={submittingInvoiceStatus === "SENT"}
-                    disabled={submittingInvoiceStatus !== null}
+                    disabled={submittingInvoiceStatus !== null || Boolean(sendBlockingReason)}
                     onClick={() => createInvoiceWithStatus("SENT")}
                   >
                             {t("Save & Send", "Enregistrer et envoyer", "Speichern und senden", "Guardar y enviar", "Guardar e enviar")}
@@ -2450,11 +2954,11 @@ export default function InvoicesPage() {
           </div>
 
           <Card
-              title={<span className="text-[1.02rem] font-semibold tracking-tight">{t("Live invoice preview", "Apercu en direct", "Live-Rechnungsvorschau", "Vista previa de la factura", "Pre-visualizacao da fatura")}</span>}
+              title={<span className="text-[1.02rem] font-semibold tracking-tight">{t("Live invoice preview", "Apercu en direct", "Live-Rechnungsvorschau", "Vista previa de la factura", "Pre-visualiza??o da fatura")}</span>}
             className="h-fit shadow-sm sm:sticky sm:top-20 sm:self-start md:top-24"
           >
             <p className="mb-5 text-[0.78rem] font-medium tracking-[0.01em] text-muted-foreground">
-                    {t("Preview updates as you edit.", "L apercu se met a jour en direct.", "Die Vorschau wird wahrend der Bearbeitung aktualisiert.", "La vista previa se actualiza mientras editas.", "A pre-visualizacao atualiza enquanto edita.")}
+                    {t("Preview updates as you edit.", "L’aperçu se met à jour en direct.", "Die Vorschau wird während der Bearbeitung aktualisiert.", "La vista previa se actualiza mientras editas.", "A pré-visualização atualiza enquanto edita.")}
             </p>
             <div className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white/95 shadow-[0_26px_60px_-42px_rgba(15,23,42,0.25)] dark:border-slate-700/80 dark:bg-slate-950/90 dark:shadow-[0_32px_70px_-42px_rgba(2,6,23,0.8)]">
               <InvoicePreview
@@ -2500,6 +3004,7 @@ export default function InvoicesPage() {
                       }
                 }
                 note={form.note.trim() || null}
+                compliance={invoiceCompliancePreview}
                 variant="compact"
               />
             </div>
@@ -2535,14 +3040,14 @@ export default function InvoicesPage() {
                 "Impossible de charger les factures.",
                 "Rechnungen konnten nicht geladen werden.",
                 "No se pudieron cargar las facturas.",
-                "Não foi possivel carregar as faturas."
+                "Não foi poss?vel carregar as faturas."
               )}
           </Alert>
         )}
         {showEmptyState ? (
           <EmptyState
             title={t("No invoices yet", "Aucune facture", "Noch keine Rechnungen", "Todavia no hay facturas", "Ainda não existem faturas")}
-            description={t("Create your first invoice and it will appear here.", "Creez votre premiere facture ici.", "Erstelle deine erste Rechnung und sie erscheint hier.", "Crea tu primera factura y aparecera aqui.", "Crie a sua primeira fatura e ela aparecera aqui.")}
+            description={t("Create your first invoice and it will appear here.", "Cr?ez votre premiere facture ici.", "Erstelle deine erste Rechnung und sie erscheint hier.", "Crea tu primera factura y aparecera aqui.", "Crie a sua primeira fatura e ela aparecera aqui.")}
             actionLabel={t("Create invoice", "Creer une facture", "Rechnung erstellen", "Crear factura", "Criar fatura")}
             onAction={scrollToCreate}
           />
@@ -2552,7 +3057,7 @@ export default function InvoicesPage() {
               data={filteredInvoices}
               keyExtractor={(row: any) => row.id || row.invoiceNumber}
               columns={[
-              { key: "invoiceNumber", label: t("Invoice Number", "Numero de facture", "Rechnungsnummer", "Numero de factura", "Numero da fatura"), align: "left" },
+              { key: "invoiceNumber", label: t("Invoice Number", "Num?ro de facture", "Rechnungsnummer", "N?mero de factura", "N?mero da fatura"), align: "left" },
               {
                 key: "customer",
                 label: t("Customer", "Client", "Kunde", "Cliente", "Cliente"),
@@ -2584,6 +3089,23 @@ export default function InvoicesPage() {
                     {translateStatus(getDisplayStatus(row?.displayStatus || row?.status || ""))}
                   </span>
                 ),
+              },
+              {
+                key: "compliance",
+                label: t("Compliance", "Conformite", "Compliance", "Cumplimiento", "Conformidade"),
+                align: "center",
+                render: (row: any) => {
+                  const badge = resolveComplianceBadge(row);
+                  return (
+                    <span
+                      className={`inline-flex min-w-[84px] items-center justify-center rounded-full border px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ${complianceBadgeClass(
+                        badge.variant
+                      )}`}
+                    >
+                      {badge.label}
+                    </span>
+                  );
+                },
               },
               {
                 key: "total",
@@ -2690,7 +3212,7 @@ export default function InvoicesPage() {
                                 </span>
                                 {deletingInvoiceId === row?.id
                                   ? t("Deleting...", "Suppression...", "Wird gelöscht...", "Eliminando...", "A eliminar...")
-                                  : t("Delete draft", "Supprimer", "Entwurf loschen", "Eliminar borrador", "Eliminar rascunho")}
+                                  : t("Delete draft", "Supprimer", "Entwurf l?schen", "Eliminar borrador", "Eliminar rascunho")}
                               </button>
                             </div>
                           ) : null}
@@ -2722,7 +3244,7 @@ export default function InvoicesPage() {
                             disabled={deletingInvoiceId === row?.id || sendingId === row?.id}
                             className="text-sm font-medium text-rose-700 hover:text-rose-600 disabled:opacity-50"
                           >
-                            {deletingInvoiceId === row?.id ? t("Deleting...", "Suppression...", "Wird gelöscht...", "Eliminando...", "A eliminar...") : t("Delete", "Supprimer", "Loschen", "Eliminar", "Eliminar")}
+                            {deletingInvoiceId === row?.id ? t("Deleting...", "Suppression...", "Wird gelöscht...", "Eliminando...", "A eliminar...") : t("Delete", "Supprimer", "L?schen", "Eliminar", "Eliminar")}
                           </button>
                         </>
                       ) : null}
@@ -2748,7 +3270,7 @@ export default function InvoicesPage() {
                     type="button"
                     onClick={() => setInvoicePage((prev) => Math.max(0, prev - 1))}
                     disabled={!canGoToPreviousPage}
-                    aria-label={t("Previous page", "Page précédente", "Vorherige Seite", "Pagina anterior", "Pagina anterior")}
+                    aria-label={t("Previous page", "Page précédente", "Vorherige Seite", "P?gina anterior", "P?gina anterior")}
                     className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-45"
                   >
                     <ChevronLeft className="h-4 w-4" />
@@ -2760,7 +3282,7 @@ export default function InvoicesPage() {
                     type="button"
                     onClick={() => setInvoicePage((prev) => prev + 1)}
                     disabled={!canGoToNextPage}
-                    aria-label={t("Next page", "Page suivante", "Nächste Seite", "Pagina siguiente", "Pagina seguinte")}
+                    aria-label={t("Next page", "Page suivante", "Nächste Seite", "P?gina siguiente", "P?gina seguinte")}
                     className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-45"
                   >
                     <ChevronRight className="h-4 w-4" />
@@ -2792,7 +3314,7 @@ export default function InvoicesPage() {
                 </div>
                 <div>
                   <p className="text-[1.55rem] font-semibold leading-tight text-foreground">
-                    {t("Delete draft invoice?", "Supprimer le brouillon ?", "Entwurfsrechnung loschen?", "Eliminar factura en borrador?", "Eliminar fatura em rascunho?")}
+                    {t("Delete draft invoice?", "Supprimer le brouillon ?", "Entwurfsrechnung l?schen?", "Eliminar factura en borrador?", "Eliminar fatura em rascunho?")}
                   </p>
                   <p className="mt-1 text-sm leading-6 text-muted-foreground">
                     {t(
@@ -2808,7 +3330,7 @@ export default function InvoicesPage() {
             </div>
             <button
               type="button"
-              aria-label={t("Close", "Fermer", "Schliessen", "Cerrar", "Fechar")}
+              aria-label={t("Close", "Fermer", "Schlie?en", "Cerrar", "Fechar")}
               onClick={() => {
                 if (deletingInvoiceId) return;
                 setDeleteCandidate(null);
@@ -2865,7 +3387,7 @@ export default function InvoicesPage() {
               loading={Boolean(deletingInvoiceId)}
               onClick={confirmDeleteDraft}
             >
-              {t("Delete Draft", "Supprimer le brouillon", "Entwurf loschen", "Eliminar borrador", "Eliminar rascunho")}
+              {t("Delete Draft", "Supprimer le brouillon", "Entwurf l?schen", "Eliminar borrador", "Eliminar rascunho")}
             </Button>
           </div>
         </div>
@@ -2894,7 +3416,7 @@ export default function InvoicesPage() {
                 <p className="mt-1 text-sm text-muted-foreground">
                     {t(
                       "Create a complete customer record for invoices and payment follow-up.",
-                      "Creez une fiche client complete pour la facturation et le suivi des paiements.",
+                      "Cr?ez une fiche client complete pour la facturation et le suivi des paiements.",
                       "Erstelle einen vollständigen Kundendatensatz für Rechnungen und Zahlungsnachverfolgung.",
                       "Crea un registro completo del cliente para facturas y seguimiento de pagos.",
                       "Crie um registo completo do cliente para faturas e acompanhamento de pagamentos."
@@ -2904,7 +3426,7 @@ export default function InvoicesPage() {
             </div>
             <button
               type="button"
-              aria-label={t("Close", "Fermer", "Schliessen", "Cerrar", "Fechar")}
+              aria-label={t("Close", "Fermer", "Schlie?en", "Cerrar", "Fechar")}
               onClick={() => setCustomerModalOpen(false)}
               className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-border/70 bg-white/85 text-muted-foreground shadow-[0_18px_36px_-30px_rgba(15,23,42,0.55)] transition hover:border-slate-300 hover:text-foreground dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-300 dark:shadow-[0_18px_36px_-30px_rgba(0,0,0,0.8)] dark:hover:border-slate-500 dark:hover:text-slate-100"
             >
@@ -2930,6 +3452,16 @@ export default function InvoicesPage() {
               spellCheck={false}
               formNoValidate={false}
             />
+          <div>
+            <Input
+              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 text-[15px] leading-tight shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
+              label={t("Company / legal name (optional)", "Raison sociale / nom legal (optionnel)", "Firma / rechtlicher Name (optional)", "Nombre legal de la empresa (opcional)", "Nome legal da empresa (opcional)")}
+              value={newCustomerForm.companyName}
+              onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, companyName: event.target.value }))}
+              style={getAdaptiveInputStyle(newCustomerForm.companyName, 1, 0.8, 18, 0.018)}
+              placeholder={t("Company name", "Raison sociale", "Firmenname", "Nombre de la empresa", "Nome da empresa")}
+            />
+          </div>
           </div>
           <div>
             <Input
@@ -2945,7 +3477,7 @@ export default function InvoicesPage() {
           </div>
           <div>
             <PhoneInput
-              label={t("Phone", "Telephone", "Telefon", "Telefono", "Telefone")}
+              label={t("Phone", "T?l?phone", "Telefon", "Tel?fono", "Telefonee")}
               value={newCustomerForm.phone}
               locale={language}
               defaultCountry={preferredCustomerCountry || "US"}
@@ -2976,21 +3508,48 @@ export default function InvoicesPage() {
           <div>
             <Input
               className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 text-[15px] leading-tight shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
-              label={t("Address", "Adresse", "Adresse", "Direccion", "Endereco")}
+              label={t("Address line 1", "Adresse ligne 1", "Adresszeile 1", "Linea de direcci?n 1", "Linha de endereco 1")}
               value={newCustomerForm.addressLine1}
               onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, addressLine1: event.target.value }))}
               style={getAdaptiveInputStyle(newCustomerForm.addressLine1, 1, 0.78, 20, 0.017)}
               required
-              placeholder={t("Street address", "Adresse postale", "Strassenadresse", "Direccion postal", "Endereco postal")}
+              placeholder={t("Street address", "Adresse postale", "Strassenadresse", "Direcci?n postal", "Endereco postal")}
+            />
+          </div>
+          <div>
+            <Input
+              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 text-[15px] leading-tight shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
+              label={t("Address line 2 (optional)", "Adresse ligne 2 (optionnelle)", "Adresszeile 2 (optional)", "Linea de direcci?n 2 (opcional)", "Linha de endereco 2 (opcional)")}
+              value={newCustomerForm.addressLine2}
+              onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, addressLine2: event.target.value }))}
+              style={getAdaptiveInputStyle(newCustomerForm.addressLine2, 1, 0.78, 20, 0.017)}
             />
           </div>
           <div>
             <Input
               className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
-              label={t("Tax ID (optional)", "Numero fiscal (optionnel)", "Steuer-ID (optional)", "ID fiscal (opcional)", "NIF (opcional)")}
+              label={t("Tax ID (optional)", "Num?ro fiscal (optionnel)", "Steuer-ID (optional)", "ID fiscal (opcional)", "NIF (opcional)")}
               value={newCustomerForm.taxId}
               onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, taxId: event.target.value }))}
-              placeholder={t("Tax or VAT ID", "Numero fiscal ou TVA", "Steuer- oder MwSt.-ID", "ID fiscal o IVA", "NIF ou IVA")}
+              placeholder={t("Tax or VAT ID", "Num?ro fiscal ou TVA", "Steuer- oder MwSt.-ID", "ID fiscal o IVA", "NIF ou IVA")}
+            />
+          </div>
+          <div>
+            <Input
+              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
+              label={t("Business registration number (optional)", "Num?ro d immatriculation de l entreprise (optionnel)", "Handelsregisternummer (optional)", "N?mero de registro de la empresa (opcional)", "N?mero de registro da empresa (opcional)")}
+              value={newCustomerForm.registrationNumber}
+              onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, registrationNumber: event.target.value }))}
+              placeholder={t("Registration number", "Num?ro d immatriculation", "Registernummer", "N?mero de registro", "N?mero de registro")}
+            />
+          </div>
+          <div>
+            <Input
+              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
+              label={t("Branch code (optional)", "Code de succursale (optionnel)", "Filialcode (optional)", "C?digo de sucursal (opcional)", "C?digo da filial (opcional)")}
+              value={newCustomerForm.branchCode}
+              onChange={(event) => setNewCustomerForm((prev) => ({ ...prev, branchCode: event.target.value }))}
+              placeholder={t("Branch code", "Code agence", "Filialcode", "C?digo de sucursal", "C?digo da filial")}
             />
           </div>
           <div>
@@ -3024,7 +3583,7 @@ export default function InvoicesPage() {
           </div>
           <div>
             <CountrySelect
-              label={t("Country", "Pays", "Land", "Pais", "Pais")}
+              label={t("Country", "Pays", "Land", "Pa?s", "Pa?s")}
               value={newCustomerForm.country}
               locale={language}
               onChange={(value) => setNewCustomerForm((prev) => ({ ...prev, country: value }))}
@@ -3063,7 +3622,7 @@ export default function InvoicesPage() {
       <Modal
         open={editOpen}
         onClose={() => setEditOpen(false)}
-        title={t("Edit customer details", "Modifier les details client", "Kundendaten bearbeiten", "Editar datos del cliente", "Editar dados do cliente")}
+        title={t("Edit customer details", "Modifier les d?tails client", "Kundendaten bearbeiten", "Editar datos del cliente", "Editar dados do cliente")}
       >
         <form className="space-y-4" onSubmit={saveCustomerDetails}>
           {editStatus ? (
@@ -3077,20 +3636,40 @@ export default function InvoicesPage() {
             onChange={(e) => setEditForm({ ...editForm, customerName: e.target.value })}
           />
           <Input
+            label={t("Company / legal name (optional)", "Raison sociale / nom legal (optionnel)", "Firma / rechtlicher Name (optional)", "Nombre legal de la empresa (opcional)", "Nome legal da empresa (opcional)")}
+            value={editForm.customerCompanyName}
+            onChange={(e) => setEditForm({ ...editForm, customerCompanyName: e.target.value })}
+          />
+          <Input
             label={t("Customer email", "Email client", "Kunden-E-Mail", "Correo del cliente", "Email do cliente")}
             type="email"
             value={editForm.customerEmail}
             onChange={(e) => setEditForm({ ...editForm, customerEmail: e.target.value })}
           />
           <Input
-            label={t("Tax ID (optional)", "Numero fiscal (optionnel)", "Steuer-ID (optional)", "ID fiscal (opcional)", "NIF (opcional)")}
+            label={t("Tax ID (optional)", "Num?ro fiscal (optionnel)", "Steuer-ID (optional)", "ID fiscal (opcional)", "NIF (opcional)")}
             value={editForm.customerTaxId}
             onChange={(e) => setEditForm({ ...editForm, customerTaxId: e.target.value })}
           />
           <Input
-            label={t("Street address", "Adresse", "Strassenadresse", "Direccion", "Endereco")}
+            label={t("Business registration number (optional)", "Num?ro d immatriculation de l entreprise (optionnel)", "Handelsregisternummer (optional)", "N?mero de registro de la empresa (opcional)", "N?mero de registro da empresa (opcional)")}
+            value={editForm.customerRegistrationNumber}
+            onChange={(e) => setEditForm({ ...editForm, customerRegistrationNumber: e.target.value })}
+          />
+          <Input
+            label={t("Branch code (optional)", "Code de succursale (optionnel)", "Filialcode (optional)", "C?digo de sucursal (opcional)", "C?digo da filial (opcional)")}
+            value={editForm.customerBranchCode}
+            onChange={(e) => setEditForm({ ...editForm, customerBranchCode: e.target.value })}
+          />
+          <Input
+            label={t("Address line 1", "Adresse ligne 1", "Adresszeile 1", "Linea de direcci?n 1", "Linha de endereco 1")}
             value={editForm.customerStreet}
             onChange={(e) => setEditForm({ ...editForm, customerStreet: e.target.value })}
+          />
+          <Input
+            label={t("Address line 2 (optional)", "Adresse ligne 2 (optionnelle)", "Adresszeile 2 (optional)", "Linea de direcci?n 2 (opcional)", "Linha de endereco 2 (opcional)")}
+            value={editForm.customerAddressLine2}
+            onChange={(e) => setEditForm({ ...editForm, customerAddressLine2: e.target.value })}
           />
           <Input
             label={t("City", "Ville", "Stadt", "Ciudad", "Cidade")}
@@ -3098,12 +3677,17 @@ export default function InvoicesPage() {
             onChange={(e) => setEditForm({ ...editForm, customerCity: e.target.value })}
           />
           <Input
+            label={t("State / Province / Region (optional)", "Etat / province / region (optionnel)", "Bundesland / Region (optional)", "Estado / provincia / region (opcional)", "Estado / provincia / regiao (opcional)")}
+            value={editForm.customerState}
+            onChange={(e) => setEditForm({ ...editForm, customerState: e.target.value })}
+          />
+          <Input
             label={t("Postal code / ZIP (optional)", "Code postal (optionnel)", "Postleitzahl / ZIP (optional)", "Código postal / ZIP (opcional)", "Código postal / ZIP (opcional)")}
             value={editForm.customerPostalCode}
             onChange={(e) => setEditForm({ ...editForm, customerPostalCode: e.target.value })}
           />
             <CountrySelect
-              label={t("Country", "Pays", "Land", "Pais", "Pais")}
+              label={t("Country", "Pays", "Land", "Pa?s", "Pa?s")}
               value={editForm.customerCountry}
               locale={language}
               onChange={(value) => setEditForm({ ...editForm, customerCountry: value })}

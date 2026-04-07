@@ -34,7 +34,7 @@ const steps: Array<{ title: LocalizedText; desc: LocalizedText; href: string }> 
     href: "/dashboard/assistant",
   },
   {
-    title: text("Inbox", "Boite de reception"),
+    title: text("Inbox", "Bo?te de reception"),
     desc: text("Review customer messages and replies in one place.", "Voir messages clients et réponses au meme endroit."),
     href: "/dashboard/inbox",
   },

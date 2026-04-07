@@ -7,7 +7,7 @@ const ASSISTANT_SERVER_MESSAGES: Record<string, LocalizedText> = {
     fr: "Mise a niveau requise.",
     de: "Upgrade erforderlich.",
     es: "Se requiere una mejora del plan.",
-    pt: "Atualizacao de plano necessária.",
+    pt: "Atualiza??o de plano necessária.",
   },
   "Payment required": {
     en: "Payment required.",
@@ -48,14 +48,14 @@ const ASSISTANT_SERVER_MESSAGES: Record<string, LocalizedText> = {
     en: "Assistant is unavailable right now.",
     fr: "Assistant indisponible pour le moment.",
     de: "Der Assistent ist momentan nicht verfügbar.",
-    es: "El asistente no esta disponible ahora mismo.",
+    es: "El asistente no est? disponible ahora mismo.",
     pt: "O assistente não esta disponível neste momento.",
   },
   "Chat history is unavailable right now. Sending without history.": {
     en: "Chat history is unavailable right now. Sending without history.",
     fr: "L'historique du chat est indisponible. Envoi sans historique.",
     de: "Der Chatverlauf ist momentan nicht verfügbar. Es wird ohne Verlauf gesendet.",
-    es: "El historial del chat no esta disponible ahora mismo. Se enviara sin historial.",
+    es: "El historial del chat no est? disponible ahora mismo. Se enviara sin historial.",
     pt: "O histórico do chat não esta disponível neste momento. O envio seguira sem histórico.",
   },
   "Session expired. Please sign in again.": {
@@ -70,14 +70,14 @@ const ASSISTANT_SERVER_MESSAGES: Record<string, LocalizedText> = {
     fr: "Impossible de renommer le chat pour le moment.",
     de: "Der Chat kann momentan nicht umbenannt werden.",
     es: "No se puede cambiar el nombre del chat en este momento.",
-    pt: "Não e possivel renomear o chat neste momento.",
+    pt: "Não e poss?vel renomear o chat neste momento.",
   },
   "Unable to delete chat right now.": {
     en: "Unable to delete chat right now.",
     fr: "Impossible de supprimer le chat pour le moment.",
     de: "Der Chat kann momentan nicht gelöscht werden.",
     es: "No se puede eliminar el chat en este momento.",
-    pt: "Não e possivel eliminar o chat neste momento.",
+    pt: "Não e poss?vel eliminar o chat neste momento.",
   },
   "Thanks for the feedback.": {
     en: "Thanks for the feedback.",

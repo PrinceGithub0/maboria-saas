@@ -9,57 +9,68 @@ type PricingMeta = { usd?: number; ngn?: number; displayName: string; features: 
 // Pricing is intentionally kept as a small, hardcoded table so UI can render without a DB dependency.
 // "BUSINESS" is the canonical plan name; "PREMIUM" is kept as a legacy alias for older data.
 const businessMeta: PricingMeta = {
-  ngn: 361050,
-  usd: 249,
+  ngn: 506050,
+  usd: 349,
   displayName: "Business",
   features: [
-    "Invoices: 3,000 / month",
-    "WhatsApp messages: 7,500 / month",
-    "AI usage: 3,000 / month",
-    "Automations: Unlimited",
-    "Up to 10 team members",
-    "Role-based access",
-    "Phone + priority support",
+    "1 workspace",
+    "Unlimited connections",
+    "Advanced inbox operations",
+    "Roles and permissions",
+    "Audit logs",
+    "Admin controls",
+    "Advanced reporting",
+    "Compliance and e-invoicing support",
+    "Onboarding assistance",
+    "Up to 15 seats",
   ],
 };
 
 const pricingTable: Record<Plan, PricingMeta> = {
   STARTER: {
-    ngn: 42050,
-    usd: 29,
+    ngn: 56550,
+    usd: 39,
     displayName: "Starter",
     features: [
-      "Invoices: 50 / month",
-      "Payments (cards & bank transfer)",
-      "WhatsApp messages: 100 / month",
-      "AI usage: 50 / month",
-      "Automations: 3 total",
-      "1 user",
+      "1 workspace",
+      "2 connections total",
+      "Unified inbox",
+      "Send invoices and track payments",
+      "Automated follow-ups",
+      "Basic workflows",
+      "AI assistant",
+      "1 seat",
     ],
   },
   PRO: {
-    ngn: 85550,
-    usd: 59,
+    ngn: 114550,
+    usd: 79,
     displayName: "Pro",
     features: [
-      "Invoices: 300 / month",
-      "WhatsApp messages: 1,000 / month",
-      "AI usage: 300 / month",
-      "Automations: 10 total",
-      "Up to 3 team members",
+      "1 workspace",
+      "Up to 8 connections",
+      "Shared inbox",
+      "Smart automation workflows",
+      "AI-powered replies",
+      "Payment tracking",
+      "Exports",
+      "Role-based access",
+      "3 seats",
     ],
   },
   GROWTH: {
-    ngn: 172550,
-    usd: 119,
+    ngn: 245050,
+    usd: 169,
     displayName: "Growth",
     features: [
-      "Invoices: 1,000 / month",
-      "WhatsApp messages: 3,000 / month",
-      "AI usage: 1,000 / month",
-      "Automations: 25 total",
-      "Up to 5 team members",
+      "1 workspace",
+      "Up to 20 connections",
+      "Multiple connected inboxes",
+      "Advanced routing and assignment",
+      "Reporting and team visibility",
+      "Longer history retention",
       "Priority support",
+      "Up to 8 seats",
     ],
   },
   BUSINESS: businessMeta,
@@ -67,12 +78,13 @@ const pricingTable: Record<Plan, PricingMeta> = {
   ENTERPRISE: {
     displayName: "Enterprise",
     features: [
-      "Unlimited invoices",
-      "Unlimited WhatsApp (fair-use)",
-      "Unlimited AI",
-      "Unlimited team members",
-      "Dedicated account manager",
-      "SLA & custom integrations",
+      "Custom throughput",
+      "SLA guarantee",
+      "Custom integrations",
+      "Dedicated support",
+      "Compliance rollout assistance",
+      "Negotiated limits and controls",
+      "Custom seat volume",
     ],
   },
 };
@@ -101,7 +113,7 @@ export function getPlanPriceForCurrency(plan: Plan, currency: string) {
     return data.usd;
   }
   const ngn = data.ngn ?? null;
-  if (!ngn) return null;
+  if (ngn == null) return null;
   const rate = FX_RATES_NGN_PER[currency.toUpperCase()] ?? FX_RATES_NGN_PER.NGN;
   const base = ngn / rate;
   const { total } = applyVatToSubtotal(base, STANDARD_VAT_RATE);
@@ -116,7 +128,7 @@ export function getPlanPriceForInterval(
   const monthly = getPlanPriceForCurrency(plan, currency);
   if (monthly == null) return null;
   if (interval === "yearly") {
-    const yearly = monthly * 12 * 0.9;
+    const yearly = monthly * 12 * 0.85;
     return Math.round(yearly * 100) / 100;
   }
   return monthly;

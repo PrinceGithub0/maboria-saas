@@ -27,7 +27,7 @@ export default function FAQPage() {
           <LangText
             en="Answers based on what Maboria supports today."
             fr="Réponses basees sur ce que Maboria supporte aujourd hui."
-            de="Antworten basierend auf dem, was Maboria heute unterstutzt."
+            de="Antworten basierend auf dem, was Maboria heute unterst?tzt."
             es="Respuestas basadas en lo que Maboria admite hoy."
             pt="Respostas com base no que a Maboria suporta hoje."
           />

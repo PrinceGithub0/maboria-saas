@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
@@ -112,7 +112,7 @@ function formatStatus(status: IdentityAccessStatus, t: ReturnType<typeof useLang
   if (status === "ACTIVE") return t(text("Active", "Actif", "Aktiv", "Activo", "Ativo"));
   if (status === "PENDING") return t(text("Pending", "En attente", "Ausstehend", "Pendiente", "Pendente"));
   if (status === "SUSPENDED") return t(text("Suspended", "Suspendu", "Gesperrt", "Suspendido", "Suspenso"));
-  return t(text("Disabled", "Desactive", "Deaktiviert", "Desactivado", "Desativado"));
+  return t(text("Disabled", "D?sactiv?", "Deaktiviert", "Desactivado", "Desativado"));
 }
 
 function getAllowedRoleOptions(params: {
@@ -422,9 +422,9 @@ export default function AdminUsersPage() {
             ? localizeAdminServerMessage(
                 actionError.message,
                 language,
-                t(text("Action failed.", "L'action a echoue.", "Aktion fehlgeschlagen.", "La accion fallo.", "A acao falhou."))
+                t(text("Action failed.", "L'action a ?chou?.", "Aktion fehlgeschlagen.", "La accion fallo.", "A acao falhou."))
               )
-            : t(text("Action failed.", "L'action a echoue.", "Aktion fehlgeschlagen.", "La accion fallo.", "A acao falhou.")),
+            : t(text("Action failed.", "L'action a ?chou?.", "Aktion fehlgeschlagen.", "La accion fallo.", "A acao falhou.")),
       });
     } finally {
       setActionLoading(false);
@@ -440,7 +440,7 @@ export default function AdminUsersPage() {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(String((payload as { error?: string }).error || t(text("Unable to update role.", "Impossible de mettre a jour le role.", "Rolle konnte nicht aktualisiert werden.", "No se puede actualizar el rol.", "Não foi possivel atualizar a função."))));
+        throw new Error(String((payload as { error?: string }).error || t(text("Unable to update role.", "Impossible de mettre ? jour le role.", "Rolle konnte nicht aktualisiert werden.", "No se puede actualizar el rol.", "Não foi poss?vel atualizar a função."))));
       }
       setFeedback({
         variant: "success",
@@ -460,7 +460,7 @@ export default function AdminUsersPage() {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(String((payload as { error?: string }).error || t(text("Unable to update status.", "Impossible de mettre a jour le statut.", "Status konnte nicht aktualisiert werden.", "No se puede actualizar el estado.", "Não foi possivel atualizar o estado."))));
+        throw new Error(String((payload as { error?: string }).error || t(text("Unable to update status.", "Impossible de mettre ? jour le statut.", "Status konnte nicht aktualisiert werden.", "No se puede actualizar el estado.", "Não foi poss?vel atualizar o estado."))));
       }
       setFeedback({
         variant: "success",
@@ -474,7 +474,7 @@ export default function AdminUsersPage() {
   const submitPasswordReset = async () => {
     if (!selectedUserDetail) return;
     if (!passwordDraft.trim()) {
-      setFeedback({ variant: "error", message: t(text("Enter a temporary password first.", "Saisis d'abord un mot de passe temporaire.", "Gib zuerst ein temporeres Passwort ein.", "Introduce primero una contrasena temporal.", "Introduza primeiro uma palavra-passe temporaria.")) });
+      setFeedback({ variant: "error", message: t(text("Enter a temporary password first.", "Saisis d'abord un mot de passe temporaire.", "Gib zuerst ein temporeres Passwort ein.", "Introduce primero una contrase?a temporal.", "Introduza primeiro uma palavra-passe temporaria.")) });
       return;
     }
     await runAction(async () => {
@@ -485,11 +485,11 @@ export default function AdminUsersPage() {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(String((payload as { error?: string }).error || t(text("Unable to reset password.", "Impossible de reinitialiser le mot de passe.", "Passwort konnte nicht zurückgesetzt werden.", "No se puede restablecer la contrasena.", "Não foi possivel repor a palavra-passe."))));
+        throw new Error(String((payload as { error?: string }).error || t(text("Unable to reset password.", "Impossible de r?initialiser le mot de passe.", "Passwort konnte nicht zurückgesetzt werden.", "No se puede restablecer la contrase?a.", "Não foi poss?vel repor a palavra-passe."))));
       }
       setFeedback({
         variant: "success",
-        message: t(text("Temporary password saved.", "Mot de passe temporaire enregistre.", "Temporres Passwort gespeichert.", "Contrasena temporal guardada.", "Palavra-passe temporaria guardada.")),
+        message: t(text("Temporary password saved.", "Mot de passe temporaire enregistr?.", "Temporres Passwort gespeichert.", "Contrase?a temporal guardada.", "Palavra-passe temporaria guardada.")),
       });
       setPasswordDraft("");
     });
@@ -502,7 +502,7 @@ export default function AdminUsersPage() {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(String((payload as { error?: string }).error || t(text("Unable to cancel subscription.", "Impossible d'annuler l'abonnement.", "Abonnement konnte nicht gekundigt werden.", "No se puede cancelar la suscripción.", "Não foi possivel cancelar a subscrição."))));
+        throw new Error(String((payload as { error?: string }).error || t(text("Unable to cancel subscription.", "Impossible d'annuler l'abonnement.", "Abonnement konnte nicht gekundigt werden.", "No se puede cancelar la suscripción.", "Não foi poss?vel cancelar a subscrição."))));
       }
       const count = Number((payload as { count?: number }).count || 0);
       setFeedback({
@@ -532,7 +532,7 @@ export default function AdminUsersPage() {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(String((payload as { error?: string }).error || t(text("Unable to resend setup email.", "Impossible de renvoyer l'e-mail de configuration.", "Einrichtungs-E-Mail konnte nicht erneut gesendet werden.", "No se puede reenviar el correo de configuración.", "Não foi possivel reenviar o email de configuração."))));
+        throw new Error(String((payload as { error?: string }).error || t(text("Unable to resend setup email.", "Impossible de renvoyer l'e-mail de configuration.", "Einrichtungs-E-Mail konnte nicht erneut gesendet werden.", "No se puede reenviar el correo de configuración.", "Não foi poss?vel reenviar o email de configuração."))));
       }
       setFeedback({
         variant: "success",
@@ -596,8 +596,8 @@ export default function AdminUsersPage() {
         t(text("Status", "Statut", "Status", "Estado", "Estado")),
         t(text("Subscription plan", "Forfait", "Tarif", "Plan de suscripción", "Plano de subscrição")),
         t(text("Subscription state", "Etat de l'abonnement", "Abonnementstatus", "Estado de la suscripción", "Estado da subscrição")),
-        t(text("Last login", "Derniere connexion", "Letzte Anmeldung", "Ultimo acceso", "Ultimo inicio de sessão")),
-        t(text("Created at", "Cree le", "Erstellt am", "Creado el", "Criado em")),
+        t(text("Last login", "Derni?re connexion", "Letzte Anmeldung", "?ltimo acceso", "?ltimo inicio de sessão")),
+        t(text("Created at", "Cr?? le", "Erstellt am", "Creado el", "Criado em")),
       ])
     );
     setFeedback({ variant: "success", message: t(text("CSV exported.", "CSV exporte.", "CSV exportiert.", "CSV exportado.", "CSV exportado.")) });
@@ -620,10 +620,10 @@ export default function AdminUsersPage() {
               {t(
                 text(
                   "Manage platform users, roles, and subscription authority.",
-                  "Gerez les utilisateurs de la plateforme, les roles et les autorisations d'abonnement.",
+                  "G?rez les utilisateurs de la plateforme, les roles et les autorisations d'abonnement.",
                   "Verwalte Plattformbenutzer, Rollen und Abonnementberechtigungen.",
                   "Gestiona los usuarios de la plataforma, los roles y los permisos de suscripción.",
-                  "Gira os utilizadores da plataforma, as funções e as permissoes de subscrição."
+                  "Gira os utilizadores da plataforma, as funções e as permiss?es de subscrição."
                 )
               )}
             </p>
@@ -644,7 +644,7 @@ export default function AdminUsersPage() {
             ? localizeAdminServerMessage(
                 feedback.message,
                 language,
-                t(text("Action failed.", "L'action a echoue.", "Aktion fehlgeschlagen.", "La accion fallo.", "A acao falhou."))
+                t(text("Action failed.", "L'action a ?chou?.", "Aktion fehlgeschlagen.", "La accion fallo.", "A acao falhou."))
               )
             : feedback.message}
         </Alert>
@@ -660,7 +660,7 @@ export default function AdminUsersPage() {
                 "Impossible de charger les utilisateurs pour le moment.",
                 "Benutzer koennen derzeit nicht geladen werden.",
                 "No se pueden cargar los usuarios en este momento.",
-                "Nao foi possivel carregar os utilizadores neste momento."
+                "N?o foi poss?vel carregar os utilizadores neste momento."
               )
             )
           )}
@@ -785,7 +785,7 @@ export default function AdminUsersPage() {
                   <th className="px-4 py-3 text-center font-semibold">{t(text("Role", "Role", "Rolle", "Rol", "Função"))}</th>
                   <th className="px-4 py-3 text-center font-semibold">{t(text("Plan", "Forfait", "Tarif", "Plan", "Plano"))}</th>
                   <th className="px-4 py-3 text-center font-semibold">{t(text("Subscription", "Abonnement", "Abonnement", "Suscripción", "Subscrição"))}</th>
-                  <th className="px-4 py-3 text-center font-semibold">{t(text("Last Login", "Derniere connexion", "Letzte Anmeldung", "Ultimo acceso", "Ultimo inicio de sessão"))}</th>
+                  <th className="px-4 py-3 text-center font-semibold">{t(text("Last Login", "Derni?re connexion", "Letzte Anmeldung", "?ltimo acceso", "?ltimo inicio de sessão"))}</th>
                   <th className="px-4 py-3 text-center font-semibold">{t(text("Status", "Statut", "Status", "Estado", "Estado"))}</th>
                   <th className="px-4 py-3 text-center font-semibold">{t(text("Actions", "Actions", "Aktionen", "Acciones", "Ações"))}</th>
                 </tr>
@@ -903,7 +903,7 @@ export default function AdminUsersPage() {
                                   setActiveMenuUserId(null);
                                 }}
                               >
-                                {t(text("Change Role", "Changer le role", "Rolle andern", "Cambiar rol", "Alterar função"))}
+                                {t(text("Change Role", "Changer le role", "Rolle ?ndern", "Cambiar rol", "Alterar função"))}
                               </button>
                             ) : null}
                             {policy.canChangeStatus ? (
@@ -934,7 +934,7 @@ export default function AdminUsersPage() {
                                   setActiveMenuUserId(null);
                                 }}
                               >
-                                {t(text("Reset Password", "Reinitialiser le mot de passe", "Passwort zurücksetzen", "Restablecer contrasena", "Repor palavra-passe"))}
+                                {t(text("Reset Password", "R?initialiser le mot de passe", "Passwort zurücksetzen", "Restablecer contrase?a", "Repor palavra-passe"))}
                               </button>
                             ) : null}
                             {user.status === "PENDING" ? (
@@ -1050,14 +1050,14 @@ export default function AdminUsersPage() {
                 disabled={!canBulkRoleChange}
               >
                 <UserCog className="h-4 w-4" />
-                {t(text("Change Role", "Changer le role", "Rolle andern", "Cambiar rol", "Alterar função"))}
+                {t(text("Change Role", "Changer le role", "Rolle ?ndern", "Cambiar rol", "Alterar função"))}
               </Button>
               <Button size="sm" variant="secondary" onClick={exportSelected}>
                 {t(text("Export", "Exporter", "Exportieren", "Exportar", "Exportar"))}
               </Button>
               {actorRole === "SUPER_ADMIN" ? (
                 <Button size="sm" variant="danger" onClick={() => runBulkAction("delete")}>
-                  {t(text("Delete", "Supprimer", "Loschen", "Eliminar", "Eliminar"))}
+                  {t(text("Delete", "Supprimer", "L?schen", "Eliminar", "Eliminar"))}
                 </Button>
               ) : null}
             </div>
@@ -1071,7 +1071,7 @@ export default function AdminUsersPage() {
             type="button"
             className="absolute inset-0 bg-black/35"
             onClick={() => setSelectedUserId(null)}
-            aria-label={t(text("Close profile drawer", "Fermer le panneau du profil", "Profilbereich schliessen", "Cerrar panel del perfil", "Fechar painel do perfil"))}
+            aria-label={t(text("Close profile drawer", "Fermer le panneau du profil", "Profilbereich schlie?en", "Cerrar panel del perfil", "Fechar painel do perfil"))}
           />
           <aside className="relative ml-auto flex h-full w-full max-w-2xl flex-col border-l border-border bg-background shadow-2xl">
             <div className="border-b border-border p-5">
@@ -1081,7 +1081,7 @@ export default function AdminUsersPage() {
                   <h2 className="mt-1 text-xl font-semibold text-foreground">{t(text("User Profile", "Profil utilisateur", "Benutzerprofil", "Perfil de usuario", "Perfil do utilizador"))}</h2>
                 </div>
                 <Button size="sm" variant="secondary" onClick={() => setSelectedUserId(null)}>
-                  {t(text("Close", "Fermer", "Schliessen", "Cerrar", "Fechar"))}
+                  {t(text("Close", "Fermer", "Schlie?en", "Cerrar", "Fechar"))}
                 </Button>
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -1116,7 +1116,7 @@ export default function AdminUsersPage() {
                         "Impossible de charger le detail de l'utilisateur pour le moment.",
                         "Benutzerdetails koennen derzeit nicht geladen werden.",
                         "No se puede cargar el detalle del usuario en este momento.",
-                        "Nao foi possivel carregar o detalhe do utilizador neste momento."
+                        "N?o foi poss?vel carregar o detalhe do utilizador neste momento."
                       )
                     )
                   )}
@@ -1148,14 +1148,14 @@ export default function AdminUsersPage() {
                         </span>
                       </p>
                       <p>
-                        <span className="text-xs uppercase tracking-wide text-muted-foreground">{t(text("Created", "Cree", "Erstellt", "Creado", "Criado"))}</span>
+                        <span className="text-xs uppercase tracking-wide text-muted-foreground">{t(text("Created", "Cr??", "Erstellt", "Creado", "Criado"))}</span>
                         <span className="mt-1 block">{formatAbsoluteTime(selectedUserDetail.user.createdAt, locale, t)}</span>
                       </p>
                     </div>
                   </Card>
                   </div>
 
-                  <Card title={t(text("Authority", "Autorite", "Berechtigungen", "Autoridad", "Permissoes"))}>
+                  <Card title={t(text("Authority", "Autorite", "Berechtigungen", "Autoridad", "Permiss?es"))}>
                     <div className="grid gap-3 md:grid-cols-2">
                       <label className="text-xs text-muted-foreground">
                         {t(text("Role", "Role", "Rolle", "Rol", "Função"))}
@@ -1206,11 +1206,11 @@ export default function AdminUsersPage() {
                         <span className="mt-1 block">
                           {selectedUserDetail.user.twoFactorEnabled
                             ? t(text("Enabled", "Active", "Aktiviert", "Activado", "Ativado"))
-                            : t(text("Disabled", "Desactive", "Deaktiviert", "Desactivado", "Desativado"))}
+                            : t(text("Disabled", "D?sactiv?", "Deaktiviert", "Desactivado", "Desativado"))}
                         </span>
                       </p>
                       <p className="text-sm text-foreground">
-                        <span className="text-xs uppercase tracking-wide text-muted-foreground">{t(text("Last Login", "Derniere connexion", "Letzte Anmeldung", "Ultimo acceso", "Ultimo inicio de sessão"))}</span>
+                        <span className="text-xs uppercase tracking-wide text-muted-foreground">{t(text("Last Login", "Derni?re connexion", "Letzte Anmeldung", "?ltimo acceso", "?ltimo inicio de sessão"))}</span>
                         <span className="mt-1 block">
                           {formatRelativeTime(selectedUserDetail.user.lastLoginAt, locale, t)}
                         </span>
@@ -1284,11 +1284,11 @@ export default function AdminUsersPage() {
                       </div>
                       <div className="grid gap-2 md:grid-cols-[1fr_auto]">
                         <Input
-                          label={t(text("Temporary password", "Mot de passe temporaire", "Temporres Passwort", "Contrasena temporal", "Palavra-passe temporaria"))}
+                          label={t(text("Temporary password", "Mot de passe temporaire", "Temporres Passwort", "Contrase?a temporal", "Palavra-passe temporaria"))}
                           type="password"
                           value={passwordDraft}
                           onChange={(event) => setPasswordDraft(event.target.value)}
-                          placeholder={t(text("Set a temporary password", "Definir un mot de passe temporaire", "Temporres Passwort festlegen", "Establecer una contrasena temporal", "Definir uma palavra-passe temporaria"))}
+                          placeholder={t(text("Set a temporary password", "Definir un mot de passe temporaire", "Temporres Passwort festlegen", "Establecer una contrase?a temporal", "Definir uma palavra-passe temporaria"))}
                         />
                         <div className="flex items-end">
                           <Button
@@ -1297,14 +1297,14 @@ export default function AdminUsersPage() {
                             loading={actionLoading}
                             disabled={!drawerPolicy?.canResetPassword}
                           >
-                            {t(text("Save password", "Enregistrer le mot de passe", "Passwort speichern", "Guardar contrasena", "Guardar palavra-passe"))}
+                            {t(text("Save password", "Enregistrer le mot de passe", "Passwort speichern", "Guardar contrase?a", "Guardar palavra-passe"))}
                           </Button>
                         </div>
                       </div>
                     </div>
                   </Card>
 
-                  <Card title={t(text("Recent Audit Events", "Evenements d'audit recents", "Letzte Audit-Ereignisse", "Eventos de auditoria recientes", "Eventos de auditoria recentes"))}>
+                  <Card title={t(text("Recent Audit Events", "?v?nements d'audit recents", "Letzte Audit-Ereignisse", "Eventos de auditoria recientes", "Eventos de auditoria recentes"))}>
                     {selectedUserDetail.recentAuditEvents.length === 0 ? (
                       <p className="text-sm text-muted-foreground">{t(text("No audit events for this user yet.", "Aucun evenement d'audit pour cet utilisateur pour le moment.", "Noch keine Audit-Ereignisse für diesen Benutzer.", "Todavia no hay eventos de auditoria para este usuario.", "Ainda não existem eventos de auditoria para este utilizador."))}</p>
                     ) : (
@@ -1327,11 +1327,11 @@ export default function AdminUsersPage() {
         </div>
       ) : null}
 
-      <Modal open={Boolean(roleModal)} onClose={() => setRoleModal(null)} title={t(text("Change role", "Changer le role", "Rolle andern", "Cambiar rol", "Alterar função"))}>
+      <Modal open={Boolean(roleModal)} onClose={() => setRoleModal(null)} title={t(text("Change role", "Changer le role", "Rolle ?ndern", "Cambiar rol", "Alterar função"))}>
         {roleModal ? (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              {t(text("Update role for", "Mettre a jour le role de", "Rolle aktualisieren für", "Actualizar rol de", "Atualizar função de"))}{" "}
+              {t(text("Update role for", "Mettre ? jour le role de", "Rolle aktualisieren für", "Actualizar rol de", "Atualizar função de"))}{" "}
               <span className="font-semibold text-foreground">{roleModal.user.fullName}</span>.
             </p>
             <label className="text-sm text-muted-foreground">
@@ -1369,7 +1369,7 @@ export default function AdminUsersPage() {
         ) : null}
       </Modal>
 
-      <Modal open={bulkRoleOpen} onClose={() => setBulkRoleOpen(false)} title={t(text("Bulk role update", "Mise ? jour group ee des roles", "Massenaktualisierung der Rollen", "Actualización masiva de roles", "Atualizacao em massa de funções"))}>
+      <Modal open={bulkRoleOpen} onClose={() => setBulkRoleOpen(false)} title={t(text("Bulk role update", "Mise ? jour group ee des roles", "Massenaktualisierung der Rollen", "Actualización masiva de roles", "Atualiza??o em massa de funções"))}>
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
             {t(
@@ -1413,7 +1413,7 @@ export default function AdminUsersPage() {
         title={
           statusConfirm?.nextStatus === "ACTIVE"
             ? t(text("Enable account", "Activer le compte", "Konto aktivieren", "Activar cuenta", "Ativar conta"))
-            : t(text("Update account status", "Mettre a jour le statut du compte", "Kontostatus aktualisieren", "Actualizar estado de la cuenta", "Atualizar estado da conta"))
+            : t(text("Update account status", "Mettre ? jour le statut du compte", "Kontostatus aktualisieren", "Actualizar estado de la cuenta", "Atualizar estado da conta"))
         }
         description={
           statusConfirm

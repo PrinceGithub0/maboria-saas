@@ -4,35 +4,40 @@ export type PlanLimitKey = "starter" | "pro" | "growth" | "business";
 
 export type PlanLimitSet = {
   invoices: number;
-  whatsapp: number;
   aiRequests: number;
   automations: number;
+  connections: number;
+  seats: number;
 };
 
 export const PLAN_LIMITS: Record<PlanLimitKey, PlanLimitSet> = {
   starter: {
-    invoices: 50,
-    whatsapp: 100,
-    aiRequests: 50,
+    invoices: 100,
+    aiRequests: 100,
     automations: 3,
+    connections: 2,
+    seats: 1,
   },
   pro: {
-    invoices: 300,
-    whatsapp: 1000,
-    aiRequests: 300,
+    invoices: 500,
+    aiRequests: 500,
     automations: 10,
+    connections: 8,
+    seats: 3,
   },
   growth: {
-    invoices: 1000,
-    whatsapp: 3000,
-    aiRequests: 1000,
+    invoices: 2000,
+    aiRequests: 2000,
     automations: 25,
+    connections: 20,
+    seats: 8,
   },
   business: {
-    invoices: 3000,
-    whatsapp: 7500,
-    aiRequests: 3000,
+    invoices: 7500,
+    aiRequests: 5000,
     automations: UNLIMITED,
+    connections: UNLIMITED,
+    seats: 15,
   },
 };
 
@@ -44,4 +49,3 @@ export function normalizePlanLimitKey(plan?: string | null): PlanLimitKey | null
   }
   return null;
 }
-

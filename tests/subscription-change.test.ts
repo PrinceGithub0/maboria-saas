@@ -23,9 +23,9 @@ function run() {
 
   assert.ok(monthlyUpgrade, "monthly upgrade quote should resolve");
   assert.equal(monthlyUpgrade?.action, "upgrade");
-  assert.equal(monthlyUpgrade?.fullAmount, 59);
+  assert.equal(monthlyUpgrade?.fullAmount, 79);
   assert.ok((monthlyUpgrade?.creditAmount || 0) > 0, "unused credit should be applied");
-  assert.ok((monthlyUpgrade?.amountDue || 0) < 59, "upgrade should be prorated below full price");
+  assert.ok((monthlyUpgrade?.amountDue || 0) < 79, "upgrade should be prorated below full price");
 
   const yearlyUpgrade = buildSubscriptionCheckoutQuote({
     currency: "USD",

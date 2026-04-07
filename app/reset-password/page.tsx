@@ -95,12 +95,12 @@ export default function ResetPasswordPage() {
       });
       const payload = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(localizeServerMessage(payload?.error, language, t("Reset failed. Please request a new link.", "La reinitialisation a Ã©chouÃ©. Demandez un nouveau lien.")));
+        setError(localizeServerMessage(payload?.error, language, t("Reset failed. Please request a new link.", "La r\u00e9initialisation a \u00e9chou\u00e9. Demandez un nouveau lien.")));
         return;
       }
       router.push("/login?reset=success");
     } catch {
-      setError(t("Reset failed. Please request a new link.", "La reinitialisation a échoué. Demandez un nouveau lien."));
+      setError(t("Reset failed. Please request a new link.", "La r?initialisation a échoué. Demandez un nouveau lien."));
     } finally {
       setLoading(false);
     }
@@ -119,7 +119,7 @@ export default function ResetPasswordPage() {
         {validationState === "checking" && (
           <div className="mt-5 space-y-2">
             <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-              {t("Verifying link", "Verification du lien")}
+              {t("Verifying link", "Vérification du lien")}
             </h1>
             <p className="text-sm text-muted-foreground">
               {t("Please wait while we verify your reset link.", "Veuillez patienter pendant la verification du lien.")}
@@ -135,7 +135,7 @@ export default function ResetPasswordPage() {
             <p className="text-sm text-muted-foreground">
               {t(
                 "This password reset link is invalid or has expired. Please request a new one.",
-                "Ce lien de reinitialisation est invalide ou expire. Veuillez en demander un nouveau."
+                "Ce lien de réinitialisation est invalide ou expiré. Veuillez en demander un nouveau."
               )}
             </p>
             <Link href="/forgot-password">
@@ -150,7 +150,7 @@ export default function ResetPasswordPage() {
           <>
             <div className="mt-5 space-y-2">
               <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-                {t("Create new password", "Creer un nouveau mot de passe")}
+                {t("Create new password", "Créer un nouveau mot de passe")}
               </h1>
               <p className="text-sm text-muted-foreground">
                 {t("Choose a strong password for your account.", "Choisissez un mot de passe fort pour votre compte.")}
@@ -159,7 +159,7 @@ export default function ResetPasswordPage() {
 
             {error && (
               <Alert className="mt-5" variant="error">
-                {localizeServerMessage(error, language, t("Reset failed. Please request a new link.", "La reinitialisation a Ã©chouÃ©. Demandez un nouveau lien."))}
+                {localizeServerMessage(error, language, t("Reset failed. Please request a new link.", "La r\u00e9initialisation a \u00e9chou\u00e9. Demandez un nouveau lien."))}
               </Alert>
             )}
 
@@ -227,7 +227,7 @@ export default function ResetPasswordPage() {
                 loading={loading}
                 type="submit"
               >
-                {t("Update password", "Mettre a jour le mot de passe")}
+                {t("Update password", "Mettre ? jour le mot de passe")}
               </Button>
             </form>
           </>

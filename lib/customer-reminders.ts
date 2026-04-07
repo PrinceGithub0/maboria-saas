@@ -12,6 +12,7 @@ import { assertRateLimit } from "@/lib/rate-limit";
 import { getOrCreateSubscriberSetting, toLateFeeSettingsSnapshot } from "@/lib/subscriber-settings";
 import { applyLateFee, type LateFeeResult } from "@/lib/late-fee";
 import { getVisibleCustomerWhere } from "@/lib/customers";
+import { resolveCustomerContactPolicy } from "@/lib/customers/compliance";
 import {
   CUSTOMER_REMINDER_INVOICE_STATUSES,
   normalizeCustomerInvoiceStatus,
@@ -144,6 +145,10 @@ export async function sendCustomerReminder(input: {
         email: true,
         phone: true,
         deliveryPreference: true,
+        emailOptOut: true,
+        whatsappOptOut: true,
+        processingRestrictedAt: true,
+        erasedAt: true,
         status: true,
       },
     }),
@@ -311,16 +316,12 @@ export async function sendCustomerReminder(input: {
   ].filter(Boolean);
   const html = htmlRows.join("");
 
-  const shouldEmail =
-    (customer.deliveryPreference === "EMAIL" || customer.deliveryPreference === "BOTH") && Boolean(customer.email);
-  const shouldWhatsapp =
-    (customer.deliveryPreference === "WHATSAPP" || customer.deliveryPreference === "BOTH") &&
-    Boolean(customer.phone);
-  const fallbackEmail = !shouldEmail && !shouldWhatsapp && Boolean(customer.email);
-  const fallbackWhatsapp = !shouldEmail && !shouldWhatsapp && Boolean(customer.phone);
+  const contactPolicy = resolveCustomerContactPolicy(customer);
+  const shouldEmail = contactPolicy.shouldEmail;
+  const shouldWhatsapp = contactPolicy.shouldWhatsapp;
 
-  if (!shouldEmail && !shouldWhatsapp && !fallbackEmail && !fallbackWhatsapp) {
-    const error = new Error("Customer has no contact information.");
+  if (!shouldEmail && !shouldWhatsapp) {
+    const error = new Error(contactPolicy.blockedReason || "Customer contact policy blocks delivery.");
     (error as any).status = 400;
     throw error;
   }
@@ -337,7 +338,7 @@ export async function sendCustomerReminder(input: {
 
   const channelsSent: string[] = [];
   try {
-    if (shouldEmail || fallbackEmail) {
+    if (shouldEmail) {
       await sendBillingMail({
         to: String(customer.email),
         subject: `Payment reminder: ${updatedInvoice.invoiceNumber}`,
@@ -346,7 +347,7 @@ export async function sendCustomerReminder(input: {
       channelsSent.push("EMAIL");
     }
 
-    if (shouldWhatsapp || fallbackWhatsapp) {
+    if (shouldWhatsapp) {
       assertRateLimit(`reminder:whatsapp:${input.userId}`, 20, 60_000);
       await sendWhatsAppText({
         to: String(customer.phone),

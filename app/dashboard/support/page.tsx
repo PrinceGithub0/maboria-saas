@@ -202,7 +202,7 @@ export default function DashboardSupportPage() {
 
     for (const file of incoming) {
       if (!ALLOWED_ATTACHMENT_TYPES.includes(file.type as (typeof ALLOWED_ATTACHMENT_TYPES)[number])) {
-        nextError = t("Only JPG, PNG, or PDF files are supported.", "Seuls les fichiers JPG, PNG, ou PDF sont acceptes.", "Nur JPG-, PNG- oder PDF-Dateien werden unterstutzt.", "Solo se admiten archivos JPG, PNG o PDF.", "Apenas sao suportados ficheiros JPG, PNG ou PDF.");
+        nextError = t("Only JPG, PNG, or PDF files are supported.", "Seuls les fichiers JPG, PNG, ou PDF sont acceptes.", "Nur JPG-, PNG- oder PDF-Dateien werden unterst?tzt.", "Solo se admiten archivos JPG, PNG o PDF.", "Apenas s?o suportados ficheiros JPG, PNG ou PDF.");
         continue;
       }
       if (file.size > 5 * 1024 * 1024) {
@@ -276,7 +276,7 @@ export default function DashboardSupportPage() {
     const subject = form.subject.trim();
     const message = form.message.trim();
     const nextErrors: { subject?: string; message?: string } = {};
-    if (subject.length < 5) nextErrors.subject = t("Subject must be at least 5 characters.", "Le sujet doit comporter au moins 5 caracteres.", "Der Bêtreff muss mindestens 5 Zeichen lang sein.", "El asunto debe tener al menos 5 caracteres.", "O assunto tem de ter pelo menos 5 caracteres.");
+    if (subject.length < 5) nextErrors.subject = t("Subject must be at least 5 characters.", "Le sujet doit comporter au moins 5 caractères.", "Der Betreff muss mindestens 5 Zeichen lang sein.", "El asunto debe tener al menos 5 caracteres.", "O assunto tem de ter pelo menos 5 caracteres.");
     if (message.length < 10) nextErrors.message = t("Message must be at least 10 characters.", "Le message doit comporter au moins 10 caracteres.", "Die Nachricht muss mindestens 10 Zeichen lang sein.", "El mensaje debe tener al menos 10 caracteres.", "A mensagem tem de ter pelo menos 10 caracteres.");
     if (Object.keys(nextErrors).length) {
       setErrors(nextErrors);
@@ -323,7 +323,7 @@ export default function DashboardSupportPage() {
           setStatus({
             message: t({
               en: "Ticket submitted, but support email delivery failed. Updates will still appear here.",
-              fr: "Ticket envoye, mais l envoi de l email support a échoué. Les mises a jour apparaitront quand meme ici.",
+              fr: "Ticket envoy?, mais l envoi de l email support a échoué. Les mises a jour apparaitront quand meme ici.",
               de: "Ticket gesendet, aber die Zustellung der Support-E-Mail ist fehlgeschlagen. Aktualisierungen erscheinen weiterhin hier.",
               es: "El ticket se envio, pero la entrega del correo de soporte fallo. Las actualizaciones seguiran apareciendo aqui.",
               pt: "O ticket foi enviado, mas a entrega do email de suporte falhou. As atualizacoes continuarao a aparecer aqui.",
@@ -334,7 +334,7 @@ export default function DashboardSupportPage() {
           setStatus({
             message: t(
               "Ticket submitted successfully. You can track updates in Recent tickets.",
-              "Ticket envoye avec succes. Suivez les mises a jour dans les tickets recents.",
+              "Ticket envoy? avec succes. Suivez les mises a jour dans les tickets recents.",
               "Ticket erfolgreich gesendet. Du kannst Aktualisierungen in Letzte Tickets verfolgen.",
               "Ticket enviado correctamente. Puedes seguir las actualizaciones en Tickets recientes.",
               "Ticket enviado com sucesso. Pode acompanhar as atualizacoes em Tickets recentes."
@@ -354,7 +354,7 @@ export default function DashboardSupportPage() {
           fr: "Impossible de soumettre le ticket. Veuillez réessayer.",
           de: "Ticket konnte nicht gesendet werden. Bitte versuche es erneut.",
           es: "No se pudo enviar el ticket. Intentalo de nuevo.",
-          pt: "Não foi possivel submeter o ticket. Tente novamente.",
+          pt: "Não foi poss?vel submeter o ticket. Tente novamente.",
         }),
         variant: "error",
       });
@@ -441,7 +441,7 @@ export default function DashboardSupportPage() {
                 className="text-xs text-slate-500 dark:text-slate-400"
                 style={forceLight ? { color: "#64748B" } : undefined}
               >
-                {t("Priority support for your workspace", "Support prioritaire pour votre espace", "Priorisierter Support für deinen Workspace", "Soporte prioritario para tu espacio de trabajo", "Suporte prioritario para o seu espaco de trabalho")}
+                {t("Priority support for your workspace", "Support prioritaire pour votre espace", "Priorisierter Support für deinen Workspace", "Soporte prioritario para tu espacio de trabajo", "Suporte prioritario para o seu espa?o de trabalho")}
               </p>
             </div>
           </div>
@@ -468,7 +468,7 @@ export default function DashboardSupportPage() {
               >
                 {t(
                   "Create a support ticket or continue your existing support conversation.",
-                  "Creez un ticket de support ou poursuivez votre conversation de support existante.",
+                  "Cr?ez un ticket de support ou poursuivez votre conversation de support existante.",
                   "Erstelle ein Support-Ticket oder setze deine bestehende Support-Konversation fort.",
                   "Crea un ticket de soporte o continua tu conversación de soporte existente.",
                   "Crie um ticket de suporte ou continue a sua conversa de suporte existente."
@@ -562,7 +562,7 @@ export default function DashboardSupportPage() {
                     t("What you were trying to do", "Ce que vous tentiez de faire", "Was du versucht hast zu tun", "Lo que intentabas hacer", "O que estava a tentar fazer"),
                     t("Exact error message", "Le message d erreur exact", "Genaue Fehlermeldung", "Mensaje de error exacto", "Mensagem de erro exata"),
                     t("Steps taken and expected outcome", "Etapes suivies et resultat attendu", "Ausgeführte Schritte und erwartetes Ergebnis", "Pasos realizados y resultado esperado", "Passos efetuados e resultado esperado"),
-                    t("Screenshots or attachments (if available)", "Captures d ecran ou pieces jointes (si disponibles)", "Screenshots oder Anhange (falls vorhanden)", "Capturas o archivos adjuntos (si estan disponibles)", "Capturas de ecran ou anexos (se disponiveis)"),
+                    t("Screenshots or attachments (if available)", "Captures d ecran ou pieces jointes (si disponibles)", "Screenshots oder Anhange (falls vorhanden)", "Capturas o archivos adjuntos (si est?n disponibles)", "Capturas de ecran ou anexos (se dispon?veis)"),
                   ].map((item) => (
                     <li
                       key={item}
@@ -600,7 +600,7 @@ export default function DashboardSupportPage() {
                     "Nous n'avons pas pu charger vos tickets support recents pour le moment.",
                     "Deine letzten Support-Tickets konnten derzeit nicht geladen werden.",
                     "No pudimos cargar tus tickets de soporte recientes en este momento.",
-                    "Não foi possivel carregar os seus tickets de suporte recentes neste momento."
+                    "Não foi poss?vel carregar os seus tickets de suporte recentes neste momento."
                   )}
                 </Alert>
               ) : recentTickets.length === 0 ? (
@@ -737,7 +737,7 @@ export default function DashboardSupportPage() {
             </div>
 
             <Input
-              label={t("Subject", "Sujet", "Bêtreff", "Asunto", "Assunto")}
+              label={t("Subject", "Sujet", "Betreff", "Asunto", "Assunto")}
               placeholder={t("Billing, automation, AI...", "Facturation, automatisation, IA...", "Abrechnung, Automatisierung, KI...", "Facturación, automatización, IA...", "Faturação, automação, IA...")}
               value={form.subject}
               onChange={(e) => {
@@ -832,7 +832,7 @@ export default function DashboardSupportPage() {
                                 fr: "Apercu de la piece jointe",
                                 de: "Vorschau des Anhangs",
                                 es: "Vista previa del adjunto",
-                                pt: "Pre-visualizacao do anexo",
+                                pt: "Pre-visualiza??o do anexo",
                               })}
                               width={36}
                               height={36}

@@ -30,7 +30,7 @@ function localizeCustomersServerMessage(
     ),
     "Invalid customer payload": t(
       "Invalid customer details.",
-      "Details client invalides.",
+      "D?tails client invalides.",
       "Ungültige Kundendaten.",
       "Datos de cliente no validos.",
       "Dados de cliente invalidos."
@@ -160,8 +160,8 @@ export default function CustomersPage() {
           "Name and email are required.",
           "Nom et email sont requis.",
           "Name und E-Mail sind erforderlich.",
-          "El nombre y el correo electronico son obligatorios.",
-          "Nome e email sao obrigatorios."
+          "El nombre y el correo electr?nico son obligatorios.",
+          "Nome e email s?o obrigatorios."
         ),
       });
       return;
@@ -173,8 +173,8 @@ export default function CustomersPage() {
           "Address, city, state, and country are required.",
           "Adresse, ville, etat et pays sont requis.",
           "Adresse, Stadt, Bundesland und Land sind erforderlich.",
-          "La direccion, la ciudad, el estado y el pais son obligatorios.",
-          "Morada, cidade, estado e pais sao obrigatorios."
+          "La direcci?n, la ciudad, el estado y el pa?s son obligatorios.",
+          "Morada, cidade, estado e pa?s s?o obrigatorios."
         ),
       });
       return;
@@ -186,8 +186,8 @@ export default function CustomersPage() {
           "Country must be a 2-letter code like US or FR.",
           "Le pays doit être un code a 2 lettres comme US ou FR.",
           "Das Land muss ein 2-Buchstaben-Code wie US oder FR sein.",
-          "El pais debe ser un código de 2 letras como US o FR.",
-          "O pais deve ser um código de 2 letras como US ou FR."
+          "El pa?s debe ser un código de 2 letras como US o FR.",
+          "O pa?s deve ser um código de 2 letras como US ou FR."
         ),
       });
       return;
@@ -200,9 +200,9 @@ export default function CustomersPage() {
         variant: "warning",
         message: t(
           "Phone is required for WhatsApp delivery.",
-          "Le telephone est requis pour la livraison WhatsApp.",
+          "Le t?l?phone est requis pour la livraison WhatsApp.",
           "Für die WhatsApp-Zustellung ist eine Telefonnummer erforderlich.",
-          "El telefono es obligatorio para la entrega por WhatsApp.",
+          "El tel?fono es obligatorio para la entrega por WhatsApp.",
           "O telefone e obrigatório para a entrega por WhatsApp."
         ),
       });
@@ -231,7 +231,7 @@ export default function CustomersPage() {
               "Impossible d'enregistrer le client.",
               "Der Kunde konnte nicht gespeichert werden.",
               "No se pudo guardar el cliente.",
-              "Não foi possivel guardar o cliente."
+              "Não foi poss?vel guardar o cliente."
             ),
         });
         return;
@@ -241,7 +241,7 @@ export default function CustomersPage() {
       setModalOpen(false);
       setStatus({
         variant: "success",
-        message: t("Customer saved.", "Client enregistre.", "Kunde gespeichert.", "Cliente guardado.", "Cliente guardado."),
+        message: t("Customer saved.", "Client enregistr?.", "Kunde gespeichert.", "Cliente guardado.", "Cliente guardado."),
       });
       mutate();
     } catch {
@@ -252,7 +252,7 @@ export default function CustomersPage() {
           "Impossible d'enregistrer le client.",
           "Der Kunde konnte nicht gespeichert werden.",
           "No se pudo guardar el cliente.",
-          "Não foi possivel guardar o cliente."
+          "Não foi poss?vel guardar o cliente."
         ),
       });
     } finally {
@@ -273,7 +273,7 @@ export default function CustomersPage() {
         <header className="mt-12 flex flex-wrap items-end justify-between gap-6">
           <div className="space-y-2">
             <h1 className="text-[32px] font-bold tracking-tight text-foreground">{t("Customers", "Clients", "Kunden", "Clientes", "Clientes")}</h1>
-            <p className="text-[15px] text-muted-foreground">{t("Manage your business clients", "Gerez vos clients entreprise", "Verwalte deine Unternehmenskunden", "Gestiona tus clientes empresariales", "Gira os teus clientes empresariais")}</p>
+            <p className="text-[15px] text-muted-foreground">{t("Manage your business clients", "G?rez vos clients entreprise", "Verwalte deine Unternehmenskunden", "Gestiona tus clientes empresariales", "Gira os teus clientes empresariais")}</p>
           </div>
           <div className="flex w-full max-w-[620px] items-center justify-end gap-3">
             <div className="relative w-full max-w-[420px]">
@@ -334,7 +334,7 @@ export default function CustomersPage() {
                   {t("No customers found", "Aucun client trouve", "Keine Kunden gefunden", "No se encontraron clientes", "Nenhum cliente encontrado")}
                 </p>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {t("Create your first customer to start issuing invoices.", "Creez votre premier client pour commencer a emettre des factures.", "Erstelle deinen ersten Kunden, um Rechnungen auszustellen.", "Crea tu primer cliente para empezar a emitir facturas.", "Crie o seu primeiro cliente para comecar a emitir faturas.")}
+                  {t("Create your first customer to start issuing invoices.", "Cr?ez votre premier client pour commencer a emettre des factures.", "Erstelle deinen ersten Kunden, um Rechnungen auszustellen.", "Crea tu primer cliente para empezar a emitir facturas.", "Crie o seu primeiro cliente para comecar a emitir faturas.")}
                 </p>
               </div>
             ) : (
@@ -401,7 +401,7 @@ export default function CustomersPage() {
                         {customer.status === "ATTENTION"
                           ? t("Attention", "Attention", "Achtung", "Atencion", "Atencao")
                           : customer.status === "DISABLED"
-                          ? t("Disabled", "Desactive", "Deaktiviert", "Desactivado", "Desativado")
+                          ? t("Disabled", "D?sactiv?", "Deaktiviert", "Desactivado", "Desativado")
                           : customer.status === "ACTIVE"
                           ? t("Active", "Actif", "Aktiv", "Activo", "Ativo")
                           : t("New", "Nouveau", "Neu", "Nuevo", "Novo")}
@@ -481,14 +481,14 @@ export default function CustomersPage() {
                     required
                   />
                   <Input
-                    label={t("Email", "Email", "E-Mail", "Correo electronico", "Email")}
+                    label={t("Email", "Email", "E-Mail", "Correo electr?nico", "Email")}
                     type="email"
                     value={form.email}
                     onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
                     required
                   />
                   <Input
-                    label={t("Phone", "Telephone", "Telefon", "Telefono", "Telefone")}
+                    label={t("Phone", "T?l?phone", "Telefon", "Tel?fono", "Telefonee")}
                     value={form.phone}
                     onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
                     required={form.deliveryPreference === "WHATSAPP" || form.deliveryPreference === "BOTH"}
@@ -497,13 +497,13 @@ export default function CustomersPage() {
                 <section className="space-y-3">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{t("Contact info", "Coordonnees", "Kontaktinformationen", "Información de contacto", "Informação de contacto")}</p>
                   <Input
-                    label={t("Address line 1", "Adresse ligne 1", "Adresszeile 1", "Direccion linea 1", "Endereco linha 1")}
+                    label={t("Address line 1", "Adresse ligne 1", "Adresszeile 1", "Direcci?n linea 1", "Endereco linha 1")}
                     value={form.addressLine1}
                     onChange={(event) => setForm((prev) => ({ ...prev, addressLine1: event.target.value }))}
                     required
                   />
                   <Input
-                    label={t("Address line 2", "Adresse ligne 2", "Adresszeile 2", "Direccion linea 2", "Endereco linha 2")}
+                    label={t("Address line 2", "Adresse ligne 2", "Adresszeile 2", "Direcci?n linea 2", "Endereco linha 2")}
                     value={form.addressLine2}
                     onChange={(event) => setForm((prev) => ({ ...prev, addressLine2: event.target.value }))}
                   />
@@ -528,7 +528,7 @@ export default function CustomersPage() {
                       onChange={(event) => setForm((prev) => ({ ...prev, postalCode: event.target.value }))}
                     />
                     <Input
-                      label={t("Country", "Pays", "Land", "Pais", "Pais")}
+                      label={t("Country", "Pays", "Land", "Pa?s", "Pa?s")}
                       value={form.country}
                       onChange={(event) => setForm((prev) => ({ ...prev, country: event.target.value }))}
                       required

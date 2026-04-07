@@ -36,6 +36,9 @@ build-output.log
 dev-restart.log
 /manual-session-cookie.txt
 /*.tmp
+.codex-tsc*.txt
+prod-start.log
+prod-start.err.log
 
 # env files (can opt-in for committing if needed)
 .env*

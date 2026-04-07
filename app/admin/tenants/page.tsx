@@ -28,7 +28,7 @@ const text = (en: string, fr: string, de: string, es: string, pt: string): Compl
 const STATUS_LABELS: Record<string, CompleteLocalizedText> = {
   ACTIVE: text("Active", "Actif", "Aktiv", "Activo", "Ativo"),
   SUSPENDED: text("Suspended", "Suspendu", "Gesperrt", "Suspendido", "Suspenso"),
-  DISABLED: text("Disabled", "Desactive", "Deaktiviert", "Deshabilitado", "Desativado"),
+  DISABLED: text("Disabled", "D?sactiv?", "Deaktiviert", "Deshabilitado", "Desativado"),
 };
 
 const fetcher = async <T,>(url: string): Promise<T> => {
@@ -106,7 +106,7 @@ export default function AdminTenantsPage() {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(String((payload as { error?: string })?.error || t("Action failed.", "Echec de l'action.", "Aktion fehlgeschlagen.", "La acción fallo.", "A ação falhou.")));
+        throw new Error(String((payload as { error?: string })?.error || t("Action failed.", "?chec de l'action.", "Aktion fehlgeschlagen.", "La acción fallo.", "A ação falhou.")));
       }
       setFeedback({
         variant: "success",
@@ -126,9 +126,9 @@ export default function AdminTenantsPage() {
             ? localizeAdminServerMessage(
                 actionError.message,
                 language,
-                t("Action failed.", "Echec de l'action.", "Aktion fehlgeschlagen.", "La acción fallo.", "A ação falhou.")
+                t("Action failed.", "?chec de l'action.", "Aktion fehlgeschlagen.", "La acción fallo.", "A ação falhou.")
               )
-            : t("Action failed.", "Echec de l'action.", "Aktion fehlgeschlagen.", "La acción fallo.", "A ação falhou."),
+            : t("Action failed.", "?chec de l'action.", "Aktion fehlgeschlagen.", "La acción fallo.", "A ação falhou."),
       });
     } finally {
       setSaving(false);
@@ -162,7 +162,7 @@ export default function AdminTenantsPage() {
             ? localizeAdminServerMessage(
                 feedback.message,
                 language,
-                t("Action failed.", "Echec de l'action.", "Aktion fehlgeschlagen.", "La acción fallo.", "A ação falhou.")
+                t("Action failed.", "?chec de l'action.", "Aktion fehlgeschlagen.", "La acción fallo.", "A ação falhou.")
               )
             : feedback.message}
         </Alert>
@@ -177,7 +177,7 @@ export default function AdminTenantsPage() {
               "Impossible de charger les locataires pour le moment.",
               "Mandanten koennen derzeit nicht geladen werden.",
               "No se pueden cargar los tenants en este momento.",
-              "Nao foi possivel carregar os tenants neste momento."
+              "N?o foi poss?vel carregar os tenants neste momento."
             )
           )}
         </Alert>
@@ -259,8 +259,8 @@ export default function AdminTenantsPage() {
                     <th className="px-3 py-3 font-semibold">{t("Owner", "Proprietaire", "Inhaber", "Propietario", "Proprietário")}</th>
                     <th className="px-3 py-3 font-semibold">{t("Plan", "Forfait", "Plan", "Plan", "Plano")}</th>
                     <th className="px-3 py-3 font-semibold">{t("Status", "Statut", "Status", "Estado", "Estado")}</th>
-                    <th className="px-3 py-3 font-semibold">{t("Created", "Cree", "Erstellt", "Creado", "Criado")}</th>
-                    <th className="px-3 py-3 font-semibold">{t("Last activity", "Derniere activité", "Aktivitat", "Ultima actividad", "Ultima atividade")}</th>
+                    <th className="px-3 py-3 font-semibold">{t("Created", "Cr??", "Erstellt", "Creado", "Criado")}</th>
+                    <th className="px-3 py-3 font-semibold">{t("Last activity", "Derni?re activité", "Aktivit?t", "?ltima actividad", "?ltima atividade")}</th>
                     <th className="px-3 py-3 font-semibold">{t("Risk", "Risque", "Risiko", "Riesgo", "Risco")}</th>
                     <th className="px-3 py-3 font-semibold">{t("Actions", "Actions", "Aktionen", "Acciones", "Ações")}</th>
                   </tr>
@@ -346,9 +346,9 @@ export default function AdminTenantsPage() {
                   <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                     <span>{t("Plan:", "Forfait :", "Plan:", "Plan:", "Plano:")} {tenant.plan || "-"}</span>
                     <span>{t("Risk:", "Risque :", "Risiko:", "Riesgo:", "Risco:")} {tenant.riskFlags}</span>
-                    <span>{t("Created:", "Cree :", "Erstellt:", "Creado:", "Criado:")} {formatDateDMY(new Date(tenant.createdAt), LANGUAGE_LOCALES[language])}</span>
+                    <span>{t("Created:", "Cr?? :", "Erstellt:", "Creado:", "Criado:")} {formatDateDMY(new Date(tenant.createdAt), LANGUAGE_LOCALES[language])}</span>
                     <span>
-                      {t("Last:", "Dernier :", "Letzte:", "Ultimo:", "Ultima:")} {tenant.lastActivityAt ? formatDateDMY(new Date(tenant.lastActivityAt), LANGUAGE_LOCALES[language]) : "-"}
+                      {t("Last:", "Dernier :", "Letzte:", "?ltimo:", "?ltima:")} {tenant.lastActivityAt ? formatDateDMY(new Date(tenant.lastActivityAt), LANGUAGE_LOCALES[language]) : "-"}
                     </span>
                   </div>
                 </button>
@@ -359,7 +359,7 @@ export default function AdminTenantsPage() {
 
         <div className="mt-4 flex items-center justify-between gap-3">
           <p className="text-xs text-muted-foreground">
-            {t("Page", "Page", "Seite", "Pagina", "Pagina")} {pagination?.page || page} {t("of", "sur", "von", "de", "de")} {pagination?.totalPages || 1} | {pagination?.totalItems || 0} {t("tenants", "locataires", "Mandanten", "tenants", "tenants")}
+            {t("Page", "Page", "Seite", "P?gina", "P?gina")} {pagination?.page || page} {t("of", "sur", "von", "de", "de")} {pagination?.totalPages || 1} | {pagination?.totalItems || 0} {t("tenants", "locataires", "Mandanten", "tenants", "tenants")}
           </p>
           <div className="flex gap-2">
             <Button

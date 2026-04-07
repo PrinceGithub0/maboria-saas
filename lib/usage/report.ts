@@ -11,9 +11,10 @@ import {
   normalizeSubscriptionPlan,
   UsageFeatureKeyApi,
 } from "@/lib/usage/plan-limits";
+import { getWorkspaceConnectionUsage } from "@/lib/workspace-connections";
 
 type UsageTrendPoint = { date: string; value: number };
-type MeteredUsageFeatureKey = "ai_requests" | "invoices" | "whatsapp_messages" | "automations_runs";
+type MeteredUsageFeatureKey = "ai_requests" | "invoices" | "automations_runs";
 
 type CardSnapshot = {
   featureKey: UsageFeatureKeyApi;
@@ -69,7 +70,6 @@ export type UsageReportOrgAccess = {
 const METERED_FEATURES: MeteredUsageFeatureKey[] = [
   "ai_requests",
   "invoices",
-  "whatsapp_messages",
   "automations_runs",
 ];
 
@@ -91,7 +91,7 @@ export function pickDefaultTrendFeature(input: {
   return "ai_requests";
 }
 
-const ALL_FEATURES: UsageFeatureKeyApi[] = [...METERED_FEATURES, "team_members_seats"];
+const ALL_FEATURES: UsageFeatureKeyApi[] = [...METERED_FEATURES, "workspace_connections", "team_members_seats"];
 
 function titleForFeature(feature: UsageFeatureKeyApi) {
   switch (feature) {
@@ -99,10 +99,10 @@ function titleForFeature(feature: UsageFeatureKeyApi) {
       return "AI Usage";
     case "invoices":
       return "Invoices";
-    case "whatsapp_messages":
-      return "WhatsApp Messages";
     case "automations_runs":
       return "Automations";
+    case "workspace_connections":
+      return "Connections";
     case "team_members_seats":
       return "Team Members";
     default:
@@ -116,10 +116,10 @@ function subtitleForFeature(feature: UsageFeatureKeyApi) {
       return "Requests used this cycle";
     case "invoices":
       return "Invoices sent this cycle";
-    case "whatsapp_messages":
-      return "Messages sent this cycle";
     case "automations_runs":
       return "Successful automation runs this cycle";
+    case "workspace_connections":
+      return "Connected inbox channels in use";
     case "team_members_seats":
       return "Seats in use";
     default:
@@ -245,6 +245,7 @@ async function countActiveSeats(orgId: string) {
 }
 
 function cardDetailsUrl(feature: UsageFeatureKeyApi) {
+  if (feature === "workspace_connections") return "/dashboard/inbox";
   if (feature === "team_members_seats") return "/dashboard/team";
   return "/dashboard/report";
 }
@@ -258,8 +259,8 @@ async function buildTrendSeries(orgId: string, cycleKey: string, cycleStart: Dat
   const series: Record<UsageFeatureKeyApi, UsageTrendPoint[]> = {
     ai_requests: dayKeys.map((date) => ({ date, value: 0 })),
     invoices: dayKeys.map((date) => ({ date, value: 0 })),
-    whatsapp_messages: dayKeys.map((date) => ({ date, value: 0 })),
     automations_runs: dayKeys.map((date) => ({ date, value: 0 })),
+    workspace_connections: [],
     team_members_seats: [],
   };
   const indexByDay = new Map(dayKeys.map((value, index) => [value, index]));
@@ -276,7 +277,7 @@ async function buildTrendSeries(orgId: string, cycleKey: string, cycleStart: Dat
 
   for (const row of rollups) {
     const feature = usageFeatureFromDb(row.featureKey);
-    if (feature === "team_members_seats") continue;
+    if (feature === "team_members_seats" || feature === "whatsapp_messages") continue;
     const day = toDateKey(row.day);
     const index = indexByDay.get(day);
     if (index == null) continue;
@@ -291,7 +292,7 @@ async function buildTrendSeries(orgId: string, cycleKey: string, cycleStart: Dat
       orgId,
       cycleKey,
       occurredAt: { gte: cycleStart, lt: cycleEnd },
-      featureKey: { in: ["AI_REQUESTS", "INVOICES", "WHATSAPP_MESSAGES", "AUTOMATIONS_RUNS"] },
+      featureKey: { in: ["AI_REQUESTS", "INVOICES", "AUTOMATIONS_RUNS"] },
     },
     orderBy: { occurredAt: "asc" },
     select: { featureKey: true, occurredAt: true, quantity: true },
@@ -301,7 +302,7 @@ async function buildTrendSeries(orgId: string, cycleKey: string, cycleStart: Dat
     const feature = usageFeatureFromDb(row.featureKey);
     const day = toDateKey(row.occurredAt);
     const index = indexByDay.get(day);
-    if (index == null || feature === "team_members_seats") continue;
+    if (index == null || feature === "team_members_seats" || feature === "whatsapp_messages") continue;
     series[feature][index].value += Number(row.quantity) || 0;
   }
   return series;
@@ -350,14 +351,22 @@ export async function getUsageReportSnapshot(
   const totals = await ensureCycleTotals(orgAccess.orgId, cycleKey);
   const totalsByFeature = new Map<UsageFeatureKeyApi, number>();
   for (const row of totals) {
-    totalsByFeature.set(usageFeatureFromDb(row.featureKey), Number(row.usedQuantity) || 0);
+    const feature = usageFeatureFromDb(row.featureKey);
+    if (feature === "whatsapp_messages") continue;
+    totalsByFeature.set(feature, Number(row.usedQuantity) || 0);
   }
 
+  const connectionUsage = await getWorkspaceConnectionUsage(orgAccess.orgId);
   const seatsUsed = await countActiveSeats(orgAccess.orgId);
   const cards: CardSnapshot[] = ALL_FEATURES.map((feature) => {
     const featureLimit = limits[feature];
     const featureUnlimited = unlimitedPlan || featureLimit == null;
-    const used = feature === "team_members_seats" ? seatsUsed : totalsByFeature.get(feature) ?? 0;
+    const used =
+      feature === "workspace_connections"
+        ? connectionUsage.used
+        : feature === "team_members_seats"
+          ? seatsUsed
+          : totalsByFeature.get(feature) ?? 0;
 
     if (featureUnlimited) {
       return {
@@ -402,16 +411,19 @@ export async function getUsageReportSnapshot(
     take: 20,
     select: { occurredAt: true, featureKey: true, quantity: true },
   });
-  const recentActivity = recentEvents.map((event) => {
+  const recentActivity = recentEvents.flatMap((event) => {
     const feature = usageFeatureFromDb(event.featureKey);
-    return {
-      date: event.occurredAt.toISOString(),
-      featureKey: feature,
-      amount: Number(event.quantity) || 0,
-      type: "usage" as const,
-      status: "recorded" as const,
-      label: titleForFeature(feature),
-    };
+    if (feature === "whatsapp_messages") return [];
+    return [
+      {
+        date: event.occurredAt.toISOString(),
+        featureKey: feature,
+        amount: Number(event.quantity) || 0,
+        type: "usage" as const,
+        status: "recorded" as const,
+        label: titleForFeature(feature),
+      },
+    ];
   });
 
   return {

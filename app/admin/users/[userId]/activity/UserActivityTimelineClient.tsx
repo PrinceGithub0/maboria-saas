@@ -78,7 +78,7 @@ const fetcher = async (url: string): Promise<TimelineResponse> => {
 
 function toLabel(eventType: string, t: ReturnType<typeof useLanguage>["t"]) {
   const knownLabels: Record<string, CompleteLocalizedText> = {
-    all: text("All events", "Tous les evenements", "Alle Ereignisse", "Todos los eventos", "Todos os eventos"),
+    all: text("All events", "Tous les ?v?nements", "Alle Ereignisse", "Todos los eventos", "Todos os eventos"),
     login: text("Login", "Connexion", "Anmeldung", "Inicio de sesión", "Inicio de sessão"),
     logout: text("Logout", "Deconnexion", "Abmeldung", "Cierre de sesión", "Terminar sessão"),
     invoice_created: text("Invoice created", "Facture creee", "Rechnung erstellt", "Factura creada", "Fatura criada"),
@@ -89,7 +89,7 @@ function toLabel(eventType: string, t: ReturnType<typeof useLanguage>["t"]) {
     notification_sent: text("Notification sent", "Notification envoyee", "Benachrichtigung gesendet", "Notificacion enviada", "Notificacao enviada"),
     payment_attempt: text("Payment attempt", "Tentative de paiement", "Zahlungsversuch", "Intento de pago", "Tentativa de pagamento"),
     payment_failed: text("Payment failed", "Paiement échoué", "Zahlung fehlgeschlagen", "Pago fallido", "Pagamento falhou"),
-    payment_succeeded: text("Payment succeeded", "Paiement reussi", "Zahlung erfolgreich", "Pago correcto", "Pagamento concluido"),
+    payment_succeeded: text("Payment succeeded", "Paiement r?ussi", "Zahlung erfolgreich", "Pago correcto", "Pagamento conclu?do"),
     impersonation_started: text("Impersonation started", "Usurpation commencee", "Identitätsübernahme gestartet", "Suplantacion iniciada", "Impersonacao iniciada"),
     impersonation_ended: text("Impersonation ended", "Usurpation terminée", "Identitätsübernahme beendet", "Suplantacion finalizada", "Impersonacao terminada"),
   };
@@ -145,7 +145,7 @@ function metadataSummary(
       : typeof value === "object"
         ? "[object]"
         : primaryKey === "provider" && String(value).toLowerCase() === "credentials"
-          ? t(text("Password", "Mot de passe", "Passwort", "Contrasena", "Palavra-passe"))
+          ? t(text("Password", "Mot de passe", "Passwort", "Contrase?a", "Palavra-passe"))
           : primaryKey === "provider" && String(value).toLowerCase() === "google"
             ? "Google"
             : primaryKey === "provider" && String(value).toLowerCase() === "sso"
@@ -253,7 +253,7 @@ export default function UserActivityTimelineClient({ userId }: { userId: string 
               {localizeAdminServerMessage(
                 error.message,
                 language,
-                t(text("Activity history unavailable.", "Historique d'activite indisponible.", "Aktivitaetsverlauf nicht verfuegbar.", "Historial de actividad no disponible.", "Historico de atividade indisponivel."))
+                t(text("Activity history unavailable.", "Historique d'activite indisponible.", "Aktivitaetsverlauf nicht verfuegbar.", "Historial de actividad no disponible.", "Historico de atividade indispon?vel."))
               )}
             </span>
             <Button size="sm" variant="secondary" onClick={() => void handleRefresh()} loading={isValidating}>
@@ -281,7 +281,7 @@ export default function UserActivityTimelineClient({ userId }: { userId: string 
           <Input
             value={searchDraft}
             onChange={(event) => setSearchDraft(event.target.value)}
-            placeholder={t(text("Search events", "Rechercher des evenements", "Ereignisse suchen", "Buscar eventos", "Pesquisar eventos"))}
+            placeholder={t(text("Search events", "Rechercher des ?v?nements", "Ereignisse suchen", "Buscar eventos", "Pesquisar eventos"))}
           />
           <Input
             type="date"
@@ -360,7 +360,7 @@ export default function UserActivityTimelineClient({ userId }: { userId: string 
         >
           {hasMore
             ? t(text("Load more", "Charger plus", "Mehr laden", "Cargar mas", "Carregar mais"))
-            : t(text("No more events", "Plus d'evenements", "Keine weiteren Ereignisse", "No hay mas eventos", "Não ha mais eventos"))}
+            : t(text("No more events", "Plus d'?v?nements", "Keine weiteren Ereignisse", "No hay mas eventos", "Não ha mais eventos"))}
         </Button>
       </div>
     </div>

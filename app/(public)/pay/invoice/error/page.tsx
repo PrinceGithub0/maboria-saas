@@ -28,9 +28,9 @@ export default async function InvoicePaymentErrorPage({ searchParams }: PageProp
           body: getLocalizedText(
             {
               en: "This payment link is invalid. Please use the latest invoice link from the sender.",
-              fr: "Ce lien de paiement est invalide. Veuillez utiliser le dernier lien de facture envoye par l'expediteur.",
+              fr: "Ce lien de paiement est invalide. Veuillez utiliser le dernier lien de facture envoy? par l'exp?diteur.",
               de: "Dieser Zahlungslink ist ungültig. Bitte verwende den neuesten Rechnungslink des Absenders.",
-              es: "Este enlace de pago no es valido. Usa el ultimo enlace de factura del emisor.",
+              es: "Este enlace de pago no es valido. Usa el ?ltimo enlace de factura del emisor.",
               pt: "Este link de pagamento e invalido. Utilize o link de fatura mais recente enviado pelo remetente.",
             },
             language
@@ -51,10 +51,10 @@ export default async function InvoicePaymentErrorPage({ searchParams }: PageProp
             body: getLocalizedText(
               {
                 en: "This invoice could not be found. Please contact the sender for a new payment link.",
-                fr: "Cette facture est introuvable. Veuillez contacter l'expediteur pour obtenir un nouveau lien de paiement.",
+                fr: "Cette facture est introuvable. Veuillez contacter l'exp?diteur pour obtenir un nouveau lien de paiement.",
                 de: "Diese Rechnung wurde nicht gefunden. Bitte kontaktiere den Absender für einen neuen Zahlungslink.",
                 es: "No se encontro esta factura. Contacta con el emisor para obtener un nuevo enlace de pago.",
-                pt: "Não foi possivel encontrar esta fatura. Contacte o remetente para obter um novo link de pagamento.",
+                pt: "Não foi poss?vel encontrar esta fatura. Contacte o remetente para obter um novo link de pagamento.",
               },
               language
             ),
@@ -66,16 +66,16 @@ export default async function InvoicePaymentErrorPage({ searchParams }: PageProp
                 fr: "Paiement indisponible",
                 de: "Zahlung nicht verfügbar",
                 es: "Pago no disponible",
-                pt: "Pagamento indisponivel",
+                pt: "Pagamento indispon?vel",
               },
               language
             ),
             body: getLocalizedText(
               {
                 en: "This payment link is not available right now. Please request a fresh invoice link from the sender.",
-                fr: "Ce lien de paiement n'est pas disponible pour le moment. Veuillez demander un nouveau lien de facture ? l'expediteur.",
+                fr: "Ce lien de paiement n'est pas disponible pour le moment. Veuillez demander un nouveau lien de facture \u00e0 l'exp\u00e9diteur.",
                 de: "Dieser Zahlungslink ist derzeit nicht verfügbar. Bitte fordere einen neuen Rechnungslink vom Absender an.",
-                es: "Este enlace de pago no esta disponible en este momento. Solicita un nuevo enlace de factura al emisor.",
+                es: "Este enlace de pago no est? disponible en este momento. Solicita un nuevo enlace de factura al emisor.",
                 pt: "Este link de pagamento não esta disponível neste momento. Solicite um novo link de fatura ao remetente.",
               },
               language
@@ -107,7 +107,7 @@ export default async function InvoicePaymentErrorPage({ searchParams }: PageProp
             {getLocalizedText(
               {
                 en: "Return Home",
-                fr: "Retour ? l'accueil",
+                fr: "Retour \u00e0 l'accueil",
                 de: "Zur Startseite",
                 es: "Volver al inicio",
                 pt: "Voltar ao inicio",

@@ -143,7 +143,7 @@ export async function getAutomationHealthSnapshot(): Promise<AutomationHealthSna
 
   const duePendingRuns = pendingRecords.filter((run) => {
     const nextRunAt = parseNextRunAt(run.output);
-    return Boolean(nextRunAt && nextRunAt.getTime() <= now.getTime());
+    return !nextRunAt || nextRunAt.getTime() <= now.getTime();
   }).length;
 
   const staleRunningRuns = await prisma.automationRun.count({

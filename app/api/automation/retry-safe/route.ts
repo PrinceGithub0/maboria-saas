@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { withErrorHandling } from "@/lib/api-handler";
+import { assertRateLimit } from "@/lib/rate-limit";
 import { enforceEntitlement } from "@/lib/entitlements";
 import { executeAutomationRun } from "@/lib/automation/engine";
 import { readFlowSnapshotFromRunOutput } from "@/lib/automation/versioning";
@@ -45,6 +46,7 @@ export const POST = withErrorHandling(async (req: Request) => {
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  assertRateLimit(`automation-retry-safe:${session.user.id}`);
 
   const permissions = await getAutomationPermissions(session.user.id);
   if (!hasAutomationPermission(permissions, "run")) {
@@ -112,6 +114,25 @@ export const POST = withErrorHandling(async (req: Request) => {
       },
       { status: 409 }
     );
+  }
+
+  if (failedStep.step === "sendWhatsApp") {
+    const whatsappEntitlement = await enforceEntitlement(session.user.id, {
+      feature: "whatsapp",
+      requiredPlan: "starter",
+      allowTrial: false,
+    });
+    if (!whatsappEntitlement.ok) {
+      return NextResponse.json(
+        {
+          error: "Upgrade required",
+          type: whatsappEntitlement.type,
+          requiredPlan: whatsappEntitlement.requiredPlan ?? "starter",
+          reason: "WhatsApp automation is a Starter feature",
+        },
+        { status: 403 }
+      );
+    }
   }
 
   if (runStatus === "FAILED") {

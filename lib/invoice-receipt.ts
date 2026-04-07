@@ -85,7 +85,8 @@ export function buildInvoiceReceiptPdfBuffer(input: {
     doc.image(logo, left, y, { width: 48, height: 48 });
   }
 
-  const headerLeft = left + (logo ? 60 : 0);
+  const headerLeft = left + (logo ? 60 : 0);
+
   drawBold(input.business.businessName, headerLeft, y + 4, 20);
   const addressLine = [input.business.businessAddress, input.business.businessEmail]
     .filter((line) => line && String(line).trim().length > 0)
@@ -414,6 +415,9 @@ export async function maybeCreateInvoiceReceipt({
   });
   return receipt;
 }
-
-
-
+
+
+
+
+
+

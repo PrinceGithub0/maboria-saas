@@ -23,6 +23,12 @@ const fetcher = async (url: string) => {
 };
 
 function formatMoney(amount: number, currency: "NGN" | "USD", locale: string) {
+  if (currency === "USD") {
+    return `$${new Intl.NumberFormat(locale, {
+      maximumFractionDigits: 0,
+    }).format(amount)}`;
+  }
+
   return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
@@ -39,48 +45,45 @@ export default function BillingPage() {
   const plans = pricingTableDualCurrency();
   const locale = LANGUAGE_LOCALES[language];
   const featureMap: Record<string, LocalizedText> = {
-    "Invoices: 50 / month": {
-      en: "Invoices: 50 / month",
-      fr: "Factures : 50 / mois",
-      de: "Rechnungen: 50 / Monat",
-      es: "Facturas: 50 / mes",
-      pt: "Faturas: 50 / mes",
-    },
-    "Payments (cards & bank transfer)": {
-      en: "Payments (cards & bank transfer)",
-      fr: "Paiements (carte et virement)",
-      de: "Zahlungen (Karten und Banküberweisung)",
-      es: "Pagos (tarjetas y transferencia bancaria)",
-      pt: "Pagamentos (cartoes e transferencia bancaria)",
-    },
-    "WhatsApp messages: 100 / month": { en: "WhatsApp messages: 100 / month", fr: "WhatsApp : 100 / mois", de: "WhatsApp-Nachrichten: 100 / Monat", es: "Mensajes de WhatsApp: 100 / mes", pt: "Mensagens WhatsApp: 100 / mes" },
-    "AI usage: 50 / month": { en: "AI usage: 50 / month", fr: "IA : 50 / mois", de: "KI-Nutzung: 50 / Monat", es: "Uso de IA: 50 / mes", pt: "Uso de IA: 50 / mes" },
-    "Automations: 3 total": { en: "Automations: 3 total", fr: "Automatisations : 3", de: "Automatisierungen: 3 gesamt", es: "Automatizaciónes: 3 en total", pt: "Automações: 3 no total" },
-    "1 user": { en: "1 user", fr: "1 utilisateur", de: "1 Benutzer", es: "1 usuario", pt: "1 utilizador" },
-    "Invoices: 300 / month": { en: "Invoices: 300 / month", fr: "Factures : 300 / mois", de: "Rechnungen: 300 / Monat", es: "Facturas: 300 / mes", pt: "Faturas: 300 / mes" },
-    "WhatsApp messages: 1,000 / month": { en: "WhatsApp messages: 1,000 / month", fr: "WhatsApp : 1 000 / mois", de: "WhatsApp-Nachrichten: 1.000 / Monat", es: "Mensajes de WhatsApp: 1.000 / mes", pt: "Mensagens WhatsApp: 1.000 / mes" },
-    "AI usage: 300 / month": { en: "AI usage: 300 / month", fr: "IA : 300 / mois", de: "KI-Nutzung: 300 / Monat", es: "Uso de IA: 300 / mes", pt: "Uso de IA: 300 / mes" },
-    "Automations: 10 total": { en: "Automations: 10 total", fr: "Automatisations : 10", de: "Automatisierungen: 10 gesamt", es: "Automatizaciónes: 10 en total", pt: "Automações: 10 no total" },
-    "Up to 3 team members": { en: "Up to 3 team members", fr: "Jusqu a 3 membres", de: "Bis zu 3 Teammitglieder", es: "Hasta 3 miembros del equipo", pt: "At? 3 membros da equipa" },
-    "Invoices: 1,000 / month": { en: "Invoices: 1,000 / month", fr: "Factures : 1 000 / mois", de: "Rechnungen: 1.000 / Monat", es: "Facturas: 1.000 / mes", pt: "Faturas: 1.000 / mes" },
-    "WhatsApp messages: 3,000 / month": { en: "WhatsApp messages: 3,000 / month", fr: "WhatsApp : 3 000 / mois", de: "WhatsApp-Nachrichten: 3.000 / Monat", es: "Mensajes de WhatsApp: 3.000 / mes", pt: "Mensagens WhatsApp: 3.000 / mes" },
-    "AI usage: 1,000 / month": { en: "AI usage: 1,000 / month", fr: "IA : 1 000 / mois", de: "KI-Nutzung: 1.000 / Monat", es: "Uso de IA: 1.000 / mes", pt: "Uso de IA: 1.000 / mes" },
-    "Automations: 25 total": { en: "Automations: 25 total", fr: "Automatisations : 25", de: "Automatisierungen: 25 gesamt", es: "Automatizaciónes: 25 en total", pt: "Automações: 25 no total" },
-    "Up to 5 team members": { en: "Up to 5 team members", fr: "Jusqu a 5 membres", de: "Bis zu 5 Teammitglieder", es: "Hasta 5 miembros del equipo", pt: "At? 5 membros da equipa" },
+    "1 workspace": { en: "1 workspace", fr: "1 espace de travail", de: "1 Workspace", es: "1 espacio de trabajo", pt: "1 workspace" },
+    "2 connections total": { en: "2 connections total", fr: "2 connexions au total", de: "2 Verbindungen insgesamt", es: "2 conexiones en total", pt: "2 ligacoes no total" },
+    "Unified inbox": { en: "Unified inbox", fr: "Boite de reception unifiee", de: "Einheitlicher Posteingang", es: "Bandeja unificada", pt: "Caixa de entrada unificada" },
+    "Send invoices and track payments": { en: "Send invoices and track payments", fr: "Envoyer des factures et suivre les paiements", de: "Rechnungen senden und Zahlungen verfolgen", es: "Enviar facturas y seguir pagos", pt: "Enviar faturas e acompanhar pagamentos" },
+    "Automated follow-ups": { en: "Automated follow-ups", fr: "Relances automatisees", de: "Automatisierte Nachfassaktionen", es: "Seguimientos automatizados", pt: "Follow-ups automatizados" },
+    "Basic workflows": { en: "Basic workflows", fr: "Workflows de base", de: "Grundlegende Workflows", es: "Flujos basicos", pt: "Workflows basicos" },
+    "AI assistant": { en: "AI assistant", fr: "Assistant IA", de: "KI-Assistent", es: "Asistente de IA", pt: "Assistente de IA" },
+    "1 seat": { en: "1 seat", fr: "1 siege", de: "1 Platz", es: "1 asiento", pt: "1 lugar" },
+    "Up to 8 connections": { en: "Up to 8 connections", fr: "Jusqu a 8 connexions", de: "Bis zu 8 Verbindungen", es: "Hasta 8 conexiones", pt: "Ate 8 ligacoes" },
+    "Shared inbox": { en: "Shared inbox", fr: "Boite de reception partagee", de: "Geteilter Posteingang", es: "Bandeja compartida", pt: "Caixa de entrada partilhada" },
+    "Smart automation workflows": { en: "Smart automation workflows", fr: "Workflows d'automatisation intelligents", de: "Intelligente Automatisierungs-Workflows", es: "Flujos de automatizacion inteligentes", pt: "Workflows de automacao inteligentes" },
+    "AI-powered replies": { en: "AI-powered replies", fr: "Reponses assistees par IA", de: "KI-gestutzte Antworten", es: "Respuestas con IA", pt: "Respostas com IA" },
+    "Payment tracking": { en: "Payment tracking", fr: "Suivi des paiements", de: "Zahlungsverfolgung", es: "Seguimiento de pagos", pt: "Acompanhamento de pagamentos" },
+    "Exports": { en: "Exports", fr: "Exports", de: "Exporte", es: "Exportaciones", pt: "Exportacoes" },
+    "Role-based access": { en: "Role-based access", fr: "Acces base sur les roles", de: "Rollenbasierter Zugriff", es: "Acceso basado en roles", pt: "Acesso baseado em funcoes" },
+    "3 seats": { en: "3 seats", fr: "3 sieges", de: "3 Platze", es: "3 asientos", pt: "3 lugares" },
+    "Up to 20 connections": { en: "Up to 20 connections", fr: "Jusqu a 20 connexions", de: "Bis zu 20 Verbindungen", es: "Hasta 20 conexiones", pt: "Ate 20 ligacoes" },
+    "Multiple connected inboxes": { en: "Multiple connected inboxes", fr: "Plusieurs boites connectees", de: "Mehrere verbundene Posteingange", es: "Multiples bandejas conectadas", pt: "Varias caixas de entrada ligadas" },
+    "Advanced routing and assignment": { en: "Advanced routing and assignment", fr: "Routage et attribution avances", de: "Erweitertes Routing und Zuweisung", es: "Enrutamiento y asignacion avanzados", pt: "Encaminhamento e atribuicao avancados" },
+    "Reporting and team visibility": { en: "Reporting and team visibility", fr: "Rapports et visibilite equipe", de: "Reporting und Team-Transparenz", es: "Informes y visibilidad del equipo", pt: "Relatorios e visibilidade da equipa" },
+    "Longer history retention": { en: "Longer history retention", fr: "Retention d'historique plus longue", de: "Langere Verlaufsspeicherung", es: "Retencion de historial mas larga", pt: "Retencao de historico mais longa" },
     "Priority support": { en: "Priority support", fr: "Support prioritaire", de: "Priorisierter Support", es: "Soporte prioritario", pt: "Suporte prioritario" },
-    "Invoices: 3,000 / month": { en: "Invoices: 3,000 / month", fr: "Factures : 3 000 / mois", de: "Rechnungen: 3.000 / Monat", es: "Facturas: 3.000 / mes", pt: "Faturas: 3.000 / mes" },
-    "WhatsApp messages: 7,500 / month": { en: "WhatsApp messages: 7,500 / month", fr: "WhatsApp : 7 500 / mois", de: "WhatsApp-Nachrichten: 7.500 / Monat", es: "Mensajes de WhatsApp: 7.500 / mes", pt: "Mensagens WhatsApp: 7.500 / mes" },
-    "AI usage: 3,000 / month": { en: "AI usage: 3,000 / month", fr: "IA : 3 000 / mois", de: "KI-Nutzung: 3.000 / Monat", es: "Uso de IA: 3.000 / mes", pt: "Uso de IA: 3.000 / mes" },
-    "Automations: Unlimited": { en: "Automations: Unlimited", fr: "Automatisations illimitees", de: "Automatisierungen: Unbegrenzt", es: "Automatizaciónes: Ilimitadas", pt: "Automações: Ilimitadas" },
-    "Up to 10 team members": { en: "Up to 10 team members", fr: "Jusqu a 10 membres", de: "Bis zu 10 Teammitglieder", es: "Hasta 10 miembros del equipo", pt: "At? 10 membros da equipa" },
-    "Role-based access": { en: "Role-based access", fr: "Accès par roles", de: "Rollenbasierter Zugriff", es: "Acceso basado en roles", pt: "Acesso baseado em funções" },
-    "Phone + priority support": { en: "Phone + priority support", fr: "Support telephone + prioritaire", de: "Telefon + priorisierter Support", es: "Telefono + soporte prioritario", pt: "Telefone + suporte prioritario" },
-    "Unlimited invoices": { en: "Unlimited invoices", fr: "Factures illimitees", de: "Unbegrenzte Rechnungen", es: "Facturas ilimitadas", pt: "Faturas ilimitadas" },
-    "Unlimited WhatsApp (fair-use)": { en: "Unlimited WhatsApp (fair-use)", fr: "WhatsApp illimite (fair-use)", de: "Unbegrenztes WhatsApp (Fair Use)", es: "WhatsApp ilimitado (uso justo)", pt: "WhatsApp ilimitado (uso justo)" },
-    "Unlimited AI": { en: "Unlimited AI", fr: "IA illimitee", de: "Unbegrenzte KI", es: "IA ilimitada", pt: "IA ilimitada" },
-    "Unlimited team members": { en: "Unlimited team members", fr: "Membres illimites", de: "Unbegrenzte Teammitglieder", es: "Miembros ilimitados del equipo", pt: "Membros de equipa ilimitados" },
-    "Dedicated account manager": { en: "Dedicated account manager", fr: "Responsable dedie", de: "Dedizierter Account Manager", es: "Gestor de cuenta dedicado", pt: "Gestor de conta dedicado" },
-    "SLA & custom integrations": { en: "SLA & custom integrations", fr: "SLA et integrations sur mesure", de: "SLA und individuelle Integrationen", es: "SLA e integraciónes personalizadas", pt: "SLA e integrações personalizadas" },
+    "Up to 8 seats": { en: "Up to 8 seats", fr: "Jusqu a 8 sieges", de: "Bis zu 8 Platze", es: "Hasta 8 asientos", pt: "Ate 8 lugares" },
+    "Unlimited connections": { en: "Unlimited connections", fr: "Connexions illimitees", de: "Unbegrenzte Verbindungen", es: "Conexiones ilimitadas", pt: "Ligacoes ilimitadas" },
+    "Advanced inbox operations": { en: "Advanced inbox operations", fr: "Operations de boite avancees", de: "Erweiterte Posteingangsoperationen", es: "Operaciones avanzadas de bandeja", pt: "Operacoes avancadas da caixa de entrada" },
+    "Roles and permissions": { en: "Roles and permissions", fr: "Roles et permissions", de: "Rollen und Berechtigungen", es: "Roles y permisos", pt: "Funcoes e permissoes" },
+    "Audit logs": { en: "Audit logs", fr: "Journaux d'audit", de: "Audit-Protokolle", es: "Registros de auditoria", pt: "Registos de auditoria" },
+    "Admin controls": { en: "Admin controls", fr: "Controles administrateur", de: "Admin-Steuerung", es: "Controles de administracion", pt: "Controlos de administracao" },
+    "Advanced reporting": { en: "Advanced reporting", fr: "Rapports avances", de: "Erweitertes Reporting", es: "Informes avanzados", pt: "Relatorios avancados" },
+    "Compliance and e-invoicing support": { en: "Compliance and e-invoicing support", fr: "Support conformite et e-facturation", de: "Compliance- und E-Rechnungs-Support", es: "Soporte de cumplimiento y facturacion electronica", pt: "Suporte de conformidade e faturacao eletronica" },
+    "Onboarding assistance": { en: "Onboarding assistance", fr: "Aide a l'onboarding", de: "Onboarding-Unterstutzung", es: "Ayuda de onboarding", pt: "Ajuda de onboarding" },
+    "Up to 15 seats": { en: "Up to 15 seats", fr: "Jusqu a 15 sieges", de: "Bis zu 15 Platze", es: "Hasta 15 asientos", pt: "Ate 15 lugares" },
+    "Custom throughput": { en: "Custom throughput", fr: "Debit personnalise", de: "Individueller Durchsatz", es: "Capacidad personalizada", pt: "Capacidade personalizada" },
+    "SLA guarantee": { en: "SLA guarantee", fr: "Garantie SLA", de: "SLA-Garantie", es: "Garantia SLA", pt: "Garantia SLA" },
+    "Custom integrations": { en: "Custom integrations", fr: "Integrations personnalisees", de: "Individuelle Integrationen", es: "Integraciones personalizadas", pt: "Integracoes personalizadas" },
+    "Dedicated support": { en: "Dedicated support", fr: "Support dedie", de: "Dedizierter Support", es: "Soporte dedicado", pt: "Suporte dedicado" },
+    "Compliance rollout assistance": { en: "Compliance rollout assistance", fr: "Aide au deploiement conformite", de: "Unterstutzung beim Compliance-Rollout", es: "Ayuda para despliegue de cumplimiento", pt: "Ajuda no rollout de conformidade" },
+    "Negotiated limits and controls": { en: "Negotiated limits and controls", fr: "Limites et controles negocies", de: "Verhandelte Limits und Steuerungen", es: "Limites y controles negociados", pt: "Limites e controlos negociados" },
+    "Custom seat volume": { en: "Custom seat volume", fr: "Volume de sieges personnalise", de: "Individuelles Sitzvolumen", es: "Volumen de asientos personalizado", pt: "Volume de lugares personalizado" },
   };
   const translateFeature = (feature: string) =>
     t(
@@ -88,12 +91,12 @@ export default function BillingPage() {
     );
   const localizeBillingError = (message?: string) => {
     const normalized = String(message || "").trim();
-    if (!normalized) return t("Unable to load billing history.", "Impossible de charger l'historique de facturation.", "Der Abrechnungsverlauf konnte nicht geladen werden.", "No se pudo cargar el historial de facturación.", "Não foi possivel carregar o histórico de faturação.");
+    if (!normalized) return t("Unable to load billing history.", "Impossible de charger l'historique de facturation.", "Der Abrechnungsverlauf konnte nicht geladen werden.", "No se pudo cargar el historial de facturación.", "Não foi poss?vel carregar o histórico de faturação.");
     const mappings: Record<string, string> = {
-      "Unable to load billing history.": t("Unable to load billing history.", "Impossible de charger l'historique de facturation.", "Der Abrechnungsverlauf konnte nicht geladen werden.", "No se pudo cargar el historial de facturación.", "Não foi possivel carregar o histórico de faturação."),
+      "Unable to load billing history.": t("Unable to load billing history.", "Impossible de charger l'historique de facturation.", "Der Abrechnungsverlauf konnte nicht geladen werden.", "No se pudo cargar el historial de facturación.", "Não foi poss?vel carregar o histórico de faturação."),
       Unauthorized: t("Please sign in and try again.", "Veuillez vous connecter puis réessayer.", "Bitte melde dich an und versuche es erneut.", "Inicia sesión y vuelve a intentarlo.", "Inicie sessão e tente novamente."),
       Forbidden: t("You do not have access to billing.", "Vous n'avez pas accès a la facturation.", "Du hast keinen Zugriff auf die Abrechnung.", "No tienes acceso a la facturación.", "Não tem acesso a faturação."),
-      "Request failed": t("Unable to load billing history.", "Impossible de charger l'historique de facturation.", "Der Abrechnungsverlauf konnte nicht geladen werden.", "No se pudo cargar el historial de facturación.", "Não foi possivel carregar o histórico de faturação."),
+      "Request failed": t("Unable to load billing history.", "Impossible de charger l'historique de facturation.", "Der Abrechnungsverlauf konnte nicht geladen werden.", "No se pudo cargar el historial de facturación.", "Não foi poss?vel carregar o histórico de faturação."),
     };
     return mappings[normalized] || normalized;
   };
@@ -131,7 +134,7 @@ export default function BillingPage() {
       </div>
 
       <Card title={t("Plans", "Plans", "Plane", "Planes", "Planos")}>
-        <div className="grid gap-4 md:grid-cols-3 max-md:grid-cols-1 max-md:gap-5">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5 max-md:grid-cols-1 max-md:gap-5">
           {plans.map((p) => {
             const isEnterprise = p.plan === "ENTERPRISE";
             const href = isEnterprise ? "/contact" : "/dashboard/subscription";
@@ -183,10 +186,10 @@ export default function BillingPage() {
           <Alert variant="error">
             {t(
               "Billing history could not be loaded. Check billing permissions or try again.",
-              "L'historique de facturation n'a pas pu être charge. Verifiez les permissions ou reessayez.",
+              "L'historique de facturation n'a pas pu être charge. V?rifiez les permissions ou r?essayez.",
               "Der Abrechnungsverlauf konnte nicht geladen werden. überprüfe die Berechtigungen oder versuche es erneut.",
               "No se pudo cargar el historial de facturación. Revisa los permisos o intentalo de nuevo.",
-              "Não foi possivel carregar o histórico de faturação. Verifique as permissoes ou tente novamente."
+              "Não foi poss?vel carregar o histórico de faturação. Verifique as permiss?es ou tente novamente."
             )}
           </Alert>
         ) : payments.length === 0 ? (
@@ -233,10 +236,10 @@ export default function BillingPage() {
           <Alert variant="error">
             {t(
               "Invoices could not be loaded. Check billing permissions or try again.",
-              "Les factures n'ont pas pu être chargees. Verifiez les permissions ou reessayez.",
+              "Les factures n'ont pas pu être chargees. V?rifiez les permissions ou r?essayez.",
               "Die Rechnungen konnten nicht geladen werden. überprüfe die Berechtigungen oder versuche es erneut.",
               "No se pudieron cargar las facturas. Revisa los permisos o intentalo de nuevo.",
-              "Não foi possivel carregar as faturas. Verifique as permissoes ou tente novamente."
+              "Não foi poss?vel carregar as faturas. Verifique as permiss?es ou tente novamente."
             )}
           </Alert>
         ) : invoices.length === 0 ? (
@@ -277,7 +280,7 @@ export default function BillingPage() {
       </Card>
 
       <p className="text-sm text-muted-foreground">
-        {t("Billing questions? Email ", "Questions de facturation ? Ecrivez a ", "Fragen zur Abrechnung? Schreibe an ", "Preguntas de facturación? Escribe a ", "Questoes de faturação? Envie email para ")}
+        {t("Billing questions? Email us at ", "Questions de facturation ? Ecrivez a ", "Fragen zur Abrechnung? Schreibe an ", "Preguntas de facturación? Escribe a ", "Questoes de faturação? Envie email para ")}
         <a href="mailto:billing@maboria.com" className="font-medium text-foreground hover:underline">
           billing@maboria.com
         </a>

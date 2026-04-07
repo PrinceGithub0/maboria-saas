@@ -480,6 +480,7 @@ model User {
   systemEventsAsActor SystemEvent[] @relation("SystemEventActor")
   customerNotesOwned CustomerNote[] @relation("CustomerNoteOwner")
   customerNotesAuthored CustomerNote[] @relation("CustomerNoteAuthor")
+  eInvoicingConnections EInvoicingConnection[]
 
   @@index([role])
   @@index([status])
@@ -702,9 +703,50 @@ model Invoice {
   invoiceCustomerSnapshot Json?
   plan          SubscriptionPlan?
   conversations Conversation[] @relation("InvoiceConversations")
+  complianceRecord InvoiceComplianceRecord?
 
   @@index([userId])
   @@index([customerId])
+}
+
+model InvoiceComplianceRecord {
+  id                 String   @id @default(cuid())
+  invoice            Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId          String   @unique
+  sellerCountryCode  String?
+  buyerCountryCode   String?
+  supportLevel       String?
+  taxSystem          String?
+  buyerType          String?
+  supplyType         String?
+  requiresEInvoicing Boolean  @default(false)
+  blockingIssueCount Int      @default(0)
+  warningIssueCount  Int      @default(0)
+  infoIssueCount     Int      @default(0)
+  document           Json
+  validationSummary  Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  issues             InvoiceComplianceIssue[]
+
+  @@index([sellerCountryCode, updatedAt])
+  @@index([supportLevel, updatedAt])
+}
+
+model InvoiceComplianceIssue {
+  id                 String                  @id @default(cuid())
+  complianceRecord   InvoiceComplianceRecord @relation(fields: [complianceRecordId], references: [id], onDelete: Cascade)
+  complianceRecordId String
+  field              String
+  code               String
+  message            String
+  severity           String
+  level              String
+  countryCode        String?
+  createdAt          DateTime                @default(now())
+
+  @@index([complianceRecordId, severity])
+  @@index([code, severity])
 }
 
 model InvoiceSupportingFile {
@@ -729,6 +771,9 @@ model Customer {
   email              String
   phone              String?
   taxId              String?
+  companyName        String?
+  registrationNumber String?
+  branchCode         String?
   addressLine1       String?
   addressLine2       String?
   city               String?
@@ -736,11 +781,17 @@ model Customer {
   postalCode         String?
   country            String?
   deliveryPreference DeliveryPreference @default(EMAIL)
+  emailOptOut        Boolean            @default(false)
+  whatsappOptOut     Boolean            @default(false)
+  processingRestrictedAt DateTime?
+  consentCapturedAt  DateTime?
+  consentSource      String?
   status             CustomerStatus     @default(ACTIVE)
   kind               CustomerKind       @default(CUSTOMER)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   deletedAt          DateTime?
+  erasedAt           DateTime?
   invoices           Invoice[]
   reminderDispatches ReminderDispatch[]
   unifiedConversations UnifiedConversation[]
@@ -1540,9 +1591,16 @@ model BusinessProfile {
   country          String
   defaultCurrency  String
   businessAddress  String?
+  addressLine1     String?
+  addressLine2     String?
+  city             String?
+  state            String?
+  postalCode       String?
   businessEmail    String?
   businessPhone    String?
   taxId            String?
+  registrationNumber String?
+  branchCode       String?
   logoData         Bytes?
   logoMimeType     String?
   vatEnabled       Boolean  @default(false)
@@ -1570,6 +1628,26 @@ model MerchantAccount {
   country                String?
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
+}
+
+model EInvoicingConnection {
+  id                   String   @id @default(cuid())
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId               String
+  provider             String
+  country              String
+  status               String   @default("ACTIVE")
+  sandbox              Boolean  @default(true)
+  credentialsEncrypted String?  @map("credentials_encrypted")
+  metadata             Json?
+  lastValidatedAt      DateTime? @map("last_validated_at")
+  lastError            String?  @map("last_error")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, provider])
+  @@index([userId, country, status])
+  @@map("einvoicing_connections")
 }
 
 model Conversation {

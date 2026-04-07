@@ -26,7 +26,7 @@ export function TransientAlert({
   autoHideMs?: number | null;
   className?: string;
 }) {
-  const { t } = useLanguage();
+  const { m } = useLanguage();
   const resolvedAutoHideMs =
     autoHideMs === undefined ? DEFAULT_AUTO_HIDE_MS[variant] ?? null : autoHideMs;
 
@@ -44,7 +44,7 @@ export function TransientAlert({
       <button
         type="button"
         onClick={onDismiss}
-        aria-label={t("Dismiss alert", "Ignorer l alerte", "Hinweis schliessen", "Descartar alerta", "Fechar alerta")}
+        aria-label={m("alert.dismiss")}
         className="absolute right-3 top-3 inline-flex h-6 w-6 items-center justify-center rounded-full text-current/70 transition hover:bg-black/5 hover:text-current dark:hover:bg-white/10"
       >
         <X className="h-4 w-4" />

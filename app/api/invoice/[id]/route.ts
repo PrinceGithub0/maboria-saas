@@ -7,11 +7,19 @@ import { invoiceSchema } from "@/lib/validators";
 import { parseDateInput } from "@/lib/date";
 import { enforceEntitlement, getWorkspaceScope } from "@/lib/entitlements";
 import {
+  buildInvoiceBlueprintArtifacts,
+  buildInvoiceEInvoicingSnapshot,
+  type CustomerSnapshot,
+  buildBusinessProfileSnapshot,
+  buildInvoiceComplianceSnapshot,
   calculateTotalsFromAmounts,
   deliverInvoiceToCustomer,
   generateAndStoreInvoicePdf,
+  getEInvoiceSendBlockingReason,
+  getInvoiceSendBlockingReason,
   normalizeInvoiceItems,
   resolveInvoiceCustomer,
+  submitRequiredInvoiceEInvoicing,
 } from "@/lib/invoice";
 import { isSupportedBusinessCurrency } from "@/lib/business-currencies";
 import { isProviderCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
@@ -24,6 +32,9 @@ import { withFormattedInvoiceTotals } from "@/lib/invoice-totals";
 import { deriveInvoiceDisplayStatus } from "@/lib/invoice-refund-status";
 import { appendInvoiceNumberAlias } from "@/lib/invoice-number";
 import { logUserActivity } from "@/lib/user-activity";
+import { resolveEInvoiceConnectionForUser, toConnectionConfig } from "@/lib/einvoicing/connections";
+import { upsertInvoiceComplianceArtifacts } from "@/lib/invoicing/blueprint/storage";
+import { getInvoiceComplianceRecord } from "@/lib/invoicing/blueprint/read";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -62,7 +73,11 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
           id: true,
           name: true,
           email: true,
+          phone: true,
           taxId: true,
+          companyName: true,
+          registrationNumber: true,
+          branchCode: true,
           addressLine1: true,
           addressLine2: true,
           city: true,
@@ -70,6 +85,10 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
           postalCode: true,
           country: true,
           deliveryPreference: true,
+          emailOptOut: true,
+          whatsappOptOut: true,
+          processingRestrictedAt: true,
+          erasedAt: true,
         },
       },
       invoicePayments: {
@@ -83,9 +102,11 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
     },
   });
   if (!invoice) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const complianceRecord = await getInvoiceComplianceRecord(invoice.id);
   return NextResponse.json({
     ...withFormattedInvoiceTotals(invoice),
     displayStatus: deriveInvoiceDisplayStatus(invoice),
+    complianceRecord,
   });
 });
 
@@ -156,6 +177,8 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
       status: true,
       invoiceNumber: true,
       currency: true,
+      items: true,
+      discount: true,
       total: true,
       lateFeeAmount: true,
       lateFeeTotalAccumulated: true,
@@ -252,11 +275,30 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
   const shouldUpdateDates = parsed.issueDate !== undefined || parsed.dueDate !== undefined;
   const shouldUpdateNote = parsed.note !== undefined;
   const shouldUpdatePoNumber = parsed.poNumber !== undefined;
-  const liveCustomer = {
+  const shouldUpdateBuyerClassification =
+    parsed.customerType !== undefined || parsed.customerCompany !== undefined;
+  const shouldUpdateCompliance =
+    shouldUpdateDates ||
+    shouldUpdateNote ||
+    shouldUpdatePoNumber ||
+    parsed.customerId !== undefined ||
+    parsed.items !== undefined ||
+    parsed.discount !== undefined ||
+    parsed.buyerType !== undefined ||
+    parsed.supplyType !== undefined ||
+    shouldUpdateBuyerClassification ||
+    invoiceNumberChanged;
+  const nextCustomerType: CustomerSnapshot["type"] =
+    String(parsed.customerType || existingMeta?.customer?.type || "").toUpperCase() === "BUSINESS"
+      ? "BUSINESS"
+      : "INDIVIDUAL";
+  const liveCustomer: CustomerSnapshot = {
     name: nextCustomer.name,
     email: nextCustomer.email,
     phone: nextCustomer.phone,
     taxId: nextCustomer.taxId,
+    registrationNumber: nextCustomer.registrationNumber,
+    branchCode: nextCustomer.branchCode,
     address: [
       nextCustomer.addressLine1,
       nextCustomer.addressLine2,
@@ -269,16 +311,30 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
       .filter(Boolean)
       .join("\n"),
     streetAddress: nextCustomer.addressLine1,
+    addressLine2: nextCustomer.addressLine2,
     city: nextCustomer.city,
+    state: nextCustomer.state,
     postalCode: nextCustomer.postalCode,
     country: nextCustomer.country,
+    type: nextCustomerType,
+    companyName:
+      typeof parsed.customerCompany === "string"
+        ? parsed.customerCompany
+        : existingMeta?.customer?.companyName ?? nextCustomer.companyName ?? null,
     deliveryPreference: nextCustomer.deliveryPreference,
+    emailOptOut: nextCustomer.emailOptOut,
+    whatsappOptOut: nextCustomer.whatsappOptOut,
+    processingRestrictedAt: nextCustomer.processingRestrictedAt,
+    erasedAt: nextCustomer.erasedAt,
   };
   const immutableCustomerSnapshot = {
     name: nextCustomer.name,
     email: nextCustomer.email,
     phone: nextCustomer.phone,
     taxId: nextCustomer.taxId,
+    companyName: nextCustomer.companyName,
+    registrationNumber: nextCustomer.registrationNumber,
+    branchCode: nextCustomer.branchCode,
     address: {
       addressLine1: nextCustomer.addressLine1,
       addressLine2: nextCustomer.addressLine2,
@@ -288,25 +344,150 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
       country: nextCustomer.country,
     },
     deliveryPreference: nextCustomer.deliveryPreference,
+    emailOptOut: nextCustomer.emailOptOut,
+    whatsappOptOut: nextCustomer.whatsappOptOut,
+    processingRestrictedAt: nextCustomer.processingRestrictedAt,
+    erasedAt: nextCustomer.erasedAt,
   };
   const nextItems = normalizeInvoiceItems(parsed.items ?? (existing as any).items);
   const discountAmount =
     typeof parsed.discount === "number" ? parsed.discount : Number((existing as any).discount || 0);
   const businessProfile = await prisma.businessProfile.findUnique({
     where: { userId: targetUserId },
-    select: { vatEnabled: true, vatRate: true, vatPricingMode: true },
+    select: {
+      businessName: true,
+      country: true,
+      defaultCurrency: true,
+      businessAddress: true,
+      addressLine1: true,
+      addressLine2: true,
+      city: true,
+      state: true,
+      postalCode: true,
+      businessEmail: true,
+      businessPhone: true,
+      taxId: true,
+      registrationNumber: true,
+      branchCode: true,
+      vatEnabled: true,
+      vatRate: true,
+      vatRateDisplay: true,
+      vatPricingMode: true,
+    },
+  });
+  if (!businessProfile) {
+    return NextResponse.json({ error: "Business profile required before updating invoices." }, { status: 400 });
+  }
+  const businessSnapshot = buildBusinessProfileSnapshot({
+    ...businessProfile,
+    vatRate: businessProfile.vatRate ? Number(businessProfile.vatRate) : 0,
   });
   const vatSettings = normalizeVatSettings({
-    enabled: businessProfile?.vatEnabled ?? false,
-    rate: businessProfile?.vatRate ? Number(businessProfile.vatRate) : 0,
+    enabled: businessSnapshot.vatEnabled ?? false,
+    rate: businessSnapshot.vatRate ?? 0,
     mode:
-      String(businessProfile?.vatPricingMode || "EXCLUSIVE").toLowerCase() === "inclusive"
+      String(businessSnapshot.vatPricingMode || "EXCLUSIVE").toLowerCase() === "inclusive"
         ? "inclusive"
         : "exclusive",
   });
   const totals = calculateTotalsFromAmounts(nextItems, vatSettings, discountAmount);
   const lateFeeAccumulated = Number(existing.lateFeeTotalAccumulated || existing.lateFeeAmount || 0);
   const nextTotalDue = totals.total + lateFeeAccumulated;
+  const compliance = buildInvoiceComplianceSnapshot({
+    business: businessSnapshot,
+    customer: liveCustomer,
+    items: nextItems,
+    buyerType:
+      parsed.buyerType ??
+      ((existingMeta?.compliance?.buyerType as "B2B" | "B2C" | null | undefined) ?? null),
+    supplyType:
+      parsed.supplyType ??
+      ((existingMeta?.compliance?.supplyType as "SAAS" | "SERVICES" | "GOODS" | null | undefined) ?? null),
+  });
+  const eInvoicingConnection = toConnectionConfig(
+    await resolveEInvoiceConnectionForUser({
+      userId: targetUserId,
+      context: {
+        sellerCountry: compliance.sellerCountry,
+        buyerCountry: compliance.buyerCountry,
+        currency: nextCurrency ?? existing.currency,
+        compliance,
+      },
+    })
+  );
+  const eInvoicingSnapshot = buildInvoiceEInvoicingSnapshot({
+    invoiceId: existing.id,
+    invoiceNumber: nextInvoiceNumber ?? existing.invoiceNumber,
+    invoiceStatus: parsed.status ?? existing.status,
+    currency: nextCurrency ?? existing.currency,
+    issuedAt: issueDate ?? undefined,
+    dueDate: dueDate ?? undefined,
+    business: businessSnapshot,
+    customer: liveCustomer,
+    items: nextItems,
+    totals: {
+      subtotal: totals.subtotal,
+      taxAmount: totals.taxAmount,
+      discountAmount,
+      total: totals.total,
+    },
+    transportDocument:
+      existingMeta?.eInvoiceTransport &&
+      typeof existingMeta.eInvoiceTransport === "object"
+        ? {
+            format: existingMeta.eInvoiceTransport.format ?? null,
+            documentBase64: existingMeta.eInvoiceTransport.documentBase64 ?? null,
+            invoiceHash: existingMeta.eInvoiceTransport.invoiceHash ?? null,
+            uuid: existingMeta.eInvoiceTransport.uuid ?? null,
+            digest: existingMeta.eInvoiceTransport.digest ?? null,
+            mode: existingMeta.eInvoiceTransport.mode ?? null,
+          }
+        : null,
+    compliance,
+    connection: eInvoicingConnection,
+  });
+  const blueprintArtifacts = buildInvoiceBlueprintArtifacts({
+    invoiceId: existing.id,
+    invoiceNumber: nextInvoiceNumber ?? existing.invoiceNumber,
+    issueDate: issueDate ?? undefined,
+    dueDate: dueDate ?? undefined,
+    currency: nextCurrency ?? existing.currency,
+    business: businessSnapshot,
+    customer: liveCustomer,
+    items: nextItems,
+    totals: {
+      subtotal: totals.subtotal,
+      taxAmount: totals.taxAmount,
+      discountAmount,
+      total: totals.total,
+    },
+    note:
+      parsed.note !== undefined
+        ? parsed.note ?? null
+        : typeof existingMeta?.note === "string"
+          ? existingMeta.note
+          : null,
+    buyerType:
+      parsed.buyerType ??
+      ((existingMeta?.compliance?.buyerType as "B2B" | "B2C" | null | undefined) ?? null),
+    supplyType:
+      parsed.supplyType ??
+      ((existingMeta?.compliance?.supplyType as "SAAS" | "SERVICES" | "GOODS" | null | undefined) ?? null),
+    compliance,
+  });
+  if (parsed.status === "SENT") {
+    const sendBlockingReason = getInvoiceSendBlockingReason(
+      compliance,
+      blueprintArtifacts.validation
+    );
+    if (sendBlockingReason) {
+      return NextResponse.json({ error: sendBlockingReason }, { status: 400 });
+    }
+    const eInvoiceBlockingReason = getEInvoiceSendBlockingReason(eInvoicingSnapshot);
+    if (eInvoiceBlockingReason) {
+      return NextResponse.json({ error: eInvoiceBlockingReason }, { status: 400 });
+    }
+  }
 
   const updated = await prisma.invoice.update({
     where: { id: existing.id },
@@ -326,23 +507,34 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
           ? (existing.invoiceCustomerSnapshot as any) || (immutableCustomerSnapshot as any)
           : undefined,
       metadata:
-        shouldUpdateDates ||
-        shouldUpdateNote ||
-        shouldUpdatePoNumber ||
-        parsed.customerId !== undefined ||
-        invoiceNumberChanged
+        shouldUpdateCompliance
         ? {
             ...(invoiceNumberChanged ? appendInvoiceNumberAlias(existingMeta, existing.invoiceNumber) : existingMeta),
+            businessProfile: businessSnapshot,
             customer: liveCustomer,
+            compliance,
+            complianceDocument: blueprintArtifacts.document as any,
+            complianceValidation: blueprintArtifacts.validation as any,
+            eInvoicing: eInvoicingSnapshot,
             poNumber: shouldUpdatePoNumber ? parsed.poNumber ?? null : existingMeta?.poNumber,
             dueDate: parsed.dueDate ? dueDate?.toISOString() : existingMeta?.dueDate,
             note: shouldUpdateNote ? parsed.note ?? null : existingMeta?.note,
-            vatRate: totals.vatRate,
-            vatMode: totals.vatMode,
-            vatEnabled: totals.vatEnabled,
+            invoiceTotals: {
+              subtotal: totals.subtotal,
+              taxAmount: totals.taxAmount,
+              discountAmount,
+              total: totals.total,
+              vatRate: totals.vatRate,
+              vatMode: totals.vatMode,
+              vatEnabled: totals.vatEnabled,
+            },
           }
         : undefined,
     },
+  });
+  await upsertInvoiceComplianceArtifacts({
+    invoiceId: updated.id,
+    validation: blueprintArtifacts.validation,
   });
   await prisma.activityLog.create({
     data: {
@@ -358,6 +550,48 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
     },
   });
   if (existing.status !== updated.status && updated.status === "SENT") {
+    if (compliance.requiresEInvoicing) {
+      const eInvoiceResult = await submitRequiredInvoiceEInvoicing({
+        userId: targetUserId,
+        invoiceId: updated.id,
+        invoiceNumber: updated.invoiceNumber,
+        invoiceStatus: updated.status,
+        currency: nextCurrency ?? existing.currency,
+        issuedAt: issueDate ?? undefined,
+        dueDate: dueDate ?? undefined,
+        business: businessSnapshot,
+        customer: liveCustomer,
+        items: nextItems,
+        totals: {
+          subtotal: totals.subtotal,
+          taxAmount: totals.taxAmount,
+          discountAmount,
+          total: totals.total,
+        },
+        compliance,
+      });
+      if (eInvoiceResult) {
+        const successfulSubmissionStatuses = new Set(["QUEUED", "SUBMITTED", "ACCEPTED"]);
+        const canRemainSent = successfulSubmissionStatuses.has(eInvoiceResult.snapshot.status);
+        const failedInvoice = await prisma.invoice.update({
+          where: { id: updated.id },
+          data: {
+            status: canRemainSent ? "SENT" : "DRAFT",
+            metadata: {
+              ...((updated.metadata as any) || {}),
+              eInvoicing: eInvoiceResult.snapshot,
+            },
+          },
+        });
+        if (!canRemainSent) {
+          return NextResponse.json(
+            { error: eInvoiceResult.snapshot.lastError || "Could not submit the e-invoice." },
+            { status: 400 }
+          );
+        }
+        Object.assign(updated, failedInvoice);
+      }
+    }
     const businessProfile = (updated.metadata as any)?.businessProfile;
     if (businessProfile?.businessName) {
       const customer = resolveInvoiceCustomer(updated.metadata as any);
@@ -367,6 +601,10 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
           ...customer,
           phone: nextCustomer.phone,
           deliveryPreference: nextCustomer.deliveryPreference,
+          emailOptOut: nextCustomer.emailOptOut,
+          whatsappOptOut: nextCustomer.whatsappOptOut,
+          processingRestrictedAt: nextCustomer.processingRestrictedAt,
+          erasedAt: nextCustomer.erasedAt,
         }, pdfBuffer);
       } catch (error: any) {
         await prisma.invoice.update({

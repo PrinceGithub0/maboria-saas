@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { enforceEntitlement } from "@/lib/entitlements";
 import { requireBillingAccess } from "@/lib/permissions";
 import { InvoicePreview } from "@/components/invoices/invoice-preview";
+import { EInvoicingStatusCard } from "@/components/invoices/einvoicing-status-card";
 import { Alert } from "@/components/ui/alert";
 import {
   resolveInvoiceCustomer,
@@ -20,6 +21,8 @@ import { cookies } from "next/headers";
 import { getOrCreateInvoicePublicLink } from "@/lib/invoice-public-link";
 import { deriveInvoiceDisplayStatus } from "@/lib/invoice-refund-status";
 import { getLocalizedText, normalizeLanguage } from "@/lib/i18n";
+import { getInvoiceComplianceRecord } from "@/lib/invoicing/blueprint/read";
+import { getCountryLaunchReadiness } from "@/lib/invoicing/country-readiness";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -93,7 +96,7 @@ export default async function InvoiceDetailPage({ params, searchParams }: PagePr
   if (candidates.length === 0) {
     return (
       <div className="space-y-4">
-        <Alert variant="error">{t("Invalid invoice link.", "Lien de facture invalide.", "Ungültiger Rechnungslink.", "Enlace de factura no valido.", "Ligacao de fatura invalida.")}</Alert>
+        <Alert variant="error">{t("Invalid invoice link.", "Lien de facture invalide.", "Ungültiger Rechnungslink.", "Enlace de factura no valido.", "Liga??o de fatura invalida.")}</Alert>
         <Link
           href="/dashboard/invoices"
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-muted px-4 py-2 text-sm font-semibold text-foreground hover:brightness-95"
@@ -156,10 +159,10 @@ export default async function InvoiceDetailPage({ params, searchParams }: PagePr
         <Alert variant="error">
           {t(
             "Invoice not found. It may have been deleted or the link is incorrect.",
-            "Facture introuvable. Elle a peut-être ?t? supprimee ou le lien est incorrect.",
+            "Facture introuvable. Elle a peut-\u00eatre \u00e9t\u00e9 supprim\u00e9e ou le lien est incorrect.",
             "Rechnung nicht gefunden. Sie wurde moglicherweise gelöscht oder der Link ist falsch.",
             "No se encontro la factura. Puede que se haya eliminado o que el enlace sea incorrecto.",
-            "Fatura não encontrada. Pode ter sido eliminada ou a ligacao esta incorreta."
+            "Fatura não encontrada. Pode ter sido eliminada ou a liga??o esta incorreta."
           )}
         </Alert>
         <Link
@@ -172,9 +175,14 @@ export default async function InvoiceDetailPage({ params, searchParams }: PagePr
     );
   }
 
+  const complianceRecord = await getInvoiceComplianceRecord(invoice.id);
+
   const normalizedCurrency = normalizeCurrency(invoice.currency || "USD");
   const currencyAllowed = isAllowedCurrency(normalizedCurrency);
   const metadata = (invoice.metadata as any) || {};
+  const sellerCountryLaunch = getCountryLaunchReadiness(
+    complianceRecord?.sellerCountryCode || metadata?.compliance?.sellerCountry || null
+  );
   const businessSnapshot = resolveInvoiceBusinessSnapshot(invoice);
   const customer = resolveInvoiceCustomer(metadata);
   const note = typeof metadata?.note === "string" ? metadata.note : null;
@@ -288,6 +296,82 @@ export default async function InvoiceDetailPage({ params, searchParams }: PagePr
         </Alert>
       )}
 
+      {(invoice.metadata as any)?.eInvoicing ? (
+        <EInvoicingStatusCard
+          invoiceId={invoice.id}
+          invoiceStatus={invoice.status}
+          initialSnapshot={(invoice.metadata as any)?.eInvoicing || null}
+        />
+      ) : null}
+
+      {complianceRecord ? (
+        <section className="rounded-2xl border border-slate-200/80 bg-white/90 p-5 shadow-sm dark:border-slate-700/80 dark:bg-slate-950/70">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                {t("Compliance", "Conformite", "Compliance", "Cumplimiento", "Conformidade")}
+              </p>
+              <h2 className="text-lg font-semibold text-foreground">
+                {`Support level: ${String(complianceRecord.supportLevel || "UNKNOWN").toLowerCase()}`}
+              </h2>
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                {`Seller: ${complianceRecord.sellerCountryCode || "N/A"} • Buyer: ${complianceRecord.buyerCountryCode || "N/A"} • Tax: ${complianceRecord.taxSystem || "N/A"}`}
+              </p>
+              {sellerCountryLaunch ? (
+                <p className="text-sm text-slate-600 dark:text-slate-300">
+                  {`Country launch state: ${sellerCountryLaunch.launchState.toLowerCase().replace(/_/g, " ")}${sellerCountryLaunch.lastReviewedAt ? ` • Reviewed: ${sellerCountryLaunch.lastReviewedAt}` : ""}`}
+                </p>
+              ) : null}
+            </div>
+            <div className="inline-flex flex-col items-end gap-1 text-xs text-slate-500 dark:text-slate-400">
+              <span>{`Errors: ${complianceRecord.blockingIssueCount || 0}`}</span>
+              <span>{`Warnings: ${complianceRecord.warningIssueCount || 0}`}</span>
+              <span>{`Info: ${complianceRecord.infoIssueCount || 0}`}</span>
+              {complianceRecord.validationSummary?.countryModule?.ruleVersion ? (
+                <span>{`Rule version: ${complianceRecord.validationSummary.countryModule.ruleVersion}`}</span>
+              ) : null}
+              {typeof complianceRecord.validationSummary?.countryModule?.evidenceCount === "number" ? (
+                <span>{`Evidence sources: ${complianceRecord.validationSummary.countryModule.evidenceCount}`}</span>
+              ) : null}
+            </div>
+          </div>
+          {Number(complianceRecord.blockingIssueCount || 0) > 0 ? (
+            <div className="mt-4">
+              <Alert variant="error">
+                {t(
+                  "Compliance blockers detected. Resolve the errors before sending this invoice.",
+                  "Blocages de conformite detectes. Corrigez les erreurs avant l envoi.",
+                  "Compliance-Fehler gefunden. Behebe sie vor dem Versand.",
+                  "Se detectaron bloqueos de cumplimiento. Corrige los errores antes de enviar.",
+                  "Bloqueios de conformidade detectados. Corrija os erros antes de enviar."
+                )}
+              </Alert>
+            </div>
+          ) : null}
+          {sellerCountryLaunch && sellerCountryLaunch.launchState !== "LIVE" && sellerCountryLaunch.blockers.length > 0 ? (
+            <div className="mt-4 space-y-2">
+              {sellerCountryLaunch.blockers.slice(0, 2).map((blocker) => (
+                <Alert key={blocker} variant="info">
+                  {blocker}
+                </Alert>
+              ))}
+            </div>
+          ) : null}
+          {Array.isArray(complianceRecord.issues) && complianceRecord.issues.length > 0 ? (
+            <div className="mt-4 space-y-2 text-sm text-slate-600 dark:text-slate-300">
+              {complianceRecord.issues.slice(0, 3).map((issue: any) => (
+                <div key={issue.id} className="flex items-start justify-between gap-3">
+                  <span>{issue.message}</span>
+                  <span className="text-xs uppercase tracking-[0.16em] text-slate-400">
+                    {String(issue.severity || "info")}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
       {currencyAllowed && !businessMissing ? (
         <InvoicePreview
           invoiceNumber={invoice.invoiceNumber}
@@ -305,6 +389,7 @@ export default async function InvoiceDetailPage({ params, searchParams }: PagePr
           business={business}
           billTo={customer}
           note={note}
+          compliance={(invoice.metadata as any)?.compliance || null}
           variant="dashboard"
         />
       ) : null}

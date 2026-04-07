@@ -46,18 +46,18 @@ export function ConfirmImpersonationModal({ open, onClose, onConfirm, tenantName
               language,
               t(
                 "Unable to start impersonation.",
-                "Impossible de demarrer l'impersonation.",
-                "Identitaetsuebernahme konnte nicht gestartet werden.",
-                "No se puede iniciar la suplantacion.",
-                "Nao foi possivel iniciar a impersonacao."
+                "Impossible de démarrer l'impersonation.",
+                "Identitätsübernahme konnte nicht gestartet werden.",
+                "No se puede iniciar la suplantación.",
+                "Não foi possível iniciar a impersonação."
               )
             )
           : t(
               "Unable to start impersonation.",
-              "Impossible de demarrer l'impersonation.",
+              "Impossible de démarrer l'impersonation.",
               "Identitätsübernahme konnte nicht gestartet werden.",
-              "No se puede iniciar la suplantacion.",
-              "Não foi possivel iniciar a impersonação."
+              "No se puede iniciar la suplantación.",
+              "Não foi possível iniciar a impersonação."
             )
       );
       setSubmitting(false);
@@ -68,20 +68,20 @@ export function ConfirmImpersonationModal({ open, onClose, onConfirm, tenantName
     <Modal
       open={open}
       onClose={() => !submitting && onClose()}
-      title={t("Confirm Impersonation", "Confirmer l'impersonation", "Identitätsübernahme bestätigen", "Confirmar suplantacion", "Confirmar impersonação")}
+      title={t("Confirm Impersonation", "Confirmer l'impersonation", "Identitätsübernahme bestätigen", "Confirmar suplantación", "Confirmar impersonação")}
     >
       <div className="space-y-4">
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          <p className="font-semibold">{t("You are about to impersonate this tenant account.", "Vous etes sur le point d'impersonner ce compte locataire.", "Du bist dabei, dieses Mandantenkonto zu übernehmen.", "Estas a punto de suplantar esta cuenta de inquilino.", "Esta prestes a impersonar esta conta de tenant.")}</p>
+          <p className="font-semibold">{t("You are about to impersonate this tenant account.", "Vous êtes sur le point d'impersonner ce compte locataire.", "Du bist dabei, dieses Mandantenkonto zu übernehmen.", "Estás a punto de suplantar esta cuenta de inquilino.", "Está prestes a impersonar esta conta de tenant.")}</p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li>{t("This will switch your session from Admin -> Tenant view.", "Votre session passera du mode admin a la vue locataire.", "Dadurch wechselt deine Sitzung von Admin zur Mandantenansicht.", "Esto cambiara tu sesión de administrador a vista de inquilino.", "Isto vai mudar a sua sessão de Admin para a vista do tenant.")}</li>
-            <li>{t("You will no longer have admin access during impersonation.", "Vous n'aurez plus d'accès admin pendant l'impersonation.", "Wahrend der Identitätsübernahme hast du keinen Admin-Zugriff mehr.", "Ya no tendras acceso de administrador durante la suplantacion.", "Deixara de ter acesso de administrador durante a impersonação.")}</li>
-            <li>{t("Subscription rules and restrictions will apply.", "Les règles et restrictions d'abonnement s'appliqueront.", "Abonnementregeln und -einschrankungen gelten weiterhin.", "Se aplicaran las reglas y restricciones de suscripción.", "Aplicam-se as regras e restricoes da subscrição.")}</li>
-            <li>{t("Actions are audited.", "Les actions sont auditées.", "Aktionen werden protokolliert.", "Las acciones se auditan.", "As ações sao auditadas.")}</li>
-            <li>{t('Click "Exit Impersonation" to return to Admin.', "Cliquez sur \"Quitter l'impersonation\" pour revenir ? l'admin.", 'Klicke auf "Identitätsübernahme beenden", um zur Admin-Ansicht zurückzukehren.', 'Haz clic en "Salir de la suplantacion" para volver al administrador.', 'Clique em "Sair da impersonação" para voltar ao Admin.')}</li>
+            <li>{t("This will switch your session from Admin -> Tenant view.", "Votre session passera du mode admin à la vue locataire.", "Dadurch wechselt deine Sitzung von Admin zur Mandantenansicht.", "Esto cambiará tu sesión de administrador a la vista de inquilino.", "Isto vai mudar a sua sessão de Admin para a vista do tenant.")}</li>
+            <li>{t("You will no longer have admin access during impersonation.", "Vous n'aurez plus d'accès admin pendant l'impersonation.", "Während der Identitätsübernahme hast du keinen Admin-Zugriff mehr.", "Ya no tendrás acceso de administrador durante la suplantación.", "Deixará de ter acesso de administrador durante a impersonação.")}</li>
+            <li>{t("Subscription rules and restrictions will apply.", "Les règles et restrictions d'abonnement s'appliqueront.", "Abonnementregeln und -einschränkungen gelten weiterhin.", "Se aplicarán las reglas y restricciones de suscripción.", "Aplicam-se as regras e restrições da subscrição.")}</li>
+            <li>{t("Actions are audited.", "Les actions sont auditées.", "Aktionen werden protokolliert.", "Las acciones se auditan.", "As ações são auditadas.")}</li>
+            <li>{t('Click "Exit Impersonation" to return to Admin.', "Cliquez sur \"Quitter l'impersonation\" pour revenir à l'admin.", `Klicke auf "Identitätsübernahme beenden", um zur Admin-Ansicht zurückzukehren.`, `Haz clic en "Salir de la suplantación" para volver al administrador.`, `Clique em "Sair da impersonação" para voltar ao Admin.`)}</li>
           </ul>
           <p className="mt-2 text-xs text-amber-800">
-            {t("Tenant:", "Locataire :", "Mandant:", "Tenant:", "Tenant:")}{" "}
+            {t("Tenant:", "Locataire :", "Mandant:", "Tenant:", "Tenant:")} {" "}
             {tenantName || t("Unknown tenant", "Locataire inconnu", "Unbekannter Mandant", "Tenant desconocido", "Tenant desconhecido")}
           </p>
         </div>
@@ -93,12 +93,12 @@ export function ConfirmImpersonationModal({ open, onClose, onConfirm, tenantName
             onChange={(event) => setConfirmChecked(event.target.checked)}
             className="mt-0.5 h-4 w-4 rounded border-input"
           />
-          <span>{t("I understand I will act as the tenant user and not as Admin.", "Je comprends que j'agirai comme l'utilisateur locataire et non comme admin.", "Ich verstehe, dass ich als Mandantenbenutzer und nicht als Admin handle.", "Entiendo que actuare como usuario del tenant y no como administrador.", "Compreendo que vou agir como utilizador do tenant e não como Admin.")}</span>
+          <span>{t("I understand I will act as the tenant user and not as Admin.", "Je comprends que j'agirai comme l'utilisateur locataire et non comme admin.", "Ich verstehe, dass ich als Mandantenbenutzer und nicht als Admin handle.", "Entiendo que actuaré como usuario del tenant y no como administrador.", "Compreendo que vou agir como utilizador do tenant e não como Admin.")}</span>
         </label>
 
         <Input
-          label={t('Type "IMPERSONATE" to confirm', 'Tapez "IMPERSONATE" pour confirmer', 'Gib zur Bestätigung "IMPERSONATE" ein', 'Escribe "IMPERSONATE" para confirmar', 'Escreva "IMPERSONATE" para confirmar')}
-          placeholder={t('Type "IMPERSONATE" to confirm', 'Tapez "IMPERSONATE" pour confirmer', 'Gib zur Bestätigung "IMPERSONATE" ein', 'Escribe "IMPERSONATE" para confirmar', 'Escreva "IMPERSONATE" para confirmar')}
+          label={t('Type "IMPERSONATE" to confirm', `Tapez "IMPERSONATE" pour confirmer`, `Gib zur Bestätigung "IMPERSONATE" ein`, `Escribe "IMPERSONATE" para confirmar`, `Escreva "IMPERSONATE" para confirmar`)}
+          placeholder={t('Type "IMPERSONATE" to confirm', `Tapez "IMPERSONATE" pour confirmer`, `Gib zur Bestätigung "IMPERSONATE" ein`, `Escribe "IMPERSONATE" para confirmar`, `Escreva "IMPERSONATE" para confirmar`)}
           value={confirmText}
           onChange={(event) => setConfirmText(event.target.value)}
         />

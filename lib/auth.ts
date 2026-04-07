@@ -215,11 +215,25 @@ export const authOptions: NextAuthOptions = {
         token.role = (user as any).role ?? "USER";
         token.id = (user as any).id;
       }
+      const tokenUserId = typeof token.id === "string" ? token.id : "";
+      if (tokenUserId) {
+        const currentUser = await prisma.user.findUnique({
+          where: { id: tokenUserId },
+          select: { status: true, role: true },
+        });
+        if (!currentUser || String(currentUser.status || "ACTIVE").toUpperCase() !== "ACTIVE") {
+          delete (token as any).id;
+          token.role = "USER";
+          (token as any).inactive = true;
+          return token;
+        }
+        token.role = currentUser.role || (token.role as string) || "USER";
+      }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string;
+        session.user.id = (typeof token.id === "string" ? token.id : "") as string;
         session.user.role = (token.role as string) || "USER";
       }
       return session;

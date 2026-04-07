@@ -33,7 +33,7 @@ export function ConfirmationModal({
   onSecondaryConfirm,
   onCancel,
 }: ConfirmationModalProps) {
-  const { t } = useLanguage();
+  const { m } = useLanguage();
   const [mounted, setMounted] = useState(open);
   const [visible, setVisible] = useState(open);
 
@@ -106,7 +106,7 @@ export function ConfirmationModal({
           type="button"
           onClick={onCancel}
           className="absolute right-4 top-4 text-muted-foreground transition hover:text-foreground"
-          aria-label={t("Close", "Fermer", "Schliessen", "Cerrar", "Fechar")}
+          aria-label={m("common.close")}
         >
           <XMarkIcon className="h-6 w-6" />
         </button>
@@ -127,7 +127,7 @@ export function ConfirmationModal({
             onClick={onCancel}
             className="h-11 flex-1 rounded-lg border border-border bg-muted font-medium text-foreground transition hover:bg-muted/80"
           >
-            {t("Cancel", "Annuler", "Abbrechen", "Cancelar", "Cancelar")}
+            {m("common.cancel")}
           </button>
           {secondaryConfirmLabel && onSecondaryConfirm ? (
             <button

@@ -38,7 +38,7 @@ export default function ContactPage() {
       setError(localizeServerMessage(data.error, language, t("Could not send message.", "Envoi impossible.")));
       return;
     }
-    setStatus(t("Message sent. We will respond shortly.", "Message envoye. Réponse rapide."));
+    setStatus(t("Message sent. We will respond shortly.", "Message envoy?. Réponse rapide."));
     setForm({ name: "", email: "", company: "", message: "" });
   };
   return (

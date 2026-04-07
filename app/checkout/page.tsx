@@ -1,4 +1,4 @@
-import { getServerSession } from "next-auth";
+﻿import { getServerSession } from "next-auth";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
@@ -52,9 +52,9 @@ export default async function CheckoutPage() {
           <p className="mt-2 text-sm text-muted-foreground">
             {t(
               "We couldn't locate an active or pending subscription for this account. Please contact support to restore billing or sign out and try again.",
-              "Nous n'avons pas pu trouver d'abonnement actif ou en attente pour ce compte. Veuillez contacter le support pour restaurer la facturation ou vous deconnecter puis réessayer.",
+              "Nous n'avons pas pu trouver d'abonnement actif ou en attente pour ce compte. Veuillez contacter le support pour restaurer la facturation ou vous déconnecter puis réessayer.",
               "Wir konnten kein aktives oder ausstehendes Abonnement für dieses Konto finden. Bitte kontaktiere den Support, um die Abrechnung wiederherzustellen, oder melde dich ab und versuche es erneut.",
-              "No pudimos encontrar una suscripción activa o pendiente para esta cuenta. Contacta con soporte para restaurar la facturación o cierra sesión e intentalo de nuevo.",
+              "No pudimos encontrar una suscripción activa o pendiente para esta cuenta. Contacta con soporte para restaurar la facturación o cierra sesión e inténtalo de nuevo.",
               "Não conseguimos encontrar uma subscrição ativa ou pendente para esta conta. Contacte o suporte para restaurar a faturação ou termine a sessão e tente novamente."
             )}
           </p>
@@ -69,7 +69,7 @@ export default async function CheckoutPage() {
               href="/logout"
               className="rounded-full border border-border px-5 py-2 text-sm font-semibold text-foreground hover:bg-muted/50"
             >
-              {t("Log out", "Se deconnecter", "Abmelden", "Cerrar sesión", "Terminar sessão")}
+              {t("Log out", "Se déconnecter", "Abmelden", "Cerrar sesión", "Terminar sessão")}
             </Link>
           </div>
         </div>
@@ -93,12 +93,18 @@ export default async function CheckoutPage() {
       <div className="mx-auto w-full max-w-[980px]">
         <div className="rounded-[14px] border border-[#EAEAEA] bg-white p-8 shadow-[0_12px_28px_-20px_rgba(15,23,42,0.14)] sm:p-10">
           <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-500">{t("Checkout", "Paiement", "Checkout", "Checkout", "Checkout")}</p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-900">{t("Complete your subscription", "Finalisez votre abonnement", "Abonnement abschliessen", "Completa tu suscripción", "Conclua a sua subscrição")}</h1>
+          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-slate-900">{t("Complete your subscription", "Finalisez votre abonnement", "Abonnement abschließen", "Completa tu suscripción", "Conclua a sua subscrição")}</h1>
           <p className="mt-3 text-sm text-slate-500 sm:text-base">
-            {t("Activate your selected plan to unlock automation, invoicing, WhatsApp automation, and reporting.", "Activez le plan selectionne pour debloquer l'automatisation, la facturation, l automatisation WhatsApp et les rapports.", "Aktiviere deinen ausgewahlten Plan, um Automatisierung, Rechnungen, WhatsApp-Automatisierung und Berichte freizuschalten.", "Activa tu plan seleccionado para desbloquear automatizacion, facturacion, automatizacion de WhatsApp e informes.", "Ative o plano selecionado para desbloquear automacao, faturacao, automacao de WhatsApp e relatorios.")}
+            {t(
+              "Activate your selected plan to unlock automation, invoicing, WhatsApp automation, and reporting.",
+              "Activez le plan sélectionné pour débloquer l'automatisation, la facturation, l'automatisation WhatsApp et les rapports.",
+              "Aktiviere deinen ausgewählten Plan, um Automatisierung, Rechnungen, WhatsApp-Automatisierung und Berichte freizuschalten.",
+              "Activa tu plan seleccionado para desbloquear automatización, facturación, automatización de WhatsApp e informes.",
+              "Ative o plano selecionado para desbloquear automação, faturação, automação de WhatsApp e relatórios."
+            )}
           </p>
           <p className="mt-3 text-xs font-medium text-slate-500">
-            {t("Secure checkout", "Paiement securise", "Sicherer Checkout", "Pago seguro", "Checkout seguro")} {"\u00B7"} {t("Cancel anytime", "Annulable a tout moment", "Jederzeit kundbar", "Cancela cuando quieras", "Cancele quando quiser")} {"\u00B7"} {t("No hidden fees", "Aucun frais cache", "Keine versteckten Gebühren", "Sin cargos ocultos", "Sem taxas escondidas")}
+            {t("Secure checkout", "Paiement sécurisé", "Sicherer Checkout", "Pago seguro", "Checkout seguro")} {"\u00B7"} {t("Cancel anytime", "Annulable à tout moment", "Jederzeit kündbar", "Cancela cuando quieras", "Cancele quando quiser")} {"\u00B7"} {t("No hidden fees", "Aucun frais caché", "Keine versteckten Gebühren", "Sin cargos ocultos", "Sem taxas escondidas")}
           </p>
         </div>
         <CheckoutPanel

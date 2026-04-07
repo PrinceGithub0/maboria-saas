@@ -99,14 +99,14 @@ const TEAM_SERVER_MESSAGES: Record<string, LocalizedText> = {
     fr: "Impossible de charger l équipe.",
     de: "Team konnte nicht geladen werden.",
     es: "No se pudo cargar el equipo.",
-    pt: "Não foi possivel carregar a equipa.",
+    pt: "Não foi poss?vel carregar a equipa.",
   },
   "Failed to load team activity": {
     en: "Failed to load team activity.",
     fr: "Impossible de charger l activité de l équipe.",
     de: "Teamaktivität konnte nicht geladen werden.",
     es: "No se pudo cargar la actividad del equipo.",
-    pt: "Não foi possivel carregar a atividade da equipa.",
+    pt: "Não foi poss?vel carregar a atividade da equipa.",
   },
   "Only owners can assign Billing Admin.": {
     en: "Only owners can assign Billing Admin.",
@@ -134,7 +134,7 @@ const TEAM_SERVER_MESSAGES: Record<string, LocalizedText> = {
     fr: "Les roles de plateforme ne peuvent pas être rattaches a un espace de travail.",
     de: "Plattformrollen können keinem Workspace zugewiesen werden.",
     es: "Los roles de plataforma no pueden vincularse a un espacio de trabajo.",
-    pt: "Os papeis da plataforma não podem ser associados a um espaco de trabalho.",
+    pt: "Os papeis da plataforma não podem ser associados a um espa?o de trabalho.",
   },
   "Invalid request payload.": {
     en: "Invalid request payload.",
@@ -180,10 +180,10 @@ const TEAM_SERVER_MESSAGES: Record<string, LocalizedText> = {
   },
   "Update failed.": {
     en: "Update failed.",
-    fr: "La mise a jour a echoue.",
+    fr: "La mise ? jour a ?chou?.",
     de: "Aktualisierung fehlgeschlagen.",
     es: "La actualización ha fallado.",
-    pt: "A atualizacao falhou.",
+    pt: "A atualiza??o falhou.",
   },
   "Owner cannot be removed.": {
     en: "Owner cannot be removed.",
@@ -225,7 +225,7 @@ const TEAM_SERVER_MESSAGES: Record<string, LocalizedText> = {
     fr: "Historique d activité indisponible.",
     de: "Aktivitätsverlauf nicht verfügbar.",
     es: "Historial de actividad no disponible.",
-    pt: "Histórico de atividade indisponivel.",
+    pt: "Histórico de atividade indispon?vel.",
   },
   "Please sign in first.": {
     en: "Please sign in first.",
@@ -301,7 +301,7 @@ export function getTeamActivityActionLabel(actionType: string | null | undefined
       fr: "Mise ? jour de l équipe",
       de: "Team-Aktualisierung",
       es: "Actualización del equipo",
-      pt: "Atualizacao da equipa",
+      pt: "Atualiza??o da equipa",
     },
     language
   );

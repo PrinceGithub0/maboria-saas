@@ -6,9 +6,9 @@ import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import {
   Bot,
+  Link2,
   Download,
   FileText,
-  MessageSquare,
   ShieldCheck,
   Users,
   Workflow,
@@ -23,8 +23,8 @@ import { useLanguage } from "@/components/providers/language-provider";
 type UsageFeatureKey =
   | "ai_requests"
   | "invoices"
-  | "whatsapp_messages"
   | "automations_runs"
+  | "workspace_connections"
   | "team_members_seats";
 
 type UsageSnapshot = {
@@ -56,7 +56,7 @@ type UsageSnapshot = {
     };
   }>;
   trend: {
-    defaultFeature: "ai_requests" | "invoices" | "whatsapp_messages" | "automations_runs";
+    defaultFeature: "ai_requests" | "invoices" | "automations_runs";
     series: Record<UsageFeatureKey, Array<{ date: string; value: number }>>;
   };
   recentActivity: Array<{
@@ -129,24 +129,24 @@ function toneForPercent(percent: number | null) {
 function iconForFeature(feature: UsageFeatureKey) {
   if (feature === "ai_requests") return Bot;
   if (feature === "invoices") return FileText;
-  if (feature === "whatsapp_messages") return MessageSquare;
   if (feature === "automations_runs") return Workflow;
+  if (feature === "workspace_connections") return Link2;
   return Users;
 }
 
 function chartLabel(feature: UsageFeatureKey, t: ReturnType<typeof useLanguage>["t"]) {
   if (feature === "ai_requests") return t("AI", "IA", "KI", "IA", "IA");
   if (feature === "invoices") return t("Invoices", "Factures", "Rechnungen", "Facturas", "Faturas");
-  if (feature === "whatsapp_messages") return "WhatsApp";
   if (feature === "automations_runs") return t("Automations", "Automatisations", "Automatisierungen", "Automatizaciónes", "Automações");
+  if (feature === "workspace_connections") return t("Connections", "Connexions", "Verbindungen", "Conexiones", "Conexões");
   return t("Team", "Équipe", "Team", "Equipo", "Equipa");
 }
 
 function featureTitle(feature: UsageFeatureKey, t: ReturnType<typeof useLanguage>["t"]) {
   if (feature === "ai_requests") return t("AI Usage", "Utilisation IA", "KI-Nutzung", "Uso de IA", "Utilização de IA");
   if (feature === "invoices") return t("Invoices", "Factures", "Rechnungen", "Facturas", "Faturas");
-  if (feature === "whatsapp_messages") return t("WhatsApp Messages", "Messages WhatsApp", "WhatsApp-Nachrichten", "Mensajes de WhatsApp", "Mensagens do WhatsApp");
   if (feature === "automations_runs") return t("Automations", "Automatisations", "Automatisierungen", "Automatizaciónes", "Automações");
+  if (feature === "workspace_connections") return t("Connections", "Connexions", "Verbindungen", "Conexiones", "Conexões");
   return t("Team Members", "Membres de l équipe", "Teammitglieder", "Miembros del equipo", "Membros da equipa");
 }
 
@@ -169,13 +169,13 @@ function featureSubtitle(feature: UsageFeatureKey, t: ReturnType<typeof useLangu
       "Faturas enviadas neste ciclo"
     );
   }
-  if (feature === "whatsapp_messages") {
+  if (feature === "workspace_connections") {
     return t(
-      "Messages sent this cycle",
-      "Messages envoyes ce cycle",
-      "In diesem Zyklus gesendete Nachrichten",
-      "Mensajes enviados este ciclo",
-      "Mensagens enviadas neste ciclo"
+      "Connected inbox channels in use",
+      "Canaux connectes utilises",
+      "Verbundene Postfachkanale im Einsatz",
+      "Canales conectados en uso",
+      "Canais ligados em uso"
     );
   }
   if (feature === "automations_runs") {
@@ -208,7 +208,7 @@ export default function ReportPage() {
     { refreshInterval: 30000, dedupingInterval: 10000, revalidateOnFocus: true }
   );
   const [selectedFeature, setSelectedFeature] = useState<
-    "ai_requests" | "invoices" | "whatsapp_messages" | "automations_runs"
+    "ai_requests" | "invoices" | "automations_runs"
   >("ai_requests");
   const trendSectionRef = useRef<HTMLDivElement | null>(null);
   const trendFlashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -237,6 +237,10 @@ export default function ReportPage() {
     (data?.cards.some((card) => Number(card.used ?? 0) > 0) ?? false) ||
     (data?.recentActivity.length ?? 0) > 0;
   const handleViewDetails = (featureKey: UsageFeatureKey) => {
+    if (featureKey === "workspace_connections") {
+      router.push("/dashboard/inbox");
+      return;
+    }
     if (featureKey === "team_members_seats") {
       router.push("/dashboard/team");
       return;
@@ -275,7 +279,7 @@ export default function ReportPage() {
           <p className="text-sm text-rose-700">
             {accessError
               ? t("You no longer have access to this report.", "Vous n'avez plus accès a ce rapport.", "Sie haben keinen Zugriff mehr auf diesen Bericht.", "Ya no tienes acceso a este informe.", "Ja não tem acesso a este relatorio.")
-              : t("Unable to load usage metrics right now. Please refresh.", "Impossible de charger les métriques d'utilisation pour le moment. Veuillez actualiser.", "Nutzungsmetriken können gerade nicht geladen werden. Bitte aktualisieren.", "No se pueden cargar las métricas de uso en este momento. Actualiza la pagina.", "Não foi possivel carregar as métricas de utilização agora. Atualize a pagina.")}
+              : t("Unable to load usage metrics right now. Please refresh.", "Impossible de charger les métriques d'utilisation pour le moment. Veuillez actualiser.", "Nutzungsmetriken können gerade nicht geladen werden. Bitte aktualisieren.", "No se pueden cargar las métricas de uso en este momento. Actualiza la p?gina.", "Não foi poss?vel carregar as métricas de utilização agora. Atualize a p?gina.")}
           </p>
           <Button variant="secondary" onClick={() => mutate()}>
             {t("Retry", "Reessayer", "Erneut versuchen", "Reintentar", "Tentar novamente")}
@@ -291,7 +295,7 @@ export default function ReportPage() {
         <Card className="border-amber-200 bg-amber-50 text-amber-900">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm">
-              {t("Live report refresh failed. Showing the last available snapshot.", "L'actualisation du rapport a echoue. Dernier apercu disponible affiche.", "Die Live-Aktualisierung des Berichts ist fehlgeschlagen. Letzter verfuegbarer Stand wird angezeigt.", "La actualizacion en vivo del informe ha fallado. Se muestra la ultima captura disponible.", "A atualizacao em tempo real do relatorio falhou. A mostrar a ultima captura disponivel.")}
+              {t("Live report refresh failed. Showing the last available snapshot.", "L'actualisation du rapport a ?chou?. Dernier apercu disponible affiche.", "Die Live-Aktualisierung des Berichts ist fehlgeschlagen. Letzter verfuegbarer Stand wird angezeigt.", "La actualizacion en vivo del informe ha fallado. Se muestra la ?ltima captura disponible.", "A atualiza??o em tempo real do relatorio falhou. A mostrar a ?ltima captura dispon?vel.")}
             </p>
             <Button variant="secondary" onClick={() => mutate()}>
               {t("Retry", "Reessayer", "Erneut versuchen", "Reintentar", "Tentar novamente")}
@@ -381,13 +385,13 @@ export default function ReportPage() {
                     {t("Unlimited", "Illimite", "Unbegrenzt", "Ilimitado", "Ilimitado")}
                   </p>
                   <p className="text-xs font-medium">
-                    {t("Used this cycle", "Utilise ce cycle", "In diesem Zyklus genutzt", "Usado este ciclo", "Utilizado neste ciclo")}: {formatNumber(card.used ?? 0, locale)}
+                    {t("Used this cycle", "Utilis? ce cycle", "In diesem Zyklus genutzt", "Usado este ciclo", "Utilizado neste ciclo")}: {formatNumber(card.used ?? 0, locale)}
                   </p>
                 </div>
               ) : (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">{t("Used / Limit", "Utilise / Limite", "Genutzt / Limit", "Usado / Limite", "Utilizado / Limite")}</span>
+                    <span className="text-muted-foreground">{t("Used / Limit", "Utilis? / Limite", "Genutzt / Limit", "Usado / Limite", "Utilizado / Limite")}</span>
                     <span className="font-semibold text-foreground">
                       {formatNumber(card.used ?? 0, locale)} / {formatNumber(card.limit ?? 0, locale)}
                     </span>
@@ -407,7 +411,7 @@ export default function ReportPage() {
                     />
                   </div>
                   <div className={`flex items-center justify-between text-xs ${tone.text}`}>
-                    <span>{card.percentUsed ?? 0}% {t("used", "utilise", "genutzt", "usado", "utilizado")}</span>
+                    <span>{card.percentUsed ?? 0}% {t("used", "utilis?", "genutzt", "usado", "utilizado")}</span>
                     <span>{t("Remaining", "Restant", "Verbleibend", "Restante", "Restante")}: {formatNumber(card.remaining ?? 0, locale)}</span>
                   </div>
                 </div>
@@ -419,7 +423,7 @@ export default function ReportPage() {
                   className="h-9 rounded-lg px-3 text-xs"
                   onClick={() => handleViewDetails(card.featureKey)}
                 >
-                  {t("View details", "Voir les details", "Details ansehen", "Ver detalles", "Ver detalhes")}
+                  {t("View details", "Voir les d?tails", "Details ansehen", "Ver detalles", "Ver detalhes")}
                 </Button>
                 <a
                   href={card.actions.exportUrl}
@@ -450,7 +454,7 @@ export default function ReportPage() {
         >
           <div className="flex flex-wrap items-center gap-2">
             {(
-              ["ai_requests", "invoices", "whatsapp_messages", "automations_runs"] as const
+              ["ai_requests", "invoices", "automations_runs"] as const
             ).map((feature) => (
               <button
                 key={feature}
@@ -503,7 +507,7 @@ export default function ReportPage() {
                     <td className="px-2 py-3 text-center">
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {t("Recorded", "Enregistre", "Erfasst", "Registrado", "Registado")}
+                        {t("Recorded", "Enregistr?", "Erfasst", "Registrado", "Registado")}
                       </span>
                     </td>
                   </tr>

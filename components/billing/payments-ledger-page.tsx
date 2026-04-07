@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
@@ -189,9 +189,9 @@ export function PaymentsLedgerPage({
             ? localizeAdminServerMessage(
                 error.message,
                 language,
-                t("Refund request failed.", "La demande de remboursement a echoue.", "Rueckerstattungsanfrage fehlgeschlagen.", "La solicitud de reembolso fallo.", "O pedido de reembolso falhou.")
+                t("Refund request failed.", "La demande de remboursement a ?chou?.", "Rueckerstattungsanfrage fehlgeschlagen.", "La solicitud de reembolso fallo.", "O pedido de reembolso falhou.")
               )
-            : t("Refund request failed.", "La demande de remboursement a echoue.", "Rueckerstattungsanfrage fehlgeschlagen.", "La solicitud de reembolso fallo.", "O pedido de reembolso falhou."),
+            : t("Refund request failed.", "La demande de remboursement a ?chou?.", "Rueckerstattungsanfrage fehlgeschlagen.", "La solicitud de reembolso fallo.", "O pedido de reembolso falhou."),
       });
     } finally {
       setRefundLoading(false);
@@ -216,8 +216,8 @@ export function PaymentsLedgerPage({
               className="h-9 rounded border border-slate-300 bg-white px-3 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             >
               <option value="today">{t("Today", "Aujourd'hui", "Heute", "Hoy", "Hoje")}</option>
-              <option value="last7">{t("Last 7 Days", "7 derniers jours", "Letzte 7 Tage", "Ultimos 7 dias", "Ultimos 7 dias")}</option>
-              <option value="last30">{t("Last 30 Days", "30 derniers jours", "Letzte 30 Tage", "Ultimos 30 dias", "Ultimos 30 dias")}</option>
+              <option value="last7">{t("Last 7 Days", "7 derniers jours", "Letzte 7 Tage", "?ltimos 7 d?as", "?ltimos 7 dias")}</option>
+              <option value="last30">{t("Last 30 Days", "30 derniers jours", "Letzte 30 Tage", "?ltimos 30 d?as", "?ltimos 30 dias")}</option>
               <option value="custom">{t("Custom", "Personnalise", "Benutzerdefiniert", "Personalizado", "Personalizado")}</option>
             </select>
             {range.key === "custom" ? (
@@ -267,7 +267,7 @@ export function PaymentsLedgerPage({
 
       {!hasConnectedSubaccount ? (
         <section className="border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300">
-          {t("Payment subaccount not connected. Confirm payout setup in Settings to collect new invoice payments.", "Le sous-compte de paiement n'est pas connecte. Confirmez la configuration des virements dans les paramêtres pour collecter de nouveaux paiements de facture.", "Das Zahlungsunterkonto ist nicht verbunden. Bestatige die Auszahlungseinrichtung in den Einstellungen, um neue Rechnungszahlungen einzuziehen.", "La subcuenta de pago no esta conectada. Confirma la configuración de cobros en Ajustes para recibir nuevos pagos de facturas.", "A subconta de pagamento não esta ligada. Confirme a configuração de recebimentos nas Definições para recolher novos pagamentos de faturas.")}
+          {t("Payment subaccount not connected. Confirm payout setup in Settings to collect new invoice payments.", "Le sous-compte de paiement n'est pas connect?. Confirmez la configuration des virements dans les paramêtres pour collecter de nouveaux paiements de facture.", "Das Zahlungsunterkonto ist nicht verbunden. Bestatige die Auszahlungseinrichtung in den Einstellungen, um neue Rechnungszahlungen einzuziehen.", "La subcuenta de pago no est? conectada. Confirma la configuración de cobros en Ajustes para recibir nuevos pagos de facturas.", "A subconta de pagamento não esta ligada. Confirme a configuração de recebimentos nas Definições para recolher novos pagamentos de faturas.")}
         </section>
       ) : null}
 
@@ -314,7 +314,7 @@ export function PaymentsLedgerPage({
 
         {error ? (
           <div className="px-4 py-6 text-sm text-amber-700 dark:text-amber-300">
-            {t("Live data temporarily unavailable. Showing last updated state.", "Les données en direct sont temporairement indisponibles. Affichage du dernier etat connu.", "Live-Daten sind vorübergehend nicht verfügbar. Letzter bekannter Stand wird angezeigt.", "Los datos en vivo no estan disponibles temporalmente. Se muestra el ultimo estado conocido.", "Os dados em tempo real estão temporariamente indisponiveis. A mostrar o ultimo estado conhecido.")}
+            {t("Live data temporarily unavailable. Showing last updated state.", "Les données en direct sont temporairement indisponibles. Affichage du dernier etat connu.", "Live-Daten sind vorübergehend nicht verfügbar. Letzter bekannter Stand wird angezeigt.", "Los datos en vivo no est?n disponibles temporalmente. Se muestra el ?ltimo estado conocido.", "Os dados em tempo real estão temporariamente indisponiveis. A mostrar o ?ltimo estado conhecido.")}
           </div>
         ) : null}
 
@@ -395,7 +395,7 @@ export function PaymentsLedgerPage({
 
         <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 dark:border-slate-700">
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            {t("Page", "Page", "Seite", "Pagina", "Pagina")} {page} {t("of", "sur", "von", "de", "de")} {totalPages}
+            {t("Page", "Page", "Seite", "P?gina", "P?gina")} {page} {t("of", "sur", "von", "de", "de")} {totalPages}
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -423,7 +423,7 @@ export function PaymentsLedgerPage({
           <button type="button" className="absolute inset-0 bg-slate-900/35" onClick={() => setSelectedRow(null)} />
           <aside className="absolute inset-y-0 right-0 w-full max-w-md border-l border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50">{t("Payment Details", "Details du paiement", "Zahlungsdetails", "Detalles del pago", "Detalhes do pagamento")}</h3>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50">{t("Payment Details", "D?tails du paiement", "Zahlungsdetails", "Detalles del pago", "Detalhes do pagamento")}</h3>
               <button type="button" onClick={() => setSelectedRow(null)} className="rounded border border-slate-300 p-1.5 text-slate-600 dark:border-slate-700 dark:text-slate-300">
                 <X className="h-4 w-4" />
               </button>
@@ -487,7 +487,7 @@ export function PaymentsLedgerPage({
                       {t("Open receipt", "Ouvrir le recu", "Beleg öffnen", "Abrir recibo", "Abrir recibo")}
                     </Link>
                   ) : (
-                    <span className="text-slate-500 dark:text-slate-400">{t("Not available", "Indisponible", "Nicht verfügbar", "No disponible", "Indisponivel")}</span>
+                    <span className="text-slate-500 dark:text-slate-400">{t("Not available", "Indisponible", "Nicht verfügbar", "No disponible", "Indispon?vel")}</span>
                   )}
                 </dd>
               </div>
@@ -497,7 +497,7 @@ export function PaymentsLedgerPage({
                 <div>
                   <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">{t("Refund customer", "Rembourser le client", "Kunden erstatten", "Reembolsar al cliente", "Reembolsar cliente")}</p>
                   <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                    {t("Full refund only. Money is returned by the payment provider and the ledger updates after confirmation.", "Remboursement total uniquement. L'argent est renvoye par le fournisseur de paiement et le registre se met a jour apres confirmation.", "Nur vollständige Erstattung. Das Geld wird vom Zahlungsanbieter zurückgesendet und das Ledger wird nach Bestätigung aktualisiert.", "Solo reembolso completo. El dinero lo devuelve el proveedor de pago y el registro se actualiza tras la confirmacion.", "Apenas reembolso total. O dinheiro e devolvido pelo fornecedor de pagamento e o registo atualiza-se após confirmacao.")}
+                    {t("Full refund only. Money is returned by the payment provider and the ledger updates after confirmation.", "Remboursement total uniquement. L'argent est renvoye par le fournisseur de paiement et le registre se met a jour apres confirmation.", "Nur vollständige Erstattung. Das Geld wird vom Zahlungsanbieter zurückgesendet und das Ledger wird nach Bestätigung aktualisiert.", "Solo reembolso completo. El dinero lo devuelve el proveedor de pago y el registro se actualiza tras la confirmaci?n.", "Apenas reembolso total. O dinheiro e devolvido pelo fornecedor de pagamento e o registo atualiza-se após confirma??o.")}
                   </p>
                 </div>
                 {selectedRow.canRefund ? (
@@ -521,7 +521,7 @@ export function PaymentsLedgerPage({
                 ) : null}
                 {selectedRow.refundState === "pending" ? (
                   <p className="text-sm text-amber-700 dark:text-amber-300">
-                    {t("Refund requested. Waiting for provider confirmation.", "Remboursement demande. En attente de confirmation du fournisseur.", "Erstattung angefordert. Warte auf Bestätigung des Anbieters.", "Reembolso solicitado. Esperando la confirmacion del proveedor.", "Reembolso solicitado. A aguardar confirmacao do fornecedor.")}
+                    {t("Refund requested. Waiting for provider confirmation.", "Remboursement demande. En attente de confirmation du fournisseur.", "Erstattung angefordert. Warte auf Bestätigung des Anbieters.", "Reembolso solicitado. Esperando la confirmaci?n del proveedor.", "Reembolso solicitado. A aguardar confirma??o do fornecedor.")}
                   </p>
                 ) : null}
                 {refundStatus ? (

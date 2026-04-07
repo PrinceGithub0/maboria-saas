@@ -215,7 +215,7 @@ export function WhatsAppEmbeddedSignupCard({
               "Impossible de finaliser l'onboarding WhatsApp.",
               "WhatsApp-Onboarding kann nicht abgeschlossen werden.",
               "No se pudo completar la configuración de WhatsApp.",
-              "Não foi possivel concluir a configuração do WhatsApp."
+              "Não foi poss?vel concluir a configuração do WhatsApp."
             )
         );
       }
@@ -223,7 +223,7 @@ export function WhatsAppEmbeddedSignupCard({
       setSuccess(
         t(
           "WhatsApp Business was connected successfully.",
-          "WhatsApp Business a ?t? connecte avec succes.",
+          "WhatsApp Business a été connecté avec succès.",
           "WhatsApp Business wurde erfolgreich verbunden.",
           "WhatsApp Business se conecto correctamente.",
           "O WhatsApp Business foi ligado com sucesso."
@@ -240,7 +240,7 @@ export function WhatsAppEmbeddedSignupCard({
             "Impossible de finaliser l'onboarding WhatsApp.",
             "WhatsApp-Onboarding kann nicht abgeschlossen werden.",
             "No se pudo completar la configuración de WhatsApp.",
-            "Não foi possivel concluir a configuração do WhatsApp."
+            "Não foi poss?vel concluir a configuração do WhatsApp."
           )
       );
     } finally {
@@ -260,7 +260,7 @@ export function WhatsAppEmbeddedSignupCard({
         setError(
           t(
             "WhatsApp onboarding was cancelled before completion.",
-            "L'onboarding WhatsApp a ?t? annule avant la fin.",
+            "L'onboarding WhatsApp a été annulé avant la fin.",
             "Das WhatsApp-Onboarding wurde vor dem Abschluss abgebrochen.",
             "La configuración de WhatsApp se cancelo antes de completarse.",
             "A configuração do WhatsApp foi cancelada antes de terminar."
@@ -276,8 +276,8 @@ export function WhatsAppEmbeddedSignupCard({
         setError(
           t(
             "Meta returned an error during WhatsApp onboarding.",
-            "Meta a renvoye une erreur pendant l'onboarding WhatsApp.",
-            "Meta hat wahrend des WhatsApp-Onboardings einen Fehler zurückgegeben.",
+            "Meta a renvoyé une erreur pendant l'onboarding WhatsApp.",
+            "Meta hat w?hrend des WhatsApp-Onboardings einen Fehler zurückgegeben.",
             "Meta devolvio un error durante la configuración de WhatsApp.",
             "A Meta devolveu um erro durante a configuração do WhatsApp."
           )
@@ -302,9 +302,9 @@ export function WhatsAppEmbeddedSignupCard({
       setError(
         t(
           "Meta embedded signup is not configured in this deployment.",
-          "L'inscription integree Meta n'est pas configuree sur ce deploiement.",
+          "L'inscription intégrée Meta n'est pas configurée sur ce déploiement.",
           "Das eingebettete Meta-Signup ist in diesem Deployment nicht konfiguriert.",
-          "El alta integrada de Meta no esta configurada en este despliegue.",
+          "El alta integrada de Meta no est? configurada en este despliegue.",
           "O registo incorporado da Meta não esta configurado nesta instalacao."
         )
       );
@@ -325,7 +325,7 @@ export function WhatsAppEmbeddedSignupCard({
             "Meta SDK is unavailable.",
             "Le SDK Meta est indisponible.",
             "Das Meta SDK ist nicht verfügbar.",
-            "El SDK de Meta no esta disponible.",
+            "El SDK de Meta no est? disponible.",
             "O SDK da Meta não esta disponível."
           )
         );
@@ -342,7 +342,7 @@ export function WhatsAppEmbeddedSignupCard({
                 "Meta n'a pas renvoye de code d'autorisation.",
                 "Meta hat keinen Autorisierungscode zurückgegeben.",
                 "Meta no devolvio un código de autorizacion.",
-                "A Meta não devolveu um código de autorizacao."
+                "A Meta não devolveu um código de autoriza??o."
               )
             );
             return;
@@ -366,10 +366,10 @@ export function WhatsAppEmbeddedSignupCard({
         sdkError?.message ||
           t(
             "Unable to start WhatsApp onboarding.",
-            "Impossible de demarrer l'onboarding WhatsApp.",
+            "Impossible de démarrer l'onboarding WhatsApp.",
             "WhatsApp-Onboarding kann nicht gestartet werden.",
             "No se pudo iniciar la configuración de WhatsApp.",
-            "Não foi possivel iniciar a configuração do WhatsApp."
+            "Não foi poss?vel iniciar a configuração do WhatsApp."
           )
       );
     }
@@ -379,17 +379,17 @@ export function WhatsAppEmbeddedSignupCard({
     <div className={`space-y-3 ${containerClassName || ""}`.trim()}>
       {!enabled && !hideUnavailableDetails ? (
         <Alert variant="warning">
-          {t("WhatsApp connect is unavailable until real Meta app values are added. Missing runtime config:", "La connexion WhatsApp est indisponible tant que les vraies valeurs de l'application Meta ne sont pas ajoutees. Configuration manquante :", "WhatsApp-Verbindung ist nicht verfügbar, bis echte Meta-App-Werte hinzugefugt wurden. Fehlende Runtime-Konfiguration:", "La conexion de WhatsApp no esta disponible hasta que se agreguen los valores reales de la app de Meta. Falta esta configuración:", "A ligacao do WhatsApp esta indisponivel at? serem adicionados valores reais da app Meta. Falta esta configuração:")} {missingClientConfig.join(", ")}.
+          {t("WhatsApp connect is unavailable until real Meta app values are added. Missing runtime config:", "La connexion WhatsApp est indisponible tant que les vraies valeurs de l'application Meta ne sont pas ajout\u00e9es. Configuration manquante :", "WhatsApp-Verbindung ist nicht verf\u00fcgbar, bis echte Meta-App-Werte hinzugef\u00fcgt wurden. Fehlende Runtime-Konfiguration:", "La conexi\u00f3n de WhatsApp no est\u00e1 disponible hasta que se agreguen los valores reales de la app de Meta. Falta esta configuraci\u00f3n:", "A liga\u00e7\u00e3o do WhatsApp est\u00e1 indispon\u00edvel at\u00e9 serem adicionados valores reais da app Meta. Falta esta configura\u00e7\u00e3o:")} {missingClientConfig.join(", ")}.
         </Alert>
       ) : null}
 
       {connection?.mode === "whatsapp_api" && !compact ? (
         <div className="rounded-2xl border border-slate-200 p-4 text-sm dark:border-slate-700">
           <p className="font-medium text-slate-900 dark:text-slate-100">
-            {connection.verifiedName || "WhatsApp Business"} {t("connected", "connecte", "verbunden", "conectado", "ligado")}
+            {connection.verifiedName || "WhatsApp Business"} {t("connected", "connect?", "verbunden", "conectado", "ligado")}
           </p>
           <p className="mt-1 text-slate-600 dark:text-slate-300">
-            {connection.displayPhoneNumber || t("Business number connected", "Numero professionnel connecte", "Geschäftsnummer verbunden", "Numero comercial conectado", "Numero empresarial ligado")} - {connection.phoneNumberId}
+            {connection.displayPhoneNumber || t("Business number connected", "Num?ro professionnel connect?", "Geschäftsnummer verbunden", "N?mero comercial conectado", "N?mero empresarial ligado")} - {connection.phoneNumberId}
           </p>
           {connection.qualityRating ? (
             <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{t("Quality rating", "Qualite", "Qualitatsbewertung", "Calidad", "Qualidade")}: {connection.qualityRating}</p>
@@ -407,8 +407,8 @@ export function WhatsAppEmbeddedSignupCard({
               "Unable to complete WhatsApp onboarding.",
               "Impossible de finaliser l'onboarding WhatsApp.",
               "WhatsApp-Onboarding kann nicht abgeschlossen werden.",
-              "No se pudo completar la configuraciÃ³n de WhatsApp.",
-              "NÃ£o foi possivel concluir a configuraÃ§Ã£o do WhatsApp."
+              "No se pudo completar la configuraci\u00f3n de WhatsApp.",
+              "N\u00e3o foi poss\u00edvel concluir a configura\u00e7\u00e3o do WhatsApp."
             )
           )}
         </Alert>
@@ -426,23 +426,23 @@ export function WhatsAppEmbeddedSignupCard({
           }
         >
           {!enabled
-            ? t("WhatsApp connect unavailable", "Connexion WhatsApp indisponible", "WhatsApp-Verbindung nicht verfügbar", "Conexion de WhatsApp no disponible", "Ligacao do WhatsApp indisponivel")
+            ? t("WhatsApp connect unavailable", "Connexion WhatsApp indisponible", "WhatsApp-Verbindung nicht verf\u00fcgbar", "Conexi\u00f3n de WhatsApp no disponible", "Liga\u00e7\u00e3o do WhatsApp indispon\u00edvel")
             : connection?.mode === "whatsapp_api"
               ? t("Reconnect WhatsApp Business", "Reconnecter WhatsApp Business", "WhatsApp Business erneut verbinden", "Reconectar WhatsApp Business", "Ligar novamente o WhatsApp Business")
               : t("Connect WhatsApp Business", "Connecter WhatsApp Business", "WhatsApp Business verbinden", "Conectar WhatsApp Business", "Ligar WhatsApp Business")}
         </Button>
         {!compact && enabled ? (
-          <p className="text-xs text-slate-500 dark:text-slate-400">{t("Uses Meta embedded signup. No raw API tokens are typed into your app.", "Utilise l'inscription integree Meta. Aucun jeton API brut n'est saisi dans votre application.", "Verwendet das eingebettete Meta-Signup. Es werden keine rohen API-Tokens in deine App eingegeben.", "Usa el alta integrada de Meta. No se escriben tokens API sin procesar en la app.", "Utiliza o registo incorporado da Meta. Não sao introduzidos tokens API brutos na aplicacao.")}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">{t("Uses Meta embedded signup. No raw API tokens are typed into your app.", "Utilis? l'inscription intégrée Meta. Aucun jeton API brut n'est saisi dans votre application.", "Verwendet das eingebettete Meta-Signup. Es werden keine rohen API-Tokens in deine App eingegeben.", "Usa el alta integrada de Meta. No se escriben tokens API sin procesar en la app.", "Utiliza o registo incorporado da Meta. N\u00e3o s\u00e3o introduzidos tokens API brutos na aplica\u00e7\u00e3o.")}</p>
         ) : !compact ? (
-          <p className="text-xs text-slate-500 dark:text-slate-400">{t("Add the real Meta app ID, signup config ID, and app secret, then restart the app.", "Ajoutez l'identifiant reel de l'application Meta, l'identifiant de configuration d'inscription et le secret de l'application, puis redemarrez l'application.", "Füge die echte Meta-App-ID, die Signup-Konfigurations-ID und das App-Secret hinzu und starte dann die App neu.", "Agrega el ID real de la app de Meta, el ID de configuración de alta y el secreto de la app, y luego reinicia la aplicación.", "Adicione o ID real da app Meta, o ID de configuração de registo e o segredo da app, depois reinicie a aplicacao.")}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">{t("Add the real Meta app ID, signup config ID, and app secret, then restart the app.", "Ajoutez l'identifiant reel de l'application Meta, l'identifiant de configuration d'inscription et le secret de l'application, puis redemarrez l'application.", "Füge die echte Meta-App-ID, die Signup-Konfigurations-ID und das App-Secret hinzu und starte dann die App neu.", "Agrega el ID real de la app de Meta, el ID de configuración de alta y el secreto de la app, y luego reinicia la aplicación.", "Adicione o ID real da app Meta, o ID de configuração de registo e o segredo da app, depois reinicie a aplica??o.")}</p>
         ) : !enabled && hideUnavailableDetails ? (
           <p className="text-xs text-slate-500 dark:text-slate-400">
             {t(
               "WhatsApp is not available on this deployment yet.",
-              "WhatsApp n'est pas encore disponible sur ce deploiement.",
-              "WhatsApp ist in dieser Bereitstellung noch nicht verfugbar.",
-              "WhatsApp aun no esta disponible en este despliegue.",
-              "O WhatsApp ainda nao esta disponivel nesta implementacao."
+              "WhatsApp n'est pas encore disponible sur ce d\u00e9ploiement.",
+              "WhatsApp ist in dieser Bereitstellung noch nicht verf\u00fcgbar.",
+              "WhatsApp a?n no est? disponible en este despliegue.",
+              "O WhatsApp ainda n?o esta dispon?vel nesta implementacao."
             )}
           </p>
         ) : null}

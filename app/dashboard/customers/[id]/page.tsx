@@ -41,6 +41,14 @@ type CustomerDetailResponse = {
     deliveryPreference: "EMAIL" | "WHATSAPP" | "BOTH";
     createdAt: string;
     status: "ACTIVE" | "ATTENTION" | "NEW" | "DISABLED";
+    compliance: {
+      emailOptOut: boolean;
+      whatsappOptOut: boolean;
+      processingRestrictedAt: string | null;
+      consentCapturedAt: string | null;
+      consentSource: string | null;
+      erasedAt: string | null;
+    };
     lifetimeValue: number;
     totals: {
       invoiced: number;
@@ -145,7 +153,7 @@ const TAB_ITEMS: Array<{ key: TabKey; labels: { en: string; fr: string; de: stri
   { key: "invoices", labels: { en: "Invoices", fr: "Factures", de: "Rechnungen", es: "Facturas", pt: "Faturas" } },
   { key: "payments", labels: { en: "Payments", fr: "Paiements", de: "Zahlungen", es: "Pagos", pt: "Pagamentos" } },
   { key: "activity", labels: { en: "Activity", fr: "Activit?", de: "Aktivität", es: "Actividad", pt: "Atividade" } },
-  { key: "notes", labels: { en: "Private Notes", fr: "Notes privees", de: "Private Notizen", es: "Notas privadas", pt: "Notas privadas" } },
+  { key: "notes", labels: { en: "Private Notes", fr: "Notes priv?es", de: "Private Notizen", es: "Notas privadas", pt: "Notas privadas" } },
 ];
 
 function localizeCustomerServerMessage(
@@ -158,20 +166,20 @@ function localizeCustomerServerMessage(
     Unauthorized: t("Unauthorized.", "Non autorise.", "Nicht autorisiert.", "No autorizado.", "Não autorizado."),
     "Not found": t("Customer not found.", "Client introuvable.", "Kunde nicht gefunden.", "Cliente no encontrado.", "Cliente não encontrado."),
     "Unsupported action": t("Unsupported action.", "Action non prise en charge.", "Nicht unterstutzte Aktion.", "Acción no compatible.", "Ação não suportada."),
-    "Invalid payload": t("Invalid customer details.", "Details client invalides.", "Ungültige Kundendaten.", "Datos de cliente no validos.", "Dados de cliente invalidos."),
+    "Invalid payload": t("Invalid customer details.", "D?tails client invalides.", "Ungültige Kundendaten.", "Datos de cliente no validos.", "Dados de cliente invalidos."),
     "Invalid query parameters": t("Invalid customer filters.", "Filtres client invalides.", "Ungültige Kundenfilter.", "Filtros de cliente no validos.", "Filtros de cliente invalidos."),
     "Phone is required for WhatsApp delivery": t(
       "Phone is required for WhatsApp delivery.",
-      "Le telephone est requis pour la livraison WhatsApp.",
+      "Le t?l?phone est requis pour la livraison WhatsApp.",
       "Für die WhatsApp-Zustellung ist eine Telefonnummer erforderlich.",
-      "El telefono es obligatorio para la entrega por WhatsApp.",
+      "El tel?fono es obligatorio para la entrega por WhatsApp.",
       "O telefone e obrigatório para a entrega por WhatsApp."
     ),
     "Late fees are disabled for this account.": t(
       "Late fees are disabled for this account.",
       "Les frais de retard sont desactives pour ce compte.",
       "Mahngebühren sind für dieses Konto deaktiviert.",
-      "Los recargos por demora estan desactivados para esta cuenta.",
+      "Los recargos por demora est?n desactivados para esta cuenta.",
       "As taxas de atraso estão desativadas para esta conta."
     ),
     "Automations are not allowed to apply late fees.": t(
@@ -186,7 +194,7 @@ function localizeCustomerServerMessage(
       "Impossible d envoyer le rappel.",
       "Die Erinnerung konnte nicht gesendet werden.",
       "No se pudo enviar el recordatorio.",
-      "Não foi possivel enviar o lembrete."
+      "Não foi poss?vel enviar o lembrete."
     ),
     "You do not have access to this customer.": t(
       "You do not have access to this customer.",
@@ -208,11 +216,11 @@ function localizeCustomerServerMessage(
     "Note introuvable.",
     "Notiz nicht gefunden.",
     "Nota no encontrada.",
-    "Nota nao encontrada."
+    "Nota n?o encontrada."
   );
   translations["Customer is disabled."] = t(
     "Customer is disabled.",
-    "Le client est desactive.",
+    "Le client est d?sactiv?.",
     "Der Kunde ist deaktiviert.",
     "El cliente esta desactivado.",
     "O cliente esta desativado."
@@ -220,20 +228,20 @@ function localizeCustomerServerMessage(
   translations["No unpaid invoice found for this customer."] = t(
     "No unpaid invoice found for this customer.",
     "Aucune facture impayee trouvee pour ce client.",
-    "Keine unbezahlte Rechnung fur diesen Kunden gefunden.",
+    "Keine unbezahlte Rechnung f?r diesen Kunden gefunden.",
     "No se encontro ninguna factura pendiente para este cliente.",
-    "Nao foi encontrada nenhuma fatura em aberto para este cliente."
+    "N?o foi encontrada nenhuma fatura em aberto para este cliente."
   );
   translations["Customer has no contact information."] = t(
     "Customer has no contact information.",
     "Le client n'a aucune information de contact.",
     "Der Kunde hat keine Kontaktinformationen.",
     "El cliente no tiene informacion de contacto.",
-    "O cliente nao tem informacao de contacto."
+    "O cliente n?o tem informa??o de contacto."
   );
   translations["A reminder was already sent recently."] = t(
     "A reminder was already sent recently.",
-    "Un rappel a deja ete envoye recemment.",
+    "Un rappel a d?j? ete envoy? recemment.",
     "Vor Kurzem wurde bereits eine Erinnerung gesendet.",
     "Ya se envio un recordatorio recientemente.",
     "Ja foi enviado um lembrete recentemente."
@@ -241,9 +249,65 @@ function localizeCustomerServerMessage(
   translations["Reminder limit reached for this invoice today."] = t(
     "Reminder limit reached for this invoice today.",
     "La limite de rappels a ete atteinte pour cette facture aujourd'hui.",
-    "Das Erinnerungslimit fur diese Rechnung wurde heute erreicht.",
+    "Das Erinnerungslimit f?r diese Rechnung wurde heute erreicht.",
     "Se alcanzo el limite de recordatorios para esta factura hoy.",
     "O limite de lembretes para esta fatura foi atingido hoje."
+  );
+  translations["Customer contact policy blocks delivery."] = t(
+    "Customer contact policy blocks delivery.",
+    "La politique de contact du client bloque l envoi.",
+    "Die Kontaktpolitik des Kunden blockiert die Zustellung.",
+    "La politica de contacto del cliente bloquea la entrega.",
+    "A politica de contacto do cliente bloqueia o envio."
+  );
+  translations["Customer has opted out of email contact."] = t(
+    "Customer has opted out of email contact.",
+    "Le client s est desinscrit des contacts par email.",
+    "Der Kunde hat E-Mail-Kontakt abgelehnt.",
+    "El cliente rechazo el contacto por correo.",
+    "O cliente recusou o contacto por email."
+  );
+  translations["Customer has opted out of WhatsApp contact."] = t(
+    "Customer has opted out of WhatsApp contact.",
+    "Le client s est desinscrit des contacts WhatsApp.",
+    "Der Kunde hat WhatsApp-Kontakt abgelehnt.",
+    "El cliente rechazo el contacto por WhatsApp.",
+    "O cliente recusou o contacto por WhatsApp."
+  );
+  translations["Customer processing is restricted."] = t(
+    "Customer processing is restricted.",
+    "Le traitement du client est restreint.",
+    "Die Verarbeitung des Kunden ist eingeschrankt.",
+    "El tratamiento del cliente esta restringido.",
+    "O tratamento do cliente esta restringido."
+  );
+  translations["Customer personal data has been erased."] = t(
+    "Customer personal data has been erased.",
+    "Les donnees personnelles du client ont ete effacees.",
+    "Die personenbezogenen Daten des Kunden wurden geloscht.",
+    "Los datos personales del cliente fueron borrados.",
+    "Os dados pessoais do cliente foram apagados."
+  );
+  translations["Erased customers cannot be restored."] = t(
+    "Erased customers cannot be restored.",
+    "Les clients effaces ne peuvent pas etre restaures.",
+    "Geloschte Kunden konnen nicht wiederhergestellt werden.",
+    "Los clientes borrados no se pueden restaurar.",
+    "Os clientes apagados nao podem ser restaurados."
+  );
+  translations["Erased customers cannot resume processing."] = t(
+    "Erased customers cannot resume processing.",
+    "Les clients effaces ne peuvent pas reprendre le traitement.",
+    "Geloschte Kunden konnen nicht wieder verarbeitet werden.",
+    "Los clientes borrados no pueden reanudar el tratamiento.",
+    "Os clientes apagados nao podem retomar o tratamento."
+  );
+  translations["Erased customers cannot be edited."] = t(
+    "Erased customers cannot be edited.",
+    "Les clients effaces ne peuvent pas etre modifies.",
+    "Geloschte Kunden konnen nicht bearbeitet werden.",
+    "Los clientes borrados no se pueden editar.",
+    "Os clientes apagados nao podem ser editados."
   );
   return translations[normalized] || "";
 }
@@ -272,8 +336,11 @@ export default function CustomerProfilePage() {
   const [status, setStatus] = useState<{ variant: "success" | "error" | "info" | "warning"; message: string } | null>(null);
   const [showDisableModal, setShowDisableModal] = useState(false);
   const [showReminderModal, setShowReminderModal] = useState(false);
+  const [showEraseModal, setShowEraseModal] = useState(false);
   const [disableSubmitting, setDisableSubmitting] = useState(false);
   const [reminderSubmitting, setReminderSubmitting] = useState(false);
+  const [policySubmitting, setPolicySubmitting] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteSubmitting, setNoteSubmitting] = useState(false);
@@ -319,7 +386,7 @@ export default function CustomerProfilePage() {
       case "OVERDUE":
         return t("Overdue", "En retard", "überfällig", "Vencida", "Em atraso");
       case "FAILED":
-        return t("Failed", "Echouee", "Fehlgeschlagen", "Fallida", "Falhada");
+        return t("Failed", "?chou?e", "Fehlgeschlagen", "Fallida", "Falhada");
       case "PAID":
         return t("Paid", "Payee", "Bezahlt", "Pagada", "Paga");
       case "PARTIALLY_REFUNDED":
@@ -340,7 +407,7 @@ export default function CustomerProfilePage() {
   const localizePaymentStatus = (value: string) => {
     switch (String(value || "").toUpperCase()) {
       case "SUCCEEDED":
-        return t("Succeeded", "Reussi", "Erfolgreich", "Completado", "Concluido");
+        return t("Succeeded", "R?ussi", "Erfolgreich", "Completado", "Conclu?do");
       case "PENDING":
         return t("Pending", "En attente", "Ausstehend", "Pendiente", "Pendente");
       case "FAILED":
@@ -357,7 +424,7 @@ export default function CustomerProfilePage() {
       case "ATTENTION":
         return t("Attention", "Attention", "Achtung", "Atencion", "Atencao");
       case "DISABLED":
-        return t("Disabled", "Desactive", "Deaktiviert", "Desactivado", "Desativado");
+        return t("Disabled", "D?sactiv?", "Deaktiviert", "Desactivado", "Desativado");
       case "ACTIVE":
         return t("Active", "Actif", "Aktiv", "Activo", "Ativo");
       default:
@@ -425,7 +492,7 @@ export default function CustomerProfilePage() {
               "Impossible d enregistrer la note.",
               "Die Notiz konnte nicht gespeichert werden.",
               "No se pudo guardar la nota.",
-              "Nao foi possivel guardar a nota."
+              "N?o foi poss?vel guardar a nota."
             ),
         });
         return;
@@ -436,7 +503,7 @@ export default function CustomerProfilePage() {
       setStatus({
         variant: "success",
         message: editingNoteId
-          ? t("Note updated.", "Note mise a jour.", "Notiz aktualisiert.", "Nota actualizada.", "Nota atualizada.")
+          ? t("Note updated.", "Note mise ? jour.", "Notiz aktualisiert.", "Nota actualizada.", "Nota atualizada.")
           : t("Note added.", "Note ajoutee.", "Notiz hinzugefugt.", "Nota agregada.", "Nota adicionada."),
       });
     } catch {
@@ -447,7 +514,7 @@ export default function CustomerProfilePage() {
           "Impossible d enregistrer la note.",
           "Die Notiz konnte nicht gespeichert werden.",
           "No se pudo guardar la nota.",
-          "Nao foi possivel guardar a nota."
+          "N?o foi poss?vel guardar a nota."
         ),
       });
     } finally {
@@ -479,7 +546,7 @@ export default function CustomerProfilePage() {
               "Impossible de supprimer la note.",
               "Die Notiz konnte nicht geloscht werden.",
               "No se pudo eliminar la nota.",
-              "Nao foi possivel eliminar a nota."
+              "N?o foi poss?vel eliminar a nota."
             ),
         });
         return;
@@ -501,7 +568,7 @@ export default function CustomerProfilePage() {
           "Impossible de supprimer la note.",
           "Die Notiz konnte nicht geloscht werden.",
           "No se pudo eliminar la nota.",
-          "Nao foi possivel eliminar a nota."
+          "N?o foi poss?vel eliminar a nota."
         ),
       });
     } finally {
@@ -527,7 +594,7 @@ export default function CustomerProfilePage() {
             "Impossible de desactiver le client.",
             "Der Kunde konnte nicht deaktiviert werden.",
             "No se pudo desactivar el cliente.",
-            "Não foi possivel desativar o cliente."
+            "Não foi poss?vel desativar o cliente."
           ),
         });
         return;
@@ -535,7 +602,7 @@ export default function CustomerProfilePage() {
 
       setStatus({
         variant: "success",
-        message: t("Customer disabled.", "Client desactive.", "Kunde deaktiviert.", "Cliente desactivado.", "Cliente desativado."),
+        message: t("Customer disabled.", "Client d?sactiv?.", "Kunde deaktiviert.", "Cliente desactivado.", "Cliente desativado."),
       });
       setShowDisableModal(false);
       mutate();
@@ -547,7 +614,7 @@ export default function CustomerProfilePage() {
           "Impossible de desactiver le client.",
           "Der Kunde konnte nicht deaktiviert werden.",
           "No se pudo desactivar el cliente.",
-          "Não foi possivel desativar o cliente."
+          "Não foi poss?vel desativar o cliente."
         ),
       });
     } finally {
@@ -573,7 +640,7 @@ export default function CustomerProfilePage() {
             "Impossible de restaurer le client.",
             "Der Kunde konnte nicht wiederhergestellt werden.",
             "No se pudo restaurar el cliente.",
-            "Não foi possivel restaurar o cliente."
+            "Não foi poss?vel restaurar o cliente."
           ),
         });
         return;
@@ -592,7 +659,7 @@ export default function CustomerProfilePage() {
           "Impossible de restaurer le client.",
           "Der Kunde konnte nicht wiederhergestellt werden.",
           "No se pudo restaurar el cliente.",
-          "Não foi possivel restaurar o cliente."
+          "Não foi poss?vel restaurar o cliente."
         ),
       });
     } finally {
@@ -621,7 +688,7 @@ export default function CustomerProfilePage() {
               "Impossible d'envoyer le rappel.",
               "Die Erinnerung konnte nicht gesendet werden.",
               "No se pudo enviar el recordatorio.",
-              "Não foi possivel enviar o lembrete."
+              "Não foi poss?vel enviar o lembrete."
             ),
         });
         return;
@@ -632,12 +699,12 @@ export default function CustomerProfilePage() {
         message: applyLateFee
           ? t(
               "Late fee applied and reminder sent.",
-              "Frais de retard appliques et rappel envoye.",
+              "Frais de retard appliques et rappel envoy?.",
               "Mahngebühr angewendet und Erinnerung gesendet.",
               "Se aplico el recargo y se envio el recordatorio.",
               "A taxa de atraso foi aplicada e o lembrete foi enviado."
             )
-          : t("Reminder sent.", "Rappel envoye.", "Erinnerung gesendet.", "Recordatorio enviado.", "Lembrete enviado."),
+          : t("Reminder sent.", "Rappel envoy?.", "Erinnerung gesendet.", "Recordatorio enviado.", "Lembrete enviado."),
       });
       setShowReminderModal(false);
       mutate();
@@ -649,11 +716,87 @@ export default function CustomerProfilePage() {
           "Impossible d'envoyer le rappel.",
           "Die Erinnerung konnte nicht gesendet werden.",
           "No se pudo enviar el recordatorio.",
-          "Não foi possivel enviar o lembrete."
+          "Não foi poss?vel enviar o lembrete."
         ),
       });
     } finally {
       setReminderSubmitting(false);
+    }
+  };
+
+  const runCustomerAction = async (
+    action:
+      | "block_email"
+      | "allow_email"
+      | "block_whatsapp"
+      | "allow_whatsapp"
+      | "restrict_processing"
+      | "resume_processing"
+      | "erase",
+    successMessage: string
+  ) => {
+    if (!data?.customer?.id || policySubmitting) return;
+    setPolicySubmitting(true);
+    try {
+      const response = await fetch(`/api/customers/${data.customer.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setStatus({
+          variant: "error",
+          message:
+            (typeof payload?.error === "string" && localizeCustomerServerMessage(payload.error, t)) ||
+            t(
+              "Unable to update customer compliance settings.",
+              "Impossible de mettre a jour les parametres de conformite du client.",
+              "Die Compliance-Einstellungen des Kunden konnten nicht aktualisiert werden.",
+              "No se pudo actualizar la configuracion de cumplimiento del cliente.",
+              "Nao foi possivel atualizar a configuracao de conformidade do cliente."
+            ),
+        });
+        return;
+      }
+      await mutate();
+      setStatus({ variant: "success", message: successMessage });
+      if (action === "erase") {
+        setShowEraseModal(false);
+      }
+    } catch {
+      setStatus({
+        variant: "error",
+        message: t(
+          "Unable to update customer compliance settings.",
+          "Impossible de mettre a jour les parametres de conformite du client.",
+          "Die Compliance-Einstellungen des Kunden konnten nicht aktualisiert werden.",
+          "No se pudo actualizar la configuracion de cumplimiento del cliente.",
+          "Nao foi possivel atualizar a configuracao de conformidade do cliente."
+        ),
+      });
+    } finally {
+      setPolicySubmitting(false);
+    }
+  };
+
+  const handleExportCustomerData = async () => {
+    if (!data?.customer?.id || exporting) return;
+    setExporting(true);
+    try {
+      window.location.assign(`/api/customers/${data.customer.id}/export`);
+      setStatus({
+        variant: "success",
+        message: t(
+          "Customer export started.",
+          "Export client demarre.",
+          "Kundenexport gestartet.",
+          "La exportacion del cliente ha comenzado.",
+          "A exportacao do cliente foi iniciada."
+        ),
+      });
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -668,6 +811,9 @@ export default function CustomerProfilePage() {
   const recentInvoices = data?.invoices.slice(0, 2) || [];
   const recentPayments = data?.payments.slice(0, 2) || [];
   const notes = data?.notes || [];
+  const compliance = customer?.compliance;
+  const processingRestricted = Boolean(compliance?.processingRestrictedAt);
+  const erased = Boolean(compliance?.erasedAt);
   const hasReminderCandidate = (data?.invoices || []).some((invoice) =>
     isCustomerReminderInvoiceStatus(invoice.status) && invoice.outstandingAmount > 0
   );
@@ -700,10 +846,10 @@ export default function CustomerProfilePage() {
               )
             : t(
                 "Could not load customer details.",
-                "Impossible de charger les details client.",
+                "Impossible de charger les d?tails client.",
                 "Die Kundendetails konnten nicht geladen werden.",
                 "No se pudieron cargar los detalles del cliente.",
-                "Não foi possivel carregar os detalhes do cliente."
+                "Não foi poss?vel carregar os detalhes do cliente."
               )}
         </Alert>
       </div>
@@ -744,7 +890,7 @@ export default function CustomerProfilePage() {
           <div className="flex items-center gap-2">
             {customer.status === "DISABLED" ? (
               <Button variant="secondary" disabled>
-                {t("Customer disabled", "Client desactive", "Kunde deaktiviert", "Cliente desactivado", "Cliente desativado")}
+                {t("Customer disabled", "Client d?sactiv?", "Kunde deaktiviert", "Cliente desactivado", "Cliente desativado")}
               </Button>
             ) : (
               <Link href={`/dashboard/invoices?customerId=${encodeURIComponent(customer.id)}`}>
@@ -838,8 +984,8 @@ export default function CustomerProfilePage() {
             <div className="space-y-6">
               <Card className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-[0_18px_40px_rgba(2,6,23,0.45)]">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-foreground">{t("Revenue trend (30 days)", "Tendance revenus (30 jours)", "Umsatztrend (30 Tage)", "Tendencia de ingresos (30 dias)", "Tendencia de receita (30 dias)")}</p>
-                  <p className="text-xs text-muted-foreground">{t("Last 30 days", "30 derniers jours", "Letzte 30 Tage", "Ultimos 30 dias", "Ultimos 30 dias")}</p>
+                  <p className="text-sm font-semibold text-foreground">{t("Revenue trend (30 days)", "Tendance revenus (30 jours)", "Umsatztrend (30 Tage)", "Tendencia de ingresos (30 d?as)", "Tendencia de receita (30 dias)")}</p>
+                  <p className="text-xs text-muted-foreground">{t("Last 30 days", "30 derniers jours", "Letzte 30 Tage", "?ltimos 30 d?as", "?ltimos 30 dias")}</p>
                 </div>
                 <div className="mt-5 grid grid-cols-10 items-end gap-2">
                   {chartPoints.map((point) => {
@@ -916,7 +1062,7 @@ export default function CustomerProfilePage() {
                     )}
                   </div>
                 </Card>
-                <Card className="rounded-2xl border border-slate-200 bg-white p-0 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-[0_18px_40px_rgba(2,6,23,0.45)]" title={t("Recent payments", "Paiements recents", "Letzte Zahlungen", "Pagos recientes", "Pagamentos recentes")}>
+                <Card className="rounded-2xl border border-slate-200 bg-white p-0 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-[0_18px_40px_rgba(2,6,23,0.45)]" title={t("Recent payments", "Paiements r?cents", "Letzte Zahlungen", "Pagos recientes", "Pagamentos recentes")}>
                   <div className="divide-y divide-slate-100 dark:divide-slate-800">
                     {recentPayments.length === 0 ? (
                       <p className="p-4 text-sm text-muted-foreground">{t("No payments yet.", "Aucun paiement pour le moment.", "Noch keine Zahlungen.", "Todavia no hay pagos.", "Ainda não existem pagamentos.")}</p>
@@ -1016,7 +1162,7 @@ export default function CustomerProfilePage() {
                             <div className="text-slate-600 dark:text-slate-400">{formatDate(payment.createdAt)}</div>
                             <div
                               className="truncate font-medium text-foreground"
-                              title={payment.invoiceNumber || t("Unlinked payment", "Paiement non lie", "Nicht verknupfte Zahlung", "Pago no vinculado", "Pagamento nÃ£o associado")}
+                              title={payment.invoiceNumber || t("Unlinked payment", "Paiement non lie", "Nicht verknupfte Zahlung", "Pago no vinculado", "Pagamento n\u00e3o associado")}
                             >
                               {payment.invoiceNumber || "--"}
                             </div>
@@ -1064,23 +1210,23 @@ export default function CustomerProfilePage() {
           {activeTab === "notes" ? (
             <Card className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-[0_18px_40px_rgba(2,6,23,0.45)]">
               <div className="mb-4 flex items-center justify-between">
-                <p className="text-sm font-semibold text-foreground">{t("Private Notes", "Notes privees", "Private Notizen", "Notas privadas", "Notas privadas")}</p>
+                <p className="text-sm font-semibold text-foreground">{t("Private Notes", "Notes priv?es", "Private Notizen", "Notas privadas", "Notas privadas")}</p>
               </div>
               <p className="mb-4 text-xs text-muted-foreground">
                 {data?.notesSharedWithTeam
                   ? t(
                       "Private notes are saved to this workspace and shared with your team members who can access billing.",
-                      "Les notes privees sont enregistrees dans cet espace de travail et partagees avec les membres de votre equipe qui peuvent acceder a la facturation.",
+                      "Les notes priv?es sont enregistrees dans cet espace de travail et partagees avec les membres de votre ?quipe qui peuvent acceder a la facturation.",
                       "Private Notizen werden in diesem Workspace gespeichert und mit Teammitgliedern geteilt, die Zugriff auf die Abrechnung haben.",
-                      "Las notas privadas se guardan en este espacio de trabajo y se comparten con los miembros del equipo que tienen acceso a facturacion.",
-                      "As notas privadas sao guardadas neste espaco de trabalho e partilhadas com os membros da sua equipa que podem aceder a faturacao."
+                      "Las notas privadas se guardan en este espacio de trabajo y se comparten con los miembros del equipo que tienen acceso a facturaci?n.",
+                      "As notas privadas s?o guardadas neste espa?o de trabalho e partilhadas com os membros da sua equipa que podem aceder a fatura??o."
                     )
                   : t(
                       "Private notes are saved to this workspace.",
-                      "Les notes privees sont enregistrees dans cet espace de travail.",
+                      "Les notes priv?es sont enregistrees dans cet espace de travail.",
                       "Private Notizen werden in diesem Workspace gespeichert.",
                       "Las notas privadas se guardan en este espacio de trabajo.",
-                      "As notas privadas sao guardadas neste espaco de trabalho."
+                      "As notas privadas s?o guardadas neste espa?o de trabalho."
                     )}
               </p>
               <div className="space-y-3">
@@ -1093,7 +1239,7 @@ export default function CustomerProfilePage() {
                 <div className="flex items-center gap-2">
                   <Button type="button" onClick={() => void saveNote()} disabled={noteSubmitting}>
                     {editingNoteId
-                      ? t("Update note", "Mettre a jour la note", "Notiz aktualisieren", "Actualizar nota", "Atualizar nota")
+                      ? t("Update note", "Mettre ? jour la note", "Notiz aktualisieren", "Actualizar nota", "Atualizar nota")
                       : t("Add note", "Ajouter une note", "Notiz hinzufügen", "Agregar nota", "Adicionar nota")}
                   </Button>
                   {editingNoteId ? (
@@ -1137,7 +1283,7 @@ export default function CustomerProfilePage() {
                           >
                             {deletingNoteId === note.id
                               ? t("Deleting...", "Suppression...", "Loscht...", "Eliminando...", "A eliminar...")
-                              : t("Delete", "Supprimer", "Loschen", "Eliminar", "Eliminar")}
+                              : t("Delete", "Supprimer", "L?schen", "Eliminar", "Eliminar")}
                           </button>
                         </div>
                       </div>
@@ -1173,7 +1319,7 @@ export default function CustomerProfilePage() {
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">{t("Last payment", "Dernier paiement", "Letzte Zahlung", "Ultimo pago", "Ultimo pagamento")}</span>
+                <span className="text-muted-foreground">{t("Last payment", "Dernier paiement", "Letzte Zahlung", "?ltimo pago", "?ltimo pagamento")}</span>
                 <span className="font-medium text-foreground">
                   {customer.lastPayment
                     ? formatRelative(customer.lastPayment.createdAt)
@@ -1181,7 +1327,7 @@ export default function CustomerProfilePage() {
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">{t("Last invoice", "Derniere facture", "Letzte Rechnung", "Ultima factura", "Ultima fatura")}</span>
+                <span className="text-muted-foreground">{t("Last invoice", "Derni?re facture", "Letzte Rechnung", "?ltima factura", "?ltima fatura")}</span>
                 <span className="font-medium text-foreground">
                   {customer.lastInvoice
                     ? formatRelative(customer.lastInvoice.createdAt)
@@ -1196,7 +1342,7 @@ export default function CustomerProfilePage() {
             <div className="mt-5 space-y-2">
               {customer.status === "DISABLED" ? (
                 <Button variant="secondary" className="h-10 w-full" disabled>
-                  {t("Customer disabled", "Client desactive", "Kunde deaktiviert", "Cliente desactivado", "Cliente desativado")}
+                  {t("Customer disabled", "Client d?sactiv?", "Kunde deaktiviert", "Cliente desactivado", "Cliente desativado")}
                 </Button>
               ) : (
                 <Link href={`/dashboard/invoices?customerId=${encodeURIComponent(customer.id)}`} className="block">
@@ -1217,6 +1363,7 @@ export default function CustomerProfilePage() {
                   className="h-10 w-full"
                   onClick={handleRestore}
                   loading={disableSubmitting}
+                  disabled={erased}
                 >
                   {t("Restore Customer", "Restaurer le client", "Kunden wiederherstellen", "Restaurar cliente", "Restaurar cliente")}
                 </Button>
@@ -1231,6 +1378,124 @@ export default function CustomerProfilePage() {
               )}
             </div>
           </Card>
+          <Card className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-[0_18px_40px_rgba(2,6,23,0.45)]">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+              {t("Compliance", "Conformite", "Compliance", "Cumplimiento", "Conformidade")}
+            </p>
+            <div className="mt-4 space-y-3 text-sm">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-muted-foreground">{t("Email contact", "Contact email", "E-Mail-Kontakt", "Contacto por correo", "Contacto por email")}</span>
+                <span className="font-medium text-foreground">
+                  {compliance?.emailOptOut
+                    ? t("Blocked", "Bloque", "Blockiert", "Bloqueado", "Bloqueado")
+                    : t("Allowed", "Autorise", "Erlaubt", "Permitido", "Permitido")}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-muted-foreground">{t("WhatsApp contact", "Contact WhatsApp", "WhatsApp-Kontakt", "Contacto por WhatsApp", "Contacto por WhatsApp")}</span>
+                <span className="font-medium text-foreground">
+                  {compliance?.whatsappOptOut
+                    ? t("Blocked", "Bloque", "Blockiert", "Bloqueado", "Bloqueado")
+                    : t("Allowed", "Autorise", "Erlaubt", "Permitido", "Permitido")}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-muted-foreground">{t("Processing", "Traitement", "Verarbeitung", "Tratamiento", "Tratamento")}</span>
+                <span className="font-medium text-foreground">
+                  {erased
+                    ? t("Erased", "Efface", "Geloscht", "Borrado", "Apagado")
+                    : processingRestricted
+                      ? t("Restricted", "Restreint", "Eingeschrankt", "Restringido", "Restrito")
+                      : t("Active", "Actif", "Aktiv", "Activo", "Ativo")}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-muted-foreground">{t("Consent updated", "Consentement mis a jour", "Einwilligung aktualisiert", "Consentimiento actualizado", "Consentimento atualizado")}</span>
+                <span className="font-medium text-foreground">
+                  {compliance?.consentCapturedAt ? formatDateTime(compliance.consentCapturedAt) : "--"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-muted-foreground">{t("Consent source", "Source du consentement", "Quelle der Einwilligung", "Fuente del consentimiento", "Fonte do consentimento")}</span>
+                <span className="font-medium text-foreground">{compliance?.consentSource || "--"}</span>
+              </div>
+            </div>
+            <div className="mt-5 space-y-2">
+              <Button
+                variant="secondary"
+                className="h-10 w-full"
+                disabled={exporting}
+                onClick={() => void handleExportCustomerData()}
+              >
+                {exporting
+                  ? t("Preparing export...", "Preparation de l export...", "Export wird vorbereitet...", "Preparando exportacion...", "A preparar exportacao...")
+                  : t("Export Customer Data", "Exporter les donnees client", "Kundendaten exportieren", "Exportar datos del cliente", "Exportar dados do cliente")}
+              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="secondary"
+                  className="h-10 w-full"
+                  disabled={policySubmitting || erased}
+                  onClick={() =>
+                    void runCustomerAction(
+                      compliance?.emailOptOut ? "allow_email" : "block_email",
+                      compliance?.emailOptOut
+                        ? t("Email contact restored.", "Contact email restaure.", "E-Mail-Kontakt wiederhergestellt.", "Contacto por correo restaurado.", "Contacto por email restaurado.")
+                        : t("Email contact blocked.", "Contact email bloque.", "E-Mail-Kontakt blockiert.", "Contacto por correo bloqueado.", "Contacto por email bloqueado.")
+                    )
+                  }
+                >
+                  {compliance?.emailOptOut
+                    ? t("Allow Email", "Autoriser email", "E-Mail erlauben", "Permitir correo", "Permitir email")
+                    : t("Block Email", "Bloquer email", "E-Mail blockieren", "Bloquear correo", "Bloquear email")}
+                </Button>
+                <Button
+                  variant="secondary"
+                  className="h-10 w-full"
+                  disabled={policySubmitting || erased}
+                  onClick={() =>
+                    void runCustomerAction(
+                      compliance?.whatsappOptOut ? "allow_whatsapp" : "block_whatsapp",
+                      compliance?.whatsappOptOut
+                        ? t("WhatsApp contact restored.", "Contact WhatsApp restaure.", "WhatsApp-Kontakt wiederhergestellt.", "Contacto por WhatsApp restaurado.", "Contacto por WhatsApp restaurado.")
+                        : t("WhatsApp contact blocked.", "Contact WhatsApp bloque.", "WhatsApp-Kontakt blockiert.", "Contacto por WhatsApp bloqueado.", "Contacto por WhatsApp bloqueado.")
+                    )
+                  }
+                >
+                  {compliance?.whatsappOptOut
+                    ? t("Allow WhatsApp", "Autoriser WhatsApp", "WhatsApp erlauben", "Permitir WhatsApp", "Permitir WhatsApp")
+                    : t("Block WhatsApp", "Bloquer WhatsApp", "WhatsApp blockieren", "Bloquear WhatsApp", "Bloquear WhatsApp")}
+                </Button>
+              </div>
+              <Button
+                variant="secondary"
+                className="h-10 w-full"
+                disabled={policySubmitting || erased}
+                onClick={() =>
+                  void runCustomerAction(
+                    processingRestricted ? "resume_processing" : "restrict_processing",
+                    processingRestricted
+                      ? t("Customer processing resumed.", "Traitement du client repris.", "Kundenverarbeitung fortgesetzt.", "Tratamiento del cliente reanudado.", "Tratamento do cliente retomado.")
+                      : t("Customer processing restricted.", "Traitement du client restreint.", "Kundenverarbeitung eingeschrankt.", "Tratamiento del cliente restringido.", "Tratamento do cliente restringido.")
+                  )
+                }
+              >
+                {processingRestricted
+                  ? t("Resume Processing", "Reprendre le traitement", "Verarbeitung fortsetzen", "Reanudar tratamiento", "Retomar tratamento")
+                  : t("Restrict Processing", "Restreindre le traitement", "Verarbeitung einschranken", "Restringir tratamiento", "Restringir tratamento")}
+              </Button>
+              <Button
+                variant="danger"
+                className="h-10 w-full"
+                disabled={policySubmitting || erased}
+                onClick={() => setShowEraseModal(true)}
+              >
+                {erased
+                  ? t("Customer Erased", "Client efface", "Kunde geloscht", "Cliente borrado", "Cliente apagado")
+                  : t("Erase Customer Data", "Effacer les donnees client", "Kundendaten loschen", "Borrar datos del cliente", "Apagar dados do cliente")}
+              </Button>
+            </div>
+          </Card>
         </aside>
       </section>
 
@@ -1243,7 +1508,7 @@ export default function CustomerProfilePage() {
           "Voulez-vous vraiment desactiver ce client ? Les factures existantes resteront disponibles apres la desactivation.",
           "Mochtest du diesen Kunden wirklich deaktivieren? Bestehende Rechnungen bleiben nach der Deaktivierung verfügbar.",
           "Seguro que quieres desactivar a este cliente? Las facturas existentes seguiran disponibles despues de desactivarlo.",
-          "Tem a certeza de que pretende desativar este cliente? As faturas existentes continuarao disponiveis após a desativacao."
+          "Tem a certeza de que pretende desativar este cliente? As faturas existentes continuarao dispon?veis após a desativacao."
         )}
         confirmLabel={disableSubmitting
           ? t("Disabling...", "Desactivation...", "Deaktivierung...", "Desactivando...", "A desativar...")
@@ -1297,7 +1562,39 @@ export default function CustomerProfilePage() {
           if (!reminderSubmitting) setShowReminderModal(false);
         }}
       />
+
+      <ConfirmationModal
+        open={showEraseModal}
+        variant="danger"
+        title={t("Erase Customer Data", "Effacer les donnees client", "Kundendaten loschen", "Borrar datos del cliente", "Apagar dados do cliente")}
+        description={t(
+          "This will immediately redact the live customer record, block future contact, and remove private notes. Historical invoices and payments remain for accounting records.",
+          "Cela anonymisera immediatement la fiche client active, bloquera les contacts futurs et supprimera les notes privees. Les factures et paiements historiques restent conserves pour la comptabilite.",
+          "Dies anonymisiert den aktiven Kundendatensatz sofort, blockiert zukunftigen Kontakt und entfernt private Notizen. Historische Rechnungen und Zahlungen bleiben fur Buchhaltungszwecke erhalten.",
+          "Esto anonimizara de inmediato el registro activo del cliente, bloqueara el contacto futuro y eliminara las notas privadas. Las facturas y pagos historicos se conservan por motivos contables.",
+          "Isto anonimiza imediatamente o registo ativo do cliente, bloqueia contactos futuros e remove notas privadas. As faturas e pagamentos historicos mantem-se para fins contabilisticos."
+        )}
+        confirmLabel={
+          policySubmitting
+            ? t("Erasing...", "Effacement...", "Loschen...", "Borrando...", "A apagar...")
+            : t("Erase Customer Data", "Effacer les donnees client", "Kundendaten loschen", "Borrar datos del cliente", "Apagar dados do cliente")
+        }
+        onConfirm={() =>
+          void runCustomerAction(
+            "erase",
+            t(
+              "Customer data erased.",
+              "Les donnees du client ont ete effacees.",
+              "Kundendaten wurden geloscht.",
+              "Los datos del cliente fueron borrados.",
+              "Os dados do cliente foram apagados."
+            )
+          )
+        }
+        onCancel={() => {
+          if (!policySubmitting) setShowEraseModal(false);
+        }}
+      />
     </div>
   );
 }
-

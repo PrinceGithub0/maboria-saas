@@ -42,8 +42,8 @@ function statusBadgeVariant(status: string) {
 const usageFeatureLabels: Record<string, string> = {
   ai_requests: "AI requests",
   invoices: "Invoices",
-  whatsapp_messages: "WhatsApp messages",
   automations_runs: "Automation runs",
+  workspace_connections: "Connections",
   team_members_seats: "Team seats",
 };
 
@@ -87,7 +87,7 @@ export default function AdminTenantDetailPage() {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(String((payload as { error?: string })?.error || t("Action failed.", "Echec de l'action.", "Aktion fehlgeschlagen.", "La acción fallo.", "A ação falhou.")));
+        throw new Error(String((payload as { error?: string })?.error || t("Action failed.", "?chec de l'action.", "Aktion fehlgeschlagen.", "La acción fallo.", "A ação falhou.")));
       }
       setShowSuspend(false);
       setShowReactivate(false);
@@ -105,9 +105,9 @@ export default function AdminTenantDetailPage() {
             ? localizeAdminServerMessage(
                 actionError.message,
                 language,
-                t("Action failed.", "Echec de l'action.", "Aktion fehlgeschlagen.", "La acción fallo.", "A ação falhou.")
+                t("Action failed.", "?chec de l'action.", "Aktion fehlgeschlagen.", "La acción fallo.", "A ação falhou.")
               )
-            : t("Action failed.", "Echec de l'action.", "Aktion fehlgeschlagen.", "La acción fallo.", "A ação falhou."),
+            : t("Action failed.", "?chec de l'action.", "Aktion fehlgeschlagen.", "La acción fallo.", "A ação falhou."),
       });
     } finally {
       setSavingAction(false);
@@ -136,7 +136,7 @@ export default function AdminTenantDetailPage() {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(String((payload as { error?: string })?.error || t("Unable to start impersonation.", "Impossible de demarrer l'usurpation.", "Imitation konnte nicht gestartet werden.", "No se pudo iniciar la suplantacion.", "Não foi possivel iniciar a impersonação.")));
+        throw new Error(String((payload as { error?: string })?.error || t("Unable to start impersonation.", "Impossible de demarrer l'usurpation.", "Imitation konnte nicht gestartet werden.", "No se pudo iniciar la suplantacion.", "Não foi poss?vel iniciar a impersonação.")));
       }
       const redirectTo = String((payload as { redirectTo?: string })?.redirectTo || "/dashboard");
       setShowImpersonationModal(false);
@@ -150,9 +150,9 @@ export default function AdminTenantDetailPage() {
             ? localizeAdminServerMessage(
                 impersonationError.message,
                 language,
-                t("Unable to start impersonation.", "Impossible de demarrer l'usurpation.", "Imitation konnte nicht gestartet werden.", "No se pudo iniciar la suplantacion.", "Não foi possivel iniciar a impersonação.")
+                t("Unable to start impersonation.", "Impossible de demarrer l'usurpation.", "Imitation konnte nicht gestartet werden.", "No se pudo iniciar la suplantacion.", "Não foi poss?vel iniciar a impersonação.")
               )
-            : t("Unable to start impersonation.", "Impossible de demarrer l'usurpation.", "Imitation konnte nicht gestartet werden.", "No se pudo iniciar la suplantacion.", "Não foi possivel iniciar a impersonação."),
+            : t("Unable to start impersonation.", "Impossible de demarrer l'usurpation.", "Imitation konnte nicht gestartet werden.", "No se pudo iniciar la suplantacion.", "Não foi poss?vel iniciar a impersonação."),
       });
     } finally {
       setStartingImpersonation(false);
@@ -200,11 +200,11 @@ export default function AdminTenantDetailPage() {
     return [
       {
         key: "last-activity",
-        title: t("Last Activity", "Derniere activite", "Letzte Aktivitaet", "Ultima actividad", "Ultima atividade"),
+        title: t("Last Activity", "Derni?re activite", "Letzte Aktivitaet", "?ltima actividad", "?ltima atividade"),
         lines: [
-          `${t("Created", "Cree", "Erstellt", "Creado", "Criado")} ${formatDateTimeDMY(new Date(data.tenant.createdAt), LANGUAGE_LOCALES[language])}`,
+          `${t("Created", "Cr??", "Erstellt", "Creado", "Criado")} ${formatDateTimeDMY(new Date(data.tenant.createdAt), LANGUAGE_LOCALES[language])}`,
           data.tenant.lastActivityAt
-            ? `${t("Last activity", "Derniere activite", "Letzte Aktivitaet", "Ultima actividad", "Ultima atividade")} ${formatDateTimeDMY(new Date(data.tenant.lastActivityAt), LANGUAGE_LOCALES[language])}`
+            ? `${t("Last activity", "Derni?re activite", "Letzte Aktivitaet", "?ltima actividad", "?ltima atividade")} ${formatDateTimeDMY(new Date(data.tenant.lastActivityAt), LANGUAGE_LOCALES[language])}`
             : t("No activity recorded yet.", "Aucune activité enregistree pour le moment.", "Noch keine Aktivitaet aufgezeichnet.", "Aún no hay actividad registrada.", "Ainda não ha atividade registada."),
         ],
       },
@@ -220,8 +220,8 @@ export default function AdminTenantDetailPage() {
         key: "integrations",
         title: t("Integrations", "Integrations", "Integrationen", "Integraciónes", "Integrações"),
         lines: [
-          `${t("Paystack subaccount:", "Sous-compte Paystack :", "Paystack-Unterkonto:", "Subcuenta Paystack:", "Subconta Paystack:")} ${data.overview.integrations.paystackSubaccountCode || t("Not connected", "Non connecte", "Nicht verbunden", "No conectado", "Não ligado")}`,
-          `${t("Flutterwave subaccount:", "Sous-compte Flutterwave :", "Flutterwave-Unterkonto:", "Subcuenta Flutterwave:", "Subconta Flutterwave:")} ${data.overview.integrations.flutterwaveSubaccountId || t("Not connected", "Non connecte", "Nicht verbunden", "No conectado", "Não ligado")}`,
+          `${t("Paystack subaccount:", "Sous-compte Paystack :", "Paystack-Unterkonto:", "Subcuenta Paystack:", "Subconta Paystack:")} ${data.overview.integrations.paystackSubaccountCode || t("Not connected", "Non connect?", "Nicht verbunden", "No conectado", "Não ligado")}`,
+          `${t("Flutterwave subaccount:", "Sous-compte Flutterwave :", "Flutterwave-Unterkonto:", "Subcuenta Flutterwave:", "Subconta Flutterwave:")} ${data.overview.integrations.flutterwaveSubaccountId || t("Not connected", "Non connect?", "Nicht verbunden", "No conectado", "Não ligado")}`,
           `${t("Payout provider:", "Fournisseur de paiement :", "Auszahlungsanbieter:", "Proveedor de pagos:", "Fornecedor de pagamentos:")} ${data.overview.integrations.payoutProvider ? localizeAdminProvider(data.overview.integrations.payoutProvider, language) : t("Not configured", "Non configure", "Nicht konfiguriert", "No configurado", "Não configurado")}`,
         ],
       },
@@ -254,7 +254,7 @@ export default function AdminTenantDetailPage() {
             ? localizeAdminServerMessage(
                 feedback.message,
                 language,
-                t("Action failed.", "Echec de l'action.", "Aktion fehlgeschlagen.", "La acción fallo.", "A ação falhou.")
+                t("Action failed.", "?chec de l'action.", "Aktion fehlgeschlagen.", "La acción fallo.", "A ação falhou.")
               )
             : feedback.message}
         </Alert>
@@ -269,7 +269,7 @@ export default function AdminTenantDetailPage() {
               "Impossible de charger le detail du locataire pour le moment.",
               "Mandantendetails koennen derzeit nicht geladen werden.",
               "No se puede cargar el detalle del tenant en este momento.",
-              "Nao foi possivel carregar o detalhe do tenant neste momento."
+              "N?o foi poss?vel carregar o detalhe do tenant neste momento."
             )
           )}
         </Alert>
@@ -293,8 +293,8 @@ export default function AdminTenantDetailPage() {
               <p className="mt-2 break-words text-sm text-muted-foreground">{t("Owner:", "Proprietaire :", "Inhaber:", "Propietario:", "Proprietário:")} {data.owner.name || data.owner.email}</p>
               <p className="mt-1 break-words text-sm text-muted-foreground">{t("Owner email:", "E-mail du proprietaire :", "E-Mail des Inhabers:", "Correo del propietario:", "E-mail do proprietário:")} {data.owner.email}</p>
               <p className="mt-1 break-words text-xs text-muted-foreground">
-                {t("Plan:", "Forfait :", "Plan:", "Plan:", "Plano:")} {data.subscription.plan || "-"} | {t("Created", "Cree", "Erstellt", "Creado", "Criado")} {formatDateTimeDMY(new Date(data.tenant.createdAt), LANGUAGE_LOCALES[language])}
-                {data.tenant.lastActivityAt ? ` | ${t("Last activity", "Derniere activite", "Letzte Aktivitaet", "Ultima actividad", "Ultima atividade")} ${formatDateTimeDMY(new Date(data.tenant.lastActivityAt), LANGUAGE_LOCALES[language])}` : ""}
+                {t("Plan:", "Forfait :", "Plan:", "Plan:", "Plano:")} {data.subscription.plan || "-"} | {t("Created", "Cr??", "Erstellt", "Creado", "Criado")} {formatDateTimeDMY(new Date(data.tenant.createdAt), LANGUAGE_LOCALES[language])}
+                {data.tenant.lastActivityAt ? ` | ${t("Last activity", "Derni?re activite", "Letzte Aktivitaet", "?ltima actividad", "?ltima atividade")} ${formatDateTimeDMY(new Date(data.tenant.lastActivityAt), LANGUAGE_LOCALES[language])}` : ""}
               </p>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-3">
@@ -307,7 +307,7 @@ export default function AdminTenantDetailPage() {
                   document.getElementById("tenant-logs")?.scrollIntoView({ behavior: "smooth", block: "start" });
                 }}
               >
-                {t("View audit events", "Voir les evenements d'audit", "Audit-Ereignisse ansehen", "Ver eventos de auditoria", "Ver eventos de auditoria")}
+                {t("View audit events", "Voir les ?v?nements d'audit", "Audit-Ereignisse ansehen", "Ver eventos de auditoria", "Ver eventos de auditoria")}
               </Button>
               {isSuperAdmin ? (
                 data.tenant.status === "SUSPENDED" ? (
@@ -405,13 +405,22 @@ export default function AdminTenantDetailPage() {
                 ))}
                 {data.usage.channelTotals ? (
                   <div className="pt-2 text-sm text-muted-foreground">
+                    <p className="font-medium text-foreground">
+                      {t("Messaging activity", "Activite de messagerie", "Nachrichtenaktivitat", "Actividad de mensajeria", "Atividade de mensagens")}
+                    </p>
                     <p>{t("Billing period:", "Periode de facturation :", "Abrechnungszeitraum:", "Periodo de facturación:", "Periodo de faturação:")} {data.usage.channelTotals.billingPeriod}</p>
                     <p>{t("Email messages sent:", "E-mails envoyes :", "Gesendete E-Mails:", "Mensajes de correo enviados:", "Mensagens de e-mail enviadas:")} {data.usage.channelTotals.emailMessagesSent}</p>
                     <p>{t("WhatsApp messages sent:", "Messages WhatsApp envoyes :", "Gesendete WhatsApp-Nachrichten:", "Mensajes de WhatsApp enviados:", "Mensagens de WhatsApp enviadas:")} {data.usage.channelTotals.whatsappMessagesSent}</p>
                     <p>{t("Total messages sent:", "Total des messages envoyes :", "Gesamt gesendete Nachrichten:", "Total de mensajes enviados:", "Total de mensagens enviadas:")} {data.usage.channelTotals.totalMessagesSent}</p>
+                    {data.usage.messagingActivityUpdatedAt ? (
+                      <p>
+                        {t("Updated:", "Mis a jour :", "Aktualisiert:", "Actualizado:", "Atualizado:")}{" "}
+                        {formatDateTimeDMY(new Date(data.usage.messagingActivityUpdatedAt), LANGUAGE_LOCALES[language])}
+                      </p>
+                    ) : null}
                   </div>
                 ) : (
-                  <p className="pt-2 text-sm text-muted-foreground">{t("Usage counters are not available yet for this tenant.", "Les compteurs d'utilisation ne sont pas encore disponibles pour ce locataire.", "Nutzungszaehler sind fuer diesen Mandanten noch nicht verfuegbar.", "Los contadores de uso aún no estan disponibles para este tenant.", "Os contadores de utilização ainda não estão disponiveis para este tenant.")}</p>
+                  <p className="pt-2 text-sm text-muted-foreground">{t("Usage counters are not available yet for this tenant.", "Les compteurs d'utilisation ne sont pas encore disponibles pour ce locataire.", "Nutzungszaehler sind fuer diesen Mandanten noch nicht verfuegbar.", "Los contadores de uso aún no est?n disponibles para este tenant.", "Os contadores de utilização ainda não estão dispon?veis para este tenant.")}</p>
                 )}
               </div>
             )}

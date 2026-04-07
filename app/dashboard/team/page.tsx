@@ -195,7 +195,7 @@ export default function TeamPage() {
           "Unlimited / Contract-based",
           "Illimite / Contrat",
           "Unbegrenzt / Vertragsbasiert",
-          "Ilimitado / Segun contrato",
+          "Ilimitado / Seg?n contrato",
           "Ilimitado / Baseado em contrato"
         )
       : typeof seatLimit === "number"
@@ -257,7 +257,7 @@ export default function TeamPage() {
           "Enter a valid email address.",
           "Entrez une adresse email valide.",
           "Gib eine gültige E-Mail-Adresse ein.",
-          "Introduce una direccion de correo valida.",
+          "Introduce una direcci?n de correo valida.",
           "Introduz um endereco de email valido."
         ),
         variant: "warning",
@@ -313,7 +313,7 @@ export default function TeamPage() {
               language,
               t(
                 "Invite failed. Please try again.",
-                "L'invitation a échoué. Reessayez.",
+                "L'invitation a échoué. R?essayez.",
                 "Einladung fehlgeschlagen. Bitte versuche es erneut.",
                 "La invitacion ha fallado. Intentalo de nuevo.",
                 "O convite falhou. Tenta novamente."
@@ -361,7 +361,7 @@ export default function TeamPage() {
             language,
             t(
               "Invite failed. Please try again.",
-              "L'invitation a échoué. Reessayez.",
+              "L'invitation a échoué. R?essayez.",
               "Einladung fehlgeschlagen. Bitte versuche es erneut.",
               "La invitacion ha fallado. Intentalo de nuevo.",
               "O convite falhou. Tenta novamente."
@@ -435,10 +435,10 @@ export default function TeamPage() {
               language,
               t(
                 "Role update failed.",
-                "La mise a jour du role a echoue.",
+                "La mise ? jour du role a ?chou?.",
                 "Rollenaktualisierung fehlgeschlagen.",
                 "La actualización del rol ha fallado.",
-                "A atualizacao do papel falhou."
+                "A atualiza??o do papel falhou."
               )
             )
           )
@@ -459,10 +459,10 @@ export default function TeamPage() {
             language,
             t(
               "Role update failed.",
-              "La mise a jour du role a echoue.",
+              "La mise ? jour du role a ?chou?.",
               "Rollenaktualisierung fehlgeschlagen.",
               "La actualización del rol ha fallado.",
-              "A atualizacao do papel falhou."
+              "A atualiza??o do papel falhou."
             )
           )
         )
@@ -639,10 +639,10 @@ export default function TeamPage() {
               <p className="mt-1 text-sm text-muted-foreground">
                 {t(
                   "Manage your workspace access and member roles.",
-                  "Gerez les accès et roles de votre espace de travail.",
+                  "G?rez les accès et roles de votre espace de travail.",
                   "Verwalte den Workspace-Zugriff und die Rollen deines Teams.",
                   "Gestiona el acceso al espacio de trabajo y los roles del equipo.",
-                  "Gere o acesso ao espaco de trabalho e os papeis da equipa."
+                  "Gere o acesso ao espa?o de trabalho e os papeis da equipa."
                 )}
               </p>
             </div>
@@ -680,7 +680,7 @@ export default function TeamPage() {
             {showInvite ? (
               <div className="mt-5 grid gap-4 rounded-2xl border border-border/60 bg-muted/30 p-4 sm:grid-cols-[minmax(0,1fr)_180px_auto] sm:items-end">
                 <label className="grid gap-1 text-sm text-foreground">
-                  <span>{t("Email", "Email", "E-Mail", "Correo electronico", "Email")}</span>
+                  <span>{t("Email", "Email", "E-Mail", "Correo electr?nico", "Email")}</span>
                   <input
                     placeholder="name@company.com"
                     value={email}
@@ -979,7 +979,7 @@ export default function TeamPage() {
             <div className="mt-4 rounded-2xl border border-border/60">
               <div className="hidden grid-cols-[72px_minmax(200px,240px)_88px_176px] gap-4 bg-muted/30 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground xl:grid">
                 <div>{t("Initials", "Initiales", "Initialen", "Iniciales", "Iniciais")}</div>
-                <div>{t("Email", "Email", "E-Mail", "Correo electronico", "Email")}</div>
+                <div>{t("Email", "Email", "E-Mail", "Correo electr?nico", "Email")}</div>
                 <div>{t("Role", "Role", "Rolle", "Rol", "Papel")}</div>
                 <div>{t("Actions", "Actions", "Aktionen", "Acciones", "Ações")}</div>
               </div>
@@ -1079,10 +1079,10 @@ export default function TeamPage() {
               <p className="text-sm text-muted-foreground">
                 {t(
                   "Activity details are available to workspace managers only.",
-                  "Les details d activité sont reserves aux gestionnaires de l'espace.",
+                  "Les d?tails d activité sont reserves aux gestionnaires de l'espace.",
                   "Aktivitätsdetails sind nur für Workspace-Manager sichtbar.",
-                  "Los detalles de actividad solo estan disponibles para gestores del espacio.",
-                  "Os detalhes da atividade estão disponiveis apenas para gestores do espaco."
+                  "Los detalles de actividad solo est?n disponibles para gestores del espacio.",
+                  "Os detalhes da atividade estão dispon?veis apenas para gestores do espa?o."
                 )}
               </p>
             ) : recentActivity.length === 0 ? (

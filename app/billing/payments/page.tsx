@@ -51,7 +51,7 @@ export default async function BillingPaymentsPage({
   if (!entitlement.ok) {
     return (
       <div className="mx-auto w-full max-w-[1280px] space-y-4 pb-6">
-        <Alert variant="error">{entitlement.reason || t("Upgrade required to view payments.", "Mise a niveau requise pour voir les paiements.", "Upgrade erforderlich, um Zahlungen zu sehen.", "Se requiere una mejora para ver los pagos.", "Atualizacao necessária para ver os pagamentos.")}</Alert>
+        <Alert variant="error">{entitlement.reason || t("Upgrade required to view payments.", "Mise a niveau requise pour voir les paiements.", "Upgrade erforderlich, um Zahlungen zu sehen.", "Se requiere una mejora para ver los pagos.", "Atualiza??o necessária para ver os pagamentos.")}</Alert>
       </div>
     );
   }
@@ -72,7 +72,7 @@ export default async function BillingPaymentsPage({
     <div className="mx-auto w-full max-w-[1280px] space-y-4 pb-6">
       <PaymentsLedgerPage initialData={initialData} initialStatus={params?.status || "all"} initialQuery={params?.q || ""} />
       <p className="text-sm text-slate-500 dark:text-slate-400">
-        {t("Billing questions? ", "Questions de facturation ? ", "Fragen zur Abrechnung? ", "Preguntas de facturación? ", "Duvidas de faturação? ")}
+        {t("Billing questions? Email us at ", "Questions de facturation ? ", "Fragen zur Abrechnung? ", "Preguntas de facturación? ", "Duvidas de faturação? ")}
         <a href={billingMailto} className="font-medium text-slate-700 hover:underline dark:text-slate-200">
           {billingEmail}
         </a>

@@ -17,6 +17,7 @@ import {
 } from "@/lib/mailboxes/oauth";
 import { requireOrgPermission } from "@/lib/org-auth";
 import { prisma } from "@/lib/prisma";
+import { canAddWorkspaceConnections } from "@/lib/workspace-connections";
 
 function appBaseUrl(req: Request) {
   return process.env.APP_URL || process.env.NEXTAUTH_URL || new URL(req.url).origin;
@@ -140,6 +141,16 @@ export async function GET(req: Request) {
         metadata: true,
       },
     });
+
+    if (!existing) {
+      const connectionCapacity = await canAddWorkspaceConnections({
+        workspaceId: access.context.orgId,
+        plan: access.context.orgPlan,
+      });
+      if (!connectionCapacity.ok) {
+        return redirect({ mailbox_error: "connection_limit_reached" });
+      }
+    }
 
     await prisma.$transaction(async (tx) => {
       const baseMetadata = existing ? parseMetadata(existing.metadata) : {};

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { signOut } from "next-auth/react";
 import useSWR from "swr";
 import Image from "next/image";
 import { Card } from "@/components/ui/card";
@@ -24,11 +25,61 @@ import { useLanguage } from "@/components/providers/language-provider";
 import { formatBusinessAddress, hasRequiredAddress, parseBusinessAddress } from "@/lib/address";
 import { getAccessibleSettingsTab, resolveRequestedSettingsTab, type SettingsTab } from "@/lib/dashboard/settings-tabs";
 import type { LocalizedText } from "@/lib/i18n";
+import { getCountryInvoiceRule } from "@/lib/invoicing/country-rules";
 import {
   MIN_PASSWORD_LENGTH,
   PASSWORD_MIN_LENGTH_ERROR,
   PASSWORD_MIN_LENGTH_HELPER_TEXT,
 } from "@/lib/password-policy";
+
+type EInvoicingCredentialField = {
+  key: string;
+  label: string;
+  secret?: boolean;
+  required?: boolean;
+  placeholder?: string;
+  helpText?: string;
+};
+
+type EInvoicingProviderDefinition = {
+  key: string;
+  displayName: string;
+  countryCodes: string[];
+  liveSubmissionAvailable: boolean;
+  supportsStatusSync: boolean;
+  credentialFields: EInvoicingCredentialField[];
+  completionStage: string;
+  capabilitySummary?: string;
+};
+
+type EInvoicingConnectionRecord = {
+  id: string;
+  provider: string;
+  country: string;
+  status: "ACTIVE" | "DISABLED" | "ERROR";
+  sandbox: boolean;
+  hasCredentials: boolean;
+  credentialKeys: string[];
+  metadata: Record<string, unknown> | null;
+  lastValidatedAt: string | null;
+  lastError: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type EInvoicingRolloutItem = {
+  country: string;
+  displayName: string;
+  providerName: string;
+  completionStage: string;
+  authReady: boolean;
+  submitReady: boolean;
+  syncReady: boolean;
+  cancelReady: boolean;
+  productionReady: boolean;
+  nextPriority: number;
+  notes: string;
+};
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 const profileFetcher = async (url: string) => {
@@ -41,7 +92,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { language, t } = useLanguage();
+  const { language, m, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
   const [tabStateReady, setTabStateReady] = useState(false);
   const [pendingTab, setPendingTab] = useState<SettingsTab | null>(null);
@@ -57,6 +108,11 @@ export default function SettingsPage() {
   const [profileStatus, setProfileStatus] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
+  const [privacyStatus, setPrivacyStatus] = useState<string | null>(null);
+  const [privacyError, setPrivacyError] = useState<string | null>(null);
+  const [privacyExporting, setPrivacyExporting] = useState(false);
+  const [privacyErasing, setPrivacyErasing] = useState(false);
+  const [privacyConfirmation, setPrivacyConfirmation] = useState("");
   const [passwordStatus, setPasswordStatus] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSaving, setPasswordSaving] = useState(false);
@@ -71,6 +127,12 @@ export default function SettingsPage() {
   const [businessStatus, setBusinessStatus] = useState<string | null>(null);
   const [businessError, setBusinessError] = useState<string | null>(null);
   const [businessSaving, setBusinessSaving] = useState(false);
+  const [eInvoicingStatus, setEInvoicingStatus] = useState<string | null>(null);
+  const [eInvoicingError, setEInvoicingError] = useState<string | null>(null);
+  const [eInvoicingSaving, setEInvoicingSaving] = useState(false);
+  const [eInvoicingConnectionStatus, setEInvoicingConnectionStatus] = useState<"ACTIVE" | "DISABLED" | "ERROR">("ACTIVE");
+  const [eInvoicingSandbox, setEInvoicingSandbox] = useState(true);
+  const [eInvoicingCredentials, setEInvoicingCredentials] = useState<Record<string, string>>({});
   const [payoutStatus, setPayoutStatus] = useState<string | null>(null);
   const [payoutError, setPayoutError] = useState<string | null>(null);
   const [payoutSubmitting, setPayoutSubmitting] = useState(false);
@@ -96,11 +158,15 @@ export default function SettingsPage() {
     country: "US",
     defaultCurrency: "USD",
     streetAddress: "",
+    addressLine2: "",
     city: "",
+    state: "",
     postalCode: "",
     businessEmail: "",
     businessPhone: "",
     taxId: "",
+    registrationNumber: "",
+    branchCode: "",
     vatEnabled: false,
     vatRate: "",
     vatPricingMode: "exclusive",
@@ -127,6 +193,10 @@ export default function SettingsPage() {
   const canEditPayoutSettings = orgRole === "owner" || orgRole === "admin" || orgRole === "billing_admin";
   const { data: businessProfileResponse, mutate: refreshBusinessProfile } = useSWR(
     canReadBusinessSettings ? "/api/business-profile" : null,
+    profileFetcher
+  );
+  const { data: eInvoicingResponse, mutate: refreshEInvoicing } = useSWR(
+    canReadBusinessSettings ? "/api/einvoicing/connection" : null,
     profileFetcher
   );
   const { data: lateFeeSettingsResponse, mutate: refreshLateFeeSettings } = useSWR(
@@ -202,6 +272,21 @@ export default function SettingsPage() {
           t("Business settings are currently unavailable.", "Les paramêtres entreprise sont indisponibles.")
         )
       : null;
+  const eInvoicingReadError =
+    canReadBusinessSettings &&
+    eInvoicingResponse?.status !== undefined &&
+    eInvoicingResponse.status !== 200
+      ? localizeSettingsServerMessage(
+          eInvoicingResponse?.data?.error,
+          t(
+            "E-invoicing settings are currently unavailable.",
+            "Les parametres de facturation electronique sont indisponibles.",
+            "E-Rechnungs-Einstellungen sind derzeit nicht verfugbar.",
+            "La configuracion de facturacion electronica no esta disponible en este momento.",
+            "As definicoes de faturacao eletronica nao estao disponiveis neste momento."
+          )
+        )
+      : null;
   const lateFeeReadError =
     canReadBusinessSettings &&
     lateFeeSettingsResponse?.status !== undefined &&
@@ -220,7 +305,9 @@ export default function SettingsPage() {
           t("Payout settings are currently unavailable.", "Les paramêtres de paiement sont indisponibles.")
         )
       : null;
-  const businessSettingsUnavailable = Boolean(businessProfileReadError || lateFeeReadError);
+  const businessSettingsUnavailable = Boolean(
+    businessProfileReadError || eInvoicingReadError || lateFeeReadError
+  );
   const payoutSettingsUnavailable = Boolean(payoutReadError);
   const businessFormDisabled = !canEditBusinessSettings || businessSaving || logoUploading || businessSettingsUnavailable;
   const payoutFormDisabled = !canEditPayoutSettings || payoutSubmitting || payoutSettingsUnavailable;
@@ -229,6 +316,153 @@ export default function SettingsPage() {
     code,
     label: formatBusinessCurrencyOption(code),
   }));
+  const businessCountryRule = useMemo(
+    () => getCountryInvoiceRule(businessForm.country),
+    [businessForm.country]
+  );
+  const normalizedBusinessCountry = String(businessForm.country || "").trim().toUpperCase();
+  const eInvoicingProviders = useMemo(
+    () =>
+      Array.isArray(eInvoicingResponse?.data?.providers)
+        ? (eInvoicingResponse.data.providers as EInvoicingProviderDefinition[])
+        : [],
+    [eInvoicingResponse?.data?.providers]
+  );
+  const eInvoicingConnections = useMemo(
+    () =>
+      Array.isArray(eInvoicingResponse?.data?.items)
+        ? (eInvoicingResponse.data.items as EInvoicingConnectionRecord[])
+        : [],
+    [eInvoicingResponse?.data?.items]
+  );
+  const eInvoicingRollout = useMemo(
+    () =>
+      Array.isArray(eInvoicingResponse?.data?.rollout)
+        ? (eInvoicingResponse.data.rollout as EInvoicingRolloutItem[])
+        : [],
+    [eInvoicingResponse?.data?.rollout]
+  );
+  const suggestedEInvoicingProvider = useMemo(
+    () =>
+      eInvoicingProviders.find(
+        (provider) =>
+          Array.isArray(provider.countryCodes) &&
+          provider.countryCodes.includes(normalizedBusinessCountry)
+      ) || null,
+    [eInvoicingProviders, normalizedBusinessCountry]
+  );
+  const currentEInvoicingConnection = useMemo(
+    () =>
+      suggestedEInvoicingProvider
+        ? eInvoicingConnections.find((connection) => connection.provider === suggestedEInvoicingProvider.key) || null
+        : null,
+    [eInvoicingConnections, suggestedEInvoicingProvider]
+  );
+  const currentEInvoicingRollout = useMemo(
+    () => eInvoicingRollout.find((item) => item.country === normalizedBusinessCountry) || null,
+    [eInvoicingRollout, normalizedBusinessCountry]
+  );
+  const currentEInvoicingFields = suggestedEInvoicingProvider?.credentialFields || [];
+  const businessCountryRequiresEInvoicing = Boolean(businessCountryRule?.requiresEInvoicing);
+  const eInvoicingCountryChanged =
+    normalizedBusinessCountry !== String(businessProfile?.country || "").trim().toUpperCase();
+  const businessTaxLabel = businessCountryRule?.taxLabel || "Tax";
+  const businessTaxToggleLabel =
+    businessTaxLabel === "Sales Tax"
+      ? t({
+          en: "Enable tax on invoices",
+          fr: "Activer la taxe sur les factures",
+          de: "Steuer auf Rechnungen aktivieren",
+          es: "Activar impuestos en facturas",
+          pt: "Ativar imposto nas faturas",
+        })
+      : `${t({
+          en: "Enable",
+          fr: "Activer",
+          de: "Aktivieren",
+          es: "Activar",
+          pt: "Ativar",
+        })} ${businessTaxLabel}`;
+  const businessTaxRateLabel =
+    businessTaxLabel === "Sales Tax"
+      ? t({
+          en: "Tax rate (%)",
+          fr: "Taux de taxe (%)",
+          de: "Steuersatz (%)",
+          es: "Tasa de impuesto (%)",
+          pt: "Taxa de imposto (%)",
+        })
+      : `${businessTaxLabel} ${t({
+          en: "rate (%)",
+          fr: "taux (%)",
+          de: "Satz (%)",
+          es: "tasa (%)",
+          pt: "taxa (%)",
+        })}`;
+  const businessTaxPricingModeLabel =
+    businessTaxLabel === "Sales Tax"
+      ? t({
+          en: "Tax pricing mode",
+          fr: "Mode de taxe",
+          de: "Steuerpreismodell",
+          es: "Modo de precios de impuestos",
+          pt: "Modo de precificacao de imposto",
+        })
+      : `${businessTaxLabel} ${t({
+          en: "pricing mode",
+          fr: "mode de tarification",
+          de: "Preismodell",
+          es: "modo de precios",
+          pt: "modo de precificacao",
+        })}`;
+  const businessTaxIdLabel =
+    businessTaxLabel === "VAT"
+      ? t({
+          en: "VAT ID",
+          fr: "ID TVA",
+          de: "USt-IdNr.",
+          es: "ID de IVA",
+          pt: "ID de IVA",
+        })
+      : businessTaxLabel === "GST"
+        ? t({
+            en: "GST registration number",
+            fr: "Num?ro d immatriculation GST",
+            de: "GST-Registrierungsnummer",
+            es: "N?mero de registro GST",
+            pt: "N?mero de registo GST",
+          })
+        : businessTaxLabel === "GST/HST"
+          ? t({
+              en: "GST/HST registration number",
+              fr: "Num?ro d immatriculation GST/HST",
+              de: "GST/HST-Registrierungsnummer",
+              es: "N?mero de registro GST/HST",
+              pt: "N?mero de registo GST/HST",
+            })
+          : businessTaxLabel === "Sales Tax"
+            ? t({
+                en: "Sales tax registration number",
+                fr: "Num?ro d immatriculation taxe de vente",
+                de: "Umsatzsteuer-Registrierungsnummer",
+                es: "N?mero de registro del impuesto sobre ventas",
+                pt: "N?mero de registo do imposto sobre vendas",
+              })
+            : businessTaxLabel === "IGV"
+              ? t({
+                  en: "IGV registration number",
+                  fr: "Num?ro d immatriculation IGV",
+                  de: "IGV-Registrierungsnummer",
+                  es: "N?mero de registro IGV",
+                  pt: "N?mero de registo IGV",
+                })
+              : t({
+                  en: "Tax registration number",
+                  fr: "Num?ro d immatriculation fiscale",
+                  de: "Steuerregistrierungsnummer",
+                  es: "N?mero de registro fiscal",
+                  pt: "N?mero de registo fiscal",
+                });
   const requiredMessage = t("This field is required", "Ce champ est requis");
   const formatRequiredFieldMessage = (label: string) =>
     t({
@@ -255,14 +489,35 @@ export default function SettingsPage() {
   const payoutFieldLabels: Record<PayoutFieldKey, string> = {
     accountName: t("Account holder name", "Nom du titulaire"),
     bankCode: t("Bank", "Banque"),
-    accountNumber: t("Account number", "Numero de compte"),
+    accountNumber: t("Account number", "Num?ro de compte"),
     iban: t("IBAN", "IBAN"),
     bicSwift: t("BIC / SWIFT", "BIC / SWIFT"),
     branchCode: t("Branch code", "Code agence"),
-    routingNumber: t("Routing number", "Numero d acheminement"),
+    routingNumber: t("Routing number", "Num?ro d acheminement"),
     sortCode: t("Sort code", "Code guichet"),
   };
   const settingsServerMessages: Record<string, LocalizedText> = {
+    "Choose either credentials or clearCredentials, not both.": {
+      en: "Choose either credentials or clear credentials, not both.",
+      fr: "Choisissez soit des identifiants, soit l effacement des identifiants, pas les deux.",
+      de: "Wahle entweder Zugangsdaten oder das L?schen der Zugangsdaten, nicht beides.",
+      es: "Elige credenciales o borrar credenciales, no ambos.",
+      pt: "Escolha credenciais ou limpar credenciais, n?o ambos.",
+    },
+    "Provider does not match the selected seller country.": {
+      en: "Provider does not match the selected seller country.",
+      fr: "Le fournisseur ne correspond pas au pays vendeur selectionne.",
+      de: "Der Anbieter entspricht nicht dem ausgewahlten Verkauferland.",
+      es: "El proveedor no coincide con el pa?s del vendedor seleccionado.",
+      pt: "O fornecedor n?o corresponde ao pa?s do vendedor selecionado.",
+    },
+    "Valid provider is required.": {
+      en: "Valid provider is required.",
+      fr: "Un fournisseur valide est requis.",
+      de: "Ein gultiger Anbieter ist erforderlich.",
+      es: "Se requiere un proveedor valido.",
+      pt: "E necessario um fornecedor valido.",
+    },
     Unauthorized: {
       en: "Unauthorized",
       fr: "Non autorise",
@@ -286,7 +541,7 @@ export default function SettingsPage() {
     },
     "Organization access has been disabled.": {
       en: "Organization access has been disabled.",
-      fr: "L accès à l'organisation a ?t? desactive.",
+      fr: "L'acc\u00e8s \u00e0 l'organisation a \u00e9t\u00e9 d\u00e9sactiv\u00e9.",
       de: "Der Zugriff auf die Organisation wurde deaktiviert.",
       es: "El acceso a la organización ha sido desactivado.",
       pt: "O acesso a organização foi desativado.",
@@ -321,10 +576,10 @@ export default function SettingsPage() {
     },
     "BusinessProfile model not available. Run `npx prisma generate` and restart.": {
       en: "Business profile is temporarily unavailable. Please try again shortly.",
-      fr: "Le profil entreprise est temporairement indisponible. Reessayez sous peu.",
+      fr: "Le profil entreprise est temporairement indisponible. R?essayez sous peu.",
       de: "Das Unternehmensprofil ist vorübergehend nicht verfügbar. Bitte versuche es in Kurze erneut.",
-      es: "El perfil de empresa no esta disponible temporalmente. Intentalo de nuevo en breve.",
-      pt: "O perfil da empresa esta temporariamente indisponivel. Tente novamente em breve.",
+      es: "El perfil de empresa no est? disponible temporalmente. Intentalo de nuevo en breve.",
+      pt: "O perfil da empresa esta temporariamente indispon?vel. Tente novamente em breve.",
     },
     "Business profile already exists": {
       en: "Business profile already exists.",
@@ -344,8 +599,8 @@ export default function SettingsPage() {
       en: "Invalid country code.",
       fr: "Code pays invalide.",
       de: "Ungültiger Landercode.",
-      es: "Código de pais no valido.",
-      pt: "Código de pais invalido.",
+      es: "Código de pa?s no valido.",
+      pt: "Código de pa?s invalido.",
     },
     "Unsupported currency": {
       en: "Unsupported currency.",
@@ -401,7 +656,7 @@ export default function SettingsPage() {
       fr: "Impossible d enregistrer les frais de retard.",
       de: "Die Mahngebühreneinstellungen konnten nicht gespeichert werden.",
       es: "No se pudo guardar la configuración de recargos.",
-      pt: "Não foi possivel guardar a configuração das taxas de atraso.",
+      pt: "Não foi poss?vel guardar a configuração das taxas de atraso.",
     },
     "Logo file missing": {
       en: "Logo file missing.",
@@ -413,7 +668,7 @@ export default function SettingsPage() {
     "Unsupported file type": {
       en: "Unsupported file type.",
       fr: "Type de fichier non pris en charge.",
-      de: "Dateityp wird nicht unterstutzt.",
+      de: "Dateityp wird nicht unterst?tzt.",
       es: "Tipo de archivo no admitido.",
       pt: "Tipo de ficheiro não suportado.",
     },
@@ -427,7 +682,7 @@ export default function SettingsPage() {
     "Paystack is not supported for SEPA payouts.": {
       en: "Paystack is not supported for SEPA payouts.",
       fr: "Paystack n est pas pris en charge pour les paiements SEPA.",
-      de: "Paystack wird für SEPA-Auszahlungen nicht unterstutzt.",
+      de: "Paystack wird für SEPA-Auszahlungen nicht unterst?tzt.",
       es: "Paystack no es compatible con cobros SEPA.",
       pt: "A Paystack não e suportada para recebimentos SEPA.",
     },
@@ -448,8 +703,8 @@ export default function SettingsPage() {
     "Payout setup is not supported for this provider.": {
       en: "Payout setup is not supported for this provider.",
       fr: "La configuration de paiement n est pas prise en charge pour ce fournisseur.",
-      de: "Die Auszahlungseinrichtung wird für diesen Anbieter nicht unterstutzt.",
-      es: "La configuración de cobro no esta disponible para este proveedor.",
+      de: "Die Auszahlungseinrichtung wird für diesen Anbieter nicht unterst?tzt.",
+      es: "La configuración de cobro no est? disponible para este proveedor.",
       pt: "A configuração de recebimento não e suportada para este fornecedor.",
     },
     "Account holder name is required.": {
@@ -489,10 +744,10 @@ export default function SettingsPage() {
     },
     "Routing number is required for this payout route.": {
       en: "Routing number is required for this payout route.",
-      fr: "Le numero d acheminement est requis pour ce mode de paiement.",
+      fr: "Le num?ro d acheminement est requis pour ce mode de paiement.",
       de: "Eine Routing-Nummer ist für diesen Auszahlungsweg erforderlich.",
-      es: "El numero de ruta es obligatorio para esta via de cobro.",
-      pt: "O numero de encaminhamento e obrigatório para esta rota de recebimento.",
+      es: "El n?mero de ruta es obligatorio para esta via de cobro.",
+      pt: "O n?mero de encaminhamento e obrigatório para esta rota de recebimento.",
     },
     "Sort code is required for this payout route.": {
       en: "Sort code is required for this payout route.",
@@ -517,14 +772,14 @@ export default function SettingsPage() {
     },
     "Paystack subaccount creation failed.": {
       en: "Paystack subaccount creation failed.",
-      fr: "La creation du sous-compte Paystack a échoué.",
+      fr: "La cr?ation du sous-compte Paystack a échoué.",
       de: "Die Erstellung des Paystack-Unterkontos ist fehlgeschlagen.",
       es: "Fallo la creacion de la subcuenta de Paystack.",
       pt: "Falhou a criacao da subconta da Paystack.",
     },
     "Flutterwave subaccount creation failed.": {
       en: "Flutterwave subaccount creation failed.",
-      fr: "La creation du sous-compte Flutterwave a échoué.",
+      fr: "La cr?ation du sous-compte Flutterwave a échoué.",
       de: "Die Erstellung des Flutterwave-Unterkontos ist fehlgeschlagen.",
       es: "Fallo la creacion de la subcuenta de Flutterwave.",
       pt: "Falhou a criacao da subconta da Flutterwave.",
@@ -572,6 +827,28 @@ export default function SettingsPage() {
       pt: "E necessario um código 2FA ou um código de reserva.",
     },
   };
+    settingsServerMessages[`Type "ERASE MY ACCOUNT" to confirm account erasure.`] = {
+      en: 'Type "ERASE MY ACCOUNT" to confirm account erasure.',
+      fr: 'Saisissez "ERASE MY ACCOUNT" pour confirmer l effacement du compte.',
+      de: 'Gib "ERASE MY ACCOUNT" ein, um die Kontol?schung zu best?tigen.',
+      es: 'Escribe "ERASE MY ACCOUNT" para confirmar el borrado de la cuenta.',
+      pt: 'Escreva "ERASE MY ACCOUNT" para confirmar o apagamento da conta.',
+    };
+    settingsServerMessages["Platform administrator accounts cannot use self-service erasure."] = {
+      en: "Platform administrator accounts cannot use self-service erasure.",
+      fr: "Les comptes administrateur plateforme ne peuvent pas utiliser l effacement libre-service.",
+      de: "Plattform-Administratorkonten k?nnen die Selbstl?schung nicht verwenden.",
+      es: "Las cuentas administradoras de la plataforma no pueden usar el borrado de autoservicio.",
+      pt: "As contas administradoras da plataforma n?o podem usar apagamento self-service.",
+    };
+    settingsServerMessages["User not found"] = {
+      en: "User not found.",
+      fr: "Utilisateur introuvable.",
+      de: "Benutzer nicht gefunden.",
+      es: "Usuario no encontrado.",
+      pt: "Utilizador n?o encontrado.",
+    };
+
   function localizeSettingsServerMessage(message: unknown, fallback?: string | null) {
     const normalized = String(message || "").trim();
     if (!normalized) return fallback || "";
@@ -673,12 +950,16 @@ export default function SettingsPage() {
         businessName: businessProfile.businessName || "",
         country: businessProfile.country || "US",
         defaultCurrency: businessProfile.defaultCurrency || "USD",
-        streetAddress: parsedAddress.streetAddress || "",
+        streetAddress: businessProfile.addressLine1 || parsedAddress.streetAddress || "",
+        addressLine2: businessProfile.addressLine2 || "",
         city: parsedAddress.city || "",
+        state: businessProfile.state || parsedAddress.region || "",
         postalCode: parsedAddress.postalCode || "",
         businessEmail: businessProfile.businessEmail || "",
         businessPhone: businessProfile.businessPhone || "",
         taxId: businessProfile.taxId || "",
+        registrationNumber: businessProfile.registrationNumber || "",
+        branchCode: businessProfile.branchCode || "",
         vatEnabled: Boolean(businessProfile.vatEnabled),
         vatRate:
           businessProfile.vatRateDisplay
@@ -698,9 +979,14 @@ export default function SettingsPage() {
     businessProfile?.country,
     businessProfile?.defaultCurrency,
     businessProfile?.businessAddress,
+    businessProfile?.addressLine1,
+    businessProfile?.addressLine2,
+    businessProfile?.state,
     businessProfile?.businessEmail,
     businessProfile?.businessPhone,
     businessProfile?.taxId,
+    businessProfile?.registrationNumber,
+    businessProfile?.branchCode,
     businessProfile?.vatEnabled,
     businessProfile?.vatRate,
     businessProfile?.vatRateDisplay,
@@ -916,11 +1202,28 @@ export default function SettingsPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setProfileError(
-          localizeSettingsServerMessage(data.error, t("Could not update profile.", "Impossible de mettre a jour le profil."))
+          localizeSettingsServerMessage(
+            data.error,
+            t(
+              "Could not update profile.",
+              "Impossible de mettre ? jour le profil.",
+              "Profil konnte nicht aktualisiert werden.",
+              "No se pudo actualizar el perfil.",
+              "Nao foi possivel atualizar o perfil."
+            )
+          )
         );
         return;
       }
-      setProfileStatus(t("Profile updated.", "Profil mis ? jour."));
+      setProfileStatus(
+        t(
+          "Profile updated.",
+          "Profil mis ? jour.",
+          "Profil aktualisiert.",
+          "Perfil actualizado.",
+          "Perfil atualizado."
+        )
+      );
       if (data?.name || data?.email) {
         setProfile({ name: data?.name || profile.name, email: data?.email || profile.email });
       }
@@ -928,9 +1231,95 @@ export default function SettingsPage() {
       showSavedToast();
       refreshMe();
     } catch {
-      setProfileError(t("Could not update profile.", "Impossible de mettre a jour le profil."));
+      setProfileError(
+        t(
+          "Could not update profile.",
+          "Impossible de mettre ? jour le profil.",
+          "Profil konnte nicht aktualisiert werden.",
+          "No se pudo actualizar el perfil.",
+          "Nao foi possivel atualizar o perfil."
+        )
+      );
     } finally {
       setProfileSaving(false);
+    }
+  };
+
+  const exportPrivacyData = async () => {
+    if (privacyExporting) return;
+    setPrivacyStatus(null);
+    setPrivacyError(null);
+    setPrivacyExporting(true);
+    try {
+      window.location.assign("/api/user/privacy/export");
+      setPrivacyStatus(
+        t(
+          "Account export started.",
+          "L export du compte a commence.",
+          "Kontoexport gestartet.",
+          "La exportacion de la cuenta ha comenzado.",
+          "A exportacao da conta foi iniciada."
+        )
+      );
+    } finally {
+      setPrivacyExporting(false);
+    }
+  };
+
+  const eraseAccount = async () => {
+    if (privacyErasing) return;
+    setPrivacyStatus(null);
+    setPrivacyError(null);
+    setPrivacyErasing(true);
+    try {
+      const response = await fetch("/api/user/privacy/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation: privacyConfirmation }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setPrivacyError(
+          localizeSettingsServerMessage(
+            payload?.error,
+            t(
+              "Unable to erase account.",
+              "Impossible d effacer le compte.",
+              "Konto konnte nicht geloescht werden.",
+              "No se pudo borrar la cuenta.",
+              "Nao foi possivel apagar a conta."
+            )
+          )
+        );
+        return;
+      }
+
+      setPrivacyStatus(
+        t(
+          "Account erased. Signing out...",
+          "Compte efface. Deconnexion...",
+          "Konto geloescht. Abmeldung...",
+          "Cuenta borrada. Cerrando sesion...",
+          "Conta apagada. A terminar sessao..."
+        )
+      );
+      clearDirty("profile");
+      try {
+        await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+      } catch {}
+      await signOut({ callbackUrl: "/" });
+    } catch {
+      setPrivacyError(
+        t(
+          "Unable to erase account.",
+          "Impossible d effacer le compte.",
+          "Konto konnte nicht geloescht werden.",
+          "No se pudo borrar la cuenta.",
+          "Nao foi possivel apagar a conta."
+        )
+      );
+    } finally {
+      setPrivacyErasing(false);
     }
   };
 
@@ -957,7 +1346,7 @@ export default function SettingsPage() {
         setPasswordError(
           localizeSettingsServerMessage(
             data.error,
-            t("Could not update password.", "Impossible de mettre a jour le mot de passe.")
+            t("Could not update password.", "Impossible de mettre ? jour le mot de passe.")
           )
         );
         return;
@@ -968,7 +1357,7 @@ export default function SettingsPage() {
       clearDirty("security");
       showSavedToast();
     } catch {
-      setPasswordError(t("Could not update password.", "Impossible de mettre a jour le mot de passe."));
+      setPasswordError(t("Could not update password.", "Impossible de mettre ? jour le mot de passe."));
     } finally {
       setPasswordSaving(false);
     }
@@ -1118,7 +1507,7 @@ export default function SettingsPage() {
     const addressFields = {
       streetAddress: businessForm.streetAddress,
       city: businessForm.city,
-      region: "",
+      region: businessForm.state,
       postalCode: businessForm.postalCode,
     };
     if (!hasRequiredAddress(addressFields)) {
@@ -1132,9 +1521,16 @@ export default function SettingsPage() {
       country: businessForm.country,
       defaultCurrency: businessForm.defaultCurrency,
       businessAddress: formattedAddress,
+      addressLine1: businessForm.streetAddress,
+      addressLine2: businessForm.addressLine2,
+      city: businessForm.city,
+      state: businessForm.state,
+      postalCode: businessForm.postalCode,
       businessEmail: businessForm.businessEmail,
       businessPhone: businessForm.businessPhone,
       taxId: businessForm.vatEnabled ? businessForm.taxId : "",
+      registrationNumber: businessForm.registrationNumber,
+      branchCode: businessForm.branchCode,
       vatEnabled: businessForm.vatEnabled,
       vatRate: businessForm.vatEnabled ? Number(businessForm.vatRate) : 0,
       vatRateDisplay: businessForm.vatEnabled ? String(businessForm.vatRate).trim() : null,
@@ -1199,13 +1595,13 @@ export default function SettingsPage() {
         setBusinessStatus(
           businessExists
             ? t("Business profile updated.", "Profil entreprise mis ? jour.")
-            : t("Business profile saved.", "Profil entreprise enregistre.")
+            : t("Business profile saved.", "Profil entreprise enregistr?.")
         );
         setBusinessError(
           localizeSettingsServerMessage(lateFeeData.error) ||
             t(
               "Business profile saved, but late fee settings could not be saved.",
-              "Le profil entreprise est enregistre, mais les paramêtres de frais de retard n'ont pas pu être enregistres."
+              "Le profil entreprise est enregistr?, mais les paramêtres de frais de retard n'ont pas pu être enregistres."
             )
         );
         return;
@@ -1214,7 +1610,7 @@ export default function SettingsPage() {
       setBusinessStatus(
         businessExists
           ? t("Business profile updated.", "Profil entreprise mis ? jour.")
-          : t("Business profile saved.", "Profil entreprise enregistre.")
+          : t("Business profile saved.", "Profil entreprise enregistr?.")
       );
       let logoUploadFailed = false;
       if (logoFile) {
@@ -1230,7 +1626,7 @@ export default function SettingsPage() {
           if (!uploadRes.ok) {
             logoUploadFailed = true;
             setLogoError(
-              localizeSettingsServerMessage(uploadData.error, t("Logo upload failed.", "Echec du télevérsement du logo."))
+              localizeSettingsServerMessage(uploadData.error, t("Logo upload failed.", "?chec du télevérsement du logo."))
             );
           } else {
             setLogoFile(null);
@@ -1238,7 +1634,7 @@ export default function SettingsPage() {
           }
         } catch {
           logoUploadFailed = true;
-          setLogoError(t("Logo upload failed.", "Echec du télevérsement du logo."));
+          setLogoError(t("Logo upload failed.", "?chec du télevérsement du logo."));
         } finally {
           setLogoUploading(false);
         }
@@ -1303,7 +1699,7 @@ export default function SettingsPage() {
       return;
     }
     if (!businessPhone) {
-      setPayoutError(t("Business phone is required.", "Le telephone de l entreprise est requis."));
+      setPayoutError(t("Business phone is required.", "Le t?l?phone de l entreprise est requis."));
       return;
     }
     if (!payoutProviderSupportsSelection) {
@@ -1391,7 +1787,7 @@ export default function SettingsPage() {
         );
         return;
       }
-      setPayoutStatus(t("Payout account created.", "Compte de paiement cree."));
+      setPayoutStatus(t("Payout account created.", "Compte de paiement cr?e."));
       clearDirty("payout");
       refreshMerchantAccount();
       showSavedToast();
@@ -1538,7 +1934,7 @@ export default function SettingsPage() {
         <p className="mt-2 text-sm text-muted-foreground">
           {t(
             "Manage your account details, security and business information.",
-            "Gerez les details du compte, la sécurité et les informations entreprise."
+            "G?rez les d?tails du compte, la sécurité et les informations entreprise."
           )}
         </p>
       </div>
@@ -1585,6 +1981,7 @@ export default function SettingsPage() {
         })}
       </div>
       {activeTab === "profile" && (
+      <>
       <Card title={t("Profile Information", "Informations du profil")}>
         {profileStatus ? (
           <TransientAlert variant="success" onDismiss={() => setProfileStatus(null)}>
@@ -1616,11 +2013,129 @@ export default function SettingsPage() {
           />
           <div className="col-span-2 flex justify-end max-md:col-span-1">
             <Button className="max-md:w-full" onClick={saveProfile} loading={profileSaving}>
-              {t("Save Changes", "Enregistrer les modifications")}
+              {t(
+                "Save Changes",
+                "Enregistrer les modifications",
+                "Aenderungen speichern",
+                "Guardar cambios",
+                "Guardar alteracoes"
+              )}
             </Button>
           </div>
         </div>
       </Card>
+      <Card
+        title={t(
+          "Privacy & Account",
+          "Confidentialite et compte",
+          "Datenschutz und Konto",
+          "Privacidad y cuenta",
+          "Privacidade e conta"
+        )}
+      >
+        {privacyStatus ? (
+          <TransientAlert variant="success" onDismiss={() => setPrivacyStatus(null)}>
+            {privacyStatus}
+          </TransientAlert>
+        ) : null}
+        {privacyError && <Alert variant="error">{privacyError}</Alert>}
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-border bg-muted/40 p-4">
+            <p className="text-sm font-semibold text-foreground">
+              {t(
+                "Export account data",
+                "Exporter les donnees du compte",
+                "Kontodaten exportieren",
+                "Exportar datos de la cuenta",
+                "Exportar dados da conta"
+              )}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t(
+                "Download the personal account data Maboria stores for this user, including memberships, billing configuration summaries, and activity records.",
+                "Telechargez les donnees personnelles du compte conservees pour cet utilisateur, y compris les appartenances, les resumes de configuration de facturation et les journaux d activite.",
+                "Laden Sie die personlichen Kontodaten herunter, die Maboria fur diesen Benutzer speichert, einschliesslich Mitgliedschaften, Abrechnungszusammenfassungen und Aktivitatsprotokollen.",
+                "Descarga los datos personales de la cuenta que Maboria guarda para este usuario, incluidas membresias, resumenes de configuracion de facturacion y registros de actividad.",
+                "Transfira os dados pessoais da conta que a Maboria guarda para este utilizador, incluindo associacoes, resumos de configuracao de faturacao e registos de atividade."
+              )}
+            </p>
+            <div className="mt-3 flex justify-end">
+              <Button
+                variant="secondary"
+                className="w-full md:w-auto"
+                onClick={exportPrivacyData}
+                loading={privacyExporting}
+                disabled={privacyErasing}
+              >
+                {t(
+                  "Export account data",
+                  "Exporter les donnees du compte",
+                  "Kontodaten exportieren",
+                  "Exportar datos de la cuenta",
+                  "Exportar dados da conta"
+                )}
+              </Button>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-rose-200 bg-rose-50/70 p-4 dark:border-rose-500/30 dark:bg-rose-500/10">
+            <p className="text-sm font-semibold text-foreground">
+              {t(
+                "Erase account",
+                "Effacer le compte",
+                "Konto loeschen",
+                "Borrar cuenta",
+                "Apagar conta"
+              )}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t(
+                "This redacts your user identity, revokes mailbox and e-invoicing credentials, disables sign-in, and preserves only records that must remain for invoices, security, and audit history.",
+                "Cette action masque votre identite utilisateur, revoque les identifiants de boite mail et de facturation electronique, desactive la connexion et ne conserve que les enregistrements necessaires pour les factures, la securite et l audit.",
+                "Dadurch wird Ihre Benutzeridentitat geschutzt, Mailbox- und E-Rechnungs-Zugangsdaten werden widerrufen, die Anmeldung deaktiviert und nur Datensatze fur Rechnungen, Sicherheit und Auditverlauf bleiben erhalten.",
+                "Esto oculta tu identidad de usuario, revoca las credenciales de buzones y facturacion electronica, desactiva el inicio de sesion y conserva solo los registros necesarios para facturas, seguridad e historial de auditoria.",
+                "Isto oculta a sua identidade de utilizador, revoga credenciais de caixa de correio e faturacao eletronica, desativa o inicio de sessao e preserva apenas os registos necessarios para faturas, seguranca e historico de auditoria."
+              )}
+            </p>
+            <Input
+              label={t(
+                'Type "ERASE MY ACCOUNT" to confirm',
+                'Saisissez "ERASE MY ACCOUNT" pour confirmer',
+                'Geben Sie zur Bestatigung "ERASE MY ACCOUNT" ein',
+                'Escriba "ERASE MY ACCOUNT" para confirmar',
+                'Escreva "ERASE MY ACCOUNT" para confirmar'
+              )}
+              value={privacyConfirmation}
+              onChange={(e) => setPrivacyConfirmation(e.target.value)}
+              placeholder={t(
+                "ERASE MY ACCOUNT",
+                "ERASE MY ACCOUNT",
+                "ERASE MY ACCOUNT",
+                "ERASE MY ACCOUNT",
+                "ERASE MY ACCOUNT"
+              )}
+              className="mt-3"
+            />
+            <div className="mt-3 flex justify-end">
+              <Button
+                variant="danger"
+                className="w-full md:w-auto"
+                onClick={eraseAccount}
+                loading={privacyErasing}
+                disabled={privacyExporting || privacyErasing || privacyConfirmation.trim().toUpperCase() !== "ERASE MY ACCOUNT"}
+              >
+                {t(
+                  "Erase account",
+                  "Effacer le compte",
+                  "Konto loeschen",
+                  "Borrar cuenta",
+                  "Apagar conta"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Card>
+      </>
       )}
       {activeTab === "business" && canReadBusinessSettings && (
       <Card title={t("Business Profile", "Profil entreprise")}>
@@ -1638,7 +2153,7 @@ export default function SettingsPage() {
         ) : null}
         <fieldset disabled={businessFormDisabled} className="grid grid-cols-2 gap-4 max-md:grid-cols-1 max-md:gap-3">
           <div className="col-span-2 border-b border-border pb-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground max-md:col-span-1">
-            {t("Company details", "Details entreprise")}
+            {t("Company details", "D?tails entreprise")}
           </div>
           <Input
             label={t("Business name", "Nom de l entreprise")}
@@ -1675,7 +2190,7 @@ export default function SettingsPage() {
             required
           />
           <PhoneInput
-            label={t("Business phone", "Telephone entreprise")}
+            label={t("Business phone", "T?l?phone entreprise")}
             value={businessForm.businessPhone}
             required
                     locale={language}
@@ -1685,10 +2200,15 @@ export default function SettingsPage() {
             {t("Address", "Adresse")}
           </div>
           <Input
-            label={t("Street address", "Adresse")}
+            label={t("Address line 1", "Adresse ligne 1", "Adresszeile 1", "Linea de direcci?n 1", "Linha de endereco 1")}
             value={businessForm.streetAddress}
             onChange={(e) => updateBusinessField("streetAddress", e.target.value)}
             required
+          />
+          <Input
+            label={t("Address line 2 (optional)", "Adresse ligne 2 (optionnelle)", "Adresszeile 2 (optional)", "Linea de direcci?n 2 (opcional)", "Linha de endereco 2 (opcional)")}
+            value={businessForm.addressLine2}
+            onChange={(e) => updateBusinessField("addressLine2", e.target.value)}
           />
           <Input
             label={t("City", "Ville")}
@@ -1697,16 +2217,31 @@ export default function SettingsPage() {
             required
           />
           <Input
+            label={t("State / Province / Region (optional)", "Etat / province / region (optionnel)", "Bundesland / Region (optional)", "Estado / provincia / region (opcional)", "Estado / provincia / regiao (opcional)")}
+            value={businessForm.state}
+            onChange={(e) => updateBusinessField("state", e.target.value)}
+          />
+          <Input
             label={t("Postal code / ZIP (optional)", "Code postal / ZIP (optionnel)")}
             value={businessForm.postalCode}
             onChange={(e) => updateBusinessField("postalCode", e.target.value)}
+          />
+          <Input
+            label={t("Business registration number (optional)", "Num?ro d immatriculation de l entreprise (optionnel)", "Handelsregisternummer (optional)", "N?mero de registro de la empresa (opcional)", "N?mero de registro da empresa (opcional)")}
+            value={businessForm.registrationNumber}
+            onChange={(e) => updateBusinessField("registrationNumber", e.target.value)}
+          />
+          <Input
+            label={t("Branch code (optional)", "Code de succursale (optionnel)", "Filialcode (optional)", "C?digo de sucursal (opcional)", "C?digo da filial (opcional)")}
+            value={businessForm.branchCode}
+            onChange={(e) => updateBusinessField("branchCode", e.target.value)}
           />
           <div className="col-span-2 border-b border-border pb-2 pt-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground max-md:col-span-1">
             {t("Tax settings", "Paramêtres fiscaux")}
           </div>
           <div className="col-span-2 rounded-xl border border-border bg-muted/30 p-4 max-md:col-span-1">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-medium text-foreground">{t("Enable VAT", "Activer la TVA")}</span>
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <span className="text-sm font-medium text-foreground">{businessTaxToggleLabel}</span>
               <button
                 type="button"
                 role="switch"
@@ -1729,7 +2264,7 @@ export default function SettingsPage() {
               }`}
             >
               <Input
-                label={t("VAT rate (%)", "Taux TVA (%)")}
+                label={businessTaxRateLabel}
                 type="number"
                 min="0"
                 max="30"
@@ -1739,7 +2274,7 @@ export default function SettingsPage() {
                 required={businessForm.vatEnabled}
               />
               <label className="flex flex-col gap-1 text-sm text-foreground">
-                {t("VAT pricing mode", "Mode TVA")}
+                {businessTaxPricingModeLabel}
                 <select
                   value={businessForm.vatPricingMode}
                   onChange={(e) => updateBusinessField("vatPricingMode", e.target.value)}
@@ -1750,7 +2285,7 @@ export default function SettingsPage() {
                 </select>
               </label>
               <Input
-                label={t("Tax ID", "ID fiscal")}
+                label={businessTaxIdLabel}
                 value={businessForm.taxId}
                 onChange={(e) => updateBusinessField("taxId", e.target.value)}
                 required={businessForm.vatEnabled}
@@ -1775,7 +2310,7 @@ export default function SettingsPage() {
               disabled={!canEditBusinessSettings || businessSettingsUnavailable}
               className="text-xs text-muted-foreground transition hover:text-foreground"
             >
-              {t("Reset to defaults", "Reinitialiser")}
+              {t("Reset to defaults", "R?initialiser")}
             </button>
           </div>
           <div className="col-span-2 rounded-xl border border-border bg-muted/30 p-4 max-md:col-span-1">
@@ -1984,11 +2519,11 @@ export default function SettingsPage() {
           </div>
           <label className="col-span-2 flex flex-col gap-1 text-sm text-foreground max-md:order-9 max-md:col-span-1">
             <span className="flex items-center gap-2">
-              {t("Business logo (optional)", "Logo entreprise (optionnel)")}
+              {m("branding.logo.optional")}
               <span ref={logoInfoRef} className="relative">
                 <button
                   type="button"
-                  aria-label={t("Logo upload info", "Infos télevérsement logo")}
+                  aria-label={m("branding.logo.uploadInfo")}
                   onClick={(event) => {
                     event.stopPropagation();
                     setLogoInfoOpen((open) => !open);
@@ -2002,8 +2537,8 @@ export default function SettingsPage() {
                     logoInfoOpen ? "opacity-100" : "pointer-events-none opacity-0"
                   }`}
                 >
-                  <div>{t("Accepted formats: PNG, JPG, SVG", "Formats acceptes : PNG, JPG, SVG")}</div>
-                  <div>{t("Max size: 2MB", "Taille max : 2MB")}</div>
+                  <div>{m("branding.logo.acceptedFormats")}</div>
+                  <div>{m("branding.logo.maxSize")}</div>
                 </div>
               </span>
             </span>
@@ -2025,7 +2560,7 @@ export default function SettingsPage() {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={logoPreviewUrl}
-                      alt={t("Business logo preview", "Aperçu du logo")}
+                      alt={m("branding.logo.preview")}
                       className="h-full w-full object-contain"
                     />
                   </div>
@@ -2035,14 +2570,14 @@ export default function SettingsPage() {
                       onClick={() => logoInputRef.current?.click()}
                       className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-foreground"
                     >
-                      {t("Change logo", "Modifier le logo")}
+                      {m("branding.logo.change")}
                     </button>
                     <button
                       type="button"
                       onClick={removeBusinessLogo}
                       className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-foreground"
                     >
-                      {t("Remove logo", "Supprimer le logo")}
+                      {m("branding.logo.remove")}
                     </button>
                   </div>
                 </div>
@@ -2058,7 +2593,7 @@ export default function SettingsPage() {
                 disabled={!canEditBusinessSettings || businessSettingsUnavailable || (lateFeeForm.lateFeeEnabled && !lateFeeConfigValid)}
               >
                 {businessExists
-                  ? t("Update business profile", "Mettre a jour le profil entreprise")
+                  ? t("Update business profile", "Mettre ? jour le profil entreprise")
                   : t("Save business profile", "Enregistrer le profil entreprise")}
               </Button>
               {lateFeeForm.lateFeeEnabled && !lateFeeConfigValid ? (
@@ -2076,7 +2611,7 @@ export default function SettingsPage() {
         <p className="text-xs text-muted-foreground">
           {t(
             "Payout details are used for invoice settlements.",
-            "Les details de paiement sont utilises pour les règlements de factures."
+            "Les d?tails de paiement sont utilises pour les règlements de factures."
           )}
         </p>
         <div
@@ -2087,7 +2622,7 @@ export default function SettingsPage() {
           }`}
         >
           {payoutConnected
-            ? t("Connected payout account", "Compte de paiement connecte")
+            ? t("Connected payout account", "Compte de paiement connect?")
             : t("Payout account not configured", "Compte de paiement non configure")}
         </div>
         <fieldset disabled={payoutFormDisabled} className="mt-6 rounded-2xl border border-border bg-background/60 p-4">
@@ -2097,7 +2632,7 @@ export default function SettingsPage() {
           <p className="text-xs text-muted-foreground">
             {t(
               "We will create a subaccount on your behalf using the bank details below.",
-              "Nous creerons un sous-compte avec les details bancaires ci-dessous."
+              "Nous creerons un sous-compte avec les d?tails bancaires ci-dessous."
             )}
           </p>
           {payoutStatus ? (
@@ -2157,7 +2692,7 @@ export default function SettingsPage() {
                 <span className="text-xs text-muted-foreground">
                   {t(
                     "This country requires a branch code in addition to bank and account details.",
-                    "Ce pays requiert un code agence en plus de la banque et des details du compte."
+                    "Ce pays requiert un code agence en plus de la banque et des d?tails du compte."
                   )}
                 </span>
               ) : null}
@@ -2165,7 +2700,7 @@ export default function SettingsPage() {
                 <span className="text-xs text-muted-foreground">
                   {t(
                     "US payouts require routing number and SWIFT details.",
-                    "Les paiements vers les Etats-Unis exigent un numero d acheminement et un code SWIFT."
+                    "Les paiements vers les Etats-Unis exigent un num?ro d acheminement et un code SWIFT."
                   )}
                 </span>
               ) : null}
@@ -2394,7 +2929,7 @@ export default function SettingsPage() {
               loading={passwordSaving}
               disabled={!passwordFormValid || passwordSaving}
             >
-              {t("Update password", "Mettre a jour le mot de passe")}
+              {t("Update password", "Mettre ? jour le mot de passe")}
             </Button>
           </div>
         </div>
@@ -2433,7 +2968,7 @@ export default function SettingsPage() {
             <p className="mt-3 text-xs text-muted-foreground">
               {t(
                 "Two-factor authentication is off. Enable it to protect sign-in with a time-based code.",
-                "La double authentification est desactivee. Activez-la pour proteger la connexion."
+                "La double authentification est d?sactiv?e. Activez-la pour proteger la connexion."
               )}
             </p>
           )}
@@ -2450,7 +2985,7 @@ export default function SettingsPage() {
                         fr: "Code QR de configuration de l authentificateur",
                         de: "QR-Code für die Einrichtung der Authenticator-App",
                         es: "Código QR de configuración del autenticador",
-                        pt: "Código QR de configuração da aplicacao autenticadora",
+                        pt: "Código QR de configuração da aplica??o autenticadora",
                       })}
                       width={176}
                       height={176}

@@ -107,6 +107,7 @@ export type AdminTenantDetailResponse = {
       totalMessagesSent: number;
       updatedAt: string;
     } | null;
+    messagingActivityUpdatedAt: string | null;
   };
   billing: {
     provider: string | null;

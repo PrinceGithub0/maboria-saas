@@ -22,6 +22,29 @@ import { parseBusinessAddress } from "./address";
 import { getCountryName } from "./countries";
 import { getOrCreateSubscriberSetting, toLateFeeSettingsSnapshot } from "./subscriber-settings";
 import { sanitizePayoutDetails } from "./payments/payout-requirements";
+import { resolveCustomerContactPolicy } from "./customers/compliance";
+import {
+  buildUniversalInvoiceDocument,
+  validateUniversalInvoiceDocument,
+} from "./invoicing/blueprint/validation";
+import { getBlueprintValidationBlockingReason } from "./invoicing/blueprint/blocking";
+import type {
+  InvoiceDeliveryMode,
+} from "./invoicing/blueprint/types";
+import { resolveInvoiceCompliance } from "./invoicing/resolve-compliance";
+import { resolveInvoiceEInvoicingSnapshot } from "./einvoicing/resolve-provider";
+import {
+  resolveEInvoiceConnectionForUser,
+  resolvePrivateEInvoiceConnectionForUser,
+  toConnectionConfig,
+} from "./einvoicing/connections";
+import { submitEInvoiceDocument } from "./einvoicing/submit-document";
+import {
+  getComplianceInvoiceNote,
+  getComplianceSendBlockingReason,
+} from "./invoicing/note-templates";
+import type { InvoiceBuyerType, InvoiceComplianceResult, InvoiceSupplyType } from "./invoicing/types";
+import type { EInvoiceConnectionConfig, InvoiceEInvoicingSnapshot } from "./einvoicing/types";
 import {
   buildInvoiceIssuerCode,
   formatSequentialInvoiceNumber,
@@ -44,6 +67,13 @@ export type InvoiceItem = {
   quantity: number;
   price: number;
   description?: string;
+  unitCode?: string;
+  classificationCode?: string;
+  taxCategory?: string;
+  taxExemptionReason?: string;
+  incomeClassification?: string;
+  taxAmount?: number;
+  taxRate?: number;
 };
 
 const formatCountryName = (value?: string | null) => {
@@ -65,33 +95,48 @@ const ensureInvoiceFont = () => {
 export const getBusinessLogoBuffer = async (userId: string) => getStoredBusinessLogoBuffer(userId);
 export const getBusinessLogoDataUrl = async (userId: string) => getStoredBusinessLogoDataUrl(userId);
 
-type BusinessProfileSnapshot = {
+export type BusinessProfileSnapshot = {
   businessName: string;
   country: string;
   defaultCurrency: string;
   businessAddress?: string | null;
+  addressLine1?: string | null;
+  addressLine2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postalCode?: string | null;
   businessEmail?: string | null;
   businessPhone?: string | null;
   taxId?: string | null;
+  registrationNumber?: string | null;
+  branchCode?: string | null;
   vatEnabled?: boolean | null;
   vatRate?: number | null;
   vatRateDisplay?: string | null;
   vatPricingMode?: string | null;
 };
 
-type CustomerSnapshot = {
+export type CustomerSnapshot = {
   name?: string | null;
   email?: string | null;
   phone?: string | null;
   address?: string | null;
   streetAddress?: string | null;
+  addressLine2?: string | null;
   city?: string | null;
+  state?: string | null;
   postalCode?: string | null;
   country?: string | null;
   type?: "INDIVIDUAL" | "BUSINESS" | null;
   companyName?: string | null;
   taxId?: string | null;
+  registrationNumber?: string | null;
+  branchCode?: string | null;
   deliveryPreference?: "EMAIL" | "WHATSAPP" | "BOTH" | null;
+  emailOptOut?: boolean | null;
+  whatsappOptOut?: boolean | null;
+  processingRestrictedAt?: string | Date | null;
+  erasedAt?: string | Date | null;
 };
 
 type InvoiceTotalsSnapshot = {
@@ -103,6 +148,436 @@ type InvoiceTotalsSnapshot = {
   vatEnabled?: boolean | null;
   vatMode?: string | null;
 };
+
+export function buildBusinessProfileSnapshot(
+  profile: {
+    businessName: string;
+    country: string;
+    defaultCurrency: string;
+    businessAddress?: string | null;
+    addressLine1?: string | null;
+    addressLine2?: string | null;
+    city?: string | null;
+    state?: string | null;
+    postalCode?: string | null;
+    businessEmail?: string | null;
+    businessPhone?: string | null;
+    taxId?: string | null;
+    registrationNumber?: string | null;
+    branchCode?: string | null;
+    vatEnabled?: boolean | null;
+    vatRate?: number | null;
+    vatRateDisplay?: string | null;
+    vatPricingMode?: string | null;
+  }
+): BusinessProfileSnapshot {
+  const parsedAddress = parseBusinessAddress(profile.businessAddress);
+  return {
+    businessName: profile.businessName,
+    country: profile.country,
+    defaultCurrency: profile.defaultCurrency,
+    businessAddress: profile.businessAddress ?? null,
+    addressLine1: profile.addressLine1 ?? parsedAddress.streetAddress ?? null,
+    addressLine2: profile.addressLine2 ?? null,
+    city: profile.city ?? parsedAddress.city ?? null,
+    state: profile.state ?? parsedAddress.region ?? null,
+    postalCode: profile.postalCode ?? parsedAddress.postalCode ?? null,
+    businessEmail: profile.businessEmail ?? null,
+    businessPhone: profile.businessPhone ?? null,
+    taxId: profile.taxId ?? null,
+    registrationNumber: profile.registrationNumber ?? null,
+    branchCode: profile.branchCode ?? null,
+    vatEnabled: profile.vatEnabled ?? false,
+    vatRate: profile.vatRate !== undefined && profile.vatRate !== null ? Number(profile.vatRate) : 0,
+    vatRateDisplay: profile.vatRateDisplay ?? null,
+    vatPricingMode: profile.vatPricingMode ?? "EXCLUSIVE",
+  };
+}
+
+export function buildInvoiceComplianceSnapshot(input: {
+  business: BusinessProfileSnapshot;
+  customer?: CustomerSnapshot | null;
+  items: InvoiceItem[];
+  buyerType?: InvoiceBuyerType | null;
+  supplyType?: InvoiceSupplyType | null;
+}): InvoiceComplianceResult {
+  return resolveInvoiceCompliance({
+    sellerCountry: input.business.country,
+    sellerTaxId: input.business.taxId,
+    buyerCountry: input.customer?.country,
+    buyerTaxId: input.customer?.taxId,
+    buyerType: input.buyerType,
+    buyerCompanyName: input.customer?.companyName,
+    customerClassification: input.customer?.type,
+    supplyType: input.supplyType,
+    itemNames: input.items.map((item) => [item.name, item.description].filter(Boolean).join(" ")),
+  });
+}
+
+const buildInvoiceBlueprintDeliveryModes = (
+  customer: CustomerSnapshot | null | undefined,
+  compliance: InvoiceComplianceResult
+) => {
+  const deliveryModes = new Set<InvoiceDeliveryMode>(["pdf_download"]);
+  if (customer?.deliveryPreference === "EMAIL" || customer?.deliveryPreference === "BOTH") {
+    deliveryModes.add("email_delivery");
+  }
+  if (compliance.requiresEInvoicing) {
+    deliveryModes.add("xml_export");
+    deliveryModes.add("api_submission");
+  }
+  return [...deliveryModes];
+};
+
+export function buildInvoiceBlueprintArtifacts(input: {
+  invoiceId?: string | null;
+  invoiceNumber?: string | null;
+  issueDate?: Date | null;
+  dueDate?: Date | null;
+  currency: string;
+  business: BusinessProfileSnapshot;
+  customer?: CustomerSnapshot | null;
+  items: InvoiceItem[];
+  totals: {
+    subtotal: number;
+    taxAmount: number;
+    discountAmount: number;
+    total: number;
+  };
+  note?: string | null;
+  buyerType?: InvoiceBuyerType | null;
+  supplyType?: InvoiceSupplyType | null;
+  compliance?: InvoiceComplianceResult | null;
+}) {
+  const compliance =
+    input.compliance ||
+    buildInvoiceComplianceSnapshot({
+      business: input.business,
+      customer: input.customer,
+      items: input.items,
+      buyerType: input.buyerType,
+      supplyType: input.supplyType,
+    });
+
+  const document = buildUniversalInvoiceDocument({
+    invoiceId: input.invoiceId,
+    invoiceNumber: input.invoiceNumber,
+    issueDate: input.issueDate,
+    dueDate: input.dueDate,
+    currency: input.currency,
+    supplier: {
+      legalName: input.business.businessName,
+      tradeName: input.business.businessName,
+      taxId: input.business.taxId,
+      registrationNumber: input.business.registrationNumber,
+      branchCode: input.business.branchCode,
+      email: input.business.businessEmail,
+      phone: input.business.businessPhone,
+      addressLine1: input.business.addressLine1 || input.business.businessAddress,
+      addressLine2: input.business.addressLine2,
+      city: input.business.city,
+      stateRegion: input.business.state,
+      postalCode: input.business.postalCode,
+      countryCode: input.business.country,
+    },
+    customer: {
+      legalName: input.customer?.companyName || input.customer?.name || null,
+      tradeName: input.customer?.companyName || input.customer?.name || null,
+      taxId: input.customer?.taxId,
+      registrationNumber: input.customer?.registrationNumber,
+      branchCode: input.customer?.branchCode,
+      email: input.customer?.email,
+      phone: input.customer?.phone,
+      addressLine1: input.customer?.streetAddress || input.customer?.address,
+      addressLine2: input.customer?.addressLine2,
+      city: input.customer?.city,
+      stateRegion: input.customer?.state,
+      postalCode: input.customer?.postalCode,
+      countryCode: input.customer?.country,
+      classification:
+        input.customer?.type === "BUSINESS"
+          ? "BUSINESS"
+          : input.customer?.type === "INDIVIDUAL"
+            ? "INDIVIDUAL"
+            : "UNKNOWN",
+    },
+    buyerType: input.buyerType || undefined,
+    supplyType: input.supplyType || undefined,
+    lines: input.items.map((item) => ({
+      description: [item.name, item.description].filter(Boolean).join(" ").trim() || item.name,
+      quantity: item.quantity,
+      unitPrice: item.price,
+      taxCode: item.taxCategory,
+      taxRate: item.taxRate,
+      taxAmount: item.taxAmount,
+      lineTotal: item.quantity * item.price,
+      classificationCode: item.classificationCode,
+      unitCode: item.unitCode,
+      exemptionReason: item.taxExemptionReason,
+    })),
+    totals: {
+      subtotal: input.totals.subtotal,
+      taxTotal: input.totals.taxAmount,
+      discountTotal: input.totals.discountAmount,
+      grandTotal: input.totals.total,
+    },
+    deliveryModes: buildInvoiceBlueprintDeliveryModes(input.customer, compliance),
+    notes: input.note,
+    complianceSnapshot: compliance,
+  });
+  const validation = validateUniversalInvoiceDocument(document);
+
+  return {
+    compliance,
+    document: validation.document,
+    validation,
+  };
+}
+
+export function getInvoiceSendBlockingReason(
+  compliance: InvoiceComplianceResult,
+  validation?: import("./invoicing/blueprint/types").BlueprintValidationResult | null
+) {
+  const blueprintBlockingReason = getBlueprintValidationBlockingReason(validation);
+  if (blueprintBlockingReason) {
+    return blueprintBlockingReason;
+  }
+  return getComplianceSendBlockingReason(compliance);
+}
+
+export function getEInvoiceSendBlockingReason(snapshot: InvoiceEInvoicingSnapshot) {
+  if (snapshot.requirement !== "REQUIRED") return null;
+  if (snapshot.status !== "READY") {
+    return snapshot.lastError || "A required e-invoicing connection is not configured for this country yet.";
+  }
+  if (!snapshot.productionReady) {
+    return (
+      snapshot.productionBlockers[0] ||
+      "This country is still blocked on e-invoicing production signoff."
+    );
+  }
+  return null;
+}
+
+export async function submitRequiredInvoiceEInvoicing(input: {
+  userId: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  invoiceStatus: string;
+  currency: string;
+  issuedAt?: Date | null;
+  dueDate?: Date | null;
+  business: BusinessProfileSnapshot;
+  customer?: CustomerSnapshot | null;
+  items: InvoiceItem[];
+  totals: {
+    subtotal: number;
+    taxAmount: number;
+    discountAmount: number;
+    total: number;
+  };
+  compliance: InvoiceComplianceResult;
+}) {
+  if (!input.compliance.requiresEInvoicing) {
+    return null;
+  }
+
+  const connection = await resolvePrivateEInvoiceConnectionForUser({
+    userId: input.userId,
+    context: {
+      invoiceId: input.invoiceId,
+      invoiceNumber: input.invoiceNumber,
+      invoiceStatus: input.invoiceStatus,
+      sellerCountry: input.compliance.sellerCountry,
+      buyerCountry: input.compliance.buyerCountry,
+      currency: input.currency,
+      compliance: input.compliance,
+    },
+  });
+  const fallbackSnapshot = buildInvoiceEInvoicingSnapshot({
+    invoiceId: input.invoiceId,
+    invoiceNumber: input.invoiceNumber,
+    invoiceStatus: input.invoiceStatus,
+    currency: input.currency,
+    issuedAt: input.issuedAt,
+    dueDate: input.dueDate,
+    business: input.business,
+    customer: input.customer,
+    items: input.items,
+    totals: input.totals,
+    compliance: input.compliance,
+    connection,
+  });
+  const blockingReason = getEInvoiceSendBlockingReason(fallbackSnapshot);
+  if (blockingReason) {
+    return {
+      payload: null,
+      snapshot: {
+        ...fallbackSnapshot,
+        status: "VALIDATION_FAILED",
+        lastError: blockingReason,
+        warnings: [
+          ...fallbackSnapshot.warnings,
+          "Live e-invoice submission is blocked until the required production gates are complete.",
+        ],
+      },
+    };
+  }
+
+  try {
+    return await submitEInvoiceDocument({
+      invoiceId: input.invoiceId,
+      invoiceNumber: input.invoiceNumber,
+      invoiceStatus: input.invoiceStatus,
+      sellerCountry: input.compliance.sellerCountry,
+      buyerCountry: input.compliance.buyerCountry,
+      currency: input.currency,
+      issuedAt: input.issuedAt?.toISOString() ?? null,
+      dueDate: input.dueDate?.toISOString() ?? null,
+      business: {
+        legalName: input.business.businessName,
+        email: input.business.businessEmail,
+        phone: input.business.businessPhone,
+        taxId: input.business.taxId,
+        registrationNumber: input.business.registrationNumber,
+        country: input.business.country,
+        addressLine1: input.business.addressLine1 || input.business.businessAddress,
+        addressLine2: input.business.addressLine2,
+        city: input.business.city,
+        postalCode: input.business.postalCode,
+      },
+      customer: input.customer
+        ? {
+            legalName: input.customer.companyName || input.customer.name,
+            contactName: input.customer.name,
+            email: input.customer.email,
+            phone: input.customer.phone,
+            taxId: input.customer.taxId,
+            registrationNumber: input.customer.registrationNumber,
+            country: input.customer.country,
+            addressLine1: input.customer.streetAddress || input.customer.address,
+            addressLine2: input.customer.addressLine2,
+            city: input.customer.city,
+            postalCode: input.customer.postalCode,
+          }
+        : null,
+      items: input.items.map((item) => ({
+        name: item.name,
+        description: item.description ?? null,
+        quantity: Number(item.quantity || 0),
+        unitPrice: Number(item.price || 0),
+        lineTotal: Number(item.quantity || 0) * Number(item.price || 0),
+        taxAmount: item.taxAmount ?? null,
+        unitCode: item.unitCode ?? null,
+        classificationCode: item.classificationCode ?? null,
+        taxCategory: item.taxCategory ?? null,
+        taxExemptionReason: item.taxExemptionReason ?? null,
+        incomeClassification: item.incomeClassification ?? null,
+      })),
+      totals: input.totals,
+      compliance: input.compliance,
+      connection,
+    });
+  } catch (error: any) {
+    return {
+      payload: null,
+      snapshot: {
+        ...fallbackSnapshot,
+        status: "VALIDATION_FAILED",
+        lastError: String(error?.message || "E-invoice submission failed.").trim(),
+        warnings: [
+          ...fallbackSnapshot.warnings,
+          "Live e-invoice submission failed before the invoice could be sent.",
+        ],
+      },
+    };
+  }
+}
+
+export function buildInvoiceEInvoicingSnapshot(input: {
+  invoiceId?: string | null;
+  invoiceNumber?: string | null;
+  invoiceStatus?: string | null;
+  currency?: string | null;
+  issuedAt?: Date | null;
+  dueDate?: Date | null;
+  business?: BusinessProfileSnapshot | null;
+  customer?: CustomerSnapshot | null;
+  items?: InvoiceItem[];
+  totals?: {
+    subtotal: number;
+    taxAmount: number;
+    discountAmount: number;
+    total: number;
+  } | null;
+  transportDocument?: {
+    format?: "XML" | "UBL_XML" | "JSON" | null;
+    documentBase64?: string | null;
+    invoiceHash?: string | null;
+    uuid?: string | null;
+    digest?: string | null;
+    mode?: "CLEARANCE" | "REPORTING" | null;
+  } | null;
+  compliance: InvoiceComplianceResult;
+  connection?: EInvoiceConnectionConfig | null;
+}): InvoiceEInvoicingSnapshot {
+  return resolveInvoiceEInvoicingSnapshot({
+    invoiceId: input.invoiceId,
+    invoiceNumber: input.invoiceNumber,
+    invoiceStatus: input.invoiceStatus,
+    sellerCountry: input.compliance.sellerCountry,
+    buyerCountry: input.compliance.buyerCountry,
+    currency: input.currency,
+    issuedAt: input.issuedAt?.toISOString() ?? null,
+    dueDate: input.dueDate?.toISOString() ?? null,
+    business: input.business
+      ? {
+          legalName: input.business.businessName,
+          email: input.business.businessEmail,
+          phone: input.business.businessPhone,
+          taxId: input.business.taxId,
+          registrationNumber: input.business.registrationNumber,
+          country: input.business.country,
+          addressLine1: input.business.addressLine1 || input.business.businessAddress,
+          addressLine2: input.business.addressLine2,
+          city: input.business.city,
+          postalCode: input.business.postalCode,
+        }
+      : null,
+    customer: input.customer
+      ? {
+          legalName: input.customer.companyName || input.customer.name,
+          contactName: input.customer.name,
+          email: input.customer.email,
+          phone: input.customer.phone,
+          taxId: input.customer.taxId,
+          registrationNumber: input.customer.registrationNumber,
+          country: input.customer.country,
+          addressLine1: input.customer.streetAddress || input.customer.address,
+          addressLine2: input.customer.addressLine2,
+          city: input.customer.city,
+          postalCode: input.customer.postalCode,
+        }
+      : null,
+    items: (input.items || []).map((item) => ({
+      name: item.name,
+      description: item.description ?? null,
+      quantity: Number(item.quantity || 0),
+      unitPrice: Number(item.price || 0),
+      lineTotal: Number(item.quantity || 0) * Number(item.price || 0),
+      taxAmount: item.taxAmount ?? null,
+      unitCode: item.unitCode ?? null,
+      classificationCode: item.classificationCode ?? null,
+      taxCategory: item.taxCategory ?? null,
+      taxExemptionReason: item.taxExemptionReason ?? null,
+      incomeClassification: item.incomeClassification ?? null,
+    })),
+    totals: input.totals || null,
+    transportDocument: input.transportDocument ?? null,
+    compliance: input.compliance,
+    connection: input.connection ?? null,
+  });
+}
 
 export function resolveInvoiceCustomer(metadata: any): CustomerSnapshot | null {
   const raw = (metadata?.customer ?? {}) as Record<string, any>;
@@ -118,6 +593,7 @@ export function resolveInvoiceCustomer(metadata: any): CustomerSnapshot | null {
   const streetAddress =
     raw.streetAddress ?? raw.street ?? raw.addressLine1 ?? parsedAddress.streetAddress;
   const city = raw.city ?? parsedAddress.city;
+  const state = raw.state ?? parsedAddress.region;
   const postalCode = raw.postalCode ?? raw.zip ?? parsedAddress.postalCode;
   const country = formatCountryName(raw.country ?? raw.region ?? parsedAddress.region);
   const composedAddress = [streetAddress, city, postalCode, country]
@@ -137,7 +613,9 @@ export function resolveInvoiceCustomer(metadata: any): CustomerSnapshot | null {
     phone,
     address,
     streetAddress,
+    addressLine2: raw.addressLine2 ?? null,
     city,
+    state,
     postalCode,
     country,
     type: type === "BUSINESS" ? "BUSINESS" : type === "INDIVIDUAL" ? "INDIVIDUAL" : undefined,
@@ -152,11 +630,13 @@ export function resolveInvoiceCustomer(metadata: any): CustomerSnapshot | null {
 
 const composeInvoiceNote = (metadata: any) => {
   const note = typeof metadata?.note === "string" ? metadata.note.trim() : "";
+  const compliance = metadata?.compliance as Partial<InvoiceComplianceResult> | undefined;
+  const complianceNote = getComplianceInvoiceNote(compliance);
   const lateFeeNotice =
     typeof metadata?.lateFeePolicyNotice === "string"
       ? metadata.lateFeePolicyNotice.trim()
       : "";
-  const parts = [note, lateFeeNotice].filter(Boolean);
+  const parts = [note, complianceNote, lateFeeNotice].filter(Boolean);
   return parts.length ? parts.join("\n\n") : null;
 };
 
@@ -208,9 +688,16 @@ const normalizeBusinessProfileSnapshot = (
     country: String(value.country || "").trim(),
     defaultCurrency: String(value.defaultCurrency || "USD").trim() || "USD",
     businessAddress: value.businessAddress ?? null,
+    addressLine1: value.addressLine1 ?? parseBusinessAddress(value.businessAddress).streetAddress ?? null,
+    addressLine2: value.addressLine2 ?? null,
+    city: value.city ?? parseBusinessAddress(value.businessAddress).city ?? null,
+    state: value.state ?? parseBusinessAddress(value.businessAddress).region ?? null,
+    postalCode: value.postalCode ?? parseBusinessAddress(value.businessAddress).postalCode ?? null,
     businessEmail: value.businessEmail ?? null,
     businessPhone: value.businessPhone ?? null,
     taxId: value.taxId ?? null,
+    registrationNumber: value.registrationNumber ?? null,
+    branchCode: value.branchCode ?? null,
     vatEnabled: value.vatEnabled ?? false,
     vatRate: value.vatRate !== undefined && value.vatRate !== null ? Number(value.vatRate) : 0,
     vatRateDisplay: value.vatRateDisplay ?? null,
@@ -295,6 +782,17 @@ export const normalizeInvoiceItems = (value: unknown): InvoiceItem[] => {
       quantity,
       price,
       description: typeof item?.description === "string" ? item.description : undefined,
+      unitCode: typeof item?.unitCode === "string" ? item.unitCode : undefined,
+      classificationCode:
+        typeof item?.classificationCode === "string" ? item.classificationCode : undefined,
+      taxCategory: typeof item?.taxCategory === "string" ? item.taxCategory : undefined,
+      taxExemptionReason:
+        typeof item?.taxExemptionReason === "string" ? item.taxExemptionReason : undefined,
+      incomeClassification:
+        typeof item?.incomeClassification === "string" ? item.incomeClassification : undefined,
+      taxAmount:
+        item?.taxAmount !== undefined && item?.taxAmount !== null ? Number(item.taxAmount) : undefined,
+      taxRate: item?.taxRate !== undefined && item?.taxRate !== null ? Number(item.taxRate) : undefined,
     };
   });
 };
@@ -313,6 +811,8 @@ export async function createInvoiceRecord({
   issueDate,
   dueDate,
   note,
+  buyerType,
+  supplyType,
 }: {
   userId: string;
   invoiceNumber: string;
@@ -327,6 +827,8 @@ export async function createInvoiceRecord({
   issueDate?: Date;
   dueDate?: Date;
   note?: string;
+  buyerType?: InvoiceBuyerType | null;
+  supplyType?: InvoiceSupplyType | null;
 }) {
   const entitlement = await enforceEntitlement(userId, {
     feature: "invoices",
@@ -356,6 +858,9 @@ export async function createInvoiceRecord({
       email: true,
       phone: true,
       taxId: true,
+      companyName: true,
+      registrationNumber: true,
+      branchCode: true,
       addressLine1: true,
       addressLine2: true,
       city: true,
@@ -363,6 +868,10 @@ export async function createInvoiceRecord({
       postalCode: true,
       country: true,
       deliveryPreference: true,
+      emailOptOut: true,
+      whatsappOptOut: true,
+      processingRestrictedAt: true,
+      erasedAt: true,
     },
   });
   if (!customerRecord) {
@@ -376,15 +885,24 @@ export async function createInvoiceRecord({
     email: customerRecord.email,
     phone: customerRecord.phone,
     taxId: customerRecord.taxId,
+    companyName: customerRecord.companyName,
+    registrationNumber: customerRecord.registrationNumber,
+    branchCode: customerRecord.branchCode,
     address: [customerRecord.addressLine1, customerRecord.addressLine2, customerRecord.city, customerRecord.state, customerRecord.postalCode, customerRecord.country]
       .map((value) => String(value || "").trim())
       .filter(Boolean)
       .join("\n"),
     streetAddress: customerRecord.addressLine1,
+    addressLine2: customerRecord.addressLine2,
     city: customerRecord.city,
+    state: customerRecord.state,
     postalCode: customerRecord.postalCode,
     country: customerRecord.country,
     deliveryPreference: customerRecord.deliveryPreference,
+    emailOptOut: customerRecord.emailOptOut,
+    whatsappOptOut: customerRecord.whatsappOptOut,
+    processingRestrictedAt: customerRecord.processingRestrictedAt,
+    erasedAt: customerRecord.erasedAt,
   };
 
   const immutableCustomerSnapshot =
@@ -394,6 +912,9 @@ export async function createInvoiceRecord({
           email: customerRecord.email,
           phone: customerRecord.phone,
           taxId: customerRecord.taxId,
+          companyName: customerRecord.companyName,
+          registrationNumber: customerRecord.registrationNumber,
+          branchCode: customerRecord.branchCode,
           address: {
             addressLine1: customerRecord.addressLine1,
             addressLine2: customerRecord.addressLine2,
@@ -403,6 +924,10 @@ export async function createInvoiceRecord({
             country: customerRecord.country,
           },
           deliveryPreference: customerRecord.deliveryPreference,
+          emailOptOut: customerRecord.emailOptOut,
+          whatsappOptOut: customerRecord.whatsappOptOut,
+          processingRestrictedAt: customerRecord.processingRestrictedAt,
+          erasedAt: customerRecord.erasedAt,
         }
       : undefined;
   const profile = await prisma.businessProfile.findUnique({
@@ -412,9 +937,16 @@ export async function createInvoiceRecord({
       country: true,
       defaultCurrency: true,
       businessAddress: true,
+      addressLine1: true,
+      addressLine2: true,
+      city: true,
+      state: true,
+      postalCode: true,
       businessEmail: true,
       businessPhone: true,
       taxId: true,
+      registrationNumber: true,
+      branchCode: true,
       vatEnabled: true,
       vatRate: true,
       vatRateDisplay: true,
@@ -434,19 +966,10 @@ export async function createInvoiceRecord({
     throw error;
   }
 
-  const businessSnapshot: BusinessProfileSnapshot = {
-    businessName: profile.businessName,
-    country: profile.country,
-    defaultCurrency: profile.defaultCurrency,
-    businessAddress: profile.businessAddress ?? null,
-    businessEmail: profile.businessEmail ?? null,
-    businessPhone: profile.businessPhone ?? null,
-    taxId: profile.taxId ?? null,
-    vatEnabled: profile.vatEnabled ?? false,
+  const businessSnapshot = buildBusinessProfileSnapshot({
+    ...profile,
     vatRate: profile.vatRate ? Number(profile.vatRate) : 0,
-    vatRateDisplay: profile.vatRateDisplay ?? null,
-    vatPricingMode: profile.vatPricingMode ?? "EXCLUSIVE",
-  };
+  });
   const vatSettings = normalizeVatSettings({
     enabled: businessSnapshot.vatEnabled ?? false,
     rate: businessSnapshot.vatRate ?? 0,
@@ -471,6 +994,44 @@ export async function createInvoiceRecord({
     vatEnabled: totals.vatEnabled,
     vatMode: totals.vatMode,
   };
+  const compliance = buildInvoiceComplianceSnapshot({
+    business: businessSnapshot,
+    customer: liveCustomer,
+    items,
+    buyerType,
+    supplyType,
+  });
+  const buildBlueprintArtifactsForInvoiceNumber = (resolvedInvoiceNumber: string) =>
+    buildInvoiceBlueprintArtifacts({
+      invoiceNumber: resolvedInvoiceNumber,
+      issueDate,
+      dueDate,
+      currency: normalizedCurrency,
+      business: businessSnapshot,
+      customer: liveCustomer,
+      items,
+      totals: {
+        subtotal: totals.subtotal,
+        taxAmount: totals.taxAmount,
+        discountAmount: totals.discountAmount,
+        total: totals.total,
+      },
+      note,
+      buyerType,
+      supplyType,
+      compliance,
+    });
+  const eInvoicingConnection = toConnectionConfig(
+    await resolveEInvoiceConnectionForUser({
+      userId,
+      context: {
+        sellerCountry: compliance.sellerCountry,
+        buyerCountry: compliance.buyerCountry,
+        currency: normalizedCurrency,
+        compliance,
+      },
+    })
+  );
   const sanitizedInvoiceNumber = String(invoiceNumber || "").trim();
   const shouldGenerateInvoiceNumber = shouldAutoGenerateInvoiceNumber(sanitizedInvoiceNumber);
   const invoiceYear = getInvoiceNumberYear(issueDate);
@@ -498,6 +1059,7 @@ export async function createInvoiceRecord({
         ? base
         : `${base}-${crypto.randomInt(1000, 10000)}`;
     try {
+      const blueprintArtifacts = buildBlueprintArtifactsForInvoiceNumber(candidate);
       let created = await prisma.invoice.create({
         data: {
           userId,
@@ -515,6 +1077,22 @@ export async function createInvoiceRecord({
           metadata: {
             businessProfile: businessSnapshot,
             invoiceTotals: totalsSnapshot,
+            compliance,
+            complianceDocument: blueprintArtifacts.document as any,
+            complianceValidation: blueprintArtifacts.validation as any,
+            eInvoicing: buildInvoiceEInvoicingSnapshot({
+              invoiceNumber: candidate,
+              invoiceStatus: normalizedStatus,
+              currency: normalizedCurrency,
+              issuedAt: issueDate,
+              dueDate,
+              business: businessSnapshot,
+              customer: liveCustomer,
+              items,
+              totals: totalsSnapshot,
+              compliance,
+              connection: eInvoicingConnection,
+            }),
             customer: liveCustomer,
             poNumber: poNumber ? String(poNumber).trim() : undefined,
             dueDate: dueDate ? dueDate.toISOString() : undefined,
@@ -536,6 +1114,56 @@ export async function createInvoiceRecord({
           },
         });
       }
+      if (normalizedStatus === "SENT" && compliance.requiresEInvoicing) {
+        const eInvoiceResult = await submitRequiredInvoiceEInvoicing({
+          userId,
+          invoiceId: created.id,
+          invoiceNumber: created.invoiceNumber,
+          invoiceStatus: created.status,
+          currency: normalizedCurrency,
+          issuedAt: issueDate,
+          dueDate,
+          business: businessSnapshot,
+          customer: liveCustomer,
+          items,
+          totals: {
+            subtotal: totals.subtotal,
+            taxAmount: totals.taxAmount,
+            discountAmount: totals.discountAmount,
+            total: totals.total,
+          },
+          compliance,
+        });
+        if (eInvoiceResult) {
+          const successfulSubmissionStatuses = new Set(["QUEUED", "SUBMITTED", "ACCEPTED"]);
+          const nextStatus = successfulSubmissionStatuses.has(eInvoiceResult.snapshot.status) ? "SENT" : "DRAFT";
+          created = await prisma.invoice.update({
+            where: { id: created.id },
+            data: {
+              status: nextStatus as any,
+              metadata: {
+                ...((created.metadata as any) || {}),
+                eInvoicing: eInvoiceResult.snapshot,
+              },
+            },
+          });
+          if (nextStatus !== "SENT") {
+            throw new Error(eInvoiceResult.snapshot.lastError || "Could not submit the e-invoice.");
+          }
+        }
+      }
+      try {
+        const { upsertInvoiceComplianceArtifacts } = await import("./invoicing/blueprint/storage");
+        await upsertInvoiceComplianceArtifacts({
+          invoiceId: created.id,
+          validation: blueprintArtifacts.validation,
+        });
+      } catch (error) {
+        log("warn", "invoice_compliance_record_persist_failed", {
+          invoiceId: created.id,
+          error,
+        });
+      }
       try {
         await notifyInvoiceCreated({
           userId,
@@ -554,6 +1182,10 @@ export async function createInvoiceRecord({
             ...liveCustomer,
             phone: customerRecord.phone,
             deliveryPreference: customerRecord.deliveryPreference,
+            emailOptOut: customerRecord.emailOptOut,
+            whatsappOptOut: customerRecord.whatsappOptOut,
+            processingRestrictedAt: customerRecord.processingRestrictedAt,
+            erasedAt: customerRecord.erasedAt,
           }, pdfBuffer);
         } catch (error) {
           await prisma.invoice.update({
@@ -630,6 +1262,7 @@ export type InvoicePdfInput = {
   paymentDetails?: InvoicePaymentDetails | null;
   logoBuffer?: Buffer | null;
   note?: string | null;
+  compliance?: Partial<InvoiceComplianceResult> | null;
 };
 
 export type InvoicePaymentDetails = {
@@ -739,15 +1372,12 @@ async function readStoredPdf(pdfUrl?: string | null) {
 }
 
 const getInvoiceDeliveryChannels = (customer?: CustomerSnapshot | null) => {
-  const shouldEmail =
-    (customer?.deliveryPreference === "EMAIL" || customer?.deliveryPreference === "BOTH") &&
-    Boolean(customer?.email);
-  const shouldWhatsapp =
-    (customer?.deliveryPreference === "WHATSAPP" || customer?.deliveryPreference === "BOTH") &&
-    Boolean(customer?.phone);
-  const fallbackEmail = !shouldEmail && !shouldWhatsapp && Boolean(customer?.email);
-  const fallbackWhatsapp = !shouldEmail && !shouldWhatsapp && Boolean(customer?.phone);
-  return { shouldEmail, shouldWhatsapp, fallbackEmail, fallbackWhatsapp };
+  const policy = resolveCustomerContactPolicy(customer);
+  return {
+    shouldEmail: policy.shouldEmail,
+    shouldWhatsapp: policy.shouldWhatsapp,
+    blockedReason: policy.blockedReason,
+  };
 };
 
 const getInvoiceSupportingFiles = (metadata: any) =>
@@ -922,6 +1552,8 @@ export function buildInvoicePdfBuffer(input: InvoicePdfInput) {
     const showTax =
       Boolean((input.totals as any).vatEnabled) && Number((input.totals as any).vatRate || 0) > 0;
     const taxRate = Number((input.totals as any).vatRate || 0);
+    const taxLabelBase = String(input.compliance?.taxLabel || "VAT").trim() || "VAT";
+    const taxLabelWithRate = `${taxLabelBase} (${formatVatRateLabel(taxRate, (input.business as any)?.vatRateDisplay)}%)`;
     const lateFeeAmount = roundMoney(Math.max(0, Number(input.lateFeeAmount || 0)));
     const showLateFee = lateFeeAmount > 0;
     const totalDue = roundMoney(
@@ -1127,7 +1759,7 @@ export function buildInvoicePdfBuffer(input: InvoicePdfInput) {
       const taxChipX = left + detailBoxWidth - taxChipWidth - 14;
       const taxChipY = y + lowerBoxHeight - taxChipHeight - 10;
       drawFittedText(
-        `VAT (${formatVatRateLabel(taxRate, (input.business as any)?.vatRateDisplay)}%)`,
+        taxLabelWithRate,
         taxChipX + 10,
         taxChipY + 8,
         taxChipWidth - 20,
@@ -1408,10 +2040,7 @@ export function buildInvoicePdfBuffer(input: InvoicePdfInput) {
 
     drawSummaryRow("Subtotal", formatMoney(input.totals.subtotal));
     if (showTax) {
-      drawSummaryRow(
-        `VAT (${formatVatRateLabel(taxRate, (input.business as any)?.vatRateDisplay)}%)`,
-        formatMoney(input.totals.taxAmount)
-      );
+      drawSummaryRow(taxLabelWithRate, formatMoney(input.totals.taxAmount));
     }
     if (showDiscount) {
       drawSummaryRow("Discount", `-${formatMoney(input.totals.discountAmount)}`);
@@ -1511,6 +2140,7 @@ export async function ensureInvoicePdf({
     paymentDetails,
     logoBuffer: await getStoredBusinessLogoBuffer(invoice.userId || ""),
     note: composeInvoiceNote(metadata),
+    compliance: metadata?.compliance || null,
   });
   const pdfUrl = await persistInvoicePdf(invoice.id, invoice.invoiceNumber, pdfBuffer);
   await prisma.invoice.update({
@@ -1610,11 +2240,9 @@ export async function deliverInvoiceToCustomer(
   const channels = getInvoiceDeliveryChannels(customer);
   if (
     !channels.shouldEmail &&
-    !channels.shouldWhatsapp &&
-    !channels.fallbackEmail &&
-    !channels.fallbackWhatsapp
+    !channels.shouldWhatsapp
   ) {
-    const error = new Error("Customer has no delivery contact.");
+    const error = new Error(channels.blockedReason || "Customer contact policy blocks delivery.");
     (error as any).status = 400;
     throw error;
   }
@@ -1652,7 +2280,7 @@ export async function deliverInvoiceToCustomer(
   const channelsSent: Array<"EMAIL" | "WHATSAPP"> = [];
   const deliveryErrors: Error[] = [];
 
-  if (channels.shouldEmail || channels.fallbackEmail) {
+  if (channels.shouldEmail) {
     try {
       await emailInvoice({
         to: String(customer?.email),
@@ -1669,7 +2297,7 @@ export async function deliverInvoiceToCustomer(
     }
   }
 
-  if (channels.shouldWhatsapp || channels.fallbackWhatsapp) {
+  if (channels.shouldWhatsapp) {
     const toPhone = String(customer?.phone || "");
     const supportingPublicFiles = storedSupportingFiles.map((file) => ({
       ...file,
@@ -1782,6 +2410,7 @@ export async function sendInvoiceEmailToCustomer(
       paymentDetails,
       logoBuffer: await getStoredBusinessLogoBuffer(invoice.userId || ""),
       note: composeInvoiceNote(metadata),
+      compliance: metadata?.compliance || null,
     });
   } catch (error) {
     log("warn", "invoice_email_pdf_fallback", { invoiceId: invoice.id, error });

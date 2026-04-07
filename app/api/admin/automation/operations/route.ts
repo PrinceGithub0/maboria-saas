@@ -26,6 +26,11 @@ const hasProviderFailure = (logs: unknown, providerStep: "sendEmail" | "sendWhat
   });
 };
 
+const isDuePendingRun = (output: unknown, now: Date) => {
+  const nextRunAt = parseNextRunAt(output);
+  return !nextRunAt || nextRunAt.getTime() <= now.getTime();
+};
+
 export const GET = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
   const denied = requirePlatformAdmin(session?.user);
@@ -71,7 +76,7 @@ export const GET = withErrorHandling(async (req: Request) => {
 
   const duePending = pendingRuns
     .map((run) => ({ run, nextRunAt: parseNextRunAt(run.output) }))
-    .filter((item) => item.nextRunAt && item.nextRunAt.getTime() <= now.getTime())
+    .filter(({ run }) => isDuePendingRun(run.output, now))
     .slice(0, 100)
     .map(({ run, nextRunAt }) => ({
       id: run.id,

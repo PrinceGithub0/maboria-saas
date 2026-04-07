@@ -10,7 +10,7 @@ import { useLanguage } from "@/components/providers/language-provider";
 
 const NEUTRAL_MESSAGE_EN = "If an account exists for this email, a reset link has been sent.";
 const NEUTRAL_MESSAGE_FR =
-  "Si un compte existe pour cet email, un lien de reinitialisation a ?t? envoye.";
+  "Si un compte existe pour cet email, un lien de r\u00e9initialisation a \u00e9t\u00e9 envoy\u00e9.";
 
 export default function ForgotPasswordPage() {
   const { t } = useLanguage();
@@ -47,12 +47,12 @@ export default function ForgotPasswordPage() {
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">MABORIA</p>
             <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-              {t("Reset your password", "Reinitialiser votre mot de passe")}
+              {t("Reset your password", "R?initialiser votre mot de passe")}
             </h1>
             <p className="text-sm text-muted-foreground">
               {t(
                 "Enter your account email and we'll send you a secure reset link.",
-                "Entrez votre email de compte et nous vous enverrons un lien securise."
+                "Entrez votre email de compte et nous vous enverrons un lien s?curis?."
               )}
             </p>
           </div>

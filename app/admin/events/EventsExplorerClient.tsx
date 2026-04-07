@@ -311,7 +311,7 @@ export default function EventsExplorerClient({ actorRole }: { actorRole: ActorRo
     userId ? { label: `${t("User", "Utilisateur", "Benutzer", "Usuario", "Utilizador")} ${userId}`, clear: () => setUserId("") } : null,
     entityId ? { label: `${t("Entity", "Entite", "Entitaet", "Entidad", "Entidade")} ${entityId}`, clear: () => setEntityId("") } : null,
     q ? { label: `${t("Search", "Recherche", "Suche", "Buscar", "Pesquisar")} ${q}`, clear: () => { setQ(""); setQInput(""); } } : null,
-    preset !== "custom" ? { label: preset === "24h" ? t("Last 24h", "Dernieres 24h", "Letzte 24h", "Ultimas 24h", "Ultimas 24h") : preset === "7d" ? t("Last 7d", "Derniers 7j", "Letzte 7T", "Ultimos 7d", "Ultimos 7d") : t("Last 30d", "Derniers 30j", "Letzte 30T", "Ultimos 30d", "Ultimos 30d"), clear: () => applyPreset("7d") } : null,
+    preset !== "custom" ? { label: preset === "24h" ? t("Last 24h", "Dernieres 24h", "Letzte 24h", "?ltimas 24h", "Ultimas 24h") : preset === "7d" ? t("Last 7d", "Derniers 7j", "Letzte 7T", "?ltimos 7d", "?ltimos 7d") : t("Last 30d", "Derniers 30j", "Letzte 30T", "?ltimos 30d", "?ltimos 30d"), clear: () => applyPreset("7d") } : null,
     preset === "custom" && (from || to)
       ? {
           label: t("Custom range", "Plage personnalisee", "Benutzerdefinierter Bereich", "Rango personalizado", "Intervalo personalizado"),
@@ -364,7 +364,7 @@ export default function EventsExplorerClient({ actorRole }: { actorRole: ActorRo
     <div className="mx-auto w-full max-w-[1480px] space-y-4 px-6 py-5">
       <header className="space-y-2">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">{t("Events Explorer", "Explorateur d'evenements", "Ereignis-Explorer", "Explorador de eventos", "Explorador de eventos")}</h1>
+          <h1 className="text-2xl font-semibold text-foreground">{t("Events Explorer", "Explorateur d'?v?nements", "Ereignis-Explorer", "Explorador de eventos", "Explorador de eventos")}</h1>
           <p className="text-sm text-muted-foreground">{t("Search system activity across tenants and users", "Rechercher l'activité systeme sur tous les locataires et utilisateurs", "Systemaktivitaet ueber Mandanten und Benutzer hinweg durchsuchen", "Buscar actividad del sistema entre tenants y usuarios", "Pesquisar atividade do sistema entre tenants e utilizadores")}</p>
         </div>
       </header>
@@ -412,14 +412,14 @@ export default function EventsExplorerClient({ actorRole }: { actorRole: ActorRo
             <option value="AUTH">{t("Auth", "Auth", "Auth", "Auth", "Auth")}</option>
             <option value="BILLING">{t("Billing", "Facturation", "Abrechnung", "Facturación", "Faturação")}</option>
             <option value="AUTOMATION">{t("Automation", "Automatisation", "Automatisierung", "Automatización", "Automação")}</option>
-            <option value="INBOX">{t("Inbox", "Boite de reception", "Posteingang", "Bandeja de entrada", "Caixa de entrada")}</option>
+            <option value="INBOX">{t("Inbox", "Bo?te de reception", "Posteingang", "Bandeja de entrada", "Caixa de entrada")}</option>
             <option value="SUPPORT">{t("Support", "Support", "Support", "Soporte", "Suporte")}</option>
             <option value="SYSTEM">{t("System", "Systeme", "System", "Sistema", "Sistema")}</option>
           </select>
           <select value={preset} onChange={(event) => applyPreset(event.target.value as TimePreset)} className="h-10 rounded-md border border-border/70 bg-background px-3 text-sm">
-            <option value="24h">{t("Last 24h", "Dernieres 24h", "Letzte 24h", "Ultimas 24h", "Ultimas 24h")}</option>
-            <option value="7d">{t("Last 7d", "Derniers 7j", "Letzte 7T", "Ultimos 7d", "Ultimos 7d")}</option>
-            <option value="30d">{t("Last 30d", "Derniers 30j", "Letzte 30T", "Ultimos 30d", "Ultimos 30d")}</option>
+            <option value="24h">{t("Last 24h", "Dernieres 24h", "Letzte 24h", "?ltimas 24h", "Ultimas 24h")}</option>
+            <option value="7d">{t("Last 7d", "Derniers 7j", "Letzte 7T", "?ltimos 7d", "?ltimos 7d")}</option>
+            <option value="30d">{t("Last 30d", "Derniers 30j", "Letzte 30T", "?ltimos 30d", "?ltimos 30d")}</option>
             <option value="custom">{t("Custom", "Personnalise", "Benutzerdefiniert", "Personalizado", "Personalizado")}</option>
           </select>
           {actorRole === "SUPER_ADMIN" ? (
@@ -462,17 +462,17 @@ export default function EventsExplorerClient({ actorRole }: { actorRole: ActorRo
 
       {error ? (
         <div className="space-y-2">
-          <Alert variant="error">{t("Unable to load events. Try again.", "Impossible de charger les evenements. Reessayez.", "Ereignisse konnten nicht geladen werden. Erneut versuchen.", "No se pudieron cargar los eventos. Intenta de nuevo.", "Não foi possivel carregar os eventos. Tente novamente.")}</Alert>
+          <Alert variant="error">{t("Unable to load events. Try again.", "Impossible de charger les ?v?nements. R?essayez.", "Ereignisse konnten nicht geladen werden. Erneut versuchen.", "No se pudieron cargar los eventos. Intenta de nuevo.", "Não foi poss?vel carregar os eventos. Tente novamente.")}</Alert>
           <p className="text-sm text-muted-foreground">
             {localizeAdminServerMessage(
               error.message,
               language,
               t(
                 "The events request did not complete.",
-                "La requete des evenements n'a pas abouti.",
+                "La requete des ?v?nements n'a pas abouti.",
                 "Die Ereignisanfrage konnte nicht abgeschlossen werden.",
                 "La solicitud de eventos no se pudo completar.",
-                "O pedido de eventos nao foi concluido."
+                "O pedido de eventos n?o foi conclu?do."
               )
             )}
           </p>
@@ -529,7 +529,7 @@ export default function EventsExplorerClient({ actorRole }: { actorRole: ActorRo
           )}
           <div className="flex items-center justify-between border-t border-border/60 px-4 py-3">
             <p className="text-xs text-muted-foreground">
-              {t("Page", "Page", "Seite", "Pagina", "Pagina")} {page}{isValidating ? ` / ${t("refreshing...", "actualisation...", "aktualisiert...", "actualizando...", "a atualizar...")}` : ""}
+              {t("Page", "Page", "Seite", "P?gina", "P?gina")} {page}{isValidating ? ` / ${t("refreshing...", "actualisation...", "aktualisiert...", "actualizando...", "a atualizar...")}` : ""}
             </p>
             <div className="flex items-center gap-2">
               <Button
@@ -565,7 +565,7 @@ export default function EventsExplorerClient({ actorRole }: { actorRole: ActorRo
 
         <aside className="min-h-[640px] rounded-xl border border-border/60 bg-card">
           <div className="border-b border-border/60 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            {t("Event details", "Details de l'evenement", "Ereignisdetails", "Detalles del evento", "Detalhes do evento")}
+            {t("Event details", "D?tails de l'evenement", "Ereignisdetails", "Detalles del evento", "Detalhes do evento")}
           </div>
           {!selected ? (
             <div className="flex min-h-[420px] items-center justify-center px-6 text-center text-sm text-muted-foreground">
@@ -665,7 +665,7 @@ export default function EventsExplorerClient({ actorRole }: { actorRole: ActorRo
                     {metadataText}
                   </pre>
                 ) : (
-                  <p className="text-xs text-muted-foreground">{t("Metadata is collapsed by default. Sensitive fields are redacted.", "Les metadonnees sont reduites par defaut. Les champs sensibles sont masques.", "Metadaten sind standardmaessig eingeklappt. Sensible Felder sind geschwaerzt.", "Los metadatos estan contraidos por defecto. Los campos sensibles estan ocultos.", "Os metadados estão recolhidos por defeito. Os campos sensíveis estão ocultos.")}</p>
+                  <p className="text-xs text-muted-foreground">{t("Metadata is collapsed by default. Sensitive fields are redacted.", "Les metadonnees sont reduites par defaut. Les champs sensibles sont masques.", "Metadaten sind standardmaessig eingeklappt. Sensible Felder sind geschwaerzt.", "Los metadatos est?n contraidos por defecto. Los campos sensibles est?n ocultos.", "Os metadados estão recolhidos por defeito. Os campos sensíveis estão ocultos.")}</p>
                 )}
               </div>
 

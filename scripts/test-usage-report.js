@@ -27,8 +27,8 @@ async function testEnterpriseUnlimitedFlags() {
   assert.equal(isUnlimitedPlan("ENTERPRISE"), true);
   assert.equal(limits.ai_requests, null);
   assert.equal(limits.invoices, null);
-  assert.equal(limits.whatsapp_messages, null);
   assert.equal(limits.automations_runs, null);
+  assert.equal(limits.workspace_connections, null);
   assert.equal(limits.team_members_seats, null);
 }
 

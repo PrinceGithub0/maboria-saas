@@ -68,6 +68,8 @@ export function AssistantChat() {
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const modelMenuRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const activeConversationIdRef = useRef<string | null>(null);
+  const messageLoadRequestRef = useRef(0);
 
   const mapApiMessages = useCallback((items: any[]): Message[] => {
     return items.map((entry: any) => ({
@@ -89,18 +91,31 @@ export function AssistantChat() {
     return merged;
   }, []);
 
+  const selectConversation = useCallback((conversationId: string | null) => {
+    activeConversationIdRef.current = conversationId;
+    messageLoadRequestRef.current += 1;
+    setActiveConversationId(conversationId);
+    setMessages([]);
+    setMessageHistoryCursor(null);
+  }, []);
+
   const loadMessages = useCallback(async (conversationId: string, cursor?: string | null) => {
+    const requestId = ++messageLoadRequestRef.current;
     try {
       const params = new URLSearchParams({ limit: String(MESSAGE_PAGE_SIZE) });
       if (cursor) params.set("cursor", cursor);
       const res = await fetch(`/api/ai/conversations/${conversationId}?${params.toString()}`);
-      if (!res.ok) return;
+      if (!res.ok) return false;
       const data = await res.json();
       const items = Array.isArray(data?.messages) ? data.messages : [];
       const mapped = mapApiMessages(items);
+      if (requestId !== messageLoadRequestRef.current) return false;
+      if (activeConversationIdRef.current !== conversationId) return false;
       setMessageHistoryCursor(typeof data?.nextCursor === "string" ? data.nextCursor : null);
       setMessages((prev) => (cursor ? mergeMessages(mapped, prev) : mapped));
-    } finally {
+      return true;
+    } catch {
+      return false;
     }
   }, [mapApiMessages, mergeMessages]);
 
@@ -125,17 +140,21 @@ export function AssistantChat() {
       setConversations(uniqueItems);
       if (uniqueItems.length > 0) {
         const first = uniqueItems[0];
-        setActiveConversationId(first.id);
+        selectConversation(first.id);
         await loadMessages(first.id);
       }
     } finally {
       setLoadingConversations(false);
     }
-  }, [loadMessages, uniqueById]);
+  }, [loadMessages, selectConversation, uniqueById]);
 
   useEffect(() => {
     loadConversations();
   }, [loadConversations]);
+
+  useEffect(() => {
+    activeConversationIdRef.current = activeConversationId;
+  }, [activeConversationId]);
 
   useEffect(() => {
     try {
@@ -355,9 +374,7 @@ export function AssistantChat() {
     if (!created) return;
     const next = created.id === LEGACY_ID ? { ...created, title: legacyTitleOverride || created.title } : created;
     setConversations((prev) => uniqueById([next, ...prev]));
-    setActiveConversationId(created.id);
-    setMessages([]);
-    setMessageHistoryCursor(null);
+    selectConversation(created.id);
   };
 
   const handleRename = async (conversationId: string, title: string) => {
@@ -397,7 +414,7 @@ export function AssistantChat() {
             "Impossible de renommer le chat pour le moment.",
             "Der Chat kann momentan nicht umbenannt werden.",
             "No se puede cambiar el nombre del chat en este momento.",
-            "Não e possivel renomear o chat neste momento."
+            "Não e poss?vel renomear o chat neste momento."
           )
         )
       );
@@ -426,7 +443,7 @@ export function AssistantChat() {
             "Impossible de supprimer le chat pour le moment.",
             "Der Chat kann momentan nicht gelöscht werden.",
             "No se puede eliminar el chat en este momento.",
-            "Não e possivel eliminar o chat neste momento."
+            "Não e poss?vel eliminar o chat neste momento."
           )
         )
       );
@@ -442,13 +459,25 @@ export function AssistantChat() {
       setAutoScrollEnabled(false);
       const next = nextList[0];
       if (next) {
-        setActiveConversationId(next.id);
+        selectConversation(next.id);
         await loadMessages(next.id);
       } else {
         await handleNewChat();
       }
     }
   };
+
+  const syncCanonicalConversation = useCallback(
+    async (conversationId: string | null | undefined, optimisticIds: string[]) => {
+      setStreamingMessageId(null);
+      if (conversationId) {
+        const synced = await loadMessages(conversationId);
+        if (synced) return;
+      }
+      setMessages((prev) => prev.filter((message) => !optimisticIds.includes(message.id)));
+    },
+    [loadMessages]
+  );
 
   const loadOlderMessages = async () => {
     if (!activeConversationId || !messageHistoryCursor || loadingOlderMessages) return;
@@ -476,7 +505,7 @@ export function AssistantChat() {
       if (created) {
         const next = created.id === LEGACY_ID ? { ...created, title: legacyTitleOverride || created.title } : created;
         setConversations((prev) => uniqueById([next, ...prev]));
-        setActiveConversationId(created.id);
+        selectConversation(created.id);
         conversationId = created.id;
       } else {
         setStatus(
@@ -484,7 +513,7 @@ export function AssistantChat() {
             "Chat history is unavailable right now. Sending without history.",
             "L'historique du chat est indisponible. Envoi sans historique.",
             "Der Chatverlauf ist momentan nicht verfügbar. Es wird ohne Verlauf gesendet.",
-            "El historial del chat no esta disponible ahora mismo. Se enviara sin historial.",
+            "El historial del chat no est? disponible ahora mismo. Se enviara sin historial.",
             "O histórico do chat não esta disponível neste momento. O envio seguira sem histórico."
           )
         );
@@ -539,7 +568,7 @@ export function AssistantChat() {
                 "Mise a niveau requise.",
                 "Upgrade erforderlich.",
                 "Se requiere una mejora del plan.",
-                "Atualizacao de plano necessária."
+                "Atualiza??o de plano necessária."
               )
             )
           );
@@ -568,13 +597,14 @@ export function AssistantChat() {
                 "Assistant is unavailable right now.",
                 "Assistant indisponible pour le moment.",
                 "Der Assistent ist momentan nicht verfügbar.",
-                "El asistente no esta disponible ahora mismo.",
+                "El asistente no est? disponible ahora mismo.",
                 "O assistente não esta disponível neste momento."
               )
             )
           );
           setStatusVariant("error");
         }
+        await syncCanonicalConversation(conversationId, [message.id, assistantMessageId]);
         return;
       }
 
@@ -584,6 +614,7 @@ export function AssistantChat() {
         let buffer = "";
         let fullText = "";
         let nextId = conversationId;
+        let streamFailed = false;
         while (true) {
           const { value, done } = await reader.read();
           if (done) break;
@@ -607,6 +638,7 @@ export function AssistantChat() {
               nextId = payload.conversationId;
             }
             if (payload?.error) {
+              streamFailed = true;
               setStatus(
                 localizeAssistantServerMessage(
                   payload.error,
@@ -615,7 +647,7 @@ export function AssistantChat() {
                     "Assistant is unavailable right now.",
                     "Assistant indisponible pour le moment.",
                     "Der Assistent ist momentan nicht verfügbar.",
-                    "El asistente no esta disponible ahora mismo.",
+                    "El asistente no est? disponible ahora mismo.",
                     "O assistente não esta disponível neste momento."
                   )
                 )
@@ -628,6 +660,15 @@ export function AssistantChat() {
           }
         }
         setStreamingMessageId(null);
+        if (streamFailed) {
+          await syncCanonicalConversation(nextId, [message.id, assistantMessageId]);
+          return;
+        }
+        if (nextId && activeConversationIdRef.current !== nextId) {
+          activeConversationIdRef.current = nextId;
+          setActiveConversationId(nextId);
+          await loadMessages(nextId);
+        }
         if (nextId) {
           setConversations((prev) => {
             const updated = prev.map((c) =>
@@ -671,6 +712,11 @@ export function AssistantChat() {
         }
       };
       requestAnimationFrame(streamStep);
+      if (nextId && activeConversationIdRef.current !== nextId) {
+        activeConversationIdRef.current = nextId;
+        setActiveConversationId(nextId);
+        await loadMessages(nextId);
+      }
       if (nextId) {
         setConversations((prev) => {
           const updated = prev.map((c) =>
@@ -699,12 +745,13 @@ export function AssistantChat() {
             "Assistant is unavailable right now.",
             "Assistant indisponible pour le moment.",
             "Der Assistent ist momentan nicht verfügbar.",
-            "El asistente no esta disponible ahora mismo.",
+            "El asistente no est? disponible ahora mismo.",
             "O assistente não esta disponível neste momento."
           )
         )
       );
       setStatusVariant("error");
+      await syncCanonicalConversation(conversationId, [message.id, assistantMessageId]);
     } finally {
       setLoading(false);
     }
@@ -763,10 +810,10 @@ export function AssistantChat() {
               <p className="mt-1 text-[11px] text-muted-foreground">
                 {t(
                   "Private, secure, and scoped to your workspace.",
-                  "Prive, securise, et limite a votre espace.",
+                  "Prive, s?curis?, et limite a votre espace.",
                   "Privat, sicher und auf deinen Workspace begrenzt.",
                   "Privado, seguro y limitado a tu espacio de trabajo.",
-                  "Privado, seguro e limitado ao teu espaco de trabalho."
+                  "Privado, seguro e limitado ao teu espa?o de trabalho."
                 )}
               </p>
             </div>
@@ -831,14 +878,14 @@ export function AssistantChat() {
                     role="button"
                     tabIndex={0}
                     onClick={() => {
-                      setActiveConversationId(conversation.id);
-                      loadMessages(conversation.id);
+                      selectConversation(conversation.id);
+                      void loadMessages(conversation.id);
                     }}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
                         event.preventDefault();
-                        setActiveConversationId(conversation.id);
-                        loadMessages(conversation.id);
+                        selectConversation(conversation.id);
+                        void loadMessages(conversation.id);
                       }
                     }}
                     className="flex w-full items-start justify-between gap-2 text-left"
@@ -871,7 +918,7 @@ export function AssistantChat() {
                             setDeleteTarget(conversation);
                           }}
                           className="rounded-full p-1 text-muted-foreground hover:text-foreground"
-                          aria-label={t("Delete chat", "Supprimer le chat", "Chat loschen", "Eliminar chat", "Apagar chat")}
+                          aria-label={t("Delete chat", "Supprimer le chat", "Chat l?schen", "Eliminar chat", "Apagar chat")}
                       >
                         <Trash2 className="h-3 w-3" />
                       </button>
@@ -958,9 +1005,9 @@ export function AssistantChat() {
                 </p>
                 <div className="mt-4 flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
                   {[
-                    t("Draft a follow-up automation", "Generer une automatisation de relance", "Eine Folge-Automatisierung entwerfen", "Crear una automatizacion de seguimiento", "Criar uma automacao de acompanhamento"),
+                    t("Draft a follow-up automation", "Generer une automatisation de relance", "Eine Folge-Automatisierung entwerfen", "Crear una automatizaci?n de seguimiento", "Criar uma automa??o de acompanhamento"),
                     t("Summarize weekly revenue", "Resumer les revenus de la semaine", "Wochentlichen Umsatz zusammenfassen", "Resumir los ingresos semanales", "Resumir a receita semanal"),
-                    t("Diagnose a failed run", "Diagnostiquer un echec", "Einen fehlgeschlagenen Lauf analysieren", "Diagnosticar una ejecucion fallida", "Diagnosticar uma execucao falhada"),
+                    t("Diagnose a failed run", "Diagnostiquer un ?chec", "Einen fehlgeschlagenen Lauf analysieren", "Diagnosticar una ejecuci?n fallida", "Diagnosticar uma execu??o falhada"),
                   ].map((item) => (
                     <span key={item} className="rounded-full border border-border/60 px-3 py-1 text-indigo-700">
                       {item}
@@ -1207,10 +1254,10 @@ export function AssistantChat() {
             <p className="text-[11px] text-muted-foreground">
               {t(
                 "Responses are generated automatically. Verify important details before acting.",
-                "Les réponses sont generees automatiquement. Verifiez les details avant d agir.",
+                "Les réponses sont generees automatiquement. V?rifiez les d?tails avant d agir.",
                 "Antworten werden automatisch erzeugt. Prüfe wichtige Details, bevor du handelst.",
-                "Las respuestas se generan automaticamente. Verifica los detalles importantes antes de actuar.",
-                "As respostas sao geradas automaticamente. Confirma os detalhes importantes antes de agir."
+                "Las respuestas se generan autom?ticamente. Verifica los detalles importantes antes de actuar.",
+                "As respostas s?o geradas automaticamente. Confirma os detalhes importantes antes de agir."
               )}
             </p>
           </div>
@@ -1234,12 +1281,12 @@ export function AssistantChat() {
                 <Trash2 className="h-4 w-4" />
               </div>
               <h3 className="mt-4 text-xl font-semibold tracking-[-0.02em] text-slate-950 dark:text-white">
-                {t("Delete this chat?", "Supprimer ce chat ?", "Diesen Chat loschen?", "Eliminar este chat?", "Apagar este chat?")}
+                {t("Delete this chat?", "Supprimer ce chat ?", "Diesen Chat l?schen?", "Eliminar este chat?", "Apagar este chat?")}
               </h3>
               <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
                 {t(
                   "This permanently removes this conversation and its saved history.",
-                  "Cette action supprime definitivement cette conversation et son historique enregistre.",
+                  "Cette action supprime definitivement cette conversation et son historique enregistr?.",
                   "Dadurch werden diese Unterhaltung und ihr gespeicherter Verlauf dauerhaft entfernt.",
                   "Esto elimina permanentemente esta conversación y su historial guardado.",
                   "Isto remove permanentemente esta conversa e o respetivo histórico guardado."
@@ -1262,7 +1309,7 @@ export function AssistantChat() {
                   onClick={handleDelete}
                   loading={deletingConversationId === deleteTarget.id}
                 >
-                  {t("Delete", "Supprimer", "Loschen", "Eliminar", "Apagar")}
+                  {t("Delete", "Supprimer", "L?schen", "Eliminar", "Apagar")}
                 </Button>
               </div>
             </div>

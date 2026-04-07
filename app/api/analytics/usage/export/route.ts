@@ -9,8 +9,8 @@ import { requireSystemFlag } from "@/lib/system-flags-guard";
 const featureSchema = z.enum([
   "ai_requests",
   "invoices",
-  "whatsapp_messages",
   "automations_runs",
+  "workspace_connections",
   "team_members_seats",
 ]);
 
@@ -45,6 +45,14 @@ function buildSnapshotRows(snapshot: Awaited<ReturnType<typeof getUsageReportSna
     source: "snapshot",
     idempotency_key: "",
   }));
+}
+
+function usageEventFeatureKeyForExport(feature: z.infer<typeof featureSchema>) {
+  if (feature === "ai_requests") return "AI_REQUESTS" as const;
+  if (feature === "invoices") return "INVOICES" as const;
+  if (feature === "automations_runs") return "AUTOMATIONS_RUNS" as const;
+  if (feature === "team_members_seats") return "TEAM_MEMBERS_SEATS" as const;
+  return null;
 }
 
 export async function GET(req: Request) {
@@ -82,23 +90,15 @@ export async function GET(req: Request) {
 
     const snapshot = await getUsageReportSnapshot(session.user.id, access);
     const selectedFeature = feature?.success ? feature.data : null;
+    const eventFeatureKey = selectedFeature ? usageEventFeatureKeyForExport(selectedFeature) : null;
 
     const events = await prisma.usageEvent.findMany({
       where: {
         orgId: snapshot.orgId,
         cycleKey: snapshot.cycle.key,
-        ...(selectedFeature
+        ...(eventFeatureKey
           ? {
-              featureKey:
-                selectedFeature === "ai_requests"
-                  ? "AI_REQUESTS"
-                  : selectedFeature === "invoices"
-                    ? "INVOICES"
-                    : selectedFeature === "whatsapp_messages"
-                      ? "WHATSAPP_MESSAGES"
-                      : selectedFeature === "automations_runs"
-                        ? "AUTOMATIONS_RUNS"
-                        : "TEAM_MEMBERS_SEATS",
+              featureKey: eventFeatureKey,
             }
           : {}),
       },
@@ -112,24 +112,27 @@ export async function GET(req: Request) {
       },
     });
 
-    const eventRows = events.map((event) => ({
-      date: event.occurredAt.toISOString(),
-      feature:
-        event.featureKey === "AI_REQUESTS"
-          ? "ai_requests"
-          : event.featureKey === "INVOICES"
-            ? "invoices"
-            : event.featureKey === "WHATSAPP_MESSAGES"
-              ? "whatsapp_messages"
-              : event.featureKey === "AUTOMATIONS_RUNS"
-                ? "automations_runs"
-                : "team_members_seats",
-      amount: Number(event.quantity) || 0,
-      type: "usage",
-      status: "recorded",
-      source: event.source.toLowerCase(),
-      idempotency_key: event.idempotencyKey,
-    }));
+    const eventRows = events.flatMap((event) => {
+      if (event.featureKey === "WHATSAPP_MESSAGES") return [];
+      return [
+        {
+          date: event.occurredAt.toISOString(),
+          feature:
+            event.featureKey === "AI_REQUESTS"
+              ? "ai_requests"
+              : event.featureKey === "INVOICES"
+                ? "invoices"
+                : event.featureKey === "AUTOMATIONS_RUNS"
+                  ? "automations_runs"
+                  : "team_members_seats",
+          amount: Number(event.quantity) || 0,
+          type: "usage",
+          status: "recorded",
+          source: event.source.toLowerCase(),
+          idempotency_key: event.idempotencyKey || "",
+        },
+      ];
+    });
 
     const recentActivityRows = snapshot.recentActivity
       .filter((row) => (selectedFeature ? row.featureKey === selectedFeature : true))
@@ -150,16 +153,21 @@ export async function GET(req: Request) {
     let rows =
       eventRows.length > 0
         ? eventRows
-        : selectedFeature === "team_members_seats"
+        : selectedFeature === "team_members_seats" || selectedFeature === "workspace_connections"
           ? snapshotRows
           : recentActivityRows.length > 0
             ? recentActivityRows
             : snapshotRows;
 
-    if (!selectedFeature && !rows.some((row) => row.feature === "team_members_seats")) {
+    if (
+      !selectedFeature &&
+      !rows.some((row) => row.feature === "team_members_seats" || row.feature === "workspace_connections")
+    ) {
       rows = [
         ...rows,
-        ...snapshotRows.filter((row) => row.feature === "team_members_seats"),
+        ...snapshotRows.filter(
+          (row) => row.feature === "team_members_seats" || row.feature === "workspace_connections"
+        ),
       ];
     }
 

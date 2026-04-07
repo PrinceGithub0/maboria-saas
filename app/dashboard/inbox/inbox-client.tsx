@@ -507,14 +507,14 @@ function RecentActivityPanel({
       <div className="flex items-start justify-between gap-2.5">
         <div className="min-w-0 flex-1">
           <p className="text-[15px] font-semibold tracking-tight text-slate-950 dark:text-slate-50 sm:text-[17px]">
-            {t('Recent Activity', 'Activite recente', 'Neueste Aktivitat', 'Actividad reciente', 'Atividade recente')}
+            {t('Recent Activity', 'Activite recente', "Neueste Aktivit?t", 'Actividad reciente', 'Atividade recente')}
           </p>
           <p className="mt-0.5 max-w-[14rem] text-[12px] leading-5 text-slate-500 dark:text-slate-400 sm:text-[13px]">
             {t(
               'Latest across channels',
               'Dernieres activites sur tous les canaux',
-              'Neueste Aktivitat uber alle Kanale',
-              'Ultima actividad en todos los canales',
+              "Neueste Aktivit?t ?ber alle Kanale",
+              "?ltima actividad en todos los canales",
               'Atividade mais recente em todos os canais'
             )}
           </p>
@@ -618,7 +618,7 @@ function WorkspaceStatsCard({
   return (
     <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_12px_28px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-950 dark:shadow-[0_18px_40px_rgba(2,6,23,0.4)]">
       <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">
-        {t('Workspace Stats', 'Statistiques de l espace de travail', 'Workspace-Statistiken', 'Estadisticas del espacio de trabajo', 'Estatisticas do espaco de trabalho')}
+        {t('Workspace Stats', 'Statistiques de l espace de travail', 'Workspace-Statistiken', 'Estadisticas del espacio de trabajo', "Estatisticas do espa?o de trabalho")}
       </p>
       <div className="mt-4 grid grid-cols-2 gap-3">
         <div className="grid min-h-[148px] grid-rows-[72px_auto] rounded-[22px] bg-slate-50 p-4 dark:bg-slate-900">
@@ -634,7 +634,7 @@ function WorkspaceStatsCard({
             {formatCompactStat(messageCount)}
           </p>
           <p className="text-xs leading-6 text-slate-500 dark:text-slate-400">
-            {t('Messages in inbox', 'Messages dans la boite de reception', 'Nachrichten im Posteingang', 'Mensajes en la bandeja de entrada', 'Mensagens na caixa de entrada')}
+            {t('Messages in inbox', "Messages dans la bo?te de reception", 'Nachrichten im Posteingang', 'Mensajes en la bandeja de entrada', 'Mensagens na caixa de entrada')}
           </p>
         </div>
       </div>
@@ -649,15 +649,15 @@ function OnboardingRightPanel() {
       'Connect Gmail, Outlook, or WhatsApp from the channel setup modal.',
       'Connectez Gmail, Outlook ou WhatsApp depuis la fenetre de configuration des canaux.',
       'Verbinde Gmail, Outlook oder WhatsApp im Kanal-Setup.',
-      'Conecta Gmail, Outlook o WhatsApp desde la configuracion de canales.',
-      'Ligue o Gmail, Outlook ou WhatsApp na configuracao de canais.'
+      "Conecta Gmail, Outlook o WhatsApp desde la configuraci?n de canales.",
+      "Ligue o Gmail, Outlook ou WhatsApp na configura??o de canais."
     ),
     t(
       'Sync the inbox to pull your real conversations into this workspace.',
-      'Synchronisez la boite pour importer vos vraies conversations dans cet espace de travail.',
+      "Synchronisez la bo?te pour importer vos vraies conversations dans cet espace de travail.",
       'Synchronisiere den Posteingang, um echte Gesprache in diesen Workspace zu laden.',
       'Sincroniza la bandeja para traer tus conversaciones reales a este espacio de trabajo.',
-      'Sincronize a caixa de entrada para trazer as suas conversas reais para este espaco de trabalho.'
+      "Sincronize a caixa de entrada para trazer as suas conversas reais para este espa?o de trabalho."
     ),
     t(
       'Assign, reply, and track SLA once live customer traffic starts arriving.',
@@ -673,7 +673,7 @@ function OnboardingRightPanel() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-[20px] font-semibold tracking-tight text-slate-950 dark:text-slate-50">
-            {t('Inbox Setup', 'Configuration de la boite', 'Posteingang einrichten', 'Configuracion de la bandeja', 'Configuracao da caixa')}
+            {t('Inbox Setup', "Configuration de la bo?te", 'Posteingang einrichten', "Configuraci?n de la bandeja", "Configura??o da caixa")}
           </p>
           <p className="mt-2 text-[15px] font-semibold text-slate-950 dark:text-slate-100">
             {t(
@@ -708,7 +708,7 @@ function OnboardingRightPanel() {
         <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50 px-5 py-5 text-sm leading-6 text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
           {t(
             'No sample conversations are shown here. This panel stays empty until a real channel is connected.',
-            'Aucune conversation fictive n est affichee ici. Ce panneau reste vide tant qu un canal reel n est pas connecte.',
+            "Aucune conversation fictive n est affichee ici. Ce panneau reste vide tant qu un canal reel n est pas connect?.",
             'Hier werden keine Beispielgesprache angezeigt. Dieses Panel bleibt leer, bis ein echter Kanal verbunden ist.',
             'Aqui no se muestran conversaciones de ejemplo. Este panel permanece vacio hasta que se conecte un canal real.',
             'Nenhuma conversa de exemplo e mostrada aqui. Este painel fica vazio ate ligar um canal real.'
@@ -981,10 +981,10 @@ export default function InboxPageClient({
   );
 
   const localizeInboxStatus = useCallback((value: ConversationStatus) => {
-    if (value === 'OPEN') return t('Needs reply', 'Reponse requise', 'Antwort erforderlich', 'Necesita respuesta', 'Precisa de resposta');
+    if (value === 'OPEN') return t('Needs reply', 'Réponse requise', 'Antwort erforderlich', 'Necesita respuesta', 'Precisa de resposta');
     if (value === 'WAITING_ON_CUSTOMER') return t('Waiting', 'En attente', 'Wartend', 'En espera', 'Em espera');
-    if (value === 'SNOOZED') return t('Snoozed', 'Reporte', 'Zuruckgestellt', 'Pospuesto', 'Adiado');
-    return t('Resolved', 'Resolue', 'Gelost', 'Resuelto', 'Resolvido');
+    if (value === 'SNOOZED') return t('Snoozed', 'Reporté', 'Zurückgestellt', 'Pospuesto', 'Adiado');
+    return t('Resolved', 'Résolue', 'Gelöst', 'Resuelto', 'Resolvido');
   }, [t]);
 
   const getChannelLabel = useCallback(
@@ -1081,30 +1081,30 @@ export default function InboxPageClient({
         fallback ||
         t(
           'Unable to load inbox right now.',
-          'Impossible de charger la boite de reception pour le moment.',
+          "Impossible de charger la bo?te de reception pour le moment.",
           'Der Posteingang kann derzeit nicht geladen werden.',
           'No se puede cargar la bandeja de entrada en este momento.',
-          'Nao foi possivel carregar a caixa de entrada agora.'
+          "N?o foi poss?vel carregar a caixa de entrada agora."
         )
       );
     const mappings: Record<string, string> = {
       Unauthorized: t(
         'Please sign in and try again.',
-        'Connectez-vous puis reessayez.',
+        "Connectez-vous puis r?essayez.",
         'Bitte melden Sie sich an und versuchen Sie es erneut.',
-        'Inicia sesion y vuelve a intentarlo.',
-        'Inicie sessao e tente novamente.'
+        "Inicia sesi?n y vuelve a intentarlo.",
+        "Inicie sess?o e tente novamente."
       ),
       'Request failed': t(
         'Unable to load inbox right now.',
-        'Impossible de charger la boite de reception pour le moment.',
+        "Impossible de charger la bo?te de reception pour le moment.",
         'Der Posteingang kann derzeit nicht geladen werden.',
         'No se puede cargar la bandeja de entrada en este momento.',
-        'Nao foi possivel carregar a caixa de entrada agora.'
+        "N?o foi poss?vel carregar a caixa de entrada agora."
       ),
       'Failed to fetch': t(
         'Network error. Please try again.',
-        'Erreur reseau. Reessayez.',
+        "Erreur r?seau. R?essayez.",
         'Netzwerkfehler. Bitte versuchen Sie es erneut.',
         'Error de red. Intentalo de nuevo.',
         'Erro de rede. Tente novamente.'
@@ -1117,11 +1117,11 @@ export default function InboxPageClient({
     const normalized = String(value || '')
       .trim()
       .toUpperCase();
-    if (normalized === 'SENT') return t('Sent', 'Envoye', 'Gesendet', 'Enviado', 'Enviado');
+    if (normalized === 'SENT') return t('Sent', 'Envoyé', 'Gesendet', 'Enviado', 'Enviado');
     if (normalized === 'DELIVERED') return t('Delivered', 'Livre', 'Zugestellt', 'Entregado', 'Entregue');
-    if (normalized === 'FAILED') return t('Failed', 'Echec', 'Fehlgeschlagen', 'Fallido', 'Falhou');
-    if (normalized === 'QUEUED') return t('Queued', 'En file d attente', 'In Warteschlange', 'En cola', 'Em fila');
-    if (normalized === 'READ') return t('Read', 'Lu', 'Gelesen', 'Leido', 'Lido');
+    if (normalized === 'FAILED') return t('Failed', 'Échec', 'Fehlgeschlagen', 'Fallido', 'Falhou');
+    if (normalized === 'QUEUED') return t('Queued', "En file d'attente", 'In Warteschlange', 'En cola', 'Em fila');
+    if (normalized === 'READ') return t('Read', 'Lu', 'Gelesen', 'Leído', 'Lido');
     return normalized.toLowerCase();
   }, [t]);
 
@@ -1152,10 +1152,10 @@ export default function InboxPageClient({
   const getChannelReconnectReason = useCallback((channelLabel: string) => {
     return `${channelLabel} ${t(
       'is not connected for this workspace. Historical messages stay visible, but reconnect the channel before replying.',
-      'n est pas connecte a cet espace de travail. Les messages historiques restent visibles, mais reconnectez le canal avant de repondre.',
-      'ist fur diesen Workspace nicht verbunden. Historische Nachrichten bleiben sichtbar, aber verbinden Sie den Kanal vor dem Antworten erneut.',
-      'no esta conectado para este espacio de trabajo. Los mensajes historicos siguen visibles, pero vuelve a conectar el canal antes de responder.',
-      'nao esta conectado a este espaco de trabalho. As mensagens historicas continuam visiveis, mas volte a ligar o canal antes de responder.'
+      "n est pas connect? a cet espace de travail. Les messages historiques restent visibles, mais reconnectez le canal avant de repondre.",
+      "ist f?r diesen Workspace nicht verbunden. Historische Nachrichten bleiben sichtbar, aber verbinden Sie den Kanal vor dem Antworten erneut.",
+      "no est? conectado para este espacio de trabajo. Los mensajes historicos siguen visibles, pero vuelve a conectar el canal antes de responder.",
+      "n?o esta conectado a este espa?o de trabalho. As mensagens historicas continuam visiveis, mas volte a ligar o canal antes de responder."
     )}`;
   }, [t]);
 
@@ -1165,7 +1165,7 @@ export default function InboxPageClient({
   const activeReplyDisabledReason = !detail
     ? t(
         'Select a conversation to reply.',
-        'Selectionnez une conversation pour repondre.',
+        "S?lectionnez une conversation pour repondre.",
         'Wahlen Sie eine Konversation aus, um zu antworten.',
         'Selecciona una conversacion para responder.',
         'Selecione uma conversa para responder.'
@@ -1176,17 +1176,17 @@ export default function InboxPageClient({
         ? t(
             'This customer does not have an email address on file.',
             'Ce client n a pas d adresse e-mail enregistree.',
-            'Fur diesen Kunden ist keine E-Mail-Adresse hinterlegt.',
-            'Este cliente no tiene una direccion de correo registrada.',
-            'Este cliente nao tem um endereco de email registado.'
+            "F?r diesen Kunden ist keine E-Mail-Adresse hinterlegt.",
+            "Este cliente no tiene una direcci?n de correo registrada.",
+            "Este cliente n?o tem um endereco de email registado."
           )
         : detail.inbox.type === 'WHATSAPP' && !detail.contact.phone
           ? t(
               'This customer does not have a phone number on file for WhatsApp.',
-              'Ce client n a pas de numero de telephone enregistre pour WhatsApp.',
-              'Fur diesen Kunden ist keine Telefonnummer fur WhatsApp hinterlegt.',
-              'Este cliente no tiene un numero de telefono registrado para WhatsApp.',
-              'Este cliente nao tem um numero de telefone registado para o WhatsApp.'
+              "Ce client n a pas de num?ro de t?l?phone enregistr? pour WhatsApp.",
+              "F?r diesen Kunden ist keine Telefonnummer f?r WhatsApp hinterlegt.",
+              "Este cliente no tiene un n?mero de tel?fono registrado para WhatsApp.",
+              "Este cliente n?o tem um n?mero de telefone registado para o WhatsApp."
             )
           : null;
 
@@ -1204,8 +1204,8 @@ export default function InboxPageClient({
       'No messages yet.',
       'Aucun message pour le moment.',
       'Noch keine Nachrichten.',
-      'Aun no hay mensajes.',
-      'Ainda nao ha mensagens.'
+      "A?n no hay mensajes.",
+      "Ainda n?o ha mensagens."
     );
 
     if (conversations.length > 0) {
@@ -1228,8 +1228,8 @@ export default function InboxPageClient({
           'Hey, I have a quick question',
           'Bonjour, j ai une question rapide',
           'Hallo, ich habe eine kurze Frage',
-          'Hola, tengo una pregunta rapida',
-          'Ola, tenho uma pergunta rapida'
+          "Hola, tengo una pregunta r?pida",
+          "Ola, tenho uma pergunta r?pida"
         ),
         time: formatRelativeTime(new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()),
       },
@@ -1286,7 +1286,7 @@ export default function InboxPageClient({
             brand,
             label: `${getBrandLabel(brand)}${emailAddress ? ` | ${emailAddress}` : ''} ${t(
               'connected',
-              'connecte',
+              "connect?",
               'verbunden',
               'conectado',
               'conectado'
@@ -1299,7 +1299,7 @@ export default function InboxPageClient({
               inboxId: whatsappSetup?.id || '',
               setup: whatsappSetup,
               brand: 'WHATSAPP' as const,
-              label: `WhatsApp ${t('connected', 'connecte', 'verbunden', 'conectado', 'conectado')}`,
+              label: `WhatsApp ${t('connected', "connect?", 'verbunden', 'conectado', 'conectado')}`,
             }
           : null,
       ].filter(Boolean) as Array<{
@@ -1373,7 +1373,7 @@ export default function InboxPageClient({
           mailboxProvider === 'OUTLOOK'
             ? t(
                 'Outlook mailbox connected successfully.',
-                'Boite Outlook connectee avec succes.',
+                "Bo?te Outlook connect?e avec succes.",
                 'Outlook-Postfach erfolgreich verbunden.',
                 'Buzon de Outlook conectado correctamente.',
                 'Caixa Outlook ligada com sucesso.'
@@ -1381,14 +1381,14 @@ export default function InboxPageClient({
             : mailboxProvider === 'GMAIL'
               ? t(
                   'Gmail mailbox connected successfully.',
-                  'Boite Gmail connectee avec succes.',
+                  "Bo?te Gmail connect?e avec succes.",
                   'Gmail-Postfach erfolgreich verbunden.',
                   'Buzon de Gmail conectado correctamente.',
                   'Caixa Gmail ligada com sucesso.'
                 )
               : t(
                   'Email channel connected successfully.',
-                  'Canal email connecte avec succes.',
+                  "Canal email connect? avec succes.",
                   'E-Mail-Kanal erfolgreich verbunden.',
                   'Canal de correo conectado correctamente.',
                   'Canal de email ligado com sucesso.'
@@ -1405,63 +1405,70 @@ export default function InboxPageClient({
             {
             oauth_state_missing: t(
               'The mailbox connection could not be completed because the temporary OAuth state was missing. Start the connection again and finish it in the same browser window.',
-              'La connexion a la boite mail n a pas pu aboutir car l etat OAuth temporaire etait manquant. Relancez la connexion et terminez-la dans la meme fenetre du navigateur.',
-              'Die Mailbox-Verbindung konnte nicht abgeschlossen werden, weil der temporare OAuth-Status fehlte. Starten Sie die Verbindung erneut und schliessen Sie sie im selben Browserfenster ab.',
-              'La conexion del buzon no pudo completarse porque faltaba el estado temporal de OAuth. Inicia la conexion de nuevo y terminala en la misma ventana del navegador.',
-              'A ligacao da caixa de correio nao pode ser concluida porque faltava o estado OAuth temporario. Inicie a ligacao novamente e conclua-a na mesma janela do navegador.'
+              "La connexion a la bo?te mail n a pas pu aboutir car l etat OAuth temporaire etait manquant. Relancez la connexion et terminez-la dans la meme fenetre du navigateur.",
+              "Die Mailbox-Verbindung konnte nicht abgeschlossen werden, weil der temporäre OAuth-Status fehlte. Starten Sie die Verbindung erneut und schließen Sie sie im selben Browserfenster ab.",
+              "La conexi?n del buzon no pudo completarse porque faltaba el estado temporal de OAuth. Inicia la conexi?n de nuevo y terminala en la misma ventana del navegador.",
+              "A liga??o da caixa de correio n?o pode ser conclu?da porque faltava o estado OAuth temporario. Inicie a liga??o novamente e conclua-a na mesma janela do navegador."
             ),
             oauth_state_invalid: t(
               'The mailbox connection returned with an invalid OAuth state. Start the connection again from this browser session.',
-              'La connexion a la boite mail est revenue avec un etat OAuth invalide. Relancez la connexion depuis cette session du navigateur.',
+              "La connexion a la bo?te mail est revenue avec un etat OAuth invalide. Relancez la connexion depuis cette session du navigateur.",
               'Die Mailbox-Verbindung ist mit einem ungultigen OAuth-Status zuruckgekehrt. Starten Sie die Verbindung in dieser Browsersitzung erneut.',
-              'La conexion del buzon regreso con un estado OAuth invalido. Inicia la conexion de nuevo desde esta sesion del navegador.',
-              'A ligacao da caixa de correio regressou com um estado OAuth invalido. Inicie a ligacao novamente nesta sessao do navegador.'
+              "La conexi?n del buzon regreso con un estado OAuth invalido. Inicia la conexi?n de nuevo desde esta sesi?n del navegador.",
+              "A liga??o da caixa de correio regressou com um estado OAuth invalido. Inicie a liga??o novamente nesta sess?o do navegador."
             ),
             oauth_state_mismatch: t(
               'The mailbox connection no longer matches your current workspace or session. Sign in again and retry.',
-              'La connexion a la boite mail ne correspond plus a votre espace de travail ou a votre session actuelle. Reconnectez-vous puis reessayez.',
+              "La connexion a la bo?te mail ne correspond plus a votre espace de travail ou a votre session actuelle. Reconnectez-vous puis r?essayez.",
               'Die Mailbox-Verbindung passt nicht mehr zu Ihrem aktuellen Workspace oder Ihrer Sitzung. Melden Sie sich erneut an und versuchen Sie es noch einmal.',
-              'La conexion del buzon ya no coincide con tu espacio de trabajo o sesion actual. Vuelve a iniciar sesion y reintenta.',
-              'A ligacao da caixa de correio ja nao corresponde ao seu espaco de trabalho ou sessao atual. Inicie sessao novamente e tente outra vez.'
+              "La conexi?n del buzon ya no coincide con tu espacio de trabajo o sesi?n actual. Vuelve a iniciar sesi?n y reintenta.",
+              "A liga??o da caixa de correio ja n?o corresponde ao seu espa?o de trabalho ou sess?o atual. Inicie sess?o novamente e tente outra vez."
             ),
             access_denied: t(
               'The mailbox connection was cancelled or denied by the provider.',
-              'La connexion a la boite mail a ete annulee ou refusee par le fournisseur.',
+              "La connexion a la bo?te mail a ete annulee ou refusee par le fournisseur.",
               'Die Mailbox-Verbindung wurde vom Anbieter abgebrochen oder verweigert.',
-              'La conexion del buzon fue cancelada o denegada por el proveedor.',
-              'A ligacao da caixa de correio foi cancelada ou recusada pelo fornecedor.'
+              "La conexi?n del buzon fue cancelada o denegada por el proveedor.",
+              "A liga??o da caixa de correio foi cancelada ou recusada pelo fornecedor."
             ),
             unauthorized: t(
               'Please sign in again before connecting a mailbox.',
-              'Reconnectez-vous avant de connecter une boite mail.',
+              "Reconnectez-vous avant de connecter une bo?te mail.",
               'Bitte melden Sie sich erneut an, bevor Sie eine Mailbox verbinden.',
-              'Vuelve a iniciar sesion antes de conectar un buzon.',
-              'Inicie sessao novamente antes de ligar uma caixa de correio.'
+              "Vuelve a iniciar sesi?n antes de conectar un buzon.",
+              "Inicie sess?o novamente antes de ligar uma caixa de correio."
+            ),
+            connection_limit_reached: t(
+              'This workspace has reached its connection limit for the current plan. Disconnect an existing inbox or upgrade the plan to add another connection.',
+              "Cet espace de travail a atteint sa limite de connexions pour le plan actuel. Deconnectez une boite existante ou passez a un plan superieur pour en ajouter une autre.",
+              'Dieser Workspace hat das Verbindungslimit des aktuellen Plans erreicht. Trennen Sie einen bestehenden Eingang oder upgraden Sie den Plan, um eine weitere Verbindung hinzuzufugen.',
+              "Este espacio de trabajo ha alcanzado su limite de conexiones para el plan actual. Desconecta una bandeja existente o mejora el plan para agregar otra conexion.",
+              "Este espaco de trabalho atingiu o limite de ligacoes do plano atual. Desligue uma caixa existente ou atualize o plano para adicionar outra ligacao."
             ),
             oauth_state_expired: t(
               'The mailbox connection expired. Start it again.',
-              'La connexion a la boite mail a expire. Relancez-la.',
+              "La connexion a la bo?te mail a expire. Relancez-la.",
               'Die Mailbox-Verbindung ist abgelaufen. Starten Sie sie erneut.',
-              'La conexion del buzon caduco. Iniciala de nuevo.',
-              'A ligacao da caixa de correio expirou. Inicie-a novamente.'
+              "La conexi?n del buzon caduco. Iniciala de nuevo.",
+              "A liga??o da caixa de correio expirou. Inicie-a novamente."
             ),
             oauth_code_missing: t(
               'The mailbox provider returned without an authorization code. Start the connection again.',
-              'Le fournisseur de boite mail est revenu sans code d autorisation. Relancez la connexion.',
+              "Le fournisseur de bo?te mail est revenu sans code d autorisation. Relancez la connexion.",
               'Der Mailbox-Anbieter ist ohne Autorisierungscode zuruckgekehrt. Starten Sie die Verbindung erneut.',
-              'El proveedor del buzon regreso sin codigo de autorizacion. Inicia la conexion de nuevo.',
-              'O fornecedor da caixa de correio regressou sem codigo de autorizacao. Inicie a ligacao novamente.'
+              "El proveedor del buzon regreso sin c?digo de autorizacion. Inicia la conexi?n de nuevo.",
+              "O fornecedor da caixa de correio regressou sem c?digo de autoriza??o. Inicie a liga??o novamente."
             ),
             invalid_client: t(
               'The mailbox provider rejected this app configuration.',
-              'Le fournisseur de boite mail a refuse cette configuration applicative.',
+              "Le fournisseur de bo?te mail a refuse cette configuration applicative.",
               'Der Mailbox-Anbieter hat diese App-Konfiguration abgelehnt.',
-              'El proveedor del buzon rechazo esta configuracion de la aplicacion.',
-              'O fornecedor da caixa de correio rejeitou esta configuracao da aplicacao.'
+              "El proveedor del buzon rechazo esta configuraci?n de la aplicacion.",
+              "O fornecedor da caixa de correio rejeitou esta configura??o da aplica??o."
             ),
             mailbox_oauth_callback_failed: t(
               'The mailbox provider callback failed while exchanging tokens or reading the mailbox profile.',
-              'Le rappel du fournisseur de boite mail a echoue lors de l echange des jetons ou de la lecture du profil.',
+              "Le rappel du fournisseur de bo?te mail a ?chou? lors de l echange des jetons ou de la lecture du profil.",
               'Der Callback des Mailbox-Anbieters ist beim Token-Austausch oder beim Lesen des Profils fehlgeschlagen.',
               'La devolucion del proveedor del buzon fallo al intercambiar tokens o leer el perfil del buzon.',
               'O callback do fornecedor da caixa de correio falhou ao trocar tokens ou ler o perfil da caixa de correio.'
@@ -1469,15 +1476,15 @@ export default function InboxPageClient({
           }[mailboxError] ||
           `${t(
             'Mailbox connection failed.',
-            'La connexion a la boite mail a echoue.',
+            "La connexion a la bo?te mail a ?chou?.",
             'Die Mailbox-Verbindung ist fehlgeschlagen.',
-            'La conexion del buzon fallo.',
-            'A ligacao da caixa de correio falhou.'
+            "La conexi?n del buzon fallo.",
+            "A liga??o da caixa de correio falhou."
           )} (${mailboxError})`;
 
           const detail = String(mailboxErrorDetail || '').trim();
           if (!detail) return baseMessage;
-          return `${baseMessage} ${t('Details:', 'Details :', 'Details:', 'Detalles:', 'Detalhes:')} ${detail}`;
+          return `${baseMessage} ${t('Details:', "D?tails :", 'Details:', 'Detalles:', 'Detalhes:')} ${detail}`;
         })(),
       });
     if (mailboxError) clearMailboxStatusParams();
@@ -1552,7 +1559,7 @@ export default function InboxPageClient({
               'Impossible de deconnecter ce canal.',
               'Dieser Kanal kann nicht getrennt werden.',
               'No se puede desconectar este canal.',
-              'Nao foi possivel desligar este canal.'
+              "N?o foi poss?vel desligar este canal."
             )
           )
         );
@@ -1571,7 +1578,7 @@ export default function InboxPageClient({
               )
             : t(
                 'Mailbox disconnected.',
-                'Boite mail deconnectee.',
+                "Bo?te mail deconnectee.",
                 'Mailbox getrennt.',
                 'Buzon desconectado.',
                 'Caixa de correio desligada.'
@@ -1588,7 +1595,7 @@ export default function InboxPageClient({
             'Impossible de deconnecter ce canal.',
             'Dieser Kanal kann nicht getrennt werden.',
             'No se puede desconectar este canal.',
-            'Nao foi possivel desligar este canal.'
+            "N?o foi poss?vel desligar este canal."
           )
         ),
       });
@@ -1677,10 +1684,10 @@ export default function InboxPageClient({
             data?.error,
             t(
               'Unable to update conversation.',
-              'Impossible de mettre a jour la conversation.',
+              "Impossible de mettre ? jour la conversation.",
               'Konversation kann nicht aktualisiert werden.',
               'No se puede actualizar la conversacion.',
-              'Nao foi possivel atualizar a conversa.'
+              "N?o foi poss?vel atualizar a conversa."
             )
           )
         );
@@ -1689,7 +1696,7 @@ export default function InboxPageClient({
         kind: 'success',
         message: t(
           'Conversation updated.',
-          'Conversation mise a jour.',
+          "Conversation mise ? jour.",
           'Konversation aktualisiert.',
           'Conversacion actualizada.',
           'Conversa atualizada.'
@@ -1702,10 +1709,10 @@ export default function InboxPageClient({
           error?.message,
           t(
             'Unable to update conversation.',
-            'Impossible de mettre a jour la conversation.',
+            "Impossible de mettre ? jour la conversation.",
             'Konversation kann nicht aktualisiert werden.',
             'No se puede actualizar la conversacion.',
-            'Nao foi possivel atualizar a conversa.'
+            "N?o foi poss?vel atualizar a conversa."
           )
         ),
       });
@@ -1735,7 +1742,7 @@ export default function InboxPageClient({
               'Impossible d ajouter une note.',
               'Notiz kann nicht hinzugefugt werden.',
               'No se puede agregar la nota.',
-              'Nao foi possivel adicionar a nota.'
+              "N?o foi poss?vel adicionar a nota."
             )
           )
         );
@@ -1751,7 +1758,7 @@ export default function InboxPageClient({
             'Impossible d ajouter une note.',
             'Notiz kann nicht hinzugefugt werden.',
             'No se puede agregar la nota.',
-            'Nao foi possivel adicionar a nota.'
+            "N?o foi poss?vel adicionar a nota."
           )
         ),
       });
@@ -1776,7 +1783,7 @@ export default function InboxPageClient({
               'Impossible de supprimer la note.',
               'Notiz kann nicht geloscht werden.',
               'No se puede eliminar la nota.',
-              'Nao foi possivel eliminar a nota.'
+              "N?o foi poss?vel eliminar a nota."
             )
           )
         );
@@ -1792,7 +1799,7 @@ export default function InboxPageClient({
             'Impossible de supprimer la note.',
             'Notiz kann nicht geloscht werden.',
             'No se puede eliminar la nota.',
-            'Nao foi possivel eliminar a nota.'
+            "N?o foi poss?vel eliminar a nota."
           )
         ),
       });
@@ -1855,7 +1862,7 @@ export default function InboxPageClient({
               'Impossible d envoyer le message.',
               'Nachricht kann nicht gesendet werden.',
               'No se puede enviar el mensaje.',
-              'Nao foi possivel enviar a mensagem.'
+              "N?o foi poss?vel enviar a mensagem."
             )
           )
         );
@@ -1872,7 +1879,7 @@ export default function InboxPageClient({
             'Impossible d envoyer le message.',
             'Nachricht kann nicht gesendet werden.',
             'No se puede enviar el mensaje.',
-            'Nao foi possivel enviar a mensagem.'
+            "N?o foi poss?vel enviar a mensagem."
           )
         ),
       });
@@ -1902,7 +1909,7 @@ export default function InboxPageClient({
               'Impossible de renvoyer ce message.',
               'Diese Nachricht kann nicht erneut gesendet werden.',
               'No se puede reenviar este mensaje.',
-              'Nao foi possivel reenviar esta mensagem.'
+              "N?o foi poss?vel reenviar esta mensagem."
             )
           )
         );
@@ -1928,7 +1935,7 @@ export default function InboxPageClient({
             'Impossible de renvoyer ce message.',
             'Diese Nachricht kann nicht erneut gesendet werden.',
             'No se puede reenviar este mensaje.',
-            'Nao foi possivel reenviar esta mensagem.'
+            "N?o foi poss?vel reenviar esta mensagem."
           )
         ),
       });
@@ -1994,7 +2001,7 @@ export default function InboxPageClient({
     composeTargetMode === 'EXISTING' && !composeSelectedCustomer
     ? t(
         'Select a customer before sending.',
-        'Selectionnez un client avant l envoi.',
+        "S?lectionnez un client avant l envoi.",
         'Wahlen Sie vor dem Senden einen Kunden aus.',
         'Selecciona un cliente antes de enviar.',
         'Selecione um cliente antes de enviar.'
@@ -2004,7 +2011,7 @@ export default function InboxPageClient({
           'Add an email address before sending.',
           'Ajoutez une adresse e-mail avant l envoi.',
           'Fugen Sie vor dem Senden eine E-Mail-Adresse hinzu.',
-          'Agrega una direccion de correo antes de enviar.',
+          "Agrega una direcci?n de correo antes de enviar.",
           'Adicione um endereco de email antes de enviar.'
         )
       : composeTargetMode === 'NEW' && composeChannel === 'EMAIL' && !isLikelyEmailAddress(composeDraftEmail)
@@ -2012,16 +2019,16 @@ export default function InboxPageClient({
             'Enter a valid email address.',
             'Saisissez une adresse e-mail valide.',
             'Geben Sie eine gultige E-Mail-Adresse ein.',
-            'Introduce una direccion de correo valida.',
+            "Introduce una direcci?n de correo valida.",
             'Introduza um endereco de email valido.'
           )
         : composeTargetMode === 'NEW' && composeChannel === 'WHATSAPP' && !composeDraftPhone
           ? t(
               'Add a WhatsApp phone number before sending.',
-              'Ajoutez un numero WhatsApp avant l envoi.',
+              "Ajoutez un num?ro WhatsApp avant l envoi.",
               'Fugen Sie vor dem Senden eine WhatsApp-Nummer hinzu.',
-              'Agrega un numero de WhatsApp antes de enviar.',
-              'Adicione um numero de WhatsApp antes de enviar.'
+              "Agrega un n?mero de WhatsApp antes de enviar.",
+              "Adicione um n?mero de WhatsApp antes de enviar."
             )
       : !composeChannelReady
         ? getChannelReconnectReason(composeChannelLabel)
@@ -2045,17 +2052,17 @@ export default function InboxPageClient({
         ? t(
             'This contact does not have an email address on file.',
             'Ce contact n a pas d adresse e-mail enregistree.',
-            'Fur diesen Kontakt ist keine E-Mail-Adresse hinterlegt.',
-            'Este contacto no tiene una direccion de correo registrada.',
-            'Este contacto nao tem um endereco de email registado.'
+            "F?r diesen Kontakt ist keine E-Mail-Adresse hinterlegt.",
+            "Este contacto no tiene una direcci?n de correo registrada.",
+            "Este contacto n?o tem um endereco de email registado."
           )
         : composeChannel === 'WHATSAPP' && !composeDraftPhone
           ? t(
               'This contact does not have a phone number on file for WhatsApp.',
-              'Ce contact n a pas de numero de telephone enregistre pour WhatsApp.',
-              'Fur diesen Kontakt ist keine Telefonnummer fur WhatsApp hinterlegt.',
-              'Este contacto no tiene un numero de telefono registrado para WhatsApp.',
-              'Este contacto nao tem um numero de telefone registado para o WhatsApp.'
+              "Ce contact n a pas de num?ro de t?l?phone enregistr? pour WhatsApp.",
+              "F?r diesen Kontakt ist keine Telefonnummer f?r WhatsApp hinterlegt.",
+              "Este contacto no tiene un n?mero de tel?fono registrado para WhatsApp.",
+              "Este contacto n?o tem um n?mero de telefone registado para o WhatsApp."
             )
           : !composeMessage.trim()
             ? t(
@@ -2106,7 +2113,7 @@ export default function InboxPageClient({
               'Impossible de creer la conversation.',
               'Konversation kann nicht erstellt werden.',
               'No se puede crear la conversacion.',
-              'Nao foi possivel criar a conversa.'
+              "N?o foi poss?vel criar a conversa."
             )
           )
         );
@@ -2117,7 +2124,7 @@ export default function InboxPageClient({
         throw new Error(
           t(
             'Conversation creation returned an invalid response.',
-            'La creation de conversation a renvoye une reponse invalide.',
+            "La cr?ation de conversation a renvoye une r?ponse invalide.",
             'Die Konversationserstellung hat eine unguItige Antwort zuruckgegeben.',
             'La creacion de la conversacion devolvio una respuesta invalida.',
             'A criacao da conversa devolveu uma resposta invalida.'
@@ -2155,10 +2162,10 @@ export default function InboxPageClient({
             messageData?.error,
             t(
               'Conversation created, but the first message could not be sent. Review the thread and send it again.',
-              'La conversation a ete creee, mais le premier message n a pas pu etre envoye. Ouvrez le fil et renvoyez-le.',
-              'Die Konversation wurde erstellt, aber die erste Nachricht konnte nicht gesendet werden. Offnen Sie den Thread und senden Sie sie erneut.',
+              "La conversation a ete creee, mais le premier message n a pas pu etre envoy?. Ouvrez le fil et renvoyez-le.",
+              "Die Konversation wurde erstellt, aber die erste Nachricht konnte nicht gesendet werden. ?ffnen Sie den Thread und senden Sie sie erneut.",
               'La conversacion se creo, pero no se pudo enviar el primer mensaje. Revisa el hilo y vuelvelo a enviar.',
-              'A conversa foi criada, mas a primeira mensagem nao foi enviada. Reveja a conversa e envie-a novamente.'
+              "A conversa foi criada, mas a primeira mensagem n?o foi enviada. Reveja a conversa e envie-a novamente."
             )
           ),
         });
@@ -2187,7 +2194,7 @@ export default function InboxPageClient({
             'Impossible de demarrer cette conversation.',
             'Diese Konversation kann nicht gestartet werden.',
             'No se puede iniciar esta conversacion.',
-            'Nao foi possivel iniciar esta conversa.'
+            "N?o foi poss?vel iniciar esta conversa."
           )
         ),
       });
@@ -2222,7 +2229,7 @@ export default function InboxPageClient({
             data?.error,
             t(
               'AI suggestion failed.',
-              'La suggestion IA a echoue.',
+              "La suggestion IA a ?chou?.",
               'Der KI-Vorschlag ist fehlgeschlagen.',
               'La sugerencia de IA fallo.',
               'A sugestao da IA falhou.'
@@ -2234,7 +2241,7 @@ export default function InboxPageClient({
         throw new Error(
           t(
             'AI returned an empty suggestion.',
-            'L IA a renvoye une suggestion vide.',
+            "L?IA a renvoye une suggestion vide.",
             'Die KI hat einen leeren Vorschlag zuruckgegeben.',
             'La IA devolvio una sugerencia vacia.',
             'A IA devolveu uma sugestao vazia.'
@@ -2248,7 +2255,7 @@ export default function InboxPageClient({
           error?.message,
           t(
             'AI suggestion failed.',
-            'La suggestion IA a echoue.',
+            "La suggestion IA a ?chou?.",
             'Der KI-Vorschlag ist fehlgeschlagen.',
             'La sugerencia de IA fallo.',
             'A sugestao da IA falhou.'
@@ -2317,7 +2324,7 @@ export default function InboxPageClient({
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <h1 className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-slate-50">
-                    {t('Unified Inbox', 'Boite de reception unifiee', 'Einheitlicher Posteingang', 'Bandeja de entrada unificada', 'Caixa de entrada unificada')}
+                    {t('Unified Inbox', "Bo?te de reception unifiee", 'Einheitlicher Posteingang', 'Bandeja de entrada unificada', 'Caixa de entrada unificada')}
                   </h1>
                 </div>
               </div>
@@ -2326,7 +2333,7 @@ export default function InboxPageClient({
                   <Search className="pointer-events-none absolute left-4 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                   <input
                     disabled
-                    placeholder={t('Loading inbox...', 'Chargement de la boite...', 'Posteingang wird geladen...', 'Cargando bandeja...', 'A carregar caixa...')}
+                    placeholder={t('Loading inbox...', "Chargement de la bo?te...", 'Posteingang wird geladen...', 'Cargando bandeja...', 'A carregar caixa...')}
                     className="h-14 w-full rounded-2xl border border-slate-200 bg-white pl-12 pr-4 text-sm text-slate-400 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:placeholder:text-slate-500"
                   />
                 </div>
@@ -2346,7 +2353,7 @@ export default function InboxPageClient({
               <div className="max-w-md rounded-[30px] border border-slate-200 bg-slate-50 px-8 py-10 text-center dark:border-slate-800 dark:bg-slate-900">
                 <div className="mx-auto h-16 w-32 animate-pulse rounded-full bg-slate-200 dark:bg-slate-800" />
                 <p className="mt-5 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                  {t('Loading your inbox...', 'Chargement de votre boite de reception...', 'Ihr Posteingang wird geladen...', 'Cargando tu bandeja de entrada...', 'A carregar a sua caixa de entrada...')}
+                  {t('Loading your inbox...', "Chargement de votre bo?te de reception...", 'Ihr Posteingang wird geladen...', 'Cargando tu bandeja de entrada...', 'A carregar a sua caixa de entrada...')}
                 </p>
               </div>
             </div>
@@ -2356,7 +2363,7 @@ export default function InboxPageClient({
                 items={[]}
                 emptyMessage={t(
                   'Loading inbox activity...',
-                  'Chargement de l activite de la boite...',
+                  "Chargement de l activite de la bo?te...",
                   'Posteingangsaktivitat wird geladen...',
                   'Cargando actividad de la bandeja...',
                   'A carregar atividade da caixa...'
@@ -2390,11 +2397,11 @@ export default function InboxPageClient({
               <div>
                 {!showOnboardingState && !showInboxStateLoading ? (
                   <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400 dark:text-slate-500">
-                    {t('Unified Inbox', 'Boite de reception unifiee', 'Einheitlicher Posteingang', 'Bandeja de entrada unificada', 'Caixa de entrada unificada')}
+                    {t('Unified Inbox', "Bo?te de reception unifiee", 'Einheitlicher Posteingang', 'Bandeja de entrada unificada', 'Caixa de entrada unificada')}
                   </p>
                 ) : null}
                 <h1 className={`${showOnboardingState ? '' : 'mt-1 '}text-3xl font-semibold tracking-tight text-slate-950 dark:text-slate-50`}>
-                  {t('Unified Inbox', 'Boite de reception unifiee', 'Einheitlicher Posteingang', 'Bandeja de entrada unificada', 'Caixa de entrada unificada')}
+                  {t('Unified Inbox', "Bo?te de reception unifiee", 'Einheitlicher Posteingang', 'Bandeja de entrada unificada', 'Caixa de entrada unificada')}
                 </h1>
                 {!showOnboardingState && !showInboxStateLoading ? (
                   <p className="mt-2 max-w-2xl text-sm text-slate-500 dark:text-slate-400">
@@ -2403,7 +2410,7 @@ export default function InboxPageClient({
                       'Conversations Gmail, Outlook et WhatsApp dans un seul espace de travail cible.',
                       'Gmail-, Outlook- und WhatsApp-Konversationen in einem fokussierten Workspace.',
                       'Conversaciones de Gmail, Outlook y WhatsApp en un solo espacio de trabajo enfocado.',
-                      'Conversas do Gmail, Outlook e WhatsApp num unico espaco de trabalho focado.'
+                      "Conversas do Gmail, Outlook e WhatsApp num unico espa?o de trabalho focado."
                     )}
                   </p>
                 ) : null}
@@ -2431,7 +2438,7 @@ export default function InboxPageClient({
                             'Utilisateur de l espace de travail',
                             'Workspace-Benutzer',
                             'Usuario del espacio de trabajo',
-                            'Utilizador do espaco de trabalho'
+                            "Utilizador do espa?o de trabalho"
                           )}
                       </p>
                     ) : null}
@@ -2456,7 +2463,7 @@ export default function InboxPageClient({
                   <Search className="pointer-events-none absolute left-4 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                   <input
                     disabled
-                    placeholder={t('Loading inbox...', 'Chargement de la boite...', 'Posteingang wird geladen...', 'Cargando bandeja...', 'A carregar caixa...')}
+                    placeholder={t('Loading inbox...', "Chargement de la bo?te...", 'Posteingang wird geladen...', 'Cargando bandeja...', 'A carregar caixa...')}
                     className="h-14 w-full rounded-2xl border border-slate-200 bg-white pl-12 pr-4 text-sm text-slate-400 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:placeholder:text-slate-500"
                   />
                 </div>
@@ -2503,7 +2510,7 @@ export default function InboxPageClient({
                       { id: 'ALL' as const, label: t('All', 'Tous', 'Alle', 'Todos', 'Todos'), count: ticketCounts.all },
                       {
                         id: 'OPEN' as const,
-                        label: t('Needs reply', 'Reponse requise', 'Antwort erforderlich', 'Necesita respuesta', 'Precisa de resposta'),
+                        label: t('Needs reply', "R?ponse requise", 'Antwort erforderlich', 'Necesita respuesta', 'Precisa de resposta'),
                         count: ticketCounts.open,
                       },
                       {
@@ -2583,7 +2590,7 @@ export default function InboxPageClient({
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
               <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">
-                  {t('Inbox', 'Boite de reception', 'Posteingang', 'Bandeja de entrada', 'Caixa de entrada')}
+                  {t('Inbox', "Bo?te de reception", 'Posteingang', 'Bandeja de entrada', 'Caixa de entrada')}
                 </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
                   {formatCompactCount(ticketCounts.all)}{' '}
@@ -2591,7 +2598,7 @@ export default function InboxPageClient({
                 </p>
               </div>
               <span className="shrink-0 self-start whitespace-nowrap rounded-full bg-slate-100 px-3 py-1 text-xs font-medium tabular-nums text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                {formatCompactCount(totalUnreadCount)} {t('unread', 'non lus', 'ungelesen', 'sin leer', 'nao lidas')}
+                {formatCompactCount(totalUnreadCount)} {t('unread', 'non lus', 'ungelesen', 'sin leer', "n?o lidas")}
               </span>
             </div>
             <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800">
@@ -2694,7 +2701,7 @@ export default function InboxPageClient({
                           className={`mt-3 truncate text-sm ${previewClasses}`}
                         >
                           {conversation.lastMessage?.content ||
-                            t('No messages yet.', 'Aucun message pour le moment.', 'Noch keine Nachrichten.', 'Aun no hay mensajes.', 'Ainda nao ha mensagens.')}
+                            t('No messages yet.', 'Aucun message pour le moment.', 'Noch keine Nachrichten.', "A?n no hay mensajes.", "Ainda n?o ha mensagens.")}
                         </p>
                         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                           <div className="flex flex-wrap items-center gap-2">
@@ -2744,7 +2751,7 @@ export default function InboxPageClient({
                     <div className="mx-auto -mb-2 -mt-3 w-full max-w-[320px]">
                       <Image
                         src="/brand/unified-inbox-hero.png"
-                        alt={t('Unified inbox illustration', 'Illustration de la boite de reception unifiee', 'Illustration des einheitlichen Posteingangs', 'Ilustracion de la bandeja de entrada unificada', 'Ilustracao da caixa de entrada unificada')}
+                        alt={t('Unified inbox illustration', "Illustration de la bo?te de reception unifiee", 'Illustration des einheitlichen Posteingangs', 'Ilustracion de la bandeja de entrada unificada', 'Ilustracao da caixa de entrada unificada')}
                         width={629}
                         height={491}
                         sizes="320px"
@@ -2753,7 +2760,7 @@ export default function InboxPageClient({
                       />
                     </div>
                     <h2 className="mt-2 text-4xl font-semibold tracking-tight text-slate-950 dark:text-slate-50">
-                      {t('Your Unified Inbox is ready', 'Votre boite de reception unifiee est prete', 'Ihr einheitlicher Posteingang ist bereit', 'Tu bandeja de entrada unificada esta lista', 'A sua caixa de entrada unificada esta pronta')}
+                      {t('Your Unified Inbox is ready', "Votre bo?te de reception unifiee est pr?te", 'Ihr einheitlicher Posteingang ist bereit', 'Tu bandeja de entrada unificada esta lista', 'A sua caixa de entrada unificada esta pronta')}
                     </h2>
                     <p className="mt-4 text-lg leading-8 text-slate-500 dark:text-slate-400">
                       {t(
@@ -2777,7 +2784,7 @@ export default function InboxPageClient({
                         providerAvailabilityLoading
                           ? t('Loading', 'Chargement', 'Wird geladen', 'Cargando', 'A carregar')
                           : gmailOauthConfigured === false
-                            ? t('Unavailable', 'Indisponible', 'Nicht verfugbar', 'No disponible', 'Indisponivel')
+                            ? t('Unavailable', 'Indisponible', "Nicht verf?gbar", 'No disponible', "Indispon?vel")
                             : undefined
                       }
                       onClick={() => startMailboxConnect(gmailConnectHref, Boolean(gmailOauthConfigured))}
@@ -2793,7 +2800,7 @@ export default function InboxPageClient({
                         providerAvailabilityLoading
                           ? t('Loading', 'Chargement', 'Wird geladen', 'Cargando', 'A carregar')
                           : outlookOauthConfigured === false
-                            ? t('Unavailable', 'Indisponible', 'Nicht verfugbar', 'No disponible', 'Indisponivel')
+                            ? t('Unavailable', 'Indisponible', "Nicht verf?gbar", 'No disponible', "Indispon?vel")
                             : undefined
                       }
                       onClick={() =>
@@ -2806,14 +2813,14 @@ export default function InboxPageClient({
                       title={t('Connect WhatsApp', 'Connecter WhatsApp', 'WhatsApp verbinden', 'Conectar WhatsApp', 'Ligar WhatsApp')}
                       description={
                         whatsappConnectAvailable
-                          ? t('Connect your WhatsApp number.', 'Connectez votre numero WhatsApp.', 'Verbinden Sie Ihre WhatsApp-Nummer.', 'Conecta tu numero de WhatsApp.', 'Ligue o seu numero do WhatsApp.')
-                          : t('WhatsApp is not available on this deployment yet.', 'WhatsApp n est pas encore disponible sur ce deploiement.', 'WhatsApp ist auf dieser Bereitstellung noch nicht verfugbar.', 'WhatsApp todavia no esta disponible en este despliegue.', 'O WhatsApp ainda nao esta disponivel nesta implementacao.')
+                          ? t('Connect your WhatsApp number.', "Connectez votre num?ro WhatsApp.", 'Verbinden Sie Ihre WhatsApp-Nummer.', "Conecta tu n?mero de WhatsApp.", "Ligue o seu n?mero do WhatsApp.")
+                          : t('WhatsApp is not available on this deployment yet.', "WhatsApp n est pas encore disponible sur ce d?ploiement.", "WhatsApp ist auf dieser Bereitstellung noch nicht verf?gbar.", "WhatsApp todavia no est? disponible en este despliegue.", "O WhatsApp ainda n?o esta dispon?vel nesta implementacao.")
                       }
                       accentClassName="bg-emerald-50"
                       disabled={!whatsappConnectAvailable}
                       badge={
                         !whatsappConnectAvailable
-                          ? t('Unavailable', 'Indisponible', 'Nicht verfugbar', 'No disponible', 'Indisponivel')
+                          ? t('Unavailable', 'Indisponible', "Nicht verf?gbar", 'No disponible', "Indispon?vel")
                           : undefined
                       }
                     >
@@ -2836,7 +2843,7 @@ export default function InboxPageClient({
 
                   <div className="mt-8 flex items-center justify-center gap-2 border-t border-slate-200 pt-6 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
                     <ShieldCheck className="h-4 w-4 text-emerald-500" />
-                    <span>{t('Your data is secure and encrypted.', 'Vos donnees sont securisees et chiffrees.', 'Ihre Daten sind sicher und verschlusselt.', 'Tus datos son seguros y estan cifrados.', 'Os seus dados estao seguros e encriptados.')}</span>
+                    <span>{t('Your data is secure and encrypted.', "Vos donnees sont s?curis?es et chiffrees.", 'Ihre Daten sind sicher und verschlusselt.', "Tus datos son seguros y est?n cifrados.", 'Os seus dados estao seguros e encriptados.')}</span>
                   </div>
                 </div>
               </div>
@@ -2896,7 +2903,7 @@ export default function InboxPageClient({
                         disabled={saving}
                         className="h-10 w-full min-w-0 rounded-2xl border border-slate-200 bg-white/90 px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-indigo-300 focus:bg-white sm:min-w-[170px] sm:max-w-[200px] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:bg-slate-900"
                       >
-                        <option value="OPEN">{t('Needs reply', 'Reponse requise', 'Antwort erforderlich', 'Necesita respuesta', 'Precisa de resposta')}</option>
+                        <option value="OPEN">{t('Needs reply', "R?ponse requise", 'Antwort erforderlich', 'Necesita respuesta', 'Precisa de resposta')}</option>
                         <option value="WAITING_ON_CUSTOMER">{t('Waiting on customer', 'En attente du client', 'Wartet auf Kunden', 'Esperando al cliente', 'A aguardar o cliente')}</option>
                         <option value="SNOOZED">{t('Snoozed', 'Reporte', 'Zuruckgestellt', 'Pospuesto', 'Adiado')}</option>
                         <option value="RESOLVED">{t('Resolved', 'Resolue', 'Gelost', 'Resuelto', 'Resolvido')}</option>
@@ -2933,7 +2940,7 @@ export default function InboxPageClient({
                   ) : null}
                   {!detailLoading && !detail.messages.length ? (
                     <div className="rounded-[28px] border border-dashed border-slate-300 bg-slate-50 px-4 py-10 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
-                      {t('No messages yet.', 'Aucun message pour le moment.', 'Noch keine Nachrichten.', 'Aun no hay mensajes.', 'Ainda nao ha mensagens.')}
+                      {t('No messages yet.', 'Aucun message pour le moment.', 'Noch keine Nachrichten.', "A?n no hay mensajes.", "Ainda n?o ha mensagens.")}
                     </div>
                   ) : null}
                   {detail.messages.map((message) => (
@@ -2990,7 +2997,7 @@ export default function InboxPageClient({
                   ) : null}
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <span className="inline-flex h-10 items-center rounded-2xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-                      {t('Replying on', 'Reponse sur', 'Antwort uber', 'Respondiendo por', 'A responder em')} {getBrandLabel(getConversationBrand(detail.inbox.type, detail.inbox.id))}
+                      {t('Replying on', "R?ponse sur", "Antwort ?ber", 'Respondiendo por', 'A responder em')} {getBrandLabel(getConversationBrand(detail.inbox.type, detail.inbox.id))}
                     </span>
                     <select
                       onChange={(event) => {
@@ -3019,7 +3026,7 @@ export default function InboxPageClient({
                       <Sparkles className="h-4 w-4" />
                       {aiLoading
                         ? t('Generating...', 'Generation...', 'Wird erstellt...', 'Generando...', 'A gerar...')
-                        : t('AI reply', 'Reponse IA', 'KI-Antwort', 'Respuesta IA', 'Resposta IA')}
+                        : t('AI reply', "R?ponse IA", 'KI-Antwort', 'Respuesta IA', 'Resposta IA')}
                     </Button>
                     <label
                       className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-semibold ${activeReplyDisabledReason ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-500' : 'cursor-pointer border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-800'}`}
@@ -3055,7 +3062,7 @@ export default function InboxPageClient({
                       disabled={Boolean(activeReplyDisabledReason)}
                       placeholder={
                         activeReplyDisabledReason ||
-                        t('Type your reply...', 'Saisissez votre reponse...', 'Antwort eingeben...', 'Escribe tu respuesta...', 'Escreva a sua resposta...')
+                        t('Type your reply...', "Saisissez votre r?ponse...", 'Antwort eingeben...', 'Escribe tu respuesta...', 'Escreva a sua resposta...')
                       }
                     />
                     <Button
@@ -3076,7 +3083,7 @@ export default function InboxPageClient({
                 <div className="max-w-md rounded-[30px] border border-slate-200 bg-slate-50 px-8 py-10 text-center dark:border-slate-800 dark:bg-slate-900">
                   <div className="mx-auto h-16 w-32 animate-pulse rounded-full bg-slate-200 dark:bg-slate-800" />
                   <p className="mt-5 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                    {t('Loading your inbox...', 'Chargement de votre boite de reception...', 'Ihr Posteingang wird geladen...', 'Cargando tu bandeja de entrada...', 'A carregar a sua caixa de entrada...')}
+                    {t('Loading your inbox...', "Chargement de votre bo?te de reception...", 'Ihr Posteingang wird geladen...', 'Cargando tu bandeja de entrada...', 'A carregar a sua caixa de entrada...')}
                   </p>
                 </div>
               </div>
@@ -3087,14 +3094,14 @@ export default function InboxPageClient({
                     <Inbox className="h-7 w-7" />
                   </div>
                   <h2 className="mt-5 text-2xl font-semibold text-slate-950 dark:text-slate-50">
-                    {t('No conversations yet', 'Aucune conversation pour le moment', 'Noch keine Konversationen', 'Aun no hay conversaciones', 'Ainda nao ha conversas')}
+                    {t('No conversations yet', 'Aucune conversation pour le moment', 'Noch keine Konversationen', "A?n no hay conversaciones", "Ainda n?o ha conversas")}
                   </h2>
                   <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
                     {t(
                       'Start a conversation now or wait for incoming messages to land here automatically.',
                       'Demarrez une conversation maintenant ou attendez que les messages entrants arrivent ici automatiquement.',
                       'Starten Sie jetzt eine Konversation oder warten Sie, bis eingehende Nachrichten hier automatisch erscheinen.',
-                      'Inicia una conversacion ahora o espera a que los mensajes entrantes aparezcan aqui automaticamente.',
+                      "Inicia una conversacion ahora o espera a que los mensajes entrantes aparezcan aqui autom?ticamente.",
                       'Inicie uma conversa agora ou espere que as mensagens recebidas aparecam aqui automaticamente.'
                     )}
                   </p>
@@ -3122,7 +3129,7 @@ export default function InboxPageClient({
                   items={[]}
                   emptyMessage={t(
                     'Loading inbox activity...',
-                    'Chargement de l activite de la boite...',
+                    "Chargement de l activite de la bo?te...",
                     'Posteingangsaktivitat wird geladen...',
                     'Cargando actividad de la bandeja...',
                     'A carregar atividade da caixa...'
@@ -3135,10 +3142,10 @@ export default function InboxPageClient({
                   items={connectedRecentActivityItems}
                   emptyMessage={t(
                     'No activity yet. New inbox events will appear here.',
-                    'Aucune activite pour le moment. Les nouveaux evenements de boite de reception apparaitront ici.',
-                    'Noch keine Aktivitat. Neue Posteingangsereignisse erscheinen hier.',
-                    'Aun no hay actividad. Los nuevos eventos de la bandeja de entrada apareceran aqui.',
-                    'Ainda nao ha atividade. Novos eventos da caixa de entrada aparecerao aqui.'
+                    "Aucune activite pour le moment. Les nouveaux ?v?nements de bo?te de reception apparaitront ici.",
+                    "Noch keine Aktivit?t. Neue Posteingangsereignisse erscheinen hier.",
+                    "A?n no hay actividad. Los nuevos eventos de la bandeja de entrada apareceran aqui.",
+                    "Ainda n?o ha atividade. Novos eventos da caixa de entrada aparecerao aqui."
                   )}
                 />
               )}
@@ -3161,12 +3168,12 @@ export default function InboxPageClient({
                     <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 [overflow-wrap:anywhere]">
                       {detail
                         ? getPrimaryLabel(detail.contact)
-                        : t('Select a conversation', 'Selectionnez une conversation', 'Wahlen Sie eine Konversation aus', 'Selecciona una conversacion', 'Selecione uma conversa')}
+                        : t('Select a conversation', "S?lectionnez une conversation", 'Wahlen Sie eine Konversation aus', 'Selecciona una conversacion', 'Selecione uma conversa')}
                     </p>
                     <p className="text-xs text-slate-500 dark:text-slate-400 [overflow-wrap:anywhere]">
                       {detail
                         ? getSecondaryLabel(detail.contact)
-                        : t('Customer details will appear here.', 'Les details du client apparaitront ici.', 'Kundendetails erscheinen hier.', 'Los detalles del cliente apareceran aqui.', 'Os detalhes do cliente aparecerao aqui.')}
+                        : t('Customer details will appear here.', "Les d?tails du client apparaitront ici.", 'Kundendetails erscheinen hier.', 'Los detalles del cliente apareceran aqui.', 'Os detalhes do cliente aparecerao aqui.')}
                     </p>
                   </div>
                 </div>
@@ -3183,7 +3190,7 @@ export default function InboxPageClient({
                       </p>
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                         {detail.unreadCount}{' '}
-                        {t('unread in this thread', 'non lus dans ce fil', 'ungelesen in diesem Thread', 'sin leer en este hilo', 'nao lidas nesta conversa')}
+                        {t('unread in this thread', 'non lus dans ce fil', 'ungelesen in diesem Thread', 'sin leer en este hilo', "n?o lidas nesta conversa")}
                       </p>
                     </div>
                     <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-900">
@@ -3241,8 +3248,8 @@ export default function InboxPageClient({
                                     className="text-[11px] font-semibold text-slate-500 transition hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-400 dark:hover:text-rose-300"
                                   >
                                     {deletingNoteId === note.id
-                                      ? t('Deleting...', 'Suppression...', 'Loschen...', 'Eliminando...', 'A eliminar...')
-                                      : t('Delete', 'Supprimer', 'Loschen', 'Eliminar', 'Eliminar')}
+                                      ? t('Deleting...', 'Suppression...', "L?schen...", 'Eliminando...', 'A eliminar...')
+                                      : t('Delete', 'Supprimer', "L?schen", 'Eliminar', 'Eliminar')}
                                   </button>
                                 ) : null}
                               </div>
@@ -3253,7 +3260,7 @@ export default function InboxPageClient({
                           ))
                         ) : (
                           <p className="text-xs text-slate-500 dark:text-slate-400">
-                            {t('No notes yet.', 'Aucune note pour le moment.', 'Noch keine Notizen.', 'Aun no hay notas.', 'Ainda nao ha notas.')}
+                            {t('No notes yet.', 'Aucune note pour le moment.', 'Noch keine Notizen.', "A?n no hay notas.", "Ainda n?o ha notas.")}
                           </p>
                         )}
                       </div>
@@ -3277,10 +3284,10 @@ export default function InboxPageClient({
                   <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-5 text-sm leading-6 text-slate-500 dark:bg-slate-900 dark:text-slate-400">
                     {t(
                       'Recent activity and workspace stats stay visible here even before channels are connected. Customer context appears when you select a conversation.',
-                      'L activite recente et les statistiques de l espace de travail restent visibles ici meme avant la connexion des canaux. Le contexte client apparait lorsque vous selectionnez une conversation.',
-                      'Neueste Aktivitat und Workspace-Statistiken bleiben hier sichtbar, auch bevor Kanale verbunden sind. Der Kundenkontext erscheint, sobald Sie eine Konversation auswahlen.',
+                      "L activite recente et les statistiques de l espace de travail restent visibles ici meme avant la connexion des canaux. Le contexte client apparait lorsque vous s?lectionnez une conversation.",
+                      "Neueste Aktivit?t und Workspace-Statistiken bleiben hier sichtbar, auch bevor Kanale verbunden sind. Der Kundenkontext erscheint, sobald Sie eine Konversation auswahlen.",
                       'La actividad reciente y las estadisticas del espacio de trabajo siguen visibles aqui incluso antes de conectar canales. El contexto del cliente aparece cuando seleccionas una conversacion.',
-                      'A atividade recente e as estatisticas do espaco de trabalho permanecem visiveis aqui mesmo antes de ligar canais. O contexto do cliente aparece quando seleciona uma conversa.'
+                      "A atividade recente e as estatisticas do espa?o de trabalho permanecem visiveis aqui mesmo antes de ligar canais. O contexto do cliente aparece quando seleciona uma conversa."
                     )}
                   </div>
                 )}
@@ -3307,8 +3314,8 @@ export default function InboxPageClient({
             <p className="text-sm text-slate-600 dark:text-slate-300">
               {t(
                 'Connect multiple email inboxes here. Gmail, Outlook, and WhatsApp can all live in the same unified inbox.',
-                'Connectez ici plusieurs boites email. Gmail, Outlook et WhatsApp peuvent coexister dans la meme boite de reception unifiee.',
-                'Verbinden Sie hier mehrere E-Mail-Postfacher. Gmail, Outlook und WhatsApp konnen im selben einheitlichen Posteingang zusammenlaufen.',
+                "Connectez ici plusieurs boites email. Gmail, Outlook et WhatsApp peuvent coexister dans la meme bo?te de reception unifiee.",
+                "Verbinden Sie hier mehrere E-Mail-Postfacher. Gmail, Outlook und WhatsApp k?nnen im selben einheitlichen Posteingang zusammenlaufen.",
                 'Conecta aqui varios buzones de correo. Gmail, Outlook y WhatsApp pueden convivir en la misma bandeja unificada.',
                 'Ligue aqui varias caixas de email. Gmail, Outlook e WhatsApp podem coexistir na mesma caixa de entrada unificada.'
               )}
@@ -3318,9 +3325,9 @@ export default function InboxPageClient({
                 {t(
                   'Connected email inboxes stay available side by side. New connections are added as separate inboxes.',
                   'Les boites email connectees restent disponibles cote a cote. Les nouvelles connexions sont ajoutees comme boites separees.',
-                  'Verbundene E-Mail-Postfacher bleiben parallel verfugbar. Neue Verbindungen werden als eigene Postfacher hinzugefugt.',
+                  "Verbundene E-Mail-Postfacher bleiben parallel verf?gbar. Neue Verbindungen werden als eigene Postfacher hinzugefugt.",
                   'Los buzones conectados siguen disponibles uno al lado del otro. Las nuevas conexiones se agregan como buzones separados.',
-                  'As caixas de email ligadas continuam disponiveis lado a lado. Novas ligacoes sao adicionadas como caixas separadas.'
+                  "As caixas de email ligadas continuam dispon?veis lado a lado. Novas ligacoes s?o adicionadas como caixas separadas."
                 )}
               </Alert>
             ) : null}
@@ -3330,14 +3337,14 @@ export default function InboxPageClient({
             <ChannelConnectCard
               icon={<GmailLogo className="h-8 w-8" />}
               title={t('Connect Gmail', 'Connecter Gmail', 'Gmail verbinden', 'Conectar Gmail', 'Ligar Gmail')}
-              description={t('Add a Gmail mailbox to this unified inbox.', 'Ajoutez une boite Gmail a cette boite de reception unifiee.', 'Fugen Sie diesem einheitlichen Posteingang ein Gmail-Postfach hinzu.', 'Agrega un buzon de Gmail a esta bandeja unificada.', 'Adicione uma caixa Gmail a esta caixa de entrada unificada.')}
+              description={t('Add a Gmail mailbox to this unified inbox.', "Ajoutez une bo?te Gmail a cette bo?te de reception unifiee.", 'Fugen Sie diesem einheitlichen Posteingang ein Gmail-Postfach hinzu.', 'Agrega un buzon de Gmail a esta bandeja unificada.', 'Adicione uma caixa Gmail a esta caixa de entrada unificada.')}
               accentClassName="bg-red-50"
               disabled={providerAvailabilityLoading || gmailOauthConfigured === false}
               badge={
                 providerAvailabilityLoading
                   ? t('Loading', 'Chargement', 'Wird geladen', 'Cargando', 'A carregar')
                   : gmailOauthConfigured === false
-                    ? t('Unavailable', 'Indisponible', 'Nicht verfugbar', 'No disponible', 'Indisponivel')
+                    ? t('Unavailable', 'Indisponible', "Nicht verf?gbar", 'No disponible', "Indispon?vel")
                     : undefined
               }
               onClick={() => startMailboxConnect(gmailConnectHref, Boolean(gmailOauthConfigured))}
@@ -3346,14 +3353,14 @@ export default function InboxPageClient({
             <ChannelConnectCard
               icon={<OutlookLogo className="h-8 w-8" />}
               title={t('Connect Outlook', 'Connecter Outlook', 'Outlook verbinden', 'Conectar Outlook', 'Ligar Outlook')}
-              description={t('Add an Outlook mailbox to this unified inbox.', 'Ajoutez une boite Outlook a cette boite de reception unifiee.', 'Fugen Sie diesem einheitlichen Posteingang ein Outlook-Postfach hinzu.', 'Agrega un buzon de Outlook a esta bandeja unificada.', 'Adicione uma caixa Outlook a esta caixa de entrada unificada.')}
+              description={t('Add an Outlook mailbox to this unified inbox.', "Ajoutez une bo?te Outlook a cette bo?te de reception unifiee.", 'Fugen Sie diesem einheitlichen Posteingang ein Outlook-Postfach hinzu.', 'Agrega un buzon de Outlook a esta bandeja unificada.', 'Adicione uma caixa Outlook a esta caixa de entrada unificada.')}
               accentClassName="bg-sky-50"
               disabled={providerAvailabilityLoading || outlookOauthConfigured === false}
               badge={
                 providerAvailabilityLoading
                   ? t('Loading', 'Chargement', 'Wird geladen', 'Cargando', 'A carregar')
                   : outlookOauthConfigured === false
-                    ? t('Unavailable', 'Indisponible', 'Nicht verfugbar', 'No disponible', 'Indisponivel')
+                    ? t('Unavailable', 'Indisponible', "Nicht verf?gbar", 'No disponible', "Indispon?vel")
                     : undefined
               }
               onClick={() =>
@@ -3367,14 +3374,14 @@ export default function InboxPageClient({
                 title={t('Connect WhatsApp', 'Connecter WhatsApp', 'WhatsApp verbinden', 'Conectar WhatsApp', 'Ligar WhatsApp')}
                 description={
                   whatsappConnectAvailable
-                    ? t('Connect your WhatsApp number.', 'Connectez votre numero WhatsApp.', 'Verbinden Sie Ihre WhatsApp-Nummer.', 'Conecta tu numero de WhatsApp.', 'Ligue o seu numero do WhatsApp.')
-                    : t('WhatsApp is not available on this deployment yet.', 'WhatsApp n est pas encore disponible sur ce deploiement.', 'WhatsApp ist auf dieser Bereitstellung noch nicht verfugbar.', 'WhatsApp todavia no esta disponible en este despliegue.', 'O WhatsApp ainda nao esta disponivel nesta implementacao.')
+                    ? t('Connect your WhatsApp number.', "Connectez votre num?ro WhatsApp.", 'Verbinden Sie Ihre WhatsApp-Nummer.', "Conecta tu n?mero de WhatsApp.", "Ligue o seu n?mero do WhatsApp.")
+                    : t('WhatsApp is not available on this deployment yet.', "WhatsApp n est pas encore disponible sur ce d?ploiement.", "WhatsApp ist auf dieser Bereitstellung noch nicht verf?gbar.", "WhatsApp todavia no est? disponible en este despliegue.", "O WhatsApp ainda n?o esta dispon?vel nesta implementacao.")
                 }
                 accentClassName="bg-emerald-50"
                 disabled={!whatsappConnectAvailable}
                 badge={
                   !whatsappConnectAvailable
-                    ? t('Unavailable', 'Indisponible', 'Nicht verfugbar', 'No disponible', 'Indisponivel')
+                    ? t('Unavailable', 'Indisponible', "Nicht verf?gbar", 'No disponible', "Indispon?vel")
                     : undefined
                 }
               >
@@ -3425,7 +3432,7 @@ export default function InboxPageClient({
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   {t(
                     'Choose an existing customer or enter a new contact to start a new inbox thread.',
-                    'Choisissez un client existant ou saisissez un nouveau contact pour demarrer un nouveau fil de boite de reception.',
+                    "Choisissez un client existant ou saisissez un nouveau contact pour demarrer un nouveau fil de bo?te de reception.",
                     'Wahlen Sie einen bestehenden Kunden oder geben Sie einen neuen Kontakt ein, um einen neuen Inbox-Thread zu starten.',
                     'Elige un cliente existente o introduce un nuevo contacto para iniciar un nuevo hilo en la bandeja de entrada.',
                     'Escolha um cliente existente ou introduza um novo contacto para iniciar uma nova conversa na caixa de entrada.'
@@ -3464,9 +3471,9 @@ export default function InboxPageClient({
                     onChange={(event) => setComposeCustomerQuery(event.target.value)}
                     placeholder={t(
                       'Search by name, email, or phone',
-                      'Rechercher par nom, e-mail ou telephone',
+                      "Rechercher par nom, e-mail ou t?l?phone",
                       'Nach Name, E-Mail oder Telefon suchen',
-                      'Buscar por nombre, correo o telefono',
+                      "Buscar por nombre, correo o tel?fono",
                       'Pesquisar por nome, email ou telefone'
                     )}
                   />
@@ -3478,9 +3485,9 @@ export default function InboxPageClient({
                           t(
                             'Unable to load customers right now.',
                             'Impossible de charger les clients pour le moment.',
-                            'Kunden konnen derzeit nicht geladen werden.',
+                            "Kunden k?nnen derzeit nicht geladen werden.",
                             'No se pueden cargar los clientes en este momento.',
-                            'Nao foi possivel carregar os clientes agora.'
+                            "N?o foi poss?vel carregar os clientes agora."
                           )
                         )}
                       </p>
@@ -3526,9 +3533,9 @@ export default function InboxPageClient({
                           {t(
                             'No customers found for this search yet.',
                             'Aucun client trouve pour cette recherche pour le moment.',
-                            'Fur diese Suche wurden noch keine Kunden gefunden.',
-                            'Aun no se encontraron clientes para esta busqueda.',
-                            'Ainda nao foram encontrados clientes para esta pesquisa.'
+                            "F?r diese Suche wurden noch keine Kunden gefunden.",
+                            "A?n no se encontraron clientes para esta busqueda.",
+                            "Ainda n?o foram encontrados clientes para esta pesquisa."
                           )}
                         </p>
                         <Link
@@ -3538,7 +3545,7 @@ export default function InboxPageClient({
                           {t(
                             'Open customers',
                             'Ouvrir les clients',
-                            'Kunden offnen',
+                            "Kunden ?ffnen",
                             'Abrir clientes',
                             'Abrir clientes'
                           )}
@@ -3567,17 +3574,17 @@ export default function InboxPageClient({
                       'Email address',
                       'Adresse e-mail',
                       'E-Mail-Adresse',
-                      'Direccion de correo',
+                      "Direcci?n de correo",
                       'Endereco de email'
                     )}
                   />
                   <PhoneInput
                     label={t(
                       'WhatsApp phone number',
-                      'Numero WhatsApp',
+                      "Num?ro WhatsApp",
                       'WhatsApp-Telefonnummer',
-                      'Numero de WhatsApp',
-                      'Numero de WhatsApp'
+                      "N?mero de WhatsApp",
+                      "N?mero de WhatsApp"
                     )}
                     value={composeNewContactPhone}
                     onChange={setComposeNewContactPhone}
@@ -3589,9 +3596,9 @@ export default function InboxPageClient({
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     {t(
                       'A customer record will be created automatically from the contact details you enter here.',
-                      'Un enregistrement client sera cree automatiquement a partir des coordonnees saisies ici.',
+                      "Un enregistrement client sera cr?e automatiquement a partir des coordonnees saisies ici.",
                       'Aus den hier eingegebenen Kontaktdaten wird automatisch ein Kundendatensatz erstellt.',
-                      'Se creara automaticamente un registro de cliente con los datos de contacto introducidos aqui.',
+                      "Se creara autom?ticamente un registro de cliente con los datos de contacto introducidos aqui.",
                       'Sera criado automaticamente um registo de cliente a partir dos dados de contacto introduzidos aqui.'
                     )}
                   </p>
@@ -3602,7 +3609,7 @@ export default function InboxPageClient({
             <div className="min-w-0 space-y-4 rounded-[24px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
               <div>
                 <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  {t('Send on', 'Envoyer sur', 'Senden uber', 'Enviar por', 'Enviar em')}
+                  {t('Send on', 'Envoyer sur', "Senden ?ber", 'Enviar por', 'Enviar em')}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
@@ -3677,16 +3684,16 @@ export default function InboxPageClient({
                             'No email address on file.',
                             'Aucune adresse e-mail enregistree.',
                             'Keine E-Mail-Adresse hinterlegt.',
-                            'No hay direccion de correo registrada.',
+                            "No hay direcci?n de correo registrada.",
                             'Sem endereco de email registado.'
                           )
                         : composeDisplayPhone ||
                           t(
                             'No WhatsApp phone number on file.',
-                            'Aucun numero WhatsApp enregistre.',
+                            "Aucun num?ro WhatsApp enregistr?.",
                             'Keine WhatsApp-Telefonnummer hinterlegt.',
-                            'No hay numero de WhatsApp registrado.',
-                            'Sem numero de WhatsApp registado.'
+                            "No hay n?mero de WhatsApp registrado.",
+                            "Sem n?mero de WhatsApp registado."
                           )}
                     </p>
                     {composeChannel === 'EMAIL' && selectedComposeEmailInbox ? (
@@ -3754,7 +3761,7 @@ export default function InboxPageClient({
                 <Alert variant="success">
                   {t(
                     'The first message will be sent immediately and open a new thread in this inbox.',
-                    'Le premier message sera envoye immediatement et ouvrira un nouveau fil dans cette boite de reception.',
+                    "Le premier message sera envoy? immediatement et ouvrira un nouveau fil dans cette bo?te de reception.",
                     'Die erste Nachricht wird sofort gesendet und offnet einen neuen Thread in diesem Posteingang.',
                     'El primer mensaje se enviara de inmediato y abrira un nuevo hilo en esta bandeja de entrada.',
                     'A primeira mensagem sera enviada de imediato e abrira uma nova conversa nesta caixa de entrada.'
@@ -3915,4 +3922,3 @@ export default function InboxPageClient({
     </div>
   );
 }
-

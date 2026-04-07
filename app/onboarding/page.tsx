@@ -14,10 +14,10 @@ function localizeBusinessError(error: unknown, t: Translate) {
   if (!message) {
     return t(
       "Could not create business.",
-      "Creation impossible.",
+      "Cr?ation impossible.",
       "Unternehmen konnte nicht erstellt werden.",
       "No se pudo crear la empresa.",
-      "Não foi possivel criar a empresa."
+      "Não foi poss?vel criar a empresa."
     );
   }
 
@@ -90,7 +90,7 @@ export default function OnboardingPage() {
           {t("Onboarding", "Onboarding")}
         </p>
         <h1 className="text-3xl font-semibold text-foreground">
-          {t("Create your business", "Creez votre entreprise")}
+          {t("Create your business", "Cr?ez votre entreprise")}
         </h1>
         <p className="text-sm text-muted-foreground">
           {t(
