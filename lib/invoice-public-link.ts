@@ -5,6 +5,22 @@ import { prisma } from "./prisma";
 import { log } from "./logger";
 
 const generateToken = () => crypto.randomBytes(24).toString("base64url");
+export const INVOICE_PUBLIC_LINK_TTL_DAYS = 30;
+
+export function getInvoicePublicLinkExpiresAt(createdAt = new Date()) {
+  return new Date(createdAt.getTime() + INVOICE_PUBLIC_LINK_TTL_DAYS * 24 * 60 * 60 * 1000);
+}
+
+export function isInvoicePublicLinkExpired(
+  link: { createdAt?: Date | null; expiresAt?: Date | null } | null | undefined,
+  now = new Date()
+) {
+  if (!link) return true;
+  const fallbackExpiresAt = link.createdAt ? getInvoicePublicLinkExpiresAt(link.createdAt) : null;
+  const effectiveExpiry = link.expiresAt || fallbackExpiresAt;
+  if (!effectiveExpiry || Number.isNaN(effectiveExpiry.getTime())) return true;
+  return effectiveExpiry.getTime() <= now.getTime();
+}
 const isMissingTableError = (error: unknown) => {
   if (typeof error !== "object" || error === null) return false;
   const code = (error as any).code as string | undefined;
@@ -43,10 +59,16 @@ export async function getOrCreateInvoicePublicLink(invoiceId: string) {
         where: { invoiceId, usedAt: null },
         orderBy: { createdAt: "desc" },
       });
-      if (existing) return existing;
+      if (existing && !isInvoicePublicLinkExpired(existing)) return existing;
 
       const token = generateToken();
-      const created = await delegate.create({ data: { invoiceId, token } });
+      const created = await delegate.create({
+        data: {
+          invoiceId,
+          token,
+          expiresAt: getInvoicePublicLinkExpiresAt(),
+        },
+      });
       log("info", "invoice_public_link_created", { invoiceId });
       return created;
     } catch (error) {
@@ -102,24 +124,25 @@ export async function getOrCreateInvoicePublicLink(invoiceId: string) {
       throw error;
     }
   }
-  if (existing.length > 0) return existing[0];
+  if (existing.length > 0 && !isInvoicePublicLinkExpired(existing[0])) return existing[0];
 
   const token = generateToken();
   const id = crypto.randomUUID();
+  const expiresAt = getInvoicePublicLinkExpiresAt();
   try {
-    await prisma.$executeRaw`INSERT INTO "InvoicePublicLink" ("id","invoiceId","token","createdAt")
-      VALUES (${id}, ${invoiceId}, ${token}, NOW())`;
+    await prisma.$executeRaw`INSERT INTO "InvoicePublicLink" ("id","invoiceId","token","createdAt","expiresAt")
+      VALUES (${id}, ${invoiceId}, ${token}, NOW(), ${expiresAt})`;
   } catch (error) {
     if (isMissingTableError(error)) {
       await ensureInvoicePublicLinkTable();
-      await prisma.$executeRaw`INSERT INTO "InvoicePublicLink" ("id","invoiceId","token","createdAt")
-        VALUES (${id}, ${invoiceId}, ${token}, NOW())`;
+      await prisma.$executeRaw`INSERT INTO "InvoicePublicLink" ("id","invoiceId","token","createdAt","expiresAt")
+        VALUES (${id}, ${invoiceId}, ${token}, NOW(), ${expiresAt})`;
     } else {
       throw error;
     }
   }
   log("info", "invoice_public_link_created", { invoiceId });
-  return { id, invoiceId, token, createdAt: new Date(), usedAt: null, expiresAt: null };
+  return { id, invoiceId, token, createdAt: new Date(), usedAt: null, expiresAt };
 }
 
 export async function resolveInvoicePublicLink(token: string) {

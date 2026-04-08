@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { resolveInvoicePublicLink } from "@/lib/invoice-public-link";
+import { isInvoicePublicLinkExpired, resolveInvoicePublicLink } from "@/lib/invoice-public-link";
 import { verifyPaystackTransaction } from "@/lib/payments/paystack";
 import {
   verifyFlutterwaveTransaction,
@@ -20,6 +20,11 @@ export const GET = async (req: Request, context: { params: Promise<{ token: stri
 
   const link = await resolveInvoicePublicLink(token);
   if (!link?.invoice) return NextResponse.redirect(new URL(`/pay/invoice/${token}?status=failed`, url));
+  if (isInvoicePublicLinkExpired(link)) {
+    return NextResponse.redirect(
+      new URL(`/pay/invoice/error?reason=invoice_link_expired`, url)
+    );
+  }
 
   const invoice = link.invoice;
   const metadata = (invoice.metadata as any) || {};

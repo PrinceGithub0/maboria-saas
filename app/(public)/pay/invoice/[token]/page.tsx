@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { resolveInvoicePublicLink } from "@/lib/invoice-public-link";
+import { isInvoicePublicLinkExpired, resolveInvoicePublicLink } from "@/lib/invoice-public-link";
 import {
   normalizeInvoiceItems,
   resolveInvoiceCustomer,
@@ -38,7 +38,7 @@ export default async function PublicInvoicePage({ params, searchParams }: PagePr
   if (!token) notFound();
 
   const link = await resolveInvoicePublicLink(token);
-  if (!link?.invoice) notFound();
+  if (!link?.invoice || isInvoicePublicLinkExpired(link)) notFound();
 
   const invoice = link.invoice;
   const metadata = (invoice.metadata as any) || {};

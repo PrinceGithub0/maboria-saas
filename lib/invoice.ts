@@ -1188,12 +1188,15 @@ export async function createInvoiceRecord({
             erasedAt: customerRecord.erasedAt,
           }, pdfBuffer);
         } catch (error) {
-          await prisma.invoice.update({
-            where: { id: created.id },
-            data: { status: "DRAFT" },
+          await persistInvoiceDeliveryAttempt({
+            invoiceId: created.id,
+            currentMetadata: ((created.metadata as any) || {}) as Record<string, unknown>,
+            status: "FAILED",
+            errorMessage: error instanceof Error ? error.message : "Could not send invoice.",
           });
+          (created as any).deliveryWarning =
+            error instanceof Error ? error.message : "Invoice was issued, but delivery failed.";
           log("error", "invoice_pdf_or_email_failed", { invoiceId: created.id, error });
-          throw error;
         }
       }
       if (normalizedStatus !== "DRAFT") {
@@ -2216,6 +2219,56 @@ export async function emailInvoice({
   log("info", "Invoice email prepared", { to, invoiceNumber, size: pdfBuffer.length });
 }
 
+export async function persistInvoiceDeliveryAttempt(input: {
+  invoiceId: string;
+  currentMetadata?: Record<string, unknown> | null;
+  status: "DELIVERED" | "FAILED";
+  channelsSent?: Array<"EMAIL" | "WHATSAPP">;
+  errorMessage?: string | null;
+  attemptedAt?: Date;
+}) {
+  const attemptedAt = input.attemptedAt || new Date();
+  const latestInvoice = await prisma.invoice.findUnique({
+    where: { id: input.invoiceId },
+    select: { metadata: true },
+  });
+  const currentMetadata =
+    latestInvoice?.metadata && typeof latestInvoice.metadata === "object"
+      ? (latestInvoice.metadata as Record<string, unknown>)
+      : input.currentMetadata || {};
+  const existingDelivery =
+    currentMetadata.delivery && typeof currentMetadata.delivery === "object"
+      ? (currentMetadata.delivery as Record<string, unknown>)
+      : {};
+
+  return prisma.invoice.update({
+    where: { id: input.invoiceId },
+    data: {
+      metadata: {
+        ...currentMetadata,
+        delivery: {
+          ...existingDelivery,
+          status: input.status,
+          attemptedAt: attemptedAt.toISOString(),
+          deliveredAt:
+            input.status === "DELIVERED"
+              ? attemptedAt.toISOString()
+              : (existingDelivery.deliveredAt as string | undefined) || null,
+          failedAt: input.status === "FAILED" ? attemptedAt.toISOString() : null,
+          channelsSent:
+            input.status === "DELIVERED"
+              ? input.channelsSent || []
+              : (Array.isArray(existingDelivery.channelsSent)
+                  ? existingDelivery.channelsSent
+                  : []),
+          lastError: input.status === "FAILED" ? String(input.errorMessage || "Delivery failed.") : null,
+          requiresAttention: input.status === "FAILED",
+        },
+      },
+    },
+  });
+}
+
 export async function deliverInvoiceToCustomer(
   invoice: {
     id: string;
@@ -2333,6 +2386,13 @@ export async function deliverInvoiceToCustomer(
     const firstError = deliveryErrors[0] || new Error("Could not send invoice.");
     throw firstError;
   }
+
+  await persistInvoiceDeliveryAttempt({
+    invoiceId: invoice.id,
+    currentMetadata: ((invoice as any).metadata as Record<string, unknown> | undefined) || {},
+    status: "DELIVERED",
+    channelsSent,
+  });
 
   return { channelsSent };
 }

@@ -55,10 +55,33 @@ export default async function InvoicePaymentErrorPage({ searchParams }: PageProp
                 de: "Diese Rechnung wurde nicht gefunden. Bitte kontaktiere den Absender für einen neuen Zahlungslink.",
                 es: "No se encontró esta factura. Contacta con el emisor para obtener un nuevo enlace de pago.",
                 pt: "Não foi possível encontrar esta fatura. Contacte o remetente para obter um novo link de pagamento.",
-              },
-              language
-            ),
-          }
+            },
+            language
+          ),
+        }
+        : reason === "invoice_link_expired"
+          ? {
+              title: getLocalizedText(
+                {
+                  en: "Payment link expired",
+                  fr: "Lien de paiement expiré",
+                  de: "Zahlungslink abgelaufen",
+                  es: "Enlace de pago vencido",
+                  pt: "Link de pagamento expirado",
+                },
+                language
+              ),
+              body: getLocalizedText(
+                {
+                  en: "This invoice link has expired. Please request a fresh invoice link from the sender.",
+                  fr: "Ce lien de facture a expiré. Veuillez demander un nouveau lien à l'expéditeur.",
+                  de: "Dieser Rechnungslink ist abgelaufen. Bitte fordere einen neuen Link vom Absender an.",
+                  es: "Este enlace de factura ha vencido. Solicita un enlace nuevo al emisor.",
+                  pt: "Este link de fatura expirou. Solicite um novo link ao remetente.",
+                },
+                language
+              ),
+            }
         : {
             title: getLocalizedText(
               {

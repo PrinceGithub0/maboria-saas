@@ -18,6 +18,7 @@ import {
   getEInvoiceSendBlockingReason,
   getInvoiceSendBlockingReason,
   normalizeInvoiceItems,
+  persistInvoiceDeliveryAttempt,
   resolveInvoiceCustomer,
   submitRequiredInvoiceEInvoicing,
 } from "@/lib/invoice";
@@ -35,6 +36,7 @@ import { logUserActivity } from "@/lib/user-activity";
 import { resolveEInvoiceConnectionForUser, toConnectionConfig } from "@/lib/einvoicing/connections";
 import { upsertInvoiceComplianceArtifacts } from "@/lib/invoicing/blueprint/storage";
 import { getInvoiceComplianceRecord } from "@/lib/invoicing/blueprint/read";
+import { getIssuedInvoiceEditBlockingReason } from "@/lib/invoice-editing";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -176,6 +178,7 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
       id: true,
       status: true,
       invoiceNumber: true,
+      poNumber: true,
       currency: true,
       items: true,
       discount: true,
@@ -183,11 +186,31 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
       lateFeeAmount: true,
       lateFeeTotalAccumulated: true,
       customerId: true,
+      generatedAt: true,
       metadata: true,
       invoiceCustomerSnapshot: true,
     },
   });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const existingMeta = (existing.metadata as any) || {};
+
+  const issuedEditBlockingReason = getIssuedInvoiceEditBlockingReason({
+    existingStatus: existing.status,
+    existingInvoiceNumber: existing.invoiceNumber,
+    existingCustomerId: existing.customerId,
+    existingCurrency: existing.currency,
+    existingItems: existing.items,
+    existingDiscount: Number(existing.discount || 0),
+    existingPoNumber: existing.poNumber,
+    existingGeneratedAt: existing.generatedAt,
+    existingMetadata: existingMeta,
+    parsed,
+    issueDate: issueDate ?? undefined,
+    dueDate: dueDate ?? undefined,
+  });
+  if (issuedEditBlockingReason) {
+    return NextResponse.json({ error: issuedEditBlockingReason }, { status: 409 });
+  }
 
   const nextCustomerId = parsed.customerId ?? existing.customerId;
   const nextCustomer = await assertOwnedActiveCustomer({
@@ -266,7 +289,6 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
     }
   }
 
-  const existingMeta = (existing.metadata as any) || {};
   const nextInvoiceNumber = parsed.invoiceNumber?.trim();
   const invoiceNumberChanged =
     typeof nextInvoiceNumber === "string" &&
@@ -489,7 +511,7 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
     }
   }
 
-  const updated = await prisma.invoice.update({
+  let updated = await prisma.invoice.update({
     where: { id: existing.id },
     data: {
       customerId: nextCustomer.id,
@@ -532,6 +554,7 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
         : undefined,
     },
   });
+  let deliveryWarning: string | null = null;
   await upsertInvoiceComplianceArtifacts({
     invoiceId: updated.id,
     validation: blueprintArtifacts.validation,
@@ -607,14 +630,13 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
           erasedAt: nextCustomer.erasedAt,
         }, pdfBuffer);
       } catch (error: any) {
-        await prisma.invoice.update({
-          where: { id: updated.id },
-          data: { status: "DRAFT" },
+        updated = await persistInvoiceDeliveryAttempt({
+          invoiceId: updated.id,
+          currentMetadata: ((updated.metadata as any) || {}) as Record<string, unknown>,
+          status: "FAILED",
+          errorMessage: error?.message || "Could not send invoice.",
         });
-        return NextResponse.json(
-          { error: error?.message || "Could not send invoice." },
-          { status: (error as any)?.status || 500 }
-        );
+        deliveryWarning = error?.message || "Invoice was issued, but delivery failed.";
       }
     }
     try {
@@ -666,7 +688,10 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
       console.error("invoice_status_trigger_failed", error);
     });
   }
-  return NextResponse.json(withFormattedInvoiceTotals(updated));
+  return NextResponse.json({
+    ...withFormattedInvoiceTotals(updated),
+    ...(deliveryWarning ? { warning: deliveryWarning } : {}),
+  });
 });
 
 export const DELETE = withErrorHandling(async (_req: Request, { params }: Params) => {

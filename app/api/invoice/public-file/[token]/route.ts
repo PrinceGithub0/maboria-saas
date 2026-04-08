@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withErrorHandling } from "@/lib/api-handler";
-import { resolveInvoicePublicLink } from "@/lib/invoice-public-link";
+import { isInvoicePublicLinkExpired, resolveInvoicePublicLink } from "@/lib/invoice-public-link";
 import { ensureInvoicePdf, resolveInvoiceCustomer } from "@/lib/invoice";
 import {
   readInvoiceSupportingFilesFromMetadata,
@@ -19,6 +19,9 @@ export const GET = withErrorHandling(async (req: Request, { params }: Params) =>
 
   const link = await resolveInvoicePublicLink(token);
   if (!link?.invoice) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (isInvoicePublicLinkExpired(link)) {
+    return NextResponse.json({ error: "Link expired" }, { status: 410 });
+  }
 
   const invoice = link.invoice as any;
   const metadata = (invoice.metadata as any) || {};
