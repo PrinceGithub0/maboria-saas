@@ -6,7 +6,7 @@ import { hashPassword, verifyPassword } from "@/lib/auth";
 import { buildOtpauthUrl, generateBackupCodes, generateTotpSecret, verifyTotp } from "@/lib/totp";
 import { withErrorHandling } from "@/lib/api-handler";
 import { Prisma } from "@prisma/client";
-import { assertRateLimit } from "@/lib/rate-limit";
+import { assertRateLimitAsync } from "@/lib/rate-limit";
 import { encryptSecret, isEncryptedSecret, safeDecryptSecret } from "@/lib/crypto";
 import { log } from "@/lib/logger";
 
@@ -42,7 +42,7 @@ export const GET = withErrorHandling(async () => {
 export const POST = withErrorHandling(async () => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  assertRateLimit(`2fa:setup:${session.user.id}`, 5, 60_000);
+  await assertRateLimitAsync(`2fa:setup:${session.user.id}`, 5, 60_000);
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
@@ -80,7 +80,7 @@ export const POST = withErrorHandling(async () => {
 export const PUT = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  assertRateLimit(`2fa:enable:${session.user.id}`, 5, 60_000);
+  await assertRateLimitAsync(`2fa:enable:${session.user.id}`, 5, 60_000);
   const { code } = await req.json();
   if (typeof code !== "string" || !code.trim()) {
     return NextResponse.json({ error: "2FA code is required" }, { status: 400 });
@@ -132,7 +132,7 @@ export const PUT = withErrorHandling(async (req: Request) => {
 export const DELETE = withErrorHandling(async (req: Request) => {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  assertRateLimit(`2fa:disable:${session.user.id}`, 5, 60_000);
+  await assertRateLimitAsync(`2fa:disable:${session.user.id}`, 5, 60_000);
   const { code } = await req.json();
   if (typeof code !== "string" || !code.trim()) {
     return NextResponse.json({ error: "2FA code or backup code is required" }, { status: 400 });

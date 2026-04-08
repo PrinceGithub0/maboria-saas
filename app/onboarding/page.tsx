@@ -14,10 +14,10 @@ function localizeBusinessError(error: unknown, t: Translate) {
   if (!message) {
     return t(
       "Could not create business.",
-      "Cr?ation impossible.",
+      "Création impossible.",
       "Unternehmen konnte nicht erstellt werden.",
       "No se pudo crear la empresa.",
-      "Não foi poss?vel criar a empresa."
+      "Não foi possível criar a empresa."
     );
   }
 
@@ -90,12 +90,12 @@ export default function OnboardingPage() {
           {t("Onboarding", "Onboarding")}
         </p>
         <h1 className="text-3xl font-semibold text-foreground">
-          {t("Create your business", "Cr?ez votre entreprise")}
+          {t("Create your business", "Créez votre entreprise")}
         </h1>
         <p className="text-sm text-muted-foreground">
           {t(
             "Set up your workspace to start building automations and billing.",
-            "Configurez votre espace pour demarrer les automatisations et la facturation."
+            "Configurez votre espace pour démarrer les automatisations et la facturation."
           )}
         </p>
         {status ? (
@@ -120,7 +120,7 @@ export default function OnboardingPage() {
             onChange={(e) => setForm({ ...form, domain: e.target.value })}
             placeholder={t("example.com", "exemple.com")}
           />
-          <Button type="submit">{t("Create workspace", "Creer l'espace")}</Button>
+          <Button type="submit">{t("Create workspace", "Créer l'espace")}</Button>
         </form>
       </div>
     </div>

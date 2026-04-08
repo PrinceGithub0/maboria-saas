@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
-import { assertRateLimit } from "@/lib/rate-limit";
+import { assertRateLimitAsync } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
 import { requireOrgPermission } from "@/lib/org-auth";
@@ -26,7 +26,7 @@ export const POST = withRequestLogging(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    assertRateLimit(`stripe-checkout:${session.user.id}`, 8, 60_000);
+    await assertRateLimitAsync(`stripe-checkout:${session.user.id}`, 8, 60_000);
 
     const parsed = requestSchema.parse(await req.json());
     const access = await requireOrgPermission(session.user.id, {

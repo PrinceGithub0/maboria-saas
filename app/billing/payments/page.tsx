@@ -51,7 +51,7 @@ export default async function BillingPaymentsPage({
   if (!entitlement.ok) {
     return (
       <div className="mx-auto w-full max-w-[1280px] space-y-4 pb-6">
-        <Alert variant="error">{entitlement.reason || t("Upgrade required to view payments.", "Mise a niveau requise pour voir les paiements.", "Upgrade erforderlich, um Zahlungen zu sehen.", "Se requiere una mejora para ver los pagos.", "Atualiza??o necessária para ver os pagamentos.")}</Alert>
+        <Alert variant="error">{entitlement.reason || t("Upgrade required to view payments.", "Mise a niveau requise pour voir les paiements.", "Upgrade erforderlich, um Zahlungen zu sehen.", "Se requiere una mejora para ver los pagos.", "Atualização necessária para ver os pagamentos.")}</Alert>
       </div>
     );
   }

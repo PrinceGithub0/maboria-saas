@@ -64,10 +64,10 @@ export default function TeamActivityPage() {
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             {t(
-              "Full history of workspace invites, role changes, and member updates.",
+              "Full history of workspace invités, role changes, and member updates.",
               "Historique complet des invitations, changements de role et mises a jour des membres.",
               "Vollständiger Verlauf von Workspace-Einladungen, Rollenänderungen und Mitgliederaktualisierungen.",
-              "Historial completo de invitaciones, cambios de rol y actualizaciones de miembros del espacio de trabajo.",
+              "Historial completo de invitaciónes, cambios de rol y actualizaciones de miembros del espacio de trabajo.",
               "Histórico completo de convites, alteracoes de papel e atualizacoes de membros do espa?o de trabalho."
             )}
           </p>
@@ -87,7 +87,7 @@ export default function TeamActivityPage() {
               "Historique indisponible.",
               "Aktivitätsverlauf nicht verfügbar.",
               "Historial de actividad no disponible.",
-              "Histórico de atividade indispon?vel."
+              "Histórico de atividade indisponível."
             )
           )}
         </Alert>
@@ -98,21 +98,21 @@ export default function TeamActivityPage() {
           <div>
             <p className="text-sm font-medium text-foreground">
               {hasItems
-                ? t("Latest team events", "Derniers ?v?nements d équipe", "Neueste Teamereignisse", "?ltimos eventos del equipo", "?ltimos eventos da equipa")
-                : t("Team event history", "Historique des ?v?nements d équipe", "Verlauf der Teamereignisse", "Historial de eventos del equipo", "Histórico de eventos da equipa")}
+                ? t("Latest team events", "Derniers événements d équipe", "Neueste Teamereignisse", "Últimos eventos del equipo", "Últimos eventos da equipa")
+                : t("Team event history", "Historique des événements d équipe", "Verlauf der Teamereignisse", "Historial de eventos del equipo", "Histórico de eventos da equipa")}
             </p>
             {hasItems ? (
               <p className="mt-1 text-xs text-muted-foreground">
-                {t("Showing 20 events per page.", "Affiche 20 ?v?nements par page.", "20 Ereignisse pro Seite.", "Mostrando 20 eventos por p?gina.", "A mostrar 20 eventos por p?gina.")}
+                {t("Showing 20 events per page.", "Affiche 20 événements par page.", "20 Ereignisse pro Seite.", "Mostrando 20 eventos por página.", "A mostrar 20 eventos por página.")}
               </p>
             ) : (
               <p className="mt-1 text-xs text-muted-foreground">
                 {t(
-                  "Recent workspace activity will appear here when invites, role changes, or access updates are recorded.",
+                  "Recent workspace activity will appear here when invités, role changes, or access updates are recorded.",
                   "Les activités recentes apparaitront ici a mesure que votre équipe grandit.",
                   "Neuere Workspace-Aktivitäten erscheinen hier, wenn dein Team wachst.",
-                  "La actividad reciente del espacio aparecera aqui a medida que crezca tu equipo.",
-                  "A atividade recente do espa?o aparecera aqui a medida que a tua equipa crescer."
+                  "La actividad reciente del espacio aparecera aquí a medida que crezca tu equipo.",
+                  "A atividade recente do espa?o aparecera aquí a medida que a tua equipa crescer."
                 )}
               </p>
             )}
@@ -144,11 +144,11 @@ export default function TeamActivityPage() {
               </p>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 {t(
-                  "Invites, role changes, and member updates will appear here.",
+                  "Invités, role changes, and member updates will appear here.",
                   "Les invitations, changements de role et mises a jour des membres apparaitront ici.",
                   "Einladungen, Rollenänderungen und Mitgliederaktualisierungen erscheinen hier.",
-                  "Las invitaciones, cambios de rol y actualizaciones de miembros apareceran aqui.",
-                  "Os convites, alteracoes de papel e atualizacoes de membros aparecerao aqui."
+                  "Las invitaciónes, cambios de rol y actualizaciones de miembros apareceran aquí.",
+                  "Os convites, alteracoes de papel e atualizacoes de membros aparecerao aquí."
                 )}
               </p>
             </div>

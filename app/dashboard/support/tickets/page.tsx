@@ -197,8 +197,8 @@ export default function SupportTicketsPage() {
                 forceLight ? "!border-[#CBD5E1] !bg-[#FFFFFF] !text-[#0F172A]" : ""
               }`}
             >
-              <option value="NEWEST" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Newest", "Plus recent", "Neueste", "Mas recientes", "Mais recentes")}</option>
-              <option value="OLDEST" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Oldest", "Plus ancien", "Aelteste", "Mas antiguos", "Mais antigos")}</option>
+              <option value="NEWEST" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Newest", "Plus recent", "Neueste", "Más recientes", "Mais recentes")}</option>
+              <option value="OLDEST" style={forceLight ? { backgroundColor: "#FFFFFF", color: "#0F172A" } : undefined}>{t("Oldest", "Plus ancien", "Aelteste", "Más antiguos", "Mais antigos")}</option>
             </select>
           </label>
         </div>
@@ -211,7 +211,7 @@ export default function SupportTicketsPage() {
               "Nous n'avons pas pu charger vos tickets support pour le moment. Veuillez actualiser et réessayer.",
               "Deine Support-Tickets konnten derzeit nicht geladen werden. Bitte aktualisiere die Seite und versuche es erneut.",
               "No pudimos cargar tus tickets de soporte en este momento. Actualiza e intentalo de nuevo.",
-              "Não foi poss?vel carregar os seus tickets de suporte neste momento. Atualize e tente novamente."
+              "Não foi possível carregar os seus tickets de suporte neste momento. Atualize e tente novamente."
             )}
           </div>
         ) : filteredItems.length === 0 ? (
@@ -231,7 +231,7 @@ export default function SupportTicketsPage() {
                 ? t(
                     "Try clearing your search or changing the selected status.",
                     "Essayez d effacer votre recherche ou de changer le statut selectionne.",
-                    "Versuche, deine Suche zu leeren oder den gewahlten Status zu ?ndern.",
+                    "Versuche, deine Suche zu leeren oder den gewählten Status zu ändern.",
                     "Prueba a borrar tu busqueda o cambiar el estado seleccionado.",
                     "Tente limpar a pesquisa ou alterar o estado selecionado."
                   )
@@ -239,8 +239,8 @@ export default function SupportTicketsPage() {
                     "You haven't submitted any support requests. When you create a ticket, it will appear here.",
                     "Vous n'avez pas encore soumis de demande support. Quand vous creez un ticket, il apparaitra ici.",
                     "Du hast noch keine Support-Anfragen eingereicht. Wenn du ein Ticket erstellst, erscheint es hier.",
-                    "Aún no has enviado solicitudes de soporte. Cuando crees un ticket, aparecera aqui.",
-                    "Ainda não submeteu pedidos de suporte. Quando criar um ticket, ele aparecera aqui."
+                    "Aún no has enviado solicitudes de soporte. Cuando crees un ticket, aparecera aquí.",
+                    "Ainda não submeteu pedidos de suporte. Quando criar um ticket, ele aparecera aquí."
                   )}
             </p>
             <div className="mt-5 flex items-center justify-center gap-3">
@@ -261,7 +261,7 @@ export default function SupportTicketsPage() {
                   href="/dashboard/support#submit-ticket"
                   className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
                 >
-                  {t("Create a Support Ticket", "Creer un ticket support", "Support-Ticket erstellen", "Crear un ticket de soporte", "Criar um ticket de suporte")}
+                  {t("Create a Support Ticket", "Créer un ticket support", "Support-Ticket erstellen", "Crear un ticket de soporte", "Criar um ticket de suporte")}
                 </Link>
               )}
               <Link href="/dashboard/support" className="text-sm font-semibold text-[#2563EB] hover:underline dark:text-[#3B82F6]">
@@ -307,7 +307,7 @@ export default function SupportTicketsPage() {
             })}
             <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                {t("Showing 20 tickets per page.", "Affichage de 20 tickets par page.", "Es werden 20 Tickets pro Seite angezeigt.", "Se muestran 20 tickets por p?gina.", "A mostrar 20 tickets por p?gina.")}
+                {t("Showing 20 tickets per page.", "Affichage de 20 tickets par page.", "Es werden 20 Tickets pro Seite angezeigt.", "Se muestran 20 tickets por página.", "A mostrar 20 tickets por página.")}
               </p>
               <div className="flex items-center gap-2">
                 <button

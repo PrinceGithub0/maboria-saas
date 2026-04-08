@@ -1,8 +1,8 @@
-import { pricingTableDualCurrency } from "@/lib/pricing";
 import { PricingSection } from "@/components/pricing/pricing-section";
+import { buildPricingPlansForDisplay } from "@/lib/pricing-live";
 
-export default function PricingPage() {
-  return (
-    <PricingSection plans={pricingTableDualCurrency()} />
-  );
+export default async function PricingPage() {
+  const plans = await buildPricingPlansForDisplay();
+
+  return <PricingSection plans={plans} />;
 }

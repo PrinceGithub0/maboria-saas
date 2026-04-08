@@ -6,11 +6,6 @@ type PlannedRolloutSeed = {
   providerName: string;
 };
 
-type PlannedRolloutOverride = Pick<
-  EInvoiceRolloutItem,
-  "completionStage" | "authReady" | "submitReady" | "syncReady" | "cancelReady" | "productionReady" | "notes"
->;
-
 const plannedRolloutSeeds: PlannedRolloutSeed[] = [
   { country: "AE", displayName: "United Arab Emirates", providerName: "UAE E-Invoicing" },
   { country: "AL", displayName: "Albania", providerName: "Albania Fiscalization" },

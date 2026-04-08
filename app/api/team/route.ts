@@ -400,7 +400,7 @@ export async function PATCH(req: Request) {
 
     if (body?.action === "resend_invite") {
       if (!hasOrgPermission(context.role, "team:invite")) {
-        return jsonError(403, "You do not have permission to resend invites.", { code: "FORBIDDEN" });
+        return jsonError(403, "You do not have permission to resend invités.", { code: "FORBIDDEN" });
       }
 
       const parsed = resendInviteSchema.parse(body);

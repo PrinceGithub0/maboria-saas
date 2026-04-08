@@ -10,12 +10,12 @@ export async function GET() {
     return NextResponse.json({
       status: "ok",
       db: "connected",
-      flutterwave: env.flutterwaveSecret ? "configured" : "missing",
-      paystack: env.paystackSecret ? "configured" : "missing",
+      payments: env.flutterwaveSecret && env.paystackSecret ? "available" : "degraded",
+      ai: env.openaiKey ? "available" : "degraded",
       uptime,
-      load: os.loadavg(),
+      loadAverage: os.loadavg(),
     });
-  } catch (error: any) {
-    return NextResponse.json({ status: "error", message: error.message }, { status: 500 });
+  } catch {
+    return NextResponse.json({ status: "error", db: "unavailable" }, { status: 500 });
   }
 }

@@ -30,56 +30,8 @@ import {
   MIN_PASSWORD_LENGTH,
   PASSWORD_MIN_LENGTH_ERROR,
   PASSWORD_MIN_LENGTH_HELPER_TEXT,
+  validatePasswordPolicy,
 } from "@/lib/password-policy";
-
-type EInvoicingCredentialField = {
-  key: string;
-  label: string;
-  secret?: boolean;
-  required?: boolean;
-  placeholder?: string;
-  helpText?: string;
-};
-
-type EInvoicingProviderDefinition = {
-  key: string;
-  displayName: string;
-  countryCodes: string[];
-  liveSubmissionAvailable: boolean;
-  supportsStatusSync: boolean;
-  credentialFields: EInvoicingCredentialField[];
-  completionStage: string;
-  capabilitySummary?: string;
-};
-
-type EInvoicingConnectionRecord = {
-  id: string;
-  provider: string;
-  country: string;
-  status: "ACTIVE" | "DISABLED" | "ERROR";
-  sandbox: boolean;
-  hasCredentials: boolean;
-  credentialKeys: string[];
-  metadata: Record<string, unknown> | null;
-  lastValidatedAt: string | null;
-  lastError: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-type EInvoicingRolloutItem = {
-  country: string;
-  displayName: string;
-  providerName: string;
-  completionStage: string;
-  authReady: boolean;
-  submitReady: boolean;
-  syncReady: boolean;
-  cancelReady: boolean;
-  productionReady: boolean;
-  nextPriority: number;
-  notes: string;
-};
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 const profileFetcher = async (url: string) => {
@@ -127,12 +79,6 @@ export default function SettingsPage() {
   const [businessStatus, setBusinessStatus] = useState<string | null>(null);
   const [businessError, setBusinessError] = useState<string | null>(null);
   const [businessSaving, setBusinessSaving] = useState(false);
-  const [eInvoicingStatus, setEInvoicingStatus] = useState<string | null>(null);
-  const [eInvoicingError, setEInvoicingError] = useState<string | null>(null);
-  const [eInvoicingSaving, setEInvoicingSaving] = useState(false);
-  const [eInvoicingConnectionStatus, setEInvoicingConnectionStatus] = useState<"ACTIVE" | "DISABLED" | "ERROR">("ACTIVE");
-  const [eInvoicingSandbox, setEInvoicingSandbox] = useState(true);
-  const [eInvoicingCredentials, setEInvoicingCredentials] = useState<Record<string, string>>({});
   const [payoutStatus, setPayoutStatus] = useState<string | null>(null);
   const [payoutError, setPayoutError] = useState<string | null>(null);
   const [payoutSubmitting, setPayoutSubmitting] = useState(false);
@@ -195,7 +141,7 @@ export default function SettingsPage() {
     canReadBusinessSettings ? "/api/business-profile" : null,
     profileFetcher
   );
-  const { data: eInvoicingResponse, mutate: refreshEInvoicing } = useSWR(
+  const { data: eInvoicingResponse } = useSWR(
     canReadBusinessSettings ? "/api/einvoicing/connection" : null,
     profileFetcher
   );
@@ -280,10 +226,10 @@ export default function SettingsPage() {
           eInvoicingResponse?.data?.error,
           t(
             "E-invoicing settings are currently unavailable.",
-            "Les parametres de facturation electronique sont indisponibles.",
-            "E-Rechnungs-Einstellungen sind derzeit nicht verfugbar.",
-            "La configuracion de facturacion electronica no esta disponible en este momento.",
-            "As definicoes de faturacao eletronica nao estao disponiveis neste momento."
+            "Les paramêtres de facturation electronique sont indisponibles.",
+            "E-Rechnungs-Einstellungen sind derzeit nicht verfügbar.",
+            "La configuración de facturación electronica no esta disponible en este momento.",
+            "As definições de faturação eletronica não estão disponiveis neste momento."
           )
         )
       : null;
@@ -320,52 +266,6 @@ export default function SettingsPage() {
     () => getCountryInvoiceRule(businessForm.country),
     [businessForm.country]
   );
-  const normalizedBusinessCountry = String(businessForm.country || "").trim().toUpperCase();
-  const eInvoicingProviders = useMemo(
-    () =>
-      Array.isArray(eInvoicingResponse?.data?.providers)
-        ? (eInvoicingResponse.data.providers as EInvoicingProviderDefinition[])
-        : [],
-    [eInvoicingResponse?.data?.providers]
-  );
-  const eInvoicingConnections = useMemo(
-    () =>
-      Array.isArray(eInvoicingResponse?.data?.items)
-        ? (eInvoicingResponse.data.items as EInvoicingConnectionRecord[])
-        : [],
-    [eInvoicingResponse?.data?.items]
-  );
-  const eInvoicingRollout = useMemo(
-    () =>
-      Array.isArray(eInvoicingResponse?.data?.rollout)
-        ? (eInvoicingResponse.data.rollout as EInvoicingRolloutItem[])
-        : [],
-    [eInvoicingResponse?.data?.rollout]
-  );
-  const suggestedEInvoicingProvider = useMemo(
-    () =>
-      eInvoicingProviders.find(
-        (provider) =>
-          Array.isArray(provider.countryCodes) &&
-          provider.countryCodes.includes(normalizedBusinessCountry)
-      ) || null,
-    [eInvoicingProviders, normalizedBusinessCountry]
-  );
-  const currentEInvoicingConnection = useMemo(
-    () =>
-      suggestedEInvoicingProvider
-        ? eInvoicingConnections.find((connection) => connection.provider === suggestedEInvoicingProvider.key) || null
-        : null,
-    [eInvoicingConnections, suggestedEInvoicingProvider]
-  );
-  const currentEInvoicingRollout = useMemo(
-    () => eInvoicingRollout.find((item) => item.country === normalizedBusinessCountry) || null,
-    [eInvoicingRollout, normalizedBusinessCountry]
-  );
-  const currentEInvoicingFields = suggestedEInvoicingProvider?.credentialFields || [];
-  const businessCountryRequiresEInvoicing = Boolean(businessCountryRule?.requiresEInvoicing);
-  const eInvoicingCountryChanged =
-    normalizedBusinessCountry !== String(businessProfile?.country || "").trim().toUpperCase();
   const businessTaxLabel = businessCountryRule?.taxLabel || "Tax";
   const businessTaxToggleLabel =
     businessTaxLabel === "Sales Tax"
@@ -427,41 +327,41 @@ export default function SettingsPage() {
       : businessTaxLabel === "GST"
         ? t({
             en: "GST registration number",
-            fr: "Num?ro d immatriculation GST",
+            fr: "Numéro d immatriculation GST",
             de: "GST-Registrierungsnummer",
-            es: "N?mero de registro GST",
-            pt: "N?mero de registo GST",
+            es: "Número de registro GST",
+            pt: "Número de registo GST",
           })
         : businessTaxLabel === "GST/HST"
           ? t({
               en: "GST/HST registration number",
-              fr: "Num?ro d immatriculation GST/HST",
+              fr: "Numéro d immatriculation GST/HST",
               de: "GST/HST-Registrierungsnummer",
-              es: "N?mero de registro GST/HST",
-              pt: "N?mero de registo GST/HST",
+              es: "Número de registro GST/HST",
+              pt: "Número de registo GST/HST",
             })
           : businessTaxLabel === "Sales Tax"
             ? t({
                 en: "Sales tax registration number",
-                fr: "Num?ro d immatriculation taxe de vente",
+                fr: "Numéro d immatriculation taxe de vente",
                 de: "Umsatzsteuer-Registrierungsnummer",
-                es: "N?mero de registro del impuesto sobre ventas",
-                pt: "N?mero de registo do imposto sobre vendas",
+                es: "Número de registro del impuesto sobre ventas",
+                pt: "Número de registo do imposto sobre vendas",
               })
             : businessTaxLabel === "IGV"
               ? t({
                   en: "IGV registration number",
-                  fr: "Num?ro d immatriculation IGV",
+                  fr: "Numéro d immatriculation IGV",
                   de: "IGV-Registrierungsnummer",
-                  es: "N?mero de registro IGV",
-                  pt: "N?mero de registo IGV",
+                  es: "Número de registro IGV",
+                  pt: "Número de registo IGV",
                 })
               : t({
                   en: "Tax registration number",
-                  fr: "Num?ro d immatriculation fiscale",
+                  fr: "Numéro d immatriculation fiscale",
                   de: "Steuerregistrierungsnummer",
-                  es: "N?mero de registro fiscal",
-                  pt: "N?mero de registo fiscal",
+                  es: "Número de registro fiscal",
+                  pt: "Número de registo fiscal",
                 });
   const requiredMessage = t("This field is required", "Ce champ est requis");
   const formatRequiredFieldMessage = (label: string) =>
@@ -474,47 +374,47 @@ export default function SettingsPage() {
     });
   const passwordMinLengthHelperText = t({
     en: PASSWORD_MIN_LENGTH_HELPER_TEXT,
-    fr: `Minimum ${MIN_PASSWORD_LENGTH} caracteres.`,
-    de: `Mindestens ${MIN_PASSWORD_LENGTH} Zeichen.`,
-    es: `Minimo ${MIN_PASSWORD_LENGTH} caracteres.`,
-    pt: `Minimo de ${MIN_PASSWORD_LENGTH} caracteres.`,
+    fr: `Minimum ${MIN_PASSWORD_LENGTH} caracteres avec majuscule, minuscule et chiffre.`,
+    de: `Mindestens ${MIN_PASSWORD_LENGTH} Zeichen mit Grossbuchstaben, Kleinbuchstaben und Zahl.`,
+    es: `Minimo ${MIN_PASSWORD_LENGTH} caracteres con mayuscula, minuscula y numero.`,
+    pt: `Minimo de ${MIN_PASSWORD_LENGTH} caracteres com maiuscula, minuscula e numero.`,
   });
   const passwordMinLengthError = t({
     en: PASSWORD_MIN_LENGTH_ERROR,
-    fr: `Le mot de passe doit comporter au moins ${MIN_PASSWORD_LENGTH} caracteres.`,
-    de: `Das Passwort muss mindestens ${MIN_PASSWORD_LENGTH} Zeichen lang sein.`,
-    es: `La contrasena debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`,
-    pt: `A palavra-passe deve ter pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`,
+    fr: `Le mot de passe doit comporter au moins ${MIN_PASSWORD_LENGTH} caracteres et inclure majuscule, minuscule et chiffre.`,
+    de: `Das Passwort muss mindestens ${MIN_PASSWORD_LENGTH} Zeichen lang sein und Grossbuchstaben, Kleinbuchstaben und Zahl enthalten.`,
+    es: `La contrasena debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres e incluir mayuscula, minuscula y numero.`,
+    pt: `A palavra-passe deve ter pelo menos ${MIN_PASSWORD_LENGTH} caracteres e incluir maiuscula, minuscula e numero.`,
   });
   const payoutFieldLabels: Record<PayoutFieldKey, string> = {
     accountName: t("Account holder name", "Nom du titulaire"),
     bankCode: t("Bank", "Banque"),
-    accountNumber: t("Account number", "Num?ro de compte"),
+    accountNumber: t("Account number", "Numéro de compte"),
     iban: t("IBAN", "IBAN"),
     bicSwift: t("BIC / SWIFT", "BIC / SWIFT"),
     branchCode: t("Branch code", "Code agence"),
-    routingNumber: t("Routing number", "Num?ro d acheminement"),
+    routingNumber: t("Routing number", "Numéro d acheminement"),
     sortCode: t("Sort code", "Code guichet"),
   };
   const settingsServerMessages: Record<string, LocalizedText> = {
     "Choose either credentials or clearCredentials, not both.": {
       en: "Choose either credentials or clear credentials, not both.",
       fr: "Choisissez soit des identifiants, soit l effacement des identifiants, pas les deux.",
-      de: "Wahle entweder Zugangsdaten oder das L?schen der Zugangsdaten, nicht beides.",
+      de: "Wähle entweder Zugangsdaten oder das L?schen der Zugangsdaten, nicht beides.",
       es: "Elige credenciales o borrar credenciales, no ambos.",
-      pt: "Escolha credenciais ou limpar credenciais, n?o ambos.",
+      pt: "Escolha credenciais ou limpar credenciais, não ambos.",
     },
     "Provider does not match the selected seller country.": {
       en: "Provider does not match the selected seller country.",
       fr: "Le fournisseur ne correspond pas au pays vendeur selectionne.",
-      de: "Der Anbieter entspricht nicht dem ausgewahlten Verkauferland.",
-      es: "El proveedor no coincide con el pa?s del vendedor seleccionado.",
-      pt: "O fornecedor n?o corresponde ao pa?s do vendedor selecionado.",
+      de: "Der Anbieter entspricht nicht dem ausgewählten Verkauferland.",
+      es: "El proveedor no coincide con el país del vendedor seleccionado.",
+      pt: "O fornecedor não corresponde ao país do vendedor selecionado.",
     },
     "Valid provider is required.": {
       en: "Valid provider is required.",
       fr: "Un fournisseur valide est requis.",
-      de: "Ein gultiger Anbieter ist erforderlich.",
+      de: "Ein gültiger Anbieter ist erforderlich.",
       es: "Se requiere un proveedor valido.",
       pt: "E necessario um fornecedor valido.",
     },
@@ -530,7 +430,7 @@ export default function SettingsPage() {
       fr: "Introuvable",
       de: "Nicht gefunden",
       es: "No encontrado",
-      pt: "Não encontrado",
+      pt: "Não éncontrado",
     },
     "Organization access denied.": {
       en: "Organization access denied.",
@@ -576,10 +476,10 @@ export default function SettingsPage() {
     },
     "BusinessProfile model not available. Run `npx prisma generate` and restart.": {
       en: "Business profile is temporarily unavailable. Please try again shortly.",
-      fr: "Le profil entreprise est temporairement indisponible. R?essayez sous peu.",
+      fr: "Le profil entreprise est temporairement indisponible. Réessayez sous peu.",
       de: "Das Unternehmensprofil ist vorübergehend nicht verfügbar. Bitte versuche es in Kurze erneut.",
       es: "El perfil de empresa no est? disponible temporalmente. Intentalo de nuevo en breve.",
-      pt: "O perfil da empresa esta temporariamente indispon?vel. Tente novamente em breve.",
+      pt: "O perfil da empresa esta temporariamente indisponível. Tente novamente em breve.",
     },
     "Business profile already exists": {
       en: "Business profile already exists.",
@@ -592,20 +492,20 @@ export default function SettingsPage() {
       en: "Business profile not found.",
       fr: "Profil entreprise introuvable.",
       de: "Unternehmensprofil nicht gefunden.",
-      es: "No se encontro el perfil de la empresa.",
+      es: "No se encontró el perfil de la empresa.",
       pt: "Perfil da empresa não encontrado.",
     },
     "Invalid country code": {
       en: "Invalid country code.",
       fr: "Code pays invalide.",
       de: "Ungültiger Landercode.",
-      es: "Código de pa?s no valido.",
-      pt: "Código de pa?s invalido.",
+      es: "Código de país no valido.",
+      pt: "Código de país invalido.",
     },
     "Unsupported currency": {
       en: "Unsupported currency.",
       fr: "Devise non prise en charge.",
-      de: "Nicht unterstutzte Währung.",
+      de: "Nicht unterstützte Währung.",
       es: "Moneda no admitida.",
       pt: "Moeda não suportada.",
     },
@@ -656,7 +556,7 @@ export default function SettingsPage() {
       fr: "Impossible d enregistrer les frais de retard.",
       de: "Die Mahngebühreneinstellungen konnten nicht gespeichert werden.",
       es: "No se pudo guardar la configuración de recargos.",
-      pt: "Não foi poss?vel guardar a configuração das taxas de atraso.",
+      pt: "Não foi possível guardar a configuração das taxas de atraso.",
     },
     "Logo file missing": {
       en: "Logo file missing.",
@@ -668,21 +568,21 @@ export default function SettingsPage() {
     "Unsupported file type": {
       en: "Unsupported file type.",
       fr: "Type de fichier non pris en charge.",
-      de: "Dateityp wird nicht unterst?tzt.",
+      de: "Dateityp wird nicht unterstützt.",
       es: "Tipo de archivo no admitido.",
       pt: "Tipo de ficheiro não suportado.",
     },
     "File too large. Maximum logo size is 2 MB. Please upload smaller file.": {
       en: "File too large. Maximum logo size is 2 MB. Please upload smaller file.",
       fr: "Fichier trop volumineux. La taille maximale du logo est de 2 Mo. Veuillez télevérser un fichier plus petit.",
-      de: "Datei zu gross. Die maximale Logogrosse betragt 2 MB. Bitte lade eine kleinere Datei hoch.",
-      es: "Archivo demasiado grande. El tamano maximo del logo es de 2 MB. Sube un archivo mas pequeno.",
+      de: "Datei zu groß. Die maximale Logogroße betragt 2 MB. Bitte lade eine kleinere Datei hoch.",
+      es: "Archivo demasiado grande. El tamano maximo del logo es de 2 MB. Sube un archivo más pequeno.",
       pt: "Ficheiro demasiado grande. O tamanho maximo do logotipo e 2 MB. Carregue um ficheiro mais pequeno.",
     },
     "Paystack is not supported for SEPA payouts.": {
       en: "Paystack is not supported for SEPA payouts.",
       fr: "Paystack n est pas pris en charge pour les paiements SEPA.",
-      de: "Paystack wird für SEPA-Auszahlungen nicht unterst?tzt.",
+      de: "Paystack wird für SEPA-Auszahlungen nicht unterstützt.",
       es: "Paystack no es compatible con cobros SEPA.",
       pt: "A Paystack não e suportada para recebimentos SEPA.",
     },
@@ -703,7 +603,7 @@ export default function SettingsPage() {
     "Payout setup is not supported for this provider.": {
       en: "Payout setup is not supported for this provider.",
       fr: "La configuration de paiement n est pas prise en charge pour ce fournisseur.",
-      de: "Die Auszahlungseinrichtung wird für diesen Anbieter nicht unterst?tzt.",
+      de: "Die Auszahlungseinrichtung wird für diesen Anbieter nicht unterstützt.",
       es: "La configuración de cobro no est? disponible para este proveedor.",
       pt: "A configuração de recebimento não e suportada para este fornecedor.",
     },
@@ -772,14 +672,14 @@ export default function SettingsPage() {
     },
     "Paystack subaccount creation failed.": {
       en: "Paystack subaccount creation failed.",
-      fr: "La cr?ation du sous-compte Paystack a échoué.",
+      fr: "La création du sous-compte Paystack a échoué.",
       de: "Die Erstellung des Paystack-Unterkontos ist fehlgeschlagen.",
       es: "Fallo la creacion de la subcuenta de Paystack.",
       pt: "Falhou a criacao da subconta da Paystack.",
     },
     "Flutterwave subaccount creation failed.": {
       en: "Flutterwave subaccount creation failed.",
-      fr: "La cr?ation du sous-compte Flutterwave a échoué.",
+      fr: "La création du sous-compte Flutterwave a échoué.",
       de: "Die Erstellung des Flutterwave-Unterkontos ist fehlgeschlagen.",
       es: "Fallo la creacion de la subcuenta de Flutterwave.",
       pt: "Falhou a criacao da subconta da Flutterwave.",
@@ -814,7 +714,7 @@ export default function SettingsPage() {
     },
     "2FA setup is invalid. Restart setup.": {
       en: "2FA setup is invalid. Restart setup.",
-      fr: "La configuration 2FA est invalide. Redemarrez la configuration.",
+      fr: "La configuration 2FA est invalide. Redémarrez la configuration.",
       de: "Die 2FA-Einrichtung ist ungültig. Starte die Einrichtung erneut.",
       es: "La configuración de 2FA no es valida. Reinicia la configuración.",
       pt: "A configuração de 2FA e invalida. Reinicie a configuração.",
@@ -830,23 +730,23 @@ export default function SettingsPage() {
     settingsServerMessages[`Type "ERASE MY ACCOUNT" to confirm account erasure.`] = {
       en: 'Type "ERASE MY ACCOUNT" to confirm account erasure.',
       fr: 'Saisissez "ERASE MY ACCOUNT" pour confirmer l effacement du compte.',
-      de: 'Gib "ERASE MY ACCOUNT" ein, um die Kontol?schung zu best?tigen.',
+      de: 'Gib "ERASE MY ACCOUNT" ein, um die Kontol?schung zu bestätigen.',
       es: 'Escribe "ERASE MY ACCOUNT" para confirmar el borrado de la cuenta.',
       pt: 'Escreva "ERASE MY ACCOUNT" para confirmar o apagamento da conta.',
     };
     settingsServerMessages["Platform administrator accounts cannot use self-service erasure."] = {
       en: "Platform administrator accounts cannot use self-service erasure.",
       fr: "Les comptes administrateur plateforme ne peuvent pas utiliser l effacement libre-service.",
-      de: "Plattform-Administratorkonten k?nnen die Selbstl?schung nicht verwenden.",
+      de: "Plattform-Administratorkonten können die Selbstl?schung nicht verwenden.",
       es: "Las cuentas administradoras de la plataforma no pueden usar el borrado de autoservicio.",
-      pt: "As contas administradoras da plataforma n?o podem usar apagamento self-service.",
+      pt: "As contas administradoras da plataforma não podem usar apagamento self-service.",
     };
     settingsServerMessages["User not found"] = {
       en: "User not found.",
       fr: "Utilisateur introuvable.",
       de: "Benutzer nicht gefunden.",
       es: "Usuario no encontrado.",
-      pt: "Utilizador n?o encontrado.",
+      pt: "Utilizador não encontrado.",
     };
 
   function localizeSettingsServerMessage(message: unknown, fallback?: string | null) {
@@ -879,7 +779,7 @@ export default function SettingsPage() {
   };
 
   const showSavedToast = () => {
-    setSaveToast(t("Changes saved successfully", "Modifications enregistrees avec succes"));
+    setSaveToast(t("Changes saved successfully", "Modifications enregistrees avec succès"));
   };
 
   const switchTab = (nextTab: SettingsTab) => {
@@ -1206,10 +1106,10 @@ export default function SettingsPage() {
             data.error,
             t(
               "Could not update profile.",
-              "Impossible de mettre ? jour le profil.",
+              "Impossible de mettre à jour le profil.",
               "Profil konnte nicht aktualisiert werden.",
               "No se pudo actualizar el perfil.",
-              "Nao foi possivel atualizar o perfil."
+              "Não foi possível atualizar o perfil."
             )
           )
         );
@@ -1234,10 +1134,10 @@ export default function SettingsPage() {
       setProfileError(
         t(
           "Could not update profile.",
-          "Impossible de mettre ? jour le profil.",
+          "Impossible de mettre à jour le profil.",
           "Profil konnte nicht aktualisiert werden.",
           "No se pudo actualizar el perfil.",
-          "Nao foi possivel atualizar o perfil."
+          "Não foi possível atualizar o perfil."
         )
       );
     } finally {
@@ -1287,7 +1187,7 @@ export default function SettingsPage() {
               "Impossible d effacer le compte.",
               "Konto konnte nicht geloescht werden.",
               "No se pudo borrar la cuenta.",
-              "Nao foi possivel apagar a conta."
+              "Não foi possível apagar a conta."
             )
           )
         );
@@ -1299,8 +1199,8 @@ export default function SettingsPage() {
           "Account erased. Signing out...",
           "Compte efface. Deconnexion...",
           "Konto geloescht. Abmeldung...",
-          "Cuenta borrada. Cerrando sesion...",
-          "Conta apagada. A terminar sessao..."
+          "Cuenta borrada. Cerrando sesión...",
+          "Conta apagada. A terminar sessão..."
         )
       );
       clearDirty("profile");
@@ -1315,7 +1215,7 @@ export default function SettingsPage() {
           "Impossible d effacer le compte.",
           "Konto konnte nicht geloescht werden.",
           "No se pudo borrar la cuenta.",
-          "Nao foi possivel apagar a conta."
+          "Não foi possível apagar a conta."
         )
       );
     } finally {
@@ -1327,13 +1227,10 @@ export default function SettingsPage() {
     if (passwordSaving) return;
     setPasswordStatus(null);
     setPasswordError(null);
-    if (
-      passwords.password.length < MIN_PASSWORD_LENGTH ||
-      passwords.confirm.length < MIN_PASSWORD_LENGTH
-    ) {
-      setPasswordError(passwordMinLengthError);
-      return;
-    }
+      if (!validatePasswordPolicy(passwords.password) || !validatePasswordPolicy(passwords.confirm)) {
+        setPasswordError(passwordMinLengthError);
+        return;
+      }
     setPasswordSaving(true);
     try {
       const res = await fetch("/api/user/password", {
@@ -1346,7 +1243,7 @@ export default function SettingsPage() {
         setPasswordError(
           localizeSettingsServerMessage(
             data.error,
-            t("Could not update password.", "Impossible de mettre ? jour le mot de passe.")
+            t("Could not update password.", "Impossible de mettre à jour le mot de passe.")
           )
         );
         return;
@@ -1357,7 +1254,7 @@ export default function SettingsPage() {
       clearDirty("security");
       showSavedToast();
     } catch {
-      setPasswordError(t("Could not update password.", "Impossible de mettre ? jour le mot de passe."));
+      setPasswordError(t("Could not update password.", "Impossible de mettre à jour le mot de passe."));
     } finally {
       setPasswordSaving(false);
     }
@@ -1373,14 +1270,14 @@ export default function SettingsPage() {
       const data = await res.json();
       if (!res.ok) {
         setStatus(
-          localizeSettingsServerMessage(data.error, t("Could not start 2FA setup.", "Impossible de demarrer la 2FA."))
+          localizeSettingsServerMessage(data.error, t("Could not start 2FA setup.", "Impossible de démarrer la 2FA."))
         );
         return;
       }
       setSetup({ secret: data.secret, uri: data.uri, qr: data.qr });
       setStatus(null);
     } catch {
-      setStatus(t("Could not start 2FA setup.", "Impossible de demarrer la 2FA."));
+      setStatus(t("Could not start 2FA setup.", "Impossible de démarrer la 2FA."));
     } finally {
       setTotpBusy(false);
     }
@@ -1425,7 +1322,7 @@ export default function SettingsPage() {
       const data = await res.json();
       if (!res.ok) {
         setStatus(
-          localizeSettingsServerMessage(data.error, t("Could not disable 2FA.", "Impossible de desactiver la 2FA."))
+          localizeSettingsServerMessage(data.error, t("Could not disable 2FA.", "Impossible de désactiver la 2FA."))
         );
         return;
       }
@@ -1437,7 +1334,7 @@ export default function SettingsPage() {
       showSavedToast();
       refreshTotp();
     } catch {
-      setStatus(t("Could not disable 2FA.", "Impossible de desactiver la 2FA."));
+      setStatus(t("Could not disable 2FA.", "Impossible de désactiver la 2FA."));
     } finally {
       setTotpBusy(false);
     }
@@ -1471,7 +1368,7 @@ export default function SettingsPage() {
       return;
     }
     if (businessForm.vatEnabled && !String(businessForm.taxId).trim()) {
-      setBusinessError(t("Tax ID is required when VAT is enabled.", "L ID fiscal est requis lorsque la TVA est activee."));
+      setBusinessError(t("Tax ID is required when VAT is enabled.", "L ID fiscal est requis lorsque la TVA est activée."));
       return;
     }
     if (lateFeeForm.lateFeeEnabled) {
@@ -1699,7 +1596,7 @@ export default function SettingsPage() {
       return;
     }
     if (!businessPhone) {
-      setPayoutError(t("Business phone is required.", "Le t?l?phone de l entreprise est requis."));
+      setPayoutError(t("Business phone is required.", "Le téléphone de l entreprise est requis."));
       return;
     }
     if (!payoutProviderSupportsSelection) {
@@ -1782,17 +1679,17 @@ export default function SettingsPage() {
         setPayoutError(
           localizeSettingsServerMessage(
             data.error,
-            t("Could not create payout account.", "Impossible de creer le compte de paiement.")
+            t("Could not create payout account.", "Impossible de créer le compte de paiement.")
           )
         );
         return;
       }
-      setPayoutStatus(t("Payout account created.", "Compte de paiement cr?e."));
+      setPayoutStatus(t("Payout account created.", "Compte de paiement crée."));
       clearDirty("payout");
       refreshMerchantAccount();
       showSavedToast();
     } catch {
-      setPayoutError(t("Could not create payout account.", "Impossible de creer le compte de paiement."));
+      setPayoutError(t("Could not create payout account.", "Impossible de créer le compte de paiement."));
     } finally {
       setPayoutSubmitting(false);
     }
@@ -1836,8 +1733,8 @@ export default function SettingsPage() {
   };
   const passwordFormValid =
     currentPassword.trim().length > 0 &&
-    passwords.password.length >= MIN_PASSWORD_LENGTH &&
-    passwords.confirm.length >= MIN_PASSWORD_LENGTH &&
+    validatePasswordPolicy(passwords.password) &&
+    validatePasswordPolicy(passwords.confirm) &&
     passwords.password === passwords.confirm;
 
   const lateFeeValueNumber = Number(lateFeeForm.lateFeeValue);
@@ -2016,7 +1913,7 @@ export default function SettingsPage() {
               {t(
                 "Save Changes",
                 "Enregistrer les modifications",
-                "Aenderungen speichern",
+                "Änderungen speichern",
                 "Guardar cambios",
                 "Guardar alteracoes"
               )}
@@ -2027,7 +1924,7 @@ export default function SettingsPage() {
       <Card
         title={t(
           "Privacy & Account",
-          "Confidentialite et compte",
+          "Confidentialité et compte",
           "Datenschutz und Konto",
           "Privacidad y cuenta",
           "Privacidade e conta"
@@ -2044,7 +1941,7 @@ export default function SettingsPage() {
             <p className="text-sm font-semibold text-foreground">
               {t(
                 "Export account data",
-                "Exporter les donnees du compte",
+                "Exporter les données du compte",
                 "Kontodaten exportieren",
                 "Exportar datos de la cuenta",
                 "Exportar dados da conta"
@@ -2053,10 +1950,10 @@ export default function SettingsPage() {
             <p className="mt-1 text-xs text-muted-foreground">
               {t(
                 "Download the personal account data Maboria stores for this user, including memberships, billing configuration summaries, and activity records.",
-                "Telechargez les donnees personnelles du compte conservees pour cet utilisateur, y compris les appartenances, les resumes de configuration de facturation et les journaux d activite.",
-                "Laden Sie die personlichen Kontodaten herunter, die Maboria fur diesen Benutzer speichert, einschliesslich Mitgliedschaften, Abrechnungszusammenfassungen und Aktivitatsprotokollen.",
-                "Descarga los datos personales de la cuenta que Maboria guarda para este usuario, incluidas membresias, resumenes de configuracion de facturacion y registros de actividad.",
-                "Transfira os dados pessoais da conta que a Maboria guarda para este utilizador, incluindo associacoes, resumos de configuracao de faturacao e registos de atividade."
+                "Telechargez les données personnelles du compte conservees pour cet utilisateur, y compris les appartenances, les resumes de configuration de facturation et les journaux d activité.",
+                "Laden Sie die personlichen Kontodaten herunter, die Maboria für diesen Benutzer speichert, einschließlich Mitgliedschaften, Abrechnungszusammenfassungen und Aktivitatsprotokollen.",
+                "Descarga los datos personales de la cuenta que Maboria guarda para este usuario, incluidas membresias, resumenes de configuración de facturación y registros de actividad.",
+                "Transfira os dados pessoais da conta que a Maboria guarda para este utilizador, incluindo associacoes, resumos de configuração de faturação e registos de atividade."
               )}
             </p>
             <div className="mt-3 flex justify-end">
@@ -2069,7 +1966,7 @@ export default function SettingsPage() {
               >
                 {t(
                   "Export account data",
-                  "Exporter les donnees du compte",
+                  "Exporter les données du compte",
                   "Kontodaten exportieren",
                   "Exportar datos de la cuenta",
                   "Exportar dados da conta"
@@ -2090,17 +1987,17 @@ export default function SettingsPage() {
             <p className="mt-1 text-xs text-muted-foreground">
               {t(
                 "This redacts your user identity, revokes mailbox and e-invoicing credentials, disables sign-in, and preserves only records that must remain for invoices, security, and audit history.",
-                "Cette action masque votre identite utilisateur, revoque les identifiants de boite mail et de facturation electronique, desactive la connexion et ne conserve que les enregistrements necessaires pour les factures, la securite et l audit.",
-                "Dadurch wird Ihre Benutzeridentitat geschutzt, Mailbox- und E-Rechnungs-Zugangsdaten werden widerrufen, die Anmeldung deaktiviert und nur Datensatze fur Rechnungen, Sicherheit und Auditverlauf bleiben erhalten.",
-                "Esto oculta tu identidad de usuario, revoca las credenciales de buzones y facturacion electronica, desactiva el inicio de sesion y conserva solo los registros necesarios para facturas, seguridad e historial de auditoria.",
-                "Isto oculta a sua identidade de utilizador, revoga credenciais de caixa de correio e faturacao eletronica, desativa o inicio de sessao e preserva apenas os registos necessarios para faturas, seguranca e historico de auditoria."
+                "Cette action masque votre identite utilisateur, revoque les identifiants de boite mail et de facturation electronique, desactive la connexion et ne conserve que les enregistrements necessaires pour les factures, la sécurité et l audit.",
+                "Dadurch wird Ihre Benutzeridentität geschutzt, Mailbox- und E-Rechnungs-Zugangsdaten werden widerrufen, die Anmeldung deaktiviert und nur Datensatze für Rechnungen, Sicherheit und Auditverlauf bleiben erhalten.",
+                "Esto oculta tu identidad de usuario, revoca las credenciales de buzónes y facturación electronica, desactiva el inicio de sesión y conserva solo los registros necesarios para facturas, seguridad e historial de auditoria.",
+                "Isto oculta a sua identidade de utilizador, revoga credenciais de caixa de correio e faturação eletronica, desativa o inicio de sessão e preserva apenas os registos necessarios para faturas, seguranca e histórico de auditoria."
               )}
             </p>
             <Input
               label={t(
                 'Type "ERASE MY ACCOUNT" to confirm',
                 'Saisissez "ERASE MY ACCOUNT" pour confirmer',
-                'Geben Sie zur Bestatigung "ERASE MY ACCOUNT" ein',
+                'Geben Sie zur Bestätigung "ERASE MY ACCOUNT" ein',
                 'Escriba "ERASE MY ACCOUNT" para confirmar',
                 'Escreva "ERASE MY ACCOUNT" para confirmar'
               )}
@@ -2227,12 +2124,12 @@ export default function SettingsPage() {
             onChange={(e) => updateBusinessField("postalCode", e.target.value)}
           />
           <Input
-            label={t("Business registration number (optional)", "Num?ro d immatriculation de l entreprise (optionnel)", "Handelsregisternummer (optional)", "N?mero de registro de la empresa (opcional)", "N?mero de registro da empresa (opcional)")}
+            label={t("Business registration number (optional)", "Numéro d immatriculation de l entreprise (optionnel)", "Handelsregisternummer (optional)", "Número de registro de la empresa (opcional)", "Número de registro da empresa (opcional)")}
             value={businessForm.registrationNumber}
             onChange={(e) => updateBusinessField("registrationNumber", e.target.value)}
           />
           <Input
-            label={t("Branch code (optional)", "Code de succursale (optionnel)", "Filialcode (optional)", "C?digo de sucursal (opcional)", "C?digo da filial (opcional)")}
+            label={t("Branch code (optional)", "Code de succursale (optionnel)", "Filialcode (optional)", "Código de sucursal (opcional)", "Código da filial (opcional)")}
             value={businessForm.branchCode}
             onChange={(e) => updateBusinessField("branchCode", e.target.value)}
           />
@@ -2360,7 +2257,7 @@ export default function SettingsPage() {
                 <p className="self-end text-xs text-muted-foreground">
                   {t(
                     "Number of days after invoice due date before late fees apply.",
-                    "Nombre de jours apres echeance avant application des frais de retard."
+                    "Nombre de jours après echeance avant application des frais de retard."
                   )}
                 </p>
               </div>
@@ -2504,7 +2401,7 @@ export default function SettingsPage() {
                 <p className="mb-2 font-medium text-foreground">{t("Example Preview", "Exemple")}</p>
                 <p className="text-muted-foreground">
                   {t("Invoice", "Facture")}: {formatCurrency(previewBaseAmount, businessForm.defaultCurrency)} |{" "}
-                  {t("Due", "Echeance")}: {settingsPreviewDueDate} | {t("Unpaid after", "Impayee apres")}{" "}
+                  {t("Due", "Echeance")}: {settingsPreviewDueDate} | {t("Unpaid after", "Impayee après")}{" "}
                   {Number.isFinite(gracePeriodDaysNumber) && gracePeriodDaysNumber >= 0
                     ? gracePeriodDaysNumber
                     : 0}{" "}
@@ -2622,17 +2519,17 @@ export default function SettingsPage() {
           }`}
         >
           {payoutConnected
-            ? t("Connected payout account", "Compte de paiement connect?")
+            ? t("Connected payout account", "Compte de paiement connecté")
             : t("Payout account not configured", "Compte de paiement non configure")}
         </div>
         <fieldset disabled={payoutFormDisabled} className="mt-6 rounded-2xl border border-border bg-background/60 p-4">
           <p className="text-sm font-semibold text-foreground">
-            {t("Create payout account", "Creer un compte de paiement")}
+            {t("Create payout account", "Créer un compte de paiement")}
           </p>
           <p className="text-xs text-muted-foreground">
             {t(
               "We will create a subaccount on your behalf using the bank details below.",
-              "Nous creerons un sous-compte avec les d?tails bancaires ci-dessous."
+              "Nous créerons un sous-compte avec les d?tails bancaires ci-dessous."
             )}
           </p>
           {payoutStatus ? (
@@ -2856,7 +2753,7 @@ export default function SettingsPage() {
                     (!payoutBankList.length || Boolean(payoutBankError)))
                 }
               >
-                {t("Create payout account", "Creer un compte de paiement")}
+                {t("Create payout account", "Créer un compte de paiement")}
               </Button>
             </div>
           </div>
@@ -2985,7 +2882,7 @@ export default function SettingsPage() {
                         fr: "Code QR de configuration de l authentificateur",
                         de: "QR-Code für die Einrichtung der Authenticator-App",
                         es: "Código QR de configuración del autenticador",
-                        pt: "Código QR de configuração da aplica??o autenticadora",
+                        pt: "Código QR de configuração da aplicação autenticadora",
                       })}
                       width={176}
                       height={176}
@@ -3023,7 +2920,7 @@ export default function SettingsPage() {
 
           {enabled && (
             <div className="mt-4 space-y-3">
-              <Alert variant="success">{t("2FA is enabled for your account.", "2FA est activee.")}</Alert>
+              <Alert variant="success">{t("2FA is enabled for your account.", "2FA est activée.")}</Alert>
               <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
                 <Input
                   label={t(

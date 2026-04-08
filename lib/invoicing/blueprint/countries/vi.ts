@@ -35,7 +35,7 @@ export const usVirginIslandsComplianceModule = buildDefaultCountryModule("VI", {
       createCountryIssue(
         "invoice.supportingDocuments",
         "VI_GROSS_RECEIPTS_SUPPORT_NOTICE",
-        "Retain invoice support for U.S. Virgin Islands gross-receipts and income-tax review where applicable.",
+        "Retain invoice support for U.S. Virgin Islands groß-receipts and income-tax review where applicable.",
         "WARNING",
         "VI"
       )

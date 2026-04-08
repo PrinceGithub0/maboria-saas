@@ -17,24 +17,24 @@ const steps: Array<{ title: LocalizedText; desc: LocalizedText; href: string }> 
   },
   {
     title: text("Automations", "Automatisations"),
-    desc: text("Build or AI-generate automations with triggers and actions.", "Creer ou generer des automatisations IA avec declencheurs et actions."),
+    desc: text("Build or AI-generate automations with triggers and actions.", "Créer ou generer des automatisations IA avec declencheurs et actions."),
     href: "/dashboard/automations",
   },
   {
     title: text("Automation Operations", "Operations automatisation"),
     desc: text(
       "Monitor automation health and investigate failed steps.",
-      "Surveiller la sante des automatisations et investiguer les echecs."
+      "Surveiller la santé des automatisations et investiguer les échecs."
     ),
     href: "/dashboard/automation-operations",
   },
   {
     title: text("AI Assistant", "Assistant IA"),
-    desc: text("Chat, create flows, and diagnose errors with AI.", "Discuter, creer des flux, diagnostiquer avec l IA."),
+    desc: text("Chat, create flows, and diagnose errors with AI.", "Discuter, créer des flux, diagnostiquer avec l IA."),
     href: "/dashboard/assistant",
   },
   {
-    title: text("Inbox", "Bo?te de reception"),
+    title: text("Inbox", "Boîte de réception"),
     desc: text("Review customer messages and replies in one place.", "Voir messages clients et réponses au meme endroit."),
     href: "/dashboard/inbox",
   },
@@ -236,7 +236,7 @@ export function RestartTourButton({
 
   return (
     <Button className={className} variant={variant} size={size} onClick={restart} disabled={loading}>
-      {loading ? t("Starting...", "Demarrage...") : t("Product tour", "Parcours produit")}
+      {loading ? t("Starting...", "Démarrage...") : t("Product tour", "Parcours produit")}
     </Button>
   );
 }

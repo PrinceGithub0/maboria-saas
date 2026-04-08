@@ -200,7 +200,7 @@ export default function SupportTicketDetailsPage() {
 
     for (const file of incoming) {
       if (!ALLOWED_ATTACHMENT_TYPES.includes(file.type as (typeof ALLOWED_ATTACHMENT_TYPES)[number])) {
-        nextError = t("Only JPG, PNG, or PDF files are supported.", "Seuls les fichiers JPG, PNG, ou PDF sont acceptes.", "Nur JPG-, PNG- oder PDF-Dateien werden unterst?tzt.", "Solo se admiten archivos JPG, PNG o PDF.", "Apenas s?o suportados ficheiros JPG, PNG ou PDF.");
+        nextError = t("Only JPG, PNG, or PDF files are supported.", "Seuls les fichiers JPG, PNG, ou PDF sont acceptes.", "Nur JPG-, PNG- oder PDF-Dateien werden unterstützt.", "Solo se admiten archivos JPG, PNG o PDF.", "Apenas são suportados ficheiros JPG, PNG ou PDF.");
         continue;
       }
       if (file.size > 5 * 1024 * 1024) {
@@ -211,7 +211,7 @@ export default function SupportTicketDetailsPage() {
         continue;
       }
       if (nextFiles.length >= MAX_ATTACHMENTS) {
-        nextError = t("You can attach up to 3 files.", "Vous pouvez joindre jusqu a 3 fichiers.", "Du kannst bis zu 3 Dateien anhangen.", "Puedes adjuntar hasta 3 archivos.", "Pode anexar at? 3 ficheiros.");
+        nextError = t("You can attach up to 3 files.", "Vous pouvez joindre jusqu a 3 fichiers.", "Du kannst bis zu 3 Dateien anhängen.", "Puedes adjuntar hasta 3 archivos.", "Pode anexar at? 3 ficheiros.");
         break;
       }
       nextFiles.push(file);
@@ -239,7 +239,7 @@ export default function SupportTicketDetailsPage() {
           message: localizeSupportServerMessage(
             data.error,
             language,
-            t("Could not update ticket status.", "Impossible de mettre ? jour le statut du ticket.", "Ticketstatus konnte nicht aktualisiert werden.", "No se pudo actualizar el estado del ticket.", "Não foi poss?vel atualizar o estado do ticket.")
+            t("Could not update ticket status.", "Impossible de mettre à jour le statut du ticket.", "Ticketstatus konnte nicht aktualisiert werden.", "No se pudo actualizar el estado del ticket.", "Não foi possível atualizar o estado do ticket.")
           ),
           variant: "error",
         });
@@ -253,7 +253,7 @@ export default function SupportTicketDetailsPage() {
       });
     } catch {
       setStatus({
-        message: t("Could not update ticket status.", "Impossible de mettre ? jour le statut du ticket.", "Ticketstatus konnte nicht aktualisiert werden.", "No se pudo actualizar el estado del ticket.", "Não foi poss?vel atualizar o estado do ticket."),
+        message: t("Could not update ticket status.", "Impossible de mettre à jour le statut du ticket.", "Ticketstatus konnte nicht aktualisiert werden.", "No se pudo actualizar el estado del ticket.", "Não foi possível atualizar o estado do ticket."),
         variant: "error",
       });
     } finally {
@@ -289,7 +289,7 @@ export default function SupportTicketDetailsPage() {
           message: localizeSupportServerMessage(
             data.error,
             language,
-            t("Could not send reply.", "Impossible d envoyer la réponse.", "Antwort konnte nicht gesendet werden.", "No se pudo enviar la respuesta.", "Não foi poss?vel enviar a resposta.")
+            t("Could not send reply.", "Impossible d envoyer la réponse.", "Antwort konnte nicht gesendet werden.", "No se pudo enviar la respuesta.", "Não foi possível enviar a resposta.")
           ),
           variant: "error",
         });
@@ -306,9 +306,9 @@ export default function SupportTicketDetailsPage() {
               fr: "La r\u00e9ponse a \u00e9t\u00e9 enregistr\u00e9e, mais l'envoi de l'email support a \u00e9chou\u00e9.",
               de: "Die Antwort wurde gespeichert, aber die Zustellung der Support-E-Mail ist fehlgeschlagen.",
               es: "La respuesta se guardo, pero la entrega del correo de soporte fallo.",
-              pt: "A resposta foi guardada, mas a entrega do email de suporte falhou.",
+              pt: "A resposta foi guardada, más a entrega do email de suporte falhou.",
             })
-          : t("Reply sent successfully.", "Réponse envoyee avec succes.", "Antwort erfolgreich gesendet.", "Respuesta enviada correctamente.", "Resposta enviada com sucesso."),
+          : t("Reply sent successfully.", "Réponse envoyée avec succès.", "Antwort erfolgreich gesendet.", "Respuesta enviada correctamente.", "Resposta enviada com sucesso."),
         variant: data.emailError ? "warning" : "success",
       });
     } catch {
@@ -318,7 +318,7 @@ export default function SupportTicketDetailsPage() {
           fr: "Impossible d envoyer la réponse. Veuillez réessayer.",
           de: "Antwort konnte nicht gesendet werden. Bitte versuche es erneut.",
           es: "No se pudo enviar la respuesta. Intentalo de nuevo.",
-          pt: "Não foi poss?vel enviar a resposta. Tente novamente.",
+          pt: "Não foi possível enviar a resposta. Tente novamente.",
         }),
         variant: "error",
       });
@@ -366,7 +366,7 @@ export default function SupportTicketDetailsPage() {
               "Nous n'avons pas pu charger ce ticket pour le moment. Veuillez actualiser et réessayer.",
               "Dieses Ticket konnte derzeit nicht geladen werden. Bitte aktualisiere die Seite und versuche es erneut.",
               "No pudimos cargar este ticket en este momento. Actualiza e intentalo de nuevo.",
-              "Não foi poss?vel carregar este ticket neste momento. Atualize e tente novamente."
+              "Não foi possível carregar este ticket neste momento. Atualize e tente novamente."
             )}
           </p>
         ) : !ticket ? (
@@ -490,7 +490,7 @@ export default function SupportTicketDetailsPage() {
                             "Cette r\u00e9ponse support a \u00e9t\u00e9 enregistr\u00e9e, mais l'envoi de l'email vers vous a \u00e9chou\u00e9.",
                             "Diese Support-Antwort wurde gespeichert, aber die E-Mail-Zustellung an dich ist fehlgeschlagen.",
                             "Esta respuesta de soporte se guardo, pero fallo el envio del correo hacia ti.",
-                            "Esta resposta de suporte foi guardada, mas o envio do email para si falhou."
+                            "Esta resposta de suporte foi guardada, más o envio do email para si falhou."
                           )}
                         </p>
                       ) : null}
@@ -512,7 +512,7 @@ export default function SupportTicketDetailsPage() {
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 {t(
                   "Your reply is added to the ticket thread and emailed to support.",
-                  "Votre réponse est ajoutee au fil du ticket et envoyee par email au support.",
+                  "Votre réponse est ajoutee au fil du ticket et envoyée par email au support.",
                   "Deine Antwort wird zum Ticketverlauf hinzugefugt und per E-Mail an den Support gesendet.",
                   "Tu respuesta se anade al hilo del ticket y se envia por correo al soporte.",
                   "A sua resposta e adicionada ao ticket e enviada por email ao suporte."
@@ -525,7 +525,7 @@ export default function SupportTicketDetailsPage() {
                   required
                   rows={6}
                   onChange={(event) => setReplyMessage(event.target.value)}
-                  placeholder={t("Add more details or respond to support...", "Ajoutez plus de d?tails ou repondez au support...", "Füge weitere Details hinzu oder antworte dem Support...", "Anade mas detalles o responde al soporte...", "Adicione mais detalhes ou responda ao suporte...")}
+                  placeholder={t("Add more details or respond to support...", "Ajoutez plus de d?tails ou repondez au support...", "Füge weitere Details hinzu oder antworte dem Support...", "Anade más detalles o responde al soporte...", "Adicione mais detalhes ou responda ao suporte...")}
                   className={`rounded-xl border-slate-200 bg-white px-3.5 py-3 text-sm transition-colors hover:border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-950/85 dark:text-slate-100 dark:placeholder:text-slate-500 dark:hover:border-slate-500 dark:focus:border-blue-400 dark:focus:ring-blue-500/25 ${
                     forceLight
                       ? "!border-[#CBD5E1] !bg-white !text-[#0F172A] placeholder:!text-slate-500 hover:!border-slate-400 focus:!border-[#2563EB] focus:!ring-[3px] focus:!ring-[rgba(37,99,235,0.15)]"
@@ -570,10 +570,10 @@ export default function SupportTicketDetailsPage() {
                                   src={preview}
                                   alt={t({
                                     en: "Attachment preview",
-                                    fr: "Apercu de la piece jointe",
+                                    fr: "Aperçu de la piece jointe",
                                     de: "Vorschau des Anhangs",
                                     es: "Vista previa del adjunto",
-                                    pt: "Pre-visualiza??o do anexo",
+                                    pt: "Pre-visualização do anexo",
                                   })}
                                   width={36}
                                   height={36}
@@ -627,7 +627,7 @@ export default function SupportTicketDetailsPage() {
                       "If the ticket is closed, sending a reply will reopen it automatically.",
                       "Si le ticket est ferme, l envoi d une réponse le rouvrira automatiquement.",
                       "Wenn das Ticket geschlossen ist, wird es durch das Senden einer Antwort automatisch wieder geöffnet.",
-                      "Si el ticket esta cerrado, al enviar una respuesta se reabrira autom?ticamente.",
+                      "Si el ticket esta cerrado, al enviar una respuesta se reabrirá automáticamente.",
                       "Se o ticket estiver fechado, ao enviar uma resposta ele sera reaberto automaticamente."
                     )}
                   </p>

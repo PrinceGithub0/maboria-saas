@@ -1,4 +1,4 @@
-import { buildDefaultCountryModule, createCountryIssue, hasValue } from "@/lib/invoicing/blueprint/module-factory";
+import { buildDefaultCountryModule, createCountryIssue } from "@/lib/invoicing/blueprint/module-factory";
 
 export const botswanaComplianceModule = buildDefaultCountryModule("BW", {
   implementationType: "SPECIALIZED",

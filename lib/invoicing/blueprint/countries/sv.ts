@@ -5,13 +5,13 @@ export const elSalvadorComplianceModule = buildDefaultCountryModule("SV", {
   ruleVersion: "2026-04-06",
   evidence: [
     {
-      label: "El Salvador facturacion electronica portal",
-      url: "https://www.mh.gob.sv/facturacion-electronica/",
+      label: "El Salvador facturación electronica portal",
+      url: "https://www.mh.gob.sv/facturación-electronica/",
       reviewedAt: "2026-04-06",
     },
     {
       label: "El Salvador DTE legal reform notice",
-      url: "https://www.mh.gob.sv/reformas-al-codigo-tributario-relativas-a-la-facturacion-electronica-documentos-tributarios-electronicos-dte/",
+      url: "https://www.mh.gob.sv/reformas-al-código-tributario-relativas-a-la-facturación-electronica-documentos-tributarios-electronicos-dte/",
       reviewedAt: "2026-04-06",
     },
   ],

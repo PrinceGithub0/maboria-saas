@@ -1,10 +1,18 @@
 import type { Metadata } from "next";
 import "../globals.css";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { LanguageProvider } from "@/components/providers/language-provider";
+import { PricingCurrencyProvider } from "@/components/providers/pricing-currency-provider";
 import { SessionProviderWrapper } from "@/components/providers/session-provider";
 import { normalizeLanguage, type Language } from "@/lib/i18n";
+import { getCountryFromRequestHeaders } from "@/lib/payments/payment-providers";
+import {
+  PRICING_CURRENCY_COOKIE,
+  resolveInitialPricingCurrency,
+} from "@/lib/pricing-currency";
+import { buildPricingPriceBook } from "@/lib/pricing-live";
+import { getPricingPriceBookCurrencies } from "@/lib/pricing-price-book";
 
 const siteUrl =
   process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
@@ -15,12 +23,12 @@ const marketingMetadataByLanguage: Record<Language, { title: string; description
     description: "AI-powered workflows, billing, and operations for modern teams.",
   },
   fr: {
-    title: "Plateforme d automatisation Maboria",
+    title: "Plateforme d'automatisation Maboria",
     description: "Workflows, facturation et operations pilotes par IA pour les équipes modernes.",
   },
   de: {
     title: "Maboria Automatisierungsplattform",
-    description: "KI-gestutzte Workflows, Abrechnung und Betriebsablaufe für moderne Teams.",
+    description: "KI-gestützte Workflows, Abrechnung und Betriebsabläufe für moderne Teams.",
   },
   es: {
     title: "Plataforma de automatización Maboria",
@@ -61,6 +69,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();
+  const requestHeaders = await headers();
   const themePref = cookieStore.get("maboria-theme")?.value;
   const resolvedPref = cookieStore.get("maboria-resolved-theme")?.value;
   const themeExplicit = cookieStore.get("maboria-theme-explicit")?.value === "1";
@@ -78,12 +87,26 @@ export default async function MarketingLayout({ children }: { children: React.Re
 
   const languageCookie = cookieStore.get("maboria_language")?.value;
   const initialLanguage = normalizeLanguage(languageCookie);
+  const pricingPriceBook = await buildPricingPriceBook();
+  const initialPricingCurrency = resolveInitialPricingCurrency({
+    cookieValue: cookieStore.get(PRICING_CURRENCY_COOKIE)?.value,
+    countryCode: getCountryFromRequestHeaders(requestHeaders),
+    acceptLanguage: requestHeaders.get("accept-language"),
+    supportedCurrencies: getPricingPriceBookCurrencies(pricingPriceBook),
+  });
 
   return (
     <div className="min-h-screen bg-background text-foreground antialiased">
       <SessionProviderWrapper>
         <ThemeProvider initialTheme={initialTheme} initialResolvedTheme={initialResolvedTheme}>
-          <LanguageProvider initialLanguage={initialLanguage}>{children}</LanguageProvider>
+          <LanguageProvider initialLanguage={initialLanguage}>
+            <PricingCurrencyProvider
+              initialCurrency={initialPricingCurrency}
+              priceBook={pricingPriceBook}
+            >
+              {children}
+            </PricingCurrencyProvider>
+          </LanguageProvider>
         </ThemeProvider>
       </SessionProviderWrapper>
     </div>

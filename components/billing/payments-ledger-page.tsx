@@ -189,9 +189,9 @@ export function PaymentsLedgerPage({
             ? localizeAdminServerMessage(
                 error.message,
                 language,
-                t("Refund request failed.", "La demande de remboursement a ?chou?.", "Rueckerstattungsanfrage fehlgeschlagen.", "La solicitud de reembolso fallo.", "O pedido de reembolso falhou.")
+                t("Refund request failed.", "La demande de remboursement a échoué.", "Rückerstattungsanfrage fehlgeschlagen.", "La solicitud de reembolso fallo.", "O pedido de reembolso falhou.")
               )
-            : t("Refund request failed.", "La demande de remboursement a ?chou?.", "Rueckerstattungsanfrage fehlgeschlagen.", "La solicitud de reembolso fallo.", "O pedido de reembolso falhou."),
+            : t("Refund request failed.", "La demande de remboursement a échoué.", "Rückerstattungsanfrage fehlgeschlagen.", "La solicitud de reembolso fallo.", "O pedido de reembolso falhou."),
       });
     } finally {
       setRefundLoading(false);
@@ -204,7 +204,7 @@ export function PaymentsLedgerPage({
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-50">{t("Payments", "Paiements", "Zahlungen", "Pagos", "Pagamentos")}</h1>
-            <p className="text-sm text-slate-600 dark:text-slate-300">{t("All customer payments for selected period", "Tous les paiements clients pour la periode selectionnee", "Alle Kundenzahlungen für den ausgewahlten Zeitraum", "Todos los pagos de clientes del periodo seleccionado", "Todos os pagamentos de clientes do periodo selecionado")}</p>
+            <p className="text-sm text-slate-600 dark:text-slate-300">{t("All customer payments for selected period", "Tous les paiements clients pour la periode selectionnee", "Alle Kundenzahlungen für den ausgewählten Zeitraum", "Todos los pagos de clientes del periodo seleccionado", "Todos os pagamentos de clientes do periodo selecionado")}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <select
@@ -216,8 +216,8 @@ export function PaymentsLedgerPage({
               className="h-9 rounded border border-slate-300 bg-white px-3 text-sm text-slate-800 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
             >
               <option value="today">{t("Today", "Aujourd'hui", "Heute", "Hoy", "Hoje")}</option>
-              <option value="last7">{t("Last 7 Days", "7 derniers jours", "Letzte 7 Tage", "?ltimos 7 d?as", "?ltimos 7 dias")}</option>
-              <option value="last30">{t("Last 30 Days", "30 derniers jours", "Letzte 30 Tage", "?ltimos 30 d?as", "?ltimos 30 dias")}</option>
+              <option value="last7">{t("Last 7 Days", "7 derniers jours", "Letzte 7 Tage", "Últimos 7 días", "Últimos 7 dias")}</option>
+              <option value="last30">{t("Last 30 Days", "30 derniers jours", "Letzte 30 Tage", "Últimos 30 días", "Últimos 30 dias")}</option>
               <option value="custom">{t("Custom", "Personnalise", "Benutzerdefiniert", "Personalizado", "Personalizado")}</option>
             </select>
             {range.key === "custom" ? (
@@ -267,7 +267,7 @@ export function PaymentsLedgerPage({
 
       {!hasConnectedSubaccount ? (
         <section className="border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300">
-          {t("Payment subaccount not connected. Confirm payout setup in Settings to collect new invoice payments.", "Le sous-compte de paiement n'est pas connect?. Confirmez la configuration des virements dans les paramêtres pour collecter de nouveaux paiements de facture.", "Das Zahlungsunterkonto ist nicht verbunden. Bestatige die Auszahlungseinrichtung in den Einstellungen, um neue Rechnungszahlungen einzuziehen.", "La subcuenta de pago no est? conectada. Confirma la configuración de cobros en Ajustes para recibir nuevos pagos de facturas.", "A subconta de pagamento não esta ligada. Confirme a configuração de recebimentos nas Definições para recolher novos pagamentos de faturas.")}
+          {t("Payment subaccount not connected. Confirm payout setup in Settings to collect new invoice payments.", "Le sous-compte de paiement n'est pas connecté. Confirmez la configuration des virements dans les paramêtres pour collecter de nouveaux paiements de facture.", "Das Zahlungsunterkonto ist nicht verbunden. Bestatige die Auszahlungseinrichtung in den Einstellungen, um neue Rechnungszahlungen einzuziehen.", "La subcuenta de pago no est? conectada. Confirma la configuración de cobros en Ajustes para recibir nuevos pagos de facturas.", "A subconta de pagamento não esta ligada. Confirme a configuração de recebimentos nas Definições para recolher novos pagamentos de faturas.")}
         </section>
       ) : null}
 
@@ -309,12 +309,12 @@ export function PaymentsLedgerPage({
               <option value="pending">{t("Pending", "En attente", "Ausstehend", "Pendiente", "Pendente")}</option>
             </select>
           </div>
-          <span className="text-xs text-slate-500 dark:text-slate-400">{t("Newest first", "Plus recent d'abord", "Neueste zuerst", "Mas recientes primero", "Mais recentes primeiro")}</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400">{t("Newest first", "Plus recent d'abord", "Neueste zuerst", "Más recientes primero", "Mais recentes primeiro")}</span>
         </div>
 
         {error ? (
           <div className="px-4 py-6 text-sm text-amber-700 dark:text-amber-300">
-            {t("Live data temporarily unavailable. Showing last updated state.", "Les données en direct sont temporairement indisponibles. Affichage du dernier etat connu.", "Live-Daten sind vorübergehend nicht verfügbar. Letzter bekannter Stand wird angezeigt.", "Los datos en vivo no est?n disponibles temporalmente. Se muestra el ?ltimo estado conocido.", "Os dados em tempo real estão temporariamente indisponiveis. A mostrar o ?ltimo estado conhecido.")}
+            {t("Live data temporarily unavailable. Showing last updated state.", "Les données en direct sont temporairement indisponibles. Affichage du dernier etat connu.", "Live-Daten sind vorübergehend nicht verfügbar. Letzter bekannter Stand wird angezeigt.", "Los datos en vivo no est?n disponibles temporalmente. Se muestra el Último estado conocido.", "Os dados em tempo real estão temporariamente indisponiveis. A mostrar o Último estado conhecido.")}
           </div>
         ) : null}
 
@@ -395,7 +395,7 @@ export function PaymentsLedgerPage({
 
         <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 dark:border-slate-700">
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            {t("Page", "Page", "Seite", "P?gina", "P?gina")} {page} {t("of", "sur", "von", "de", "de")} {totalPages}
+            {t("Page", "Page", "Seite", "Página", "Página")} {page} {t("of", "sur", "von", "de", "de")} {totalPages}
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -487,7 +487,7 @@ export function PaymentsLedgerPage({
                       {t("Open receipt", "Ouvrir le recu", "Beleg öffnen", "Abrir recibo", "Abrir recibo")}
                     </Link>
                   ) : (
-                    <span className="text-slate-500 dark:text-slate-400">{t("Not available", "Indisponible", "Nicht verfügbar", "No disponible", "Indispon?vel")}</span>
+                    <span className="text-slate-500 dark:text-slate-400">{t("Not available", "Indisponible", "Nicht verfügbar", "No disponible", "Indisponível")}</span>
                   )}
                 </dd>
               </div>
@@ -497,7 +497,7 @@ export function PaymentsLedgerPage({
                 <div>
                   <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">{t("Refund customer", "Rembourser le client", "Kunden erstatten", "Reembolsar al cliente", "Reembolsar cliente")}</p>
                   <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                    {t("Full refund only. Money is returned by the payment provider and the ledger updates after confirmation.", "Remboursement total uniquement. L'argent est renvoye par le fournisseur de paiement et le registre se met a jour apres confirmation.", "Nur vollständige Erstattung. Das Geld wird vom Zahlungsanbieter zurückgesendet und das Ledger wird nach Bestätigung aktualisiert.", "Solo reembolso completo. El dinero lo devuelve el proveedor de pago y el registro se actualiza tras la confirmaci?n.", "Apenas reembolso total. O dinheiro e devolvido pelo fornecedor de pagamento e o registo atualiza-se após confirma??o.")}
+                    {t("Full refund only. Money is returned by the payment provider and the ledger updates after confirmation.", "Remboursement total uniquement. L'argent est renvoyé par le fournisseur de paiement et le registre se met a jour après confirmation.", "Nur vollständige Erstattung. Das Geld wird vom Zahlungsanbieter zurückgesendet und das Ledger wird nach Bestätigung aktualisiert.", "Solo reembolso completo. El dinero lo devuelve el proveedor de pago y el registro se actualiza tras la confirmación.", "Apenas reembolso total. O dinheiro e devolvido pelo fornecedor de pagamento e o registo atualiza-se após confirmação.")}
                   </p>
                 </div>
                 {selectedRow.canRefund ? (
@@ -506,7 +506,7 @@ export function PaymentsLedgerPage({
                       value={refundReason}
                       onChange={(event) => setRefundReason(event.target.value)}
                       rows={3}
-                      placeholder={t("Optional reason shown in refund metadata", "Raison facultative affichee dans les metadonnees du remboursement", "Optionale Begründung in den Erstattungsmetadaten", "Motivo opcional mostrado en los metadatos del reembolso", "Motivo opcional mostrado nos metadados do reembolso")}
+                      placeholder={t("Optional reason shown in refund metadata", "Raison facultative affichee dans les métadonnées du remboursement", "Optionale Begründung in den Erstattungsmetadaten", "Motivo opcional mostrado en los metadatos del reembolso", "Motivo opcional mostrado nos metadados do reembolso")}
                       className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                     />
                     <button
@@ -521,7 +521,7 @@ export function PaymentsLedgerPage({
                 ) : null}
                 {selectedRow.refundState === "pending" ? (
                   <p className="text-sm text-amber-700 dark:text-amber-300">
-                    {t("Refund requested. Waiting for provider confirmation.", "Remboursement demande. En attente de confirmation du fournisseur.", "Erstattung angefordert. Warte auf Bestätigung des Anbieters.", "Reembolso solicitado. Esperando la confirmaci?n del proveedor.", "Reembolso solicitado. A aguardar confirma??o do fornecedor.")}
+                    {t("Refund requested. Waiting for provider confirmation.", "Remboursement demande. En attente de confirmation du fournisseur.", "Erstattung angefordert. Warte auf Bestätigung des Anbieters.", "Reembolso solicitado. Esperando la confirmación del proveedor.", "Reembolso solicitado. A aguardar confirmação do fornecedor.")}
                   </p>
                 ) : null}
                 {refundStatus ? (

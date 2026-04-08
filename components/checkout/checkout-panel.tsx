@@ -128,7 +128,9 @@ export function CheckoutPanel({
       router.refresh();
     } catch (err) {
       console.error(err);
+      const resolvedError = err instanceof Error && err.message ? err.message : null;
       setError(
+        resolvedError ||
         t(
           "Unable to start checkout. Please try again.",
           "Impossible de lancer le paiement. Veuillez réessayer.",

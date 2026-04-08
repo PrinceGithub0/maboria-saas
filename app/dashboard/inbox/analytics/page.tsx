@@ -62,7 +62,7 @@ export default function InboxAnalyticsPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className={pageEyebrowClass}>
-              {t("Inbox", "Bo?te de reception", "Posteingang", "Bandeja de entrada", "Caixa de entrada")}
+              {t("Inbox", "Boîte de réception", "Posteingang", "Bandeja de entrada", "Caixa de entrada")}
             </p>
             <h1 className={pageTitleClass}>
               {t(
@@ -93,7 +93,7 @@ export default function InboxAnalyticsPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className={pageEyebrowClass}>
-              {t("Inbox", "Bo?te de reception", "Posteingang", "Bandeja de entrada", "Caixa de entrada")}
+              {t("Inbox", "Boîte de réception", "Posteingang", "Bandeja de entrada", "Caixa de entrada")}
             </p>
             <h1 className={pageTitleClass}>
               {t(
@@ -140,7 +140,7 @@ export default function InboxAnalyticsPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className={pageEyebrowClass}>
-            {t("Inbox", "Bo?te de reception", "Posteingang", "Bandeja de entrada", "Caixa de entrada")}
+            {t("Inbox", "Boîte de réception", "Posteingang", "Bandeja de entrada", "Caixa de entrada")}
           </p>
           <h1 className={pageTitleClass}>
             {t(
@@ -209,7 +209,7 @@ export default function InboxAnalyticsPage() {
               {t("Message volume", "Volume de messages", "Nachrichtenvolumen", "Volumen de mensajes", "Volume de mensagens")}
             </p>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              {t("Last 14 days", "14 derniers jours", "Letzte 14 Tage", "?ltimos 14 d?as", "?ltimos 14 dias")}
+              {t("Last 14 days", "14 derniers jours", "Letzte 14 Tage", "Últimos 14 días", "Últimos 14 dias")}
             </p>
           </div>
           <p className="text-xs text-slate-400 dark:text-slate-500">

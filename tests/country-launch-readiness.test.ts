@@ -112,39 +112,44 @@ assert.equal(australia?.launchState, "LIVE");
 assert.equal(isCountryLaunchReady("AU"), true);
 
 const poland = getCountryLaunchReadiness("PL");
-assert.equal(poland?.launchState, "MANUAL_REVIEW");
+assert.equal(poland?.launchState, "LIVE");
 assert.equal(poland?.requiresEInvoicing, true);
 assert.equal(poland?.eInvoiceCompletionStage, "CANCEL_READY");
-assert.equal(poland?.eInvoicePromotionState, "IN_PROGRESS");
+assert.equal(poland?.eInvoicePromotionState, "READY");
 assert.equal(poland?.eInvoicePromotionPriority, 40);
+assert.equal(poland?.blockers.length, 0);
 
 const unitedArabEmirates = getCountryLaunchReadiness("AE");
-assert.equal(unitedArabEmirates?.launchState, "MANUAL_REVIEW");
+assert.equal(unitedArabEmirates?.launchState, "LIVE");
 assert.equal(unitedArabEmirates?.requiresEInvoicing, true);
 assert.equal(unitedArabEmirates?.eInvoiceCompletionStage, "CANCEL_READY");
-assert.equal(unitedArabEmirates?.eInvoicePromotionState, "IN_PROGRESS");
+assert.equal(unitedArabEmirates?.eInvoicePromotionState, "READY");
 assert.equal(unitedArabEmirates?.eInvoicePromotionPriority, 13);
+assert.equal(unitedArabEmirates?.blockers.length, 0);
 
 const egypt = getCountryLaunchReadiness("EG");
-assert.equal(egypt?.launchState, "MANUAL_REVIEW");
+assert.equal(egypt?.launchState, "LIVE");
 assert.equal(egypt?.requiresEInvoicing, true);
 assert.equal(egypt?.eInvoiceCompletionStage, "CANCEL_READY");
-assert.equal(egypt?.eInvoicePromotionState, "IN_PROGRESS");
+assert.equal(egypt?.eInvoicePromotionState, "READY");
 assert.equal(egypt?.eInvoicePromotionPriority, 23);
+assert.equal(egypt?.blockers.length, 0);
 
 const mauritius = getCountryLaunchReadiness("MU");
-assert.equal(mauritius?.launchState, "MANUAL_REVIEW");
+assert.equal(mauritius?.launchState, "LIVE");
 assert.equal(mauritius?.requiresEInvoicing, true);
 assert.equal(mauritius?.eInvoiceCompletionStage, "CANCEL_READY");
-assert.equal(mauritius?.eInvoicePromotionState, "IN_PROGRESS");
+assert.equal(mauritius?.eInvoicePromotionState, "READY");
 assert.equal(mauritius?.eInvoicePromotionPriority, 33);
+assert.equal(mauritius?.blockers.length, 0);
 
 const rwanda = getCountryLaunchReadiness("RW");
-assert.equal(rwanda?.launchState, "MANUAL_REVIEW");
+assert.equal(rwanda?.launchState, "LIVE");
 assert.equal(rwanda?.requiresEInvoicing, true);
 assert.equal(rwanda?.eInvoiceCompletionStage, "CANCEL_READY");
-assert.equal(rwanda?.eInvoicePromotionState, "IN_PROGRESS");
+assert.equal(rwanda?.eInvoicePromotionState, "READY");
 assert.equal(rwanda?.eInvoicePromotionPriority, 43);
+assert.equal(rwanda?.blockers.length, 0);
 
 const jamaica = getCountryLaunchReadiness("JM");
 assert.equal(jamaica?.launchState, "LIVE");
@@ -261,9 +266,9 @@ const counts = allCountries.reduce(
   }
 );
 
-assert.equal(counts.LIVE, 210);
+assert.equal(counts.LIVE, 250);
 assert.equal(counts.BETA, 0);
-assert.equal(counts.MANUAL_REVIEW, 40);
+assert.equal(counts.MANUAL_REVIEW, 0);
 assert.equal(counts.NOT_READY, 0);
 
 console.log("country launch readiness passed");

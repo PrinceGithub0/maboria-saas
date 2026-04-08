@@ -66,7 +66,7 @@ const text = (en: string, fr: string, de: string, es: string, pt: string): Compl
 const tabs: Array<{ id: LogTab; label: CompleteLocalizedText }> = [
   { id: "all", label: text("All", "Tous", "Alle", "Todos", "Todos") },
   { id: "errors", label: text("Errors", "Erreurs", "Fehler", "Errores", "Erros") },
-  { id: "security", label: text("Security", "Sécurité", "Sicherheit", "Seguridad", "Seguran?a") },
+  { id: "security", label: text("Security", "Sécurité", "Sicherheit", "Seguridad", "Segurança") },
   { id: "webhooks", label: text("Webhooks", "Webhooks", "Webhooks", "Webhooks", "Webhooks") },
   { id: "billing", label: text("Billing", "Facturation", "Abrechnung", "Facturación", "Faturação") },
   { id: "infrastructure", label: text("Infrastructure", "Infrastructure", "Infrastruktur", "Infraestructura", "Infraestrutura") },
@@ -137,10 +137,10 @@ function serviceLabel(
 ) {
   const normalized = String(service || "").trim().toUpperCase();
   const map: Record<string, CompleteLocalizedText> = {
-    AUTOMATION: text("Automation", "Automatisation", "Automatisierung", "Automatizaci?n", "Automa??o"),
-    BILLING: text("Billing", "Facturation", "Abrechnung", "Facturaci?n", "Fatura??o"),
+    AUTOMATION: text("Automation", "Automatisation", "Automatisierung", "Automatizaci?n", "Automação"),
+    BILLING: text("Billing", "Facturation", "Abrechnung", "Facturación", "Faturação"),
     WEBHOOKS: text("Webhooks", "Webhooks", "Webhooks", "Webhooks", "Webhooks"),
-    SECURITY: text("Security", "Securite", "Sicherheit", "Seguridad", "Seguran?a"),
+    SECURITY: text("Security", "Sécurité", "Sicherheit", "Seguridad", "Segurança"),
     SUPPORT: text("Support", "Support", "Support", "Soporte", "Suporte"),
     INFRASTRUCTURE: text("Infrastructure", "Infrastructure", "Infrastruktur", "Infraestructura", "Infraestrutura"),
     CORE: text("Core", "Noyau", "Kern", "Nucleo", "Nucleo"),
@@ -170,9 +170,9 @@ function timeRangeLabel(
   range: TimeRangePreset,
   t: (value: CompleteLocalizedText) => string
 ) {
-  if (range === "24h") return t(text("Last 24 hours", "Dernieres 24 heures", "Letzte 24 Stunden", "?ltimas 24 horas", "Ultimas 24 horas"));
-  if (range === "7d") return t(text("Last 7 days", "Derniers 7 jours", "Letzte 7 Tage", "?ltimos 7 d?as", "?ltimos 7 dias"));
-  if (range === "30d") return t(text("Last 30 days", "Derniers 30 jours", "Letzte 30 Tage", "?ltimos 30 d?as", "?ltimos 30 dias"));
+  if (range === "24h") return t(text("Last 24 hours", "Dernieres 24 heures", "Letzte 24 Stunden", "Últimas 24 horas", "Ultimas 24 horas"));
+  if (range === "7d") return t(text("Last 7 days", "Derniers 7 jours", "Letzte 7 Tage", "Últimos 7 días", "Últimos 7 dias"));
+  if (range === "30d") return t(text("Last 30 days", "Derniers 30 jours", "Letzte 30 Tage", "Últimos 30 días", "Últimos 30 dias"));
   if (range === "custom") return t(text("Custom range", "Plage personnalisee", "Benutzerdefinierter Bereich", "Rango personalizado", "Intervalo personalizado"));
   return t(text("All time", "Toute la periode", "Gesamter Zeitraum", "Todo el tiempo", "Todo o periodo"));
 }
@@ -551,13 +551,13 @@ export default function AdminLogsPage() {
   const activeFilters = useMemo(
     () =>
       [
-        q ? { id: "q", label: `${t("Query", "Requete", "Suche", "Consulta", "Pesquisa")}: ${q}`, clear: () => { setQInput(""); setQ(""); resetCursorPagination(); } } : null,
+        q ? { id: "q", label: `${t("Query", "Requête", "Suche", "Consulta", "Pesquisa")}: ${q}`, clear: () => { setQInput(""); setQ(""); resetCursorPagination(); } } : null,
         tab !== "all" ? { id: "tab", label: `${t("Tab", "Onglet", "Tab", "Pestana", "Separador")}: ${t(tabs.find((entry) => entry.id === tab)?.label || text("All", "Tous", "Alle", "Todos", "Todos"))}`, clear: () => { setTab("all"); resetCursorPagination(); } } : null,
         severities[0] ? { id: "severity", label: `${t("Severity", "Gravite", "Schweregrad", "Severidad", "Severidade")}: ${severityLabel(severities[0], t)}`, clear: () => { setSeverities([]); resetCursorPagination(); } } : null,
         services[0] ? { id: "service", label: `${t("Service", "Service", "Dienst", "Servicio", "Servico")}: ${serviceLabel(services[0], t)}`, clear: () => { setServices([]); resetCursorPagination(); } } : null,
         actor !== "all" ? { id: "actor", label: `${t("Actor", "Acteur", "Akteur", "Actor", "Ator")}: ${actorLabel(actor, t)}`, clear: () => { setActor("all"); resetCursorPagination(); } } : null,
         tenant ? { id: "tenant", label: `${t("Tenant", "Locataire", "Mandant", "Tenant", "Tenant")}: ${tenant}`, clear: () => { setTenant(""); resetCursorPagination(); } } : null,
-        requestId ? { id: "request", label: `${t("Request", "Requete", "Anfrage", "Solicitud", "Pedido")}: ${requestId}`, clear: () => { setRequestId(""); resetCursorPagination(); } } : null,
+        requestId ? { id: "request", label: `${t("Request", "Requête", "Anfrage", "Solicitud", "Pedido")}: ${requestId}`, clear: () => { setRequestId(""); resetCursorPagination(); } } : null,
         correlationId ? { id: "correlation", label: `${t("Correlation", "Correlation", "Korrelation", "Correlacion", "Correlacao")}: ${correlationId}`, clear: () => { setCorrelationId(""); resetCursorPagination(); } } : null,
         eventId ? { id: "event", label: `${t("Event", "Evenement", "Ereignis", "Evento", "Evento")}: ${eventId}`, clear: () => { setEventId(""); resetCursorPagination(); } } : null,
         timeRange !== "all" ? { id: "range", label: `${t("Range", "Plage", "Zeitraum", "Rango", "Intervalo")}: ${timeRangeLabel(timeRange, t)}`, clear: () => { setTimeRange("all"); setFrom(null); setTo(null); resetCursorPagination(); } } : null,
@@ -570,12 +570,12 @@ export default function AdminLogsPage() {
       <header className="rounded-xl border border-border/60 bg-card px-5 py-4">
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
           <div className="min-w-0">
-            <h1 className="text-2xl font-semibold text-foreground">{t("System Logs", "Journaux systeme", "Systemprotokolle", "Registros del sistema", "Registos do sistema")}</h1>
-            <p className="text-sm text-muted-foreground">{t("View system activity, security events, and operational history.", "Consultez l'activité systeme, les ?v?nements de sécurité et l'historique operationnel.", "Systemaktivität, Sicherheitsereignisse und Betriebshistorie anzeigen.", "Ver la actividad del sistema, los eventos de seguridad y el historial operativo.", "Ver a atividade do sistema, os eventos de seguran?a e o histórico operaciónal.")}</p>
+            <h1 className="text-2xl font-semibold text-foreground">{t("System Logs", "Journaux système", "Systemprotokolle", "Registros del sistema", "Registos do sistema")}</h1>
+            <p className="text-sm text-muted-foreground">{t("View system activity, security events, and operational history.", "Consultez l'activité système, les événements de sécurité et l'historique operationnel.", "Systemaktivität, Sicherheitsereignisse und Betriebshistorie anzeigen.", "Ver la actividad del sistema, los eventos de seguridad y el historial operativo.", "Ver a atividade do sistema, os eventos de segurança e o histórico operaciónal.")}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-            <span title={t("Old logs are archived automatically.", "Les anciens journaux sont archives automatiquement.", "Alte Protokolle werden automatisch archiviert.", "Los registros antiguos se archivan autom?ticamente.", "Os registos antigos s?o arquivados automaticamente.")} className="rounded-full border border-border/70 bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
-              {t("Retention: 30 days", "Retention : 30 jours", "Aufbewahrung: 30 Tage", "Retencion: 30 d?as", "Retencao: 30 dias")}
+            <span title={t("Old logs are archived automatically.", "Les anciens journaux sont archives automatiquement.", "Alte Protokolle werden automatisch archiviert.", "Los registros antiguos se archivan automáticamente.", "Os registos antigos são arquivados automaticamente.")} className="rounded-full border border-border/70 bg-muted/20 px-3 py-1 text-xs text-muted-foreground">
+              {t("Retention: 30 days", "Rétention : 30 jours", "Aufbewährung: 30 Tage", "Retención: 30 días", "Retenção: 30 dias")}
             </span>
             <select value={timezone} onChange={(e) => setTimezone(e.target.value as TimezoneMode)} className="h-9 rounded-md border border-border/70 bg-background px-2 text-sm">
               <option value="local">{t("Local", "Locale", "Lokal", "Local", "Local")}</option>
@@ -621,9 +621,9 @@ export default function AdminLogsPage() {
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 xl:w-[560px]">
             <select value={timeRange} onChange={(e) => applyTimeRange(e.target.value as TimeRangePreset)} className="h-11 rounded-md border border-border/70 bg-background px-3 text-sm">
               <option value="all">{t("All time", "Toute la periode", "Gesamter Zeitraum", "Todo el tiempo", "Todo o periodo")}</option>
-              <option value="24h">{t("Last 24 hours", "Dernieres 24 heures", "Letzte 24 Stunden", "?ltimas 24 horas", "Ultimas 24 horas")}</option>
-              <option value="7d">{t("Last 7 days", "Derniers 7 jours", "Letzte 7 Tage", "?ltimos 7 d?as", "?ltimos 7 dias")}</option>
-              <option value="30d">{t("Last 30 days", "Derniers 30 jours", "Letzte 30 Tage", "?ltimos 30 d?as", "?ltimos 30 dias")}</option>
+              <option value="24h">{t("Last 24 hours", "Dernieres 24 heures", "Letzte 24 Stunden", "Últimas 24 horas", "Ultimas 24 horas")}</option>
+              <option value="7d">{t("Last 7 days", "Derniers 7 jours", "Letzte 7 Tage", "Últimos 7 días", "Últimos 7 dias")}</option>
+              <option value="30d">{t("Last 30 days", "Derniers 30 jours", "Letzte 30 Tage", "Últimos 30 días", "Últimos 30 dias")}</option>
               <option value="custom">{t("Custom range", "Plage personnalisee", "Benutzerdefinierter Bereich", "Rango personalizado", "Intervalo personalizado")}</option>
             </select>
             <select
@@ -642,7 +642,7 @@ export default function AdminLogsPage() {
             </select>
             <details className="relative">
               <summary className="flex h-11 cursor-pointer items-center rounded-md border border-border/70 bg-background px-3 text-sm marker:content-['']">
-                {t("More filters", "Plus de filtres", "Mehr Filter", "Mas filtros", "Mais filtros")}
+                {t("More filters", "Plus de filtres", "Mehr Filter", "Más filtros", "Mais filtros")}
               </summary>
               <div className="absolute right-0 z-[90] mt-2 w-[min(92vw,640px)] rounded-md border border-border/70 bg-card p-4 shadow-lg">
                 <div className="grid gap-2 md:grid-cols-2">
@@ -699,7 +699,7 @@ export default function AdminLogsPage() {
                   />
                 </div>
                 <div className="mt-3 flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">{t("Shortcuts: `/` search, `R` refresh, `Esc` collapse", "Raccourcis : `/` recherche, `R` rafraichir, `Esc` replier", "Kurzbefehle: `/` suchen, `R` aktualisieren, `Esc` einklappen", "Atajos: `/` buscar, `R` actualizar, `Esc` contraer", "Atalhos: `/` pesquisar, `R` atualizar, `Esc` recolher")}</span>
+                  <span className="text-xs text-muted-foreground">{t("Shortcuts: `/` search, `R` refresh, `Esc` collapse", "Raccourcis : `/` recherche, `R` rafraîchir, `Esc` replier", "Kurzbefehle: `/` suchen, `R` aktualisieren, `Esc` einklappen", "Atajos: `/` buscar, `R` actualizar, `Esc` contraer", "Atalhos: `/` pesquisar, `R` atualizar, `Esc` recolher")}</span>
                   <div className="flex gap-2">
                     <Button variant="ghost" size="sm" onClick={resetFilters}>{t("Reset", "R?initialiser", "Zurücksetzen", "Restablecer", "Repor")}</Button>
                     <Button variant="ghost" size="sm" onClick={refreshLogs} disabled={manualRefreshing}>
@@ -788,7 +788,7 @@ export default function AdminLogsPage() {
 
       {error ? (
         <div className="space-y-2">
-          <Alert variant="error">{t("Failed to load logs. Retry.", "?chec du chargement des journaux. R?essayez.", "Protokolle konnten nicht geladen werden. Erneut versuchen.", "No se pudieron cargar los registros. Reintenta.", "Não foi poss?vel carregar os registos. Tente novamente.")}</Alert>
+          <Alert variant="error">{t("Failed to load logs. Retry.", "?chec du chargement des journaux. Réessayez.", "Protokolle konnten nicht geladen werden. Erneut versuchen.", "No se pudieron cargar los registros. Reintenta.", "Não foi possível carregar os registos. Tente novamente.")}</Alert>
           <Button variant="secondary" onClick={refreshLogs} disabled={manualRefreshing}>
             {manualRefreshing ? t("Retrying...", "Nouvelle tentative...", "Versuche erneut...", "Reintentando...", "A tentar novamente...") : t("Retry", "Reessayer", "Erneut versuchen", "Reintentar", "Tentar novamente")}
           </Button>
@@ -815,7 +815,7 @@ export default function AdminLogsPage() {
               ) : rows.length === 0 ? (
                 <tr>
                   <td colSpan={columns.length} className="px-3 py-12 text-center text-muted-foreground">
-                    {t("No logs found for selected filters.", "Aucun journal trouve pour les filtres selectionnes.", "Keine Protokolle fuer die ausgewaehlten Filter gefunden.", "No se encontraron registros para los filtros seleccionados.", "Não foram encontrados registos para os filtros selecionados.")}
+                    {t("No logs found for selected filters.", "Aucun journal trouvé pour les filtres selectionnes.", "Keine Protokolle für die ausgewählten Filter gefunden.", "No se encontraron registros para los filtros seleccionados.", "Não foram encontrados registos para os filtros selecionados.")}
                   </td>
                 </tr>
               ) : (
@@ -907,7 +907,7 @@ export default function AdminLogsPage() {
           <div className="flex items-center gap-2">
             <Button variant="ghost" disabled={page <= 1} onClick={() => setPage((prev) => Math.max(1, prev - 1))}>{t("Previous", "Precedent", "Zurueck", "Anterior", "Anterior")}</Button>
             <span className="text-xs text-muted-foreground">
-              {t("Page", "Page", "Seite", "P?gina", "P?gina")} {page}{pageCount ? ` ${t("of", "sur", "von", "de", "de")} ${pageCount}` : ""}
+              {t("Page", "Page", "Seite", "Página", "Página")} {page}{pageCount ? ` ${t("of", "sur", "von", "de", "de")} ${pageCount}` : ""}
             </span>
             <Button
               variant="ghost"

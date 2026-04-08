@@ -31,7 +31,7 @@ export function getComplianceSendBlockingReason(
     compliance.requiresBuyerTaxId &&
     hasWarning(compliance, "buyer_tax_id_recommended")
   ) {
-    return `Customer ${getTaxIdLabel(compliance.taxLabel)} is required before sending this business invoice.`;
+    return `Customer ${getTaxIdLabel(compliance.taxLabel)} is required before sending this B2B invoice.`;
   }
   if (compliance.requiresSellerTaxId && hasWarning(compliance, "seller_tax_id_recommended")) {
     return `Business ${getTaxIdLabel(compliance.taxLabel)} is required before sending this invoice.`;

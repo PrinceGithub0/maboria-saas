@@ -78,15 +78,15 @@ const fetcher = async (url: string): Promise<TimelineResponse> => {
 
 function toLabel(eventType: string, t: ReturnType<typeof useLanguage>["t"]) {
   const knownLabels: Record<string, CompleteLocalizedText> = {
-    all: text("All events", "Tous les ?v?nements", "Alle Ereignisse", "Todos los eventos", "Todos os eventos"),
+    all: text("All events", "Tous les événements", "Alle Ereignisse", "Todos los eventos", "Todos os eventos"),
     login: text("Login", "Connexion", "Anmeldung", "Inicio de sesión", "Inicio de sessão"),
     logout: text("Logout", "Deconnexion", "Abmeldung", "Cierre de sesión", "Terminar sessão"),
     invoice_created: text("Invoice created", "Facture creee", "Rechnung erstellt", "Factura creada", "Fatura criada"),
-    invoice_sent: text("Invoice sent", "Facture envoyee", "Rechnung gesendet", "Factura enviada", "Fatura enviada"),
+    invoice_sent: text("Invoice sent", "Facture envoyée", "Rechnung gesendet", "Factura enviada", "Fatura enviada"),
     invoice_paid: text("Invoice paid", "Facture payee", "Rechnung bezahlt", "Factura pagada", "Fatura paga"),
     receipt_generated: text("Receipt generated", "Recu genere", "Beleg erstellt", "Recibo generado", "Recibo gerado"),
     automation_triggered: text("Automation triggered", "Automatisation declenchee", "Automatisierung ausgelöst", "Automatización activada", "Automação acionada"),
-    notification_sent: text("Notification sent", "Notification envoyee", "Benachrichtigung gesendet", "Notificacion enviada", "Notificacao enviada"),
+    notification_sent: text("Notification sent", "Notification envoyée", "Benachrichtigung gesendet", "Notificación enviada", "Notificacao enviada"),
     payment_attempt: text("Payment attempt", "Tentative de paiement", "Zahlungsversuch", "Intento de pago", "Tentativa de pagamento"),
     payment_failed: text("Payment failed", "Paiement échoué", "Zahlung fehlgeschlagen", "Pago fallido", "Pagamento falhou"),
     payment_succeeded: text("Payment succeeded", "Paiement r?ussi", "Zahlung erfolgreich", "Pago correcto", "Pagamento conclu?do"),
@@ -145,7 +145,7 @@ function metadataSummary(
       : typeof value === "object"
         ? "[object]"
         : primaryKey === "provider" && String(value).toLowerCase() === "credentials"
-          ? t(text("Password", "Mot de passe", "Passwort", "Contrase?a", "Palavra-passe"))
+          ? t(text("Password", "Mot de passe", "Passwort", "Contraseña", "Palavra-passe"))
           : primaryKey === "provider" && String(value).toLowerCase() === "google"
             ? "Google"
             : primaryKey === "provider" && String(value).toLowerCase() === "sso"
@@ -253,7 +253,7 @@ export default function UserActivityTimelineClient({ userId }: { userId: string 
               {localizeAdminServerMessage(
                 error.message,
                 language,
-                t(text("Activity history unavailable.", "Historique d'activite indisponible.", "Aktivitaetsverlauf nicht verfuegbar.", "Historial de actividad no disponible.", "Historico de atividade indispon?vel."))
+                t(text("Activity history unavailable.", "Historique d'activité indisponible.", "Aktivitaetsverlauf nicht verfügbar.", "Historial de actividad no disponible.", "Histórico de atividade indisponível."))
               )}
             </span>
             <Button size="sm" variant="secondary" onClick={() => void handleRefresh()} loading={isValidating}>
@@ -281,7 +281,7 @@ export default function UserActivityTimelineClient({ userId }: { userId: string 
           <Input
             value={searchDraft}
             onChange={(event) => setSearchDraft(event.target.value)}
-            placeholder={t(text("Search events", "Rechercher des ?v?nements", "Ereignisse suchen", "Buscar eventos", "Pesquisar eventos"))}
+            placeholder={t(text("Search events", "Rechercher des événements", "Ereignisse suchen", "Buscar eventos", "Pesquisar eventos"))}
           />
           <Input
             type="date"
@@ -311,7 +311,7 @@ export default function UserActivityTimelineClient({ userId }: { userId: string 
             ))}
           </div>
         ) : !items.length ? (
-          <div className="p-8 text-center text-sm text-muted-foreground">{t(text("No activity events found for current filters.", "Aucun evenement d'activité trouve pour les filtres actuels.", "Keine Aktivitätsereignisse für die aktuellen Filter gefunden.", "No se encontraron eventos de actividad para los filtros actuales.", "Nenhum evento de atividade encontrado para os filtros atuais."))}</div>
+          <div className="p-8 text-center text-sm text-muted-foreground">{t(text("No activity events found for current filters.", "Aucun evenement d'activité trouvé pour les filtres actuels.", "Keine Aktivitätsereignisse für die aktuellen Filter gefunden.", "No se encontraron eventos de actividad para los filtros actuales.", "Nenhum evento de atividade encontrado para os filtros atuais."))}</div>
         ) : (
           <ul className="divide-y divide-border/60">
             {items.map((item) => {
@@ -359,8 +359,8 @@ export default function UserActivityTimelineClient({ userId }: { userId: string 
           onClick={() => void setSize(size + 1)}
         >
           {hasMore
-            ? t(text("Load more", "Charger plus", "Mehr laden", "Cargar mas", "Carregar mais"))
-            : t(text("No more events", "Plus d'?v?nements", "Keine weiteren Ereignisse", "No hay mas eventos", "Não ha mais eventos"))}
+            ? t(text("Load more", "Charger plus", "Mehr laden", "Cargar más", "Carregar mais"))
+            : t(text("No more events", "Plus d'événements", "Keine weiteren Ereignisse", "No hay más eventos", "Não há mais eventos"))}
         </Button>
       </div>
     </div>

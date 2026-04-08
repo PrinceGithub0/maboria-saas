@@ -7,7 +7,7 @@ import type {
 } from "@/lib/einvoicing/types";
 
 const SAT_BASE_URL = "https://www.sat.gob.mx";
-const CFDI_PORTAL_URL = "https://www.sat.gob.mx/aplicacion/53027/factura-electronica";
+const CFDI_PORTAL_URL = "https://www.sat.gob.mx/aplicación/53027/factura-electronica";
 const PAC_REGISTRY_URL = "https://www.sat.gob.mx/personas/factura-electronica";
 
 type CfdiCredentials = {

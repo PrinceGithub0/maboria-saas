@@ -58,7 +58,7 @@ const marketingCopy = {
   }),
   heroDescription: defineLocalizedText({
     en: "Maboria is a revenue and operations automation platform that handles invoicing, payment collection, receipts, WhatsApp and email communication inside your logged-in workspace, AI-assisted workflows, reporting, and team visibility - while payments go directly into your own account, not ours.",
-    fr: "Maboria est une plateforme d automatisation du revenu et des operations qui g?re la facturation, la collecte, les re?us, WhatsApp et email dans votre espace connect?, les workflows assists par IA, les rapports et la visibilit? équipe - pendant que les paiements vont directement sur votre compte, pas le notre.",
+    fr: "Maboria est une plateforme d'automatisation du revenu et des opérations qui gère la facturation, la collecte, les reçus, WhatsApp et l'e-mail dans votre espace connecté, les workflows assistés par IA, les rapports et la visibilité d'équipe, pendant que les paiements vont directement sur votre compte, pas le nôtre.",
     de: "Maboria ist eine Plattform zur Automatisierung von Umsatz und Betrieb, die Rechnungsstellung, Zahlungseinzug, Belege, WhatsApp- und E-Mail-Kommunikation in deinem angemeldeten Workspace, KI-gestützte Workflows, Berichte und Team-Transparenz abwickelt - während Zahlungen direkt auf dein eigenes Konto gehen, nicht auf unseres.",
     es: "Maboria es una plataforma de automatización de ingresos y operaciónes que gestiona facturación, cobro de pagos, recibos, comunicacion por WhatsApp y correo dentro de tu espacio conectado, flujos asistidos por IA, reportes y visibilidad del equipo, mientras los pagos van directamente a tu propia cuenta, no a la nuestra.",
     pt: "A Maboria é uma plataforma de automação de receitas e operações que trata de faturação, cobrança de pagamentos, recibos, comunicação por WhatsApp e email dentro do seu espaço iniciado, fluxos assistidos por IA, relatórios e visibilidade para a equipa, enquanto os pagamentos entram diretamente na sua própria conta, não na nossa.",
@@ -128,7 +128,7 @@ const marketingCopy = {
   }),
   languagesDescription: defineLocalizedText({
     en: "The product interface supports English, French, German, Spanish, and Portuguese. Switch languages from the header once you sign in.",
-    fr: "L interface du produit prend en charge l anglais, le francais, l allemand, l espagnol et le portugais. Changez de langue depuis l en-tete apres connexion.",
+    fr: "L interface du produit prend en charge l anglais, le francais, l allemand, l espagnol et le portugais. Changez de langue depuis l en-tete après connexion.",
     de: "Die Produktoberfläche unterstützt Englisch, Französisch, Deutsch, Spanisch und Portugiesisch. Wechsle die Sprache in der Kopfzeile, sobald du angemeldet bist.",
     es: "La interfaz del producto admite ingles, frances, aleman, espa?ol y portugu?s. Cambia el idioma desde el encabezado cuando inicies sesión.",
     pt: "A interface do produto suporta ingles, frances, alemao, espanhol e portugu?s. Mude o idioma no cabe?alho depois de iniciar sessão.",
@@ -152,7 +152,7 @@ const marketingCopy = {
     fr: "Maboria ne stocke pas les fonds clients. Les paiements sont traites par Paystack ou Flutterwave et verses sur votre compte. Maboria detecte le statut et declenche l automation.",
     de: "Maboria speichert oder verwahrt keine Kundengelder. Zahlungen werden von Paystack oder Flutterwave verarbeitet und direkt auf dein verbundenes Geschäftskonto oder Unterkonto ausgezahlt. Maboria erkennt nur den Zahlungsstatus und lost Automatisierungen aus.",
     es: "Maboria no almacena ni retiene fondos de clientes. Los pagos son procesados por Paystack o Flutterwave y liquidados directamente en tu cuenta empresarial conectada o subcuenta. Maboria solo detecta el estado del pago y activa automatizaciones.",
-    pt: "A Maboria não armazena nem guarda fundos de clientes. Os pagamentos s?o processados pela Paystack ou pela Flutterwave e liquidados diretamente na sua conta empresarial ligada ou subconta. A Maboria apenas deteta o estado do pagamento e ativa automações.",
+    pt: "A Maboria não armazena nem guarda fundos de clientes. Os pagamentos são processados pela Paystack ou pela Flutterwave e liquidados diretamente na sua conta empresarial ligada ou subconta. A Maboria apenas deteta o estado do pagamento e ativa automações.",
   }),
   subaccountsLabel: defineLocalizedText({
     en: "Sub-accounts",
@@ -170,9 +170,9 @@ const marketingCopy = {
   }),
   subaccountsDescription: defineLocalizedText({
     en: "Create sub-accounts for collections, sign in to your workspace, send invoices, and let customers pay once. Funds land directly in your connected account, while Maboria automatically confirms payment, issues receipts, updates records, and notifies your team.",
-    fr: "Cr?ez des sous-comptes, connectez-vous a votre espace, envoyez des factures, et laissez vos clients payer. Les fonds arrivent sur votre compte pendant que Maboria confirme, ?met les re?us, met a jour et notifie l équipe.",
-    de: "Erstelle Unterkonten für Einzuge, melde dich in deinem Workspace an, sende Rechnungen und lass Kundinnen und Kunden einmal zahlen. Das Geld landet direkt auf deinem verbundenen Konto, während Maboria die Zahlung automatisch bestatigt, Belege ausstellt, Datensatze aktualisiert und dein Team benachrichtigt.",
-    es: "Crea subcuentas para cobros, inicia sesión en tu espacio de trabajo, envia facturas y déjà que los clientes paguen una sola vez. Los fondos llegan directamente a tu cuenta conectada, mientras Maboria confirma el pago, emite recibos, actualiza registros y notifica a tu equipo autom?ticamente.",
+    fr: "Créez des sous-comptes, connectez-vous a votre espace, envoyéz des factures, et laissez vos clients payer. Les fonds arrivent sur votre compte pendant que Maboria confirme, ?met les reçus, met a jour et notifie l équipe.",
+    de: "Erstelle Unterkonten für Einzuge, melde dich in deinem Workspace an, sende Rechnungen und lass Kundinnen und Kunden einmal zahlen. Das Geld landet direkt auf deinem verbundenen Konto, während Maboria die Zahlung automatisch bestätigt, Belege ausstellt, Datensatze aktualisiert und dein Team benachrichtigt.",
+    es: "Crea subcuentas para cobros, inicia sesión en tu espacio de trabajo, envia facturas y deja que los clientes paguen una sola vez. Los fondos llegan directamente a tu cuenta conectada, mientras Maboria confirma el pago, emite recibos, actualiza registros y notifica a tu equipo automáticamente.",
     pt: "Crie subcontas para cobranças, inicie sessão no seu espaço de trabalho, envie faturas e deixe os clientes pagar uma vez. Os fundos entram diretamente na sua conta ligada, enquanto a Maboria confirma o pagamento, emite recibos, atualiza registos e notifica a sua equipa automaticamente.",
   }),
   workflowLabel: defineLocalizedText({
@@ -191,7 +191,7 @@ const marketingCopy = {
   }),
   inboxLabel: defineLocalizedText({
     en: "Unified Inbox",
-    fr: "Bo?te de reception unifiee",
+    fr: "Boîte de réception unifiee",
     de: "Vereinheitlichter Posteingang",
     es: "Bandeja unificada",
     pt: "Caixa de entrada unificada",
@@ -207,8 +207,8 @@ const marketingCopy = {
     en: "Bring Gmail, Outlook, and WhatsApp into one workspace so your team can reply faster, stay aligned, and follow up without switching tabs.",
     fr: "Rassemblez Gmail, Outlook et WhatsApp dans un seul espace pour que votre équipe réponde plus vite, reste alignée et assure le suivi sans changer d'onglet.",
     de: "Bringe Gmail, Outlook und WhatsApp in einen Workspace, damit dein Team schneller antwortet, abgestimmt bleibt und ohne Tab-Wechsel nachfasst.",
-    es: "Reune Gmail, Outlook y WhatsApp en un solo espacio para que tu equipo responda mas rapido, se mantenga alineado y haga seguimiento sin cambiar de pestanas.",
-    pt: "Junte Gmail, Outlook e WhatsApp num unico espaço para que a sua equipa responda mais rapido, fique alinhada e faca seguimento sem mudar de separador.",
+    es: "Reune Gmail, Outlook y WhatsApp en un solo espacio para que tu equipo responda más rápido, se mantenga alineado y haga seguimiento sin cambiar de pestanas.",
+    pt: "Junte Gmail, Outlook e WhatsApp num unico espaço para que a sua equipa responda mais rápido, fique alinhada e faca seguimento sem mudar de separador.",
   }),
   inboxCta: defineLocalizedText({
     en: "Start your unified inbox",
@@ -226,7 +226,7 @@ const marketingCopy = {
   }),
   inboxPanelBadge: defineLocalizedText({
     en: "Team ready",
-    fr: "?quipe pr?te",
+    fr: "équipe pr?te",
     de: "Team bereit",
     es: "Equipo listo",
     pt: "Equipa pronta",
@@ -268,10 +268,10 @@ const marketingCopy = {
   }),
   inboxDraftPreview: defineLocalizedText({
     en: "Draft prepared. Review, edit, and send from the selected channel without losing thread history.",
-    fr: "Brouillon préparé. Relisez, modifiez et envoyez depuis le canal choisi sans perdre l'historique du fil.",
-    de: "Entwurf vorbereitet. Prufe, bearbeite und sende aus dem gewahlten Kanal, ohne den Verlauf zu verlieren.",
+    fr: "Brouillon préparé. Relisez, modifiez et envoyéz depuis le canal choisi sans perdre l'historique du fil.",
+    de: "Entwurf vorbereitet. Prüfe, bearbeite und sende aus dem gewählten Kanal, ohne den Verlauf zu verlieren.",
     es: "Borrador preparado. Revisa, edita y envia desde el canal elegido sin perder el historial del hilo.",
-    pt: "Rascunho preparado. Reveja, edite e envie a partir do canal escolhido sem perder o historico da conversa.",
+    pt: "Rascunho preparado. Reveja, edite e envie a partir do canal escolhido sem perder o histórico da conversa.",
   }),
   featuresTitle: defineLocalizedText({
     en: "Everything you can automate - end to end.",
@@ -297,16 +297,9 @@ const marketingCopy = {
   coverageDescription: defineLocalizedText({
     en: "Availability depends on provider and country.",
     fr: "La disponibilite depend du prestataire et du pays.",
-    de: "Die Verfügbarkeit hangt vom Anbieter und Land ab.",
-    es: "La disponibilidad depende del proveedor y del pa?s.",
-    pt: "A disponibilidade depende do fornecedor e do pa?s.",
-  }),
-  pricingTitle: defineLocalizedText({
-    en: "Choose how much of your operations you want to automate.",
-    fr: "Choisissez combien automatiser.",
-    de: "Wähle, wie viel deiner Abl?ufe du automatisieren mochtest.",
-    es: "Elige cuanto de tus operaciónes quieres automatizar.",
-    pt: "Escolha quanto das suas operações quer automatizar.",
+    de: "Die Verfügbarkeit hängt vom Anbieter und Land ab.",
+    es: "La disponibilidad depende del proveedor y del país.",
+    pt: "A disponibilidade depende do fornecedor e do país.",
   }),
   ctaTitle: defineLocalizedText({
     en: "Build predictable revenue - without manual work.",
@@ -317,14 +310,14 @@ const marketingCopy = {
   }),
   quickStartTitle: defineLocalizedText({
     en: "Get started in 2 minutes",
-    fr: "Demarrage en 2 minutes",
+    fr: "Démarrage en 2 minutes",
     de: "In 2 Minuten loslegen",
     es: "Empieza en 2 minutos",
     pt: "Comece em 2 minutos",
   }),
   quickStartDescription: defineLocalizedText({
-    en: "Create your workspace and launch your first automation.",
-    fr: "Cr?ez votre espace et lancez votre premiere automatisation.",
+    en: "Create your workspace and laúnch your first automation.",
+    fr: "Créez votre espace et lancez votre premiere automatisation.",
     de: "Erstelle deinen Workspace und starte deine erste Automatisierung.",
     es: "Crea tu espacio de trabajo y lanza tu primera automatización.",
     pt: "Crie o seu espaço de trabalho e lance a sua primeira automação.",
@@ -369,10 +362,10 @@ const trustBullets: MarketingText[] = [
   }),
   defineLocalizedText({
     en: "Automated confirmation + receipts",
-    fr: "Confirmation et re?us automatiques",
+    fr: "Confirmation et reçus automatiques",
     de: "Automatische Bestätigung und Belege",
-    es: "Confirmaci?n y recibos automaticos",
-    pt: "Confirma??o e recibos autom?ticos",
+    es: "Confirmación y recibos automaticos",
+    pt: "Confirmação e recibos autom?ticos",
   }),
 ];
 
@@ -380,7 +373,7 @@ const workflowSteps: WorkflowStep[] = [
   defineLocalizedText({
     step: "01",
     en: "Create an invoice or billing flow",
-    fr: "Creer une facture ou un flux de facturation",
+    fr: "Créer une facture ou un flux de facturation",
     de: "Erstelle eine Rechnung oder einen Abrechnungsablauf",
     es: "Crea una factura o un flujo de cobro",
     pt: "Crie uma fatura ou um fluxo de cobrança",
@@ -391,28 +384,28 @@ const workflowSteps: WorkflowStep[] = [
     fr: "L automatisation l envoie par email ou WhatsApp depuis votre espace",
     de: "Die Automatisierung sendet sie aus deinem Workspace per E-Mail oder WhatsApp",
     es: "La automatizaci?n lo envia por correo o WhatsApp desde tu espacio de trabajo",
-    pt: "A automa??o envia por email ou WhatsApp a partir do seu espaço",
+    pt: "A automação envia por email ou WhatsApp a partir do seu espaço",
   }),
   defineLocalizedText({
     step: "03",
     en: "Customer replies by Gmail, Outlook, or WhatsApp",
     fr: "Le client repond par Gmail, Outlook ou WhatsApp",
-    de: "Kundin oder Kunde antwortet ?ber Gmail, Outlook oder WhatsApp",
+    de: "Kundin oder Kunde antwortet über Gmail, Outlook oder WhatsApp",
     es: "El cliente responde por Gmail, Outlook o WhatsApp",
     pt: "O cliente responde por Gmail, Outlook ou WhatsApp",
   }),
   defineLocalizedText({
     step: "04",
     en: "The conversation lands in one unified inbox for your team",
-    fr: "La conversation arrive dans une bo?te unifiee pour votre ?quipe",
+    fr: "La conversation arrive dans une bo?te unifiee pour votre équipe",
     de: "Die Konversation landet in einem gemeinsamen Posteingang f?r dein Team",
-    es: "La conversacion llega a una bandeja unificada para tu equipo",
+    es: "La conversación llega a una bandeja unificada para tu equipo",
     pt: "A conversa chega a uma caixa unificada para a sua equipa",
   }),
   defineLocalizedText({
     step: "05",
     en: "Your team replies from one place with full customer context",
-    fr: "Votre ?quipe repond depuis un seul endroit avec tout le contexte client",
+    fr: "Votre équipe repond depuis un seul endroit avec tout le contexte client",
     de: "Dein Team antwortet an einem Ort mit vollem Kundenkontext",
     es: "Tu equipo responde desde un solo lugar con todo el contexto del cliente",
     pt: "A sua equipa responde a partir de um so lugar com todo o contexto do cliente",
@@ -421,7 +414,7 @@ const workflowSteps: WorkflowStep[] = [
     step: "06",
     en: "Customer pays via Paystack or Flutterwave",
     fr: "Paiement via Paystack ou Flutterwave",
-    de: "Kundin oder Kunde bezahlt ?ber Paystack oder Flutterwave",
+    de: "Kundin oder Kunde bezahlt über Paystack oder Flutterwave",
     es: "El cliente paga con Paystack o Flutterwave",
     pt: "O cliente paga com Paystack ou Flutterwave",
   }),
@@ -430,16 +423,16 @@ const workflowSteps: WorkflowStep[] = [
     en: "If unpaid, recurring follow-ups keep running automatically",
     fr: "En cas d impaye, les relances recurrentes continuent automatiquement",
     de: "Bei Nichtzahlung laufen wiederkehrende Nachfassaktionen automatisch weiter",
-    es: "Si no se paga, los seguimientos recurrentes siguen funcionando autom?ticamente",
-    pt: "Se n?o houver pagamento, os seguimentos recorrentes continuam automaticamente",
+    es: "Si no se paga, los seguimientos recurrentes siguen funcionando automáticamente",
+    pt: "Se não houver pagamento, os seguimentos recorrentes continuam automaticamente",
   }),
   defineLocalizedText({
     step: "08",
     en: "Receipts, team logs, and reports update automatically",
-    fr: "Les re?us, journaux d ?quipe et rapports se mettent a jour automatiquement",
+    fr: "Les reçus, journaux d équipe et rapports se mettent a jour automatiquement",
     de: "Belege, Team-Protokolle und Berichte werden automatisch aktualisiert",
-    es: "Los recibos, registros del equipo y reportes se actualizan autom?ticamente",
-    pt: "Os recibos, registos da equipa e relat?rios atualizam-se automaticamente",
+    es: "Los recibos, registros del equipo y reportes se actualizan automáticamente",
+    pt: "Os recibos, registos da equipa e relatórios atualizam-se automaticamente",
   }),
 ];
 
@@ -469,7 +462,7 @@ const inboxComparison: InboxCompareColumn[] = [
       }),
       defineLocalizedText({
         en: "Team replies from the wrong place or too late",
-        fr: "L ?quipe repond depuis le mauvais endroit ou trop tard",
+        fr: "L équipe repond depuis le mauvais endroit ou trop tard",
         de: "Das Team antwortet vom falschen Ort oder zu spat",
         es: "El equipo responde desde el lugar equivocado o demasiado tarde",
         pt: "A equipa responde do lugar errado ou tarde demais",
@@ -494,16 +487,16 @@ const inboxComparison: InboxCompareColumn[] = [
       }),
       defineLocalizedText({
         en: "The right sender, AI draft, and follow-up history stay together",
-        fr: "Le bon exp?diteur, le brouillon IA et l historique de suivi restent ensemble",
+        fr: "Le bon exp?diteur, le brouillon IA et l'historique de suivi restent ensemble",
         de: "Richtiger Absender, KI-Entwurf und Nachfassverlauf bleiben zusammen",
         es: "El remitente correcto, el borrador de IA y el historial de seguimiento permanecen juntos",
-        pt: "O remetente certo, o rascunho de IA e o historico de seguimento ficam juntos",
+        pt: "O remetente certo, o rascunho de IA e o histórico de seguimento ficam juntos",
       }),
       defineLocalizedText({
         en: "Your team works faster from one shared workspace",
-        fr: "Votre ?quipe travaille plus vite depuis un espace partage",
+        fr: "Votre équipe travaille plus vite depuis un espace partage",
         de: "Dein Team arbeitet schneller aus einem gemeinsamen Workspace",
-        es: "Tu equipo trabaja mas rapido desde un espacio compartido",
+        es: "Tu equipo trabaja más rápido desde un espacio compartido",
         pt: "A sua equipa trabalha mais depressa a partir de um espaço partilhado",
       }),
     ],
@@ -524,7 +517,7 @@ const inboxMetrics: InboxMetric[] = [
     label: defineLocalizedText({
       en: "email inboxes connected",
       fr: "boites email connectees",
-      de: "verbundene E-Mail-Postfacher",
+      de: "verbundene E-Mail-Postfächer",
       es: "bandejas de correo conectadas",
       pt: "caixas de email ligadas",
     }),
@@ -543,7 +536,7 @@ const inboxMetrics: InboxMetric[] = [
     value: "1",
     label: defineLocalizedText({
       en: "shared team queue",
-      fr: "file partagee d ?quipe",
+      fr: "file partagee d équipe",
       de: "gemeinsame Team-Queue",
       es: "cola compartida del equipo",
       pt: "fila partilhada da equipa",
@@ -568,7 +561,7 @@ const inboxThreads: InboxThread[] = [
     channel: "Outlook",
     preview: defineLocalizedText({
       en: "Customer asked for an updated invoice. Reply draft ready.",
-      fr: "Le client a demande une facture mise ? jour. Brouillon de r?ponse pr?t.",
+      fr: "Le client a demande une facture mise ? jour. Brouillon de réponse pr?t.",
       de: "Kunde hat nach einer aktualisierten Rechnung gefragt. Antwortentwurf ist bereit.",
       es: "El cliente pidio una factura actualizada. Borrador de respuesta listo.",
       pt: "O cliente pediu uma fatura atualizada. Rascunho de resposta pronto.",
@@ -599,28 +592,28 @@ const featureGroups: FeatureGroup[] = [
     items: [
       defineLocalizedText({
         en: "Automate invoice creation",
-        fr: "Automatiser la cr?ation de factures",
+        fr: "Automatiser la création de factures",
         de: "Rechnungserstellung automatisieren",
         es: "Automatiza la creacion de facturas",
         pt: "Automatize a criacao de faturas",
       }),
       defineLocalizedText({
         en: "Automate email sending after login",
-        fr: "Automatiser l envoi d emails apres connexion",
+        fr: "Automatiser l envoi d emails après connexion",
         de: "E-Mail-Versand nach der Anmeldung automatisieren",
         es: "Automatiza el envio de correos tras iniciar sesión",
         pt: "Automatize o envio de emails após iniciar sessão",
       }),
       defineLocalizedText({
         en: "Automate WhatsApp messaging after login",
-        fr: "Automatiser les messages WhatsApp apres connexion",
+        fr: "Automatiser les messages WhatsApp après connexion",
         de: "WhatsApp-Nachrichten nach der Anmeldung automatisieren",
         es: "Automatiza los mensajes de WhatsApp tras iniciar sesión",
         pt: "Automatize as mensagens de WhatsApp após iniciar sessão",
       }),
       defineLocalizedText({
         en: "Automate receipts",
-        fr: "Automatiser les re?us",
+        fr: "Automatiser les reçus",
         de: "Belege automatisieren",
         es: "Automatiza los recibos",
         pt: "Automatize os recibos",
@@ -644,7 +637,7 @@ const featureGroups: FeatureGroup[] = [
   {
     title: defineLocalizedText({
       en: "Unified Inbox",
-      fr: "Bo?te de reception unifiee",
+      fr: "Boîte de réception unifiee",
       de: "Vereinheitlichter Posteingang",
       es: "Bandeja unificada",
       pt: "Caixa de entrada unificada",
@@ -653,7 +646,7 @@ const featureGroups: FeatureGroup[] = [
       defineLocalizedText({
         en: "Connect multiple Gmail and Outlook inboxes in one workspace",
         fr: "Connecter plusieurs boites Gmail et Outlook dans un seul espace",
-        de: "Verbinde mehrere Gmail- und Outlook-Postfacher in einem Workspace",
+        de: "Verbinde mehrere Gmail- und Outlook-Postfächer in einem Workspace",
         es: "Conecta multiples bandejas de Gmail y Outlook en un solo espacio",
         pt: "Ligue varias caixas Gmail e Outlook num unico espaço",
       }),
@@ -667,7 +660,7 @@ const featureGroups: FeatureGroup[] = [
       defineLocalizedText({
         en: "Reply from the exact inbox you choose before sending",
         fr: "Repondre depuis la bo?te exacte choisie avant l envoi",
-        de: "Antworte vor dem Senden aus dem genau gewahlten Postfach",
+        de: "Antworte vor dem Senden aus dem genau gewählten Postfach",
         es: "Responde desde la bandeja exacta que elijas antes de enviar",
         pt: "Responda a partir da caixa exata que escolher antes de enviar",
       }),
@@ -676,7 +669,7 @@ const featureGroups: FeatureGroup[] = [
         fr: "Garder les attributions, brouillons IA et suivis dans le meme fil",
         de: "Halte Zuweisungen, KI-Entwurfe und Nachfassverlauf im selben Thread",
         es: "Mantiene asignaciones, borradores de IA e historial de seguimiento en el mismo hilo",
-        pt: "Mantenha atribuicoes, rascunhos de IA e historico de seguimento na mesma conversa",
+        pt: "Mantenha atribuicoes, rascunhos de IA e histórico de seguimento na mesma conversa",
       }),
     ],
   },
@@ -697,7 +690,7 @@ const featureGroups: FeatureGroup[] = [
         pt: "A IA melhora o tom da mensagem antes do envio",
       }),
       defineLocalizedText({
-        en: "AI assists workflow setup",
+        en: "AI assistés workflow setup",
         fr: "L?IA aide a configurer les workflows",
         de: "KI unterstützt beim Einrichten von Workflows",
         es: "La IA ayuda a configurar flujos de trabajo",
@@ -722,7 +715,7 @@ const featureGroups: FeatureGroup[] = [
   {
     title: defineLocalizedText({
       en: "Teams + Logs + Visibility",
-      fr: "Equipes + logs + visibilit?",
+      fr: "Equipes + logs + visibilité",
       de: "Teams + Protokolle + Transparenz",
       es: "Equipos + registros + visibilidad",
       pt: "Equipas + registos + visibilidade",
@@ -733,7 +726,7 @@ const featureGroups: FeatureGroup[] = [
         fr: "Roles et permissions",
         de: "Rollen und Berechtigungen",
         es: "Roles y permisos",
-        pt: "Funções e permiss?es",
+        pt: "Funções e permissões",
       }),
       defineLocalizedText({
         en: "Activity logs (invoice, payment, automation)",
@@ -786,8 +779,8 @@ const coverageItems: MarketingText[] = [
     en: "Multi-currency billing and automatic conversion",
     fr: "Multi-devise et conversion automatique",
     de: "Abrechnung in mehreren Währungen und automatische Umrechnung",
-    es: "Facturación multidivisa y conversi?n autom?tica",
-    pt: "Faturação multimoeda e convers?o autom?tica",
+    es: "Facturación multidivisa y conversión automática",
+    pt: "Faturação multimoeda e conversão automática",
   }),
 ];
 
@@ -1271,15 +1264,12 @@ export default function LandingPage() {
         </section>
 
         <section id="pricing" className="mt-14 border-t border-border pt-8">
-          <div className="mb-6 flex flex-col gap-2">
+          <div className="mb-2 flex flex-col gap-2">
             <p className="text-xs uppercase tracking-[0.25em] text-indigo-800 dark:text-indigo-300">
               <LangText en="Pricing" fr="Tarifs" />
             </p>
-            <h2 className="text-2xl font-semibold text-foreground">
-              <LangText {...marketingCopy.pricingTitle} />
-            </h2>
           </div>
-          <div className="relative left-1/2 w-[min(1840px,calc(100vw-2rem))] -translate-x-1/2 overflow-x-clip">
+          <div className="mx-auto w-full max-w-[1840px] overflow-x-clip">
             <PricingSection plans={plans} />
           </div>
         </section>

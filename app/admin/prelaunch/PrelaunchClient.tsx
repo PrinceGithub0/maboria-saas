@@ -148,11 +148,11 @@ export default function PrelaunchClient() {
                 "Failed to run diagnostics.",
                 "?chec du diagnostic.",
                 "Diagnose konnte nicht ausgefuehrt werden.",
-                "No se pudieron ejecutar los diagn?sticos.",
-                "N?o foi poss?vel executar os diagn?sticos."
+                "No se pudieron ejecutar los diagnósticos.",
+                "Não foi possível executar os diagnósticos."
               )
             )
-          : t("Failed to run diagnostics.", "?chec du diagnostic.", "Diagnose konnte nicht ausgeführt werden.", "No se pudieron ejecutar los diagn?sticos.", "Não foi poss?vel executar os diagn?sticos.")
+          : t("Failed to run diagnostics.", "Échec du diagnostic.", "Diagnose konnte nicht ausgeführt werden.", "No se pudieron ejecutar los diagnósticos.", "Não foi possível executar os diagnósticos.")
       );
     } finally {
       setIsRunning(false);
@@ -164,28 +164,28 @@ export default function PrelaunchClient() {
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">{t("Admin", "Admin", "Admin", "Admin", "Admin")}</p>
-          <h1 className="text-3xl font-semibold text-foreground">{t("Pre-Launch Diagnostics", "Diagnostic pre-lancement", "Pre-Launch-Diagnose", "Diagn?sticos previos al lanzamiento", "Diagn?sticos pre-lancamento")}</h1>
+          <h1 className="text-3xl font-semibold text-foreground">{t("Pre-Laúnch Diagnostics", "Diagnostic pre-lancement", "Pre-Laúnch-Diagnose", "Diagn?sticos previos al lanzamiento", "Diagn?sticos pre-lancamento")}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {t("Verify platform readiness before production launch.", "V?rifiez la preparation de la plateforme avant le lancement.", "Prüfe die Plattformbereitschaft vor dem Produktionsstart.", "Verifica la preparacion de la plataforma antes del lanzamiento en producción.", "Verifique a prontidao da plataforma antes do lancamento em produção.")}
+            {t("Verify platform readiness before production laúnch.", "Vérifiez la preparation de la plateforme avant le lancement.", "Prüfe die Plattformbereitschaft vor dem Produktionsstart.", "Verifica la preparacion de la plataforma antes del lanzamiento en producción.", "Verifique a prontidao da plataforma antes do lancamento em produção.")}
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
-            {t("Last run:", "Derni?re ex?cution:", "Letzte Ausfuhrung:", "?ltima ejecuci?n:", "?ltima execu??o:")}{" "}
-            {renderLastRunAt ? formatDateTimeDMY(new Date(renderLastRunAt), LANGUAGE_LOCALES[language]) : t("Not available", "Indisponible", "Nicht verfuegbar", "No disponible", "Indispon?vel")}{" "}
+            {t("Last run:", "Derni?re ex?cution:", "Letzte Ausführung:", "Última ejecución:", "Última execução:")}{" "}
+            {renderLastRunAt ? formatDateTimeDMY(new Date(renderLastRunAt), LANGUAGE_LOCALES[language]) : t("Not available", "Indisponible", "Nicht verfügbar", "No disponible", "Indisponível")}{" "}
             <span className="mx-2">|</span>
             {t("Triggered by:", "Declenche par:", "Ausgelöst von:", "Iniciado por:", "Acionado por:")} {renderTriggeredBy || t("Unknown", "Inconnu", "Unbekannt", "Desconocido", "Desconhecido")}
           </p>
         </div>
         <Button type="button" onClick={runChecks} disabled={isValidating || isRunning} loading={isRunning}>
           {isRunning
-            ? t("Running diagnostics...", "Diagnostic en cours...", "Diagnose lauft...", "Ejecutando diagn?sticos...", "A executar diagn?sticos...")
-            : t("Run checks", "Lancer les controles", "Prufungen ausfuhren", "Ejecutar comprobaciones", "Executar verificacoes")}
+            ? t("Running diagnostics...", "Diagnostic en cours...", "Diagnose läuft...", "Ejecutando diagnósticos...", "A executar diagnósticos...")
+            : t("Run checks", "Lancer les controles", "Prüfungen ausführen", "Ejecutar comprobaciones", "Executar verificacoes")}
         </Button>
       </header>
 
       {error ? (
         <Alert variant="error">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <span>{t("Failed to load diagnostics.", "?chec du chargement du diagnostic.", "Diagnose konnte nicht geladen werden.", "No se pudieron cargar los diagn?sticos.", "Não foi poss?vel carregar os diagn?sticos.")}</span>
+            <span>{t("Failed to load diagnostics.", "Échec du chargement du diagnostic.", "Diagnose konnte nicht geladen werden.", "No se pudieron cargar los diagnósticos.", "Não foi possível carregar os diagnósticos.")}</span>
             <Button size="sm" variant="secondary" onClick={() => void mutate()}>
               {t("Retry", "Reessayer", "Erneut versuchen", "Reintentar", "Tentar novamente")}
             </Button>
@@ -193,7 +193,7 @@ export default function PrelaunchClient() {
         </Alert>
       ) : null}
 
-      <Card title={t("System Diagnostics", "Diagnostic systeme", "Systemdiagnose", "Diagn?sticos del sistema", "Diagn?sticos do sistema")}>
+      <Card title={t("System Diagnostics", "Diagnostic système", "Systemdiagnose", "Diagn?sticos del sistema", "Diagn?sticos do sistema")}>
         {isLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 7 }).map((_, index) => (
@@ -208,7 +208,7 @@ export default function PrelaunchClient() {
               }`}
             >
               {normalized.checks.length === 0 ? (
-                <p className="text-slate-500 dark:text-slate-300">{t("No diagnostics available.", "Aucun diagnostic disponible.", "Keine Diagnose verfügbar.", "No hay diagn?sticos disponibles.", "Não ha diagn?sticos dispon?veis.")}</p>
+                <p className="text-slate-500 dark:text-slate-300">{t("No diagnostics available.", "Aucun diagnostic disponible.", "Keine Diagnose verfügbar.", "No hay diagnósticos disponibles.", "Não há diagnósticos disponíveis.")}</p>
               ) : (
                 <ul className="space-y-1.5">
                   {normalized.checks.map((check) => (
@@ -235,7 +235,7 @@ export default function PrelaunchClient() {
               </div>
               {normalized.issues > 0 ? (
                 <p className="text-sm text-amber-700 dark:text-amber-300">
-                  {normalized.issues} {t("issues require attention before launch.", "problemes requierent votre attention avant le lancement.", "Probleme erfordern vor dem Start Aufmerksamkeit.", "problemas requieren atencion antes del lanzamiento.", "problemas exigem atencao antes do lancamento.")}
+                  {normalized.issues} {t("issues require attention before laúnch.", "problemes requierent votre attention avant le lancement.", "Probleme erfordern vor dem Start Aufmerksamkeit.", "problemas requieren atencion antes del lanzamiento.", "problemas exigem atencao antes do lancamento.")}
                 </p>
               ) : (
                 <p className="text-sm text-emerald-700 dark:text-emerald-300">{t("No blocking issues detected.", "Aucun probleme bloquant detecte.", "Keine blockierenden Probleme erkannt.", "No se detectaron problemas bloqueantes.", "Não foram detetados problemas bloqueadores.")}</p>

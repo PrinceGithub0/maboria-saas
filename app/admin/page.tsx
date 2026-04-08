@@ -170,14 +170,14 @@ function buildRiskItems(
       id: "webhook",
       title: t("Webhook retry spike detected", "Pic de nouvelles tentatives webhook detecte", "Anstieg bei Webhook-Wiederholungen erkannt", "Pico de reintentos de webhook detectado", "Pico de repeticoes de webhook detetado"),
       severity: input.webhookFailures24h >= 10 ? "HIGH" : "MEDIUM",
-      context: `${metricText(input.webhookFailures24h)} ${t("failures in the last 24 hours.", "echecs au cours des dernieres 24 heures.", "Fehler in den letzten 24 Stunden.", "fallos en las ?ltimas 24 horas.", "falhas nas ultimas 24 horas.")}`,
+      context: `${metricText(input.webhookFailures24h)} ${t("failures in the last 24 hours.", "échecs au cours des dernieres 24 heures.", "Fehler in den letzten 24 Stunden.", "fallos en las Últimas 24 horas.", "falhas nas ultimas 24 horas.")}`,
       href: "/admin/logs",
     });
   }
   if (input.automationErrors24h >= 5) {
     items.push({
       id: "automation",
-      title: t("Automation failures increasing", "Les echecs d'automatisation augmentent", "Automatisierungsfehler nehmen zu", "Los fallos de automatización aumentan", "As falhas de automação estão a aumentar"),
+      title: t("Automation failures increasing", "Les échecs d'automatisation augmentent", "Automatisierungsfehler nehmen zu", "Los fallos de automatización aumentan", "As falhas de automação estão a aumentar"),
       severity: input.automationErrors24h >= 15 ? "HIGH" : "MEDIUM",
       context: `${metricText(input.automationErrors24h)} ${t("failed runs in 24 hours.", "executions échouées en 24 heures.", "fehlgeschlagene Laeufe in 24 Stunden.", "ejecuciones fallidas en 24 horas.", "execucoes falhadas em 24 horas.")}`,
       href: "/admin/automation/errors",
@@ -188,7 +188,7 @@ function buildRiskItems(
       id: "payments",
       title: t("Failed subscription payments rising", "Les paiements d'abonnement échoués augmentent", "Fehlgeschlagene Abo-Zahlungen nehmen zu", "Los pagos fallidos de suscripciones aumentan", "Os pagamentos falhados de subscricoes estão a aumentar"),
       severity: input.failedPayments30d >= 20 ? "HIGH" : "MEDIUM",
-      context: `${metricText(input.failedPayments30d)} ${t("failed subscription charges in 30 days.", "paiements d'abonnement échoués en 30 jours.", "fehlgeschlagene Abo-Belastungen in 30 Tagen.", "cobros fallidos de suscripciones en 30 d?as.", "cobrancas falhadas de subscricoes em 30 dias.")}`,
+      context: `${metricText(input.failedPayments30d)} ${t("failed subscription charges in 30 days.", "paiements d'abonnement échoués en 30 jours.", "fehlgeschlagene Abo-Belastungen in 30 Tagen.", "cobros fallidos de suscripciones en 30 días.", "cobrancas falhadas de subscricoes em 30 dias.")}`,
       href: "/admin/users",
     });
   }
@@ -197,7 +197,7 @@ function buildRiskItems(
       id: "sla",
       title: t("Support SLA breaches detected", "Violations du SLA de support detectees", "Support-SLA-Verstoesse erkannt", "Se detectaron incumplimientos del SLA de soporte", "Foram detetadas violacoes de SLA de suporte"),
       severity: input.supportBreaches >= 8 ? "HIGH" : "MEDIUM",
-      context: `${metricText(input.supportBreaches)} ${t("tickets breached first-response SLA.", "tickets ont depasse le SLA de premiere réponse.", "Tickets haben das SLA fuer die erste Antwort verletzt.", "tickets incumplieron el SLA de primera respuesta.", "tickets violaram o SLA da primeira resposta.")}`,
+      context: `${metricText(input.supportBreaches)} ${t("tickets breached first-response SLA.", "tickets ont depasse le SLA de premiere réponse.", "Tickets haben das SLA für die erste Antwort verletzt.", "tickets incumplieron el SLA de primera respuesta.", "tickets violaram o SLA da primeira resposta.")}`,
       href: "/admin/support",
     });
   }
@@ -521,7 +521,7 @@ export default async function AdminPage({
 
   const metrics = [
     {
-      label: t("Webhook failures (24h)", "Echecs webhook (24h)", "Webhook-Fehler (24h)", "Fallos de webhook (24h)", "Falhas de webhook (24h)"),
+      label: t("Webhook failures (24h)", "Échecs webhook (24h)", "Webhook-Fehler (24h)", "Fallos de webhook (24h)", "Falhas de webhook (24h)"),
       value: metricText(webhookFailures24h),
       href: "/admin/logs",
     },
@@ -536,7 +536,7 @@ export default async function AdminPage({
       href: "/admin/users",
     },
     {
-      label: t("Active subscribers", "Abonnes actifs", "Aktive Abonnenten", "Suscriptores activos", "Subscritores ativos"),
+      label: t("Active subscribers", "Abonnés actifs", "Aktive Abonnenten", "Suscriptores activos", "Subscritores ativos"),
       value: metricText(activeSubscribers),
       href: "/admin/users",
     },
@@ -604,7 +604,7 @@ export default async function AdminPage({
           <div>
             <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">{t("Admin Dashboard", "Tableau de bord admin", "Admin-Dashboard", "Panel de administración", "Painel de administração")}</p>
             <h1 className="mt-2 text-3xl font-semibold text-foreground">{t("Command Center", "Centre de commande", "Leitstand", "Centro de mando", "Centro de comando")}</h1>
-            <p className="mt-2 text-sm text-muted-foreground">{t("Executive platform signal for stability, risk, and subscriber health.", "Vue executive de la plateforme pour la stabilite, le risque et la sante des abonnes.", "Management-Ueberblick zu Stabilitaet, Risiko und Abonnentenstatus.", "Vista ejecutiva de la plataforma para estabilidad, riesgo y salud de suscriptores.", "Visao executiva da plataforma para estabilidade, risco e saude dos subscritores.")}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{t("Executive platform signal for stability, risk, and subscriber health.", "Vue executive de la plateforme pour la stabilite, le risque et la santé des abonnés.", "Management-Überblick zu Stabilitaet, Risiko und Abonnentenstatus.", "Vista ejecutiva de la plataforma para estabilidad, riesgo y salud de suscriptores.", "Visao executiva da plataforma para estabilidade, risco e saude dos subscritores.")}</p>
           </div>
           <form method="GET" className="flex items-end gap-2">
             <div>
@@ -650,21 +650,21 @@ export default async function AdminPage({
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-lg font-semibold text-foreground">
-              {t("Invoicing readiness", "Preparation facturation", "Rechnungsbereitschaft", "Preparacion de facturacion", "Prontidao de faturacao")}
+              {t("Invoicing readiness", "Preparation facturation", "Rechnungsbereitschaft", "Preparacion de facturación", "Prontidao de faturação")}
             </h2>
             <p className="text-sm text-muted-foreground">
               {t(
-                "Review launch state, legal evidence coverage, and e-invoicing blockers by country.",
+                "Review laúnch state, legal evidence coverage, and e-invoicing blockers by country.",
                 "Examinez l etat de lancement, la couverture des sources juridiques et les blocages e-facturation par pays.",
-                "Pruefe Launch-Status, juristische Quellenabdeckung und E-Rechnungsblocker pro Land.",
-                "Revisa el estado de lanzamiento, la cobertura legal y los bloqueos de facturacion electronica por pais.",
-                "Reveja o estado de lancamento, a cobertura juridica e os bloqueios de faturacao eletronica por pais."
+                "Prüfe Laúnch-Status, juristische Quellenabdeckung und E-Rechnungsblocker pro Land.",
+                "Revisa el estado de lanzamiento, la cobertura legal y los bloqueos de facturación electronica por pais.",
+                "Reveja o estado de lancamento, a cobertura juridica e os bloqueios de faturação eletronica por pais."
               )}
             </p>
           </div>
           <Link href="/admin/invoicing-readiness">
             <Button size="sm" variant="secondary">
-              {t("Open Readiness Matrix", "Ouvrir la matrice", "Matrix oeffnen", "Abrir matriz", "Abrir matriz")}
+              {t("Open Readiness Matrix", "Ouvrir la matrice", "Matrix öffnen", "Abrir matriz", "Abrir matriz")}
             </Button>
           </Link>
         </div>
@@ -673,8 +673,8 @@ export default async function AdminPage({
       <section className="rounded-2xl border border-border/70 bg-card p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-foreground">{t("Revenue snapshot", "Aperçu des revenus", "Umsatzueberblick", "Resumen de ingresos", "Resumo da receita")}</h2>
-            <p className="text-sm text-muted-foreground">{t("Subscriber revenue only (Paystack + Flutterwave).", "Revenus des abonnes uniquement (Paystack + Flutterwave).", "Nur Abo-Umsaetze (Paystack + Flutterwave).", "Solo ingresos de suscriptores (Paystack + Flutterwave).", "Apenas receita de subscritores (Paystack + Flutterwave).")}</p>
+            <h2 className="text-lg font-semibold text-foreground">{t("Revenue snapshot", "Aperçu des revenus", "Umsatzüberblick", "Resumen de ingresos", "Resumo da receita")}</h2>
+            <p className="text-sm text-muted-foreground">{t("Subscriber revenue only (Paystack + Flutterwave).", "Revenus des abonnés uniquement (Paystack + Flutterwave).", "Nur Abo-Umsaetze (Paystack + Flutterwave).", "Solo ingresos de suscriptores (Paystack + Flutterwave).", "Apenas receita de subscritores (Paystack + Flutterwave).")}</p>
           </div>
           <div className="inline-flex rounded-lg border border-border/70 bg-muted/20 p-1">
             {(["7d", "30d", "90d"] as const).map((rangeOption) => (
@@ -699,11 +699,11 @@ export default async function AdminPage({
             <p className="mt-1 text-2xl font-semibold text-foreground">{formatCurrency(currentMrrRevenue, "USD")}</p>
           </div>
           <div className="text-center">
-            <p className="text-xs uppercase leading-5 tracking-[0.1em] text-muted-foreground break-words">{t("30-day growth", "Croissance sur 30 jours", "30-Tage-Wachstum", "Crecimiento de 30 d?as", "Crescimento de 30 dias")}</p>
+            <p className="text-xs uppercase leading-5 tracking-[0.1em] text-muted-foreground break-words">{t("30-day growth", "Croissance sur 30 jours", "30-Tage-Wachstum", "Crecimiento de 30 días", "Crescimento de 30 dias")}</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{toPercent(growth30d)}</p>
           </div>
           <div className="text-center">
-            <p className="text-xs uppercase leading-5 tracking-[0.1em] text-muted-foreground break-words">{t("Active subscribers", "Abonnes actifs", "Aktive Abonnenten", "Suscriptores actifs", "Subscritores ativos")}</p>
+            <p className="text-xs uppercase leading-5 tracking-[0.1em] text-muted-foreground break-words">{t("Active subscribers", "Abonnés actifs", "Aktive Abonnenten", "Suscriptores actifs", "Subscritores ativos")}</p>
             <p className="mt-1 text-2xl font-semibold text-foreground">{metricText(activeSubscribers)}</p>
           </div>
           <div className="text-center">
@@ -714,7 +714,7 @@ export default async function AdminPage({
 
         <div className="mt-4">
           <p className="mb-2 text-xs text-muted-foreground">
-            {t("Revenue in selected range:", "Revenus sur la periode selectionnee :", "Umsatz im ausgewaehlten Zeitraum:", "Ingresos en el rango seleccionado:", "Receita no intervalo selecionado:")} <span className="font-semibold text-foreground">{formatCurrency(currentRangeRevenue, "USD")}</span>
+            {t("Revenue in selected range:", "Revenus sur la periode selectionnee :", "Umsatz im ausgewählten Zeitraum:", "Ingresos en el rango seleccionado:", "Receita no intervalo selecionado:")} <span className="font-semibold text-foreground">{formatCurrency(currentRangeRevenue, "USD")}</span>
           </p>
           <MiniAreaChart data={revenueSeries} />
         </div>
@@ -725,7 +725,7 @@ export default async function AdminPage({
       <section className="grid gap-4 xl:grid-cols-[1fr_1fr_1.4fr]">
         <div className="rounded-2xl border border-border/70 bg-card p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-foreground">{t("Support snapshot", "Aperçu du support", "Support-Ueberblick", "Resumen de soporte", "Resumo do suporte")}</h2>
+            <h2 className="text-lg font-semibold text-foreground">{t("Support snapshot", "Aperçu du support", "Support-Überblick", "Resumen de soporte", "Resumo do suporte")}</h2>
             <Link href="/admin/support">
               <Button size="sm" variant="secondary">
                 {t("View Support", "Voir le support", "Support ansehen", "Ver soporte", "Ver suporte")}
@@ -775,7 +775,7 @@ export default async function AdminPage({
               <span className="font-semibold text-foreground">{metricText(failedRenewals24h)}</span>
             </div>
             <div className="rounded-xl border border-border/60 bg-muted/15 px-4 py-3">
-              <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("Last processor run", "Derni?re ex?cution du processeur", "Letzter Prozesslauf", "?ltima ejecuci?n del procesador", "?ltima execu??o do processador")}</p>
+              <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("Last processor run", "Derni?re ex?cution du processeur", "Letzter Prozesslauf", "Última ejecución del procesador", "Última execução do processador")}</p>
               <p className="mt-2 text-sm font-semibold text-foreground">
                 {latestRenewalProcessorRun?.timestamp
                   ? formatDateTimeDMY(latestRenewalProcessorRun.timestamp, LANGUAGE_LOCALES[language])
@@ -798,7 +798,7 @@ export default async function AdminPage({
 
         <div className="rounded-2xl border border-border/70 bg-card p-6">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-foreground">{t("Critical activity", "Activite critique", "Kritische Aktivitaet", "Actividad critica", "Atividade critica")}</h2>
+            <h2 className="text-lg font-semibold text-foreground">{t("Critical activity", "Activité critique", "Kritische Aktivitaet", "Actividad critica", "Atividade critica")}</h2>
             <Link href="/admin/logs">
               <Button size="sm" variant="secondary">
                 {t("View Audit Logs", "Voir les journaux d'audit", "Audit-Protokolle ansehen", "Ver registros de auditoria", "Ver registos de auditoria")}
@@ -806,7 +806,7 @@ export default async function AdminPage({
             </Link>
           </div>
           {timelineEvents.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("No critical events in the selected scope.", "Aucun evenement critique dans la portee selectionnee.", "Keine kritischen Ereignisse im ausgewaehlten Bereich.", "No hay eventos criticos en el alcance seleccionado.", "Não ha eventos criticos no escopo selecionado.")}</p>
+            <p className="text-sm text-muted-foreground">{t("No critical events in the selected scope.", "Aucun evenement critique dans la portee selectionnee.", "Keine kritischen Ereignisse im ausgewählten Bereich.", "No hay eventos criticos en el alcance seleccionado.", "Não há eventos criticos no escopo selecionado.")}</p>
           ) : (
             <div className="space-y-3">
               {timelineEvents.map((event) => (

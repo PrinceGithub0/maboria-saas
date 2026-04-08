@@ -108,11 +108,47 @@ export async function GET(_request: NextRequest, { params }: Params) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "") || "customer";
 
+  await prisma.$transaction([
+    prisma.activityLog.create({
+      data: {
+        userId: targetUserId,
+        action: "CUSTOMER_EXPORT_GENERATED",
+        resourceType: "customer_export",
+        resourceId: customer.id,
+        metadata: {
+          actorUserId: session.user.id,
+          format: "json",
+          recordCounts: {
+            notes: notes.length,
+            invoices: invoices.length,
+            payments: payments.length,
+            activityLogs: activityLogs.length,
+            auditLogs: auditLogs.length,
+          },
+        },
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        userId: targetUserId,
+        action: "CUSTOMER_EXPORT_GENERATED",
+        actionType: "CUSTOMER_EXPORT_GENERATED",
+        metadata: {
+          customerId: customer.id,
+          actorUserId: session.user.id,
+          format: "json",
+          exportedAt,
+        },
+      },
+    }),
+  ]);
+
   return new NextResponse(JSON.stringify(payload, null, 2), {
     status: 200,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
       "Content-Disposition": `attachment; filename="${safeName}-${customer.id}-export.json"`,
+      "Cache-Control": "no-store",
     },
   });
 }

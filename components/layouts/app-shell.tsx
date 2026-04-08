@@ -73,9 +73,9 @@ export function AppShell({
           ? localizeAdminServerMessage(
               error.message,
               language,
-              t("Unable to stop impersonation.", "Impossible d'arreter l'impersonation.", "Identitaetsuebernahme kann nicht beendet werden.", "No se puede detener la suplantacion.", "N?o foi poss?vel parar a impersonacao.")
+              t("Unable to stop impersonation.", "Impossible d'arreter l'impersonation.", "Identitaetsübernahme kann nicht beendet werden.", "No se puede detener la suplantacion.", "Não foi possível parar a impersonação.")
             )
-          : t("Unable to stop impersonation.", "Impossible d'arreter l'impersonation.", "Identitaetsuebernahme kann nicht beendet werden.", "No se puede detener la suplantacion.", "N?o foi poss?vel parar a impersonacao.")
+          : t("Unable to stop impersonation.", "Impossible d'arreter l'impersonation.", "Identitaetsübernahme kann nicht beendet werden.", "No se puede detener la suplantacion.", "Não foi possível parar a impersonação.")
       );
       setStoppingImpersonation(false);
     }
@@ -140,7 +140,7 @@ export function AppShell({
                 : []),
               {
                 href: "/dashboard/settings",
-                label: t("Settings", "Parametres"),
+                label: t("Settings", "Paramêtres"),
                 Icon: Settings,
               },
             ].map(({ href, label, Icon }) => {

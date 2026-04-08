@@ -60,8 +60,8 @@ export function CountrySelect({
         en: "Select country",
         fr: "Selectionner un pays",
         de: "Land auswählen",
-        es: "Seleccionar pa?s",
-        pt: "Selecionar pa?s",
+        es: "Seleccionar país",
+        pt: "Selecionar país",
       },
       locale
     );
@@ -70,8 +70,8 @@ export function CountrySelect({
       en: "Search country",
       fr: "Rechercher un pays",
       de: "Land suchen",
-      es: "Buscar pa?s",
-      pt: "Pesquisar pa?s",
+      es: "Buscar país",
+      pt: "Pesquisar país",
     },
     locale
   );

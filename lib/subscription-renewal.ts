@@ -4,12 +4,13 @@ import { Prisma, type SubscriptionPlan } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { log } from "@/lib/logger";
-import { getPlanPriceForInterval, type BillingInterval } from "@/lib/pricing";
+import { type BillingInterval } from "@/lib/pricing";
 import { normalizeCurrency } from "@/lib/payments/currency-allowlist";
 import { createFlutterwaveTokenizedCharge, parseFlutterwaveStoredPaymentMethod } from "@/lib/payments/flutterwave-recurring";
 import { verifyFlutterwaveTransaction } from "@/lib/payments/flutterwave";
 import { finalizeSubscriptionPayment } from "@/lib/payments/subscription";
 import { ensureCurrentSubscriptionForOrg } from "@/lib/subscription-downgrade";
+import { getPlanPriceForIntervalLive } from "@/lib/pricing-live";
 
 type RenewalAttemptResult =
   | {
@@ -168,7 +169,11 @@ export async function attemptFlutterwaveSubscriptionRenewal(input: {
 
   const interval = normalizeInterval(subscription.interval);
   const currency = normalizeCurrency(subscription.currency || "USD");
-  const amount = getPlanPriceForInterval(subscription.plan as SubscriptionPlan, currency, interval);
+  const amount = await getPlanPriceForIntervalLive(
+    subscription.plan as SubscriptionPlan,
+    currency,
+    interval
+  );
   if (!amount || amount <= 0) {
     return { ok: false, reason: "unsupported_amount" };
   }

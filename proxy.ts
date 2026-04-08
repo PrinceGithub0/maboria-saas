@@ -121,6 +121,8 @@ async function handleProxy(req: NextRequest) {
     "/contact",
     "/pricing",
     "/privacy",
+    "/subprocessors",
+    "/dpa",
     "/terms",
     "/support",
     "/faq",

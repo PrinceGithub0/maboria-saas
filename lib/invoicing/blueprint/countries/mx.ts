@@ -6,7 +6,7 @@ export const mexicoComplianceModule = buildDefaultCountryModule("MX", {
   evidence: [
     {
       label: "SAT CFDI electronic invoicing (legal basis and requirements)",
-      url: "https://wwwmat.sat.gob.mx/aplicacion/26989/factura-electronica-en-mis-cuentas",
+      url: "https://wwwmat.sat.gob.mx/aplicación/26989/factura-electronica-en-mis-cuentas",
       reviewedAt: "2026-04-06",
     },
   ],

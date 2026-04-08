@@ -62,8 +62,8 @@ function timelineIcon(item: TimelineEntry) {
 
 function rangeLabel(key: DateRangeKey, t: Translate) {
   if (key === "today") return t("Today", "Aujourd'hui", "Heute", "Hoy", "Hoje");
-  if (key === "7d") return t("Last 7 Days", "7 derniers jours", "Letzte 7 Tage", "?ltimos 7 d?as", "?ltimos 7 dias");
-  if (key === "30d") return t("Last 30 Days", "30 derniers jours", "Letzte 30 Tage", "?ltimos 30 d?as", "?ltimos 30 dias");
+  if (key === "7d") return t("Last 7 Days", "7 derniers jours", "Letzte 7 Tage", "Últimos 7 días", "Últimos 7 dias");
+  if (key === "30d") return t("Last 30 Days", "30 derniers jours", "Letzte 30 Tage", "Últimos 30 días", "Últimos 30 dias");
   return t("Custom", "Personnalise", "Benutzerdefiniert", "Personalizado", "Personalizado");
 }
 
@@ -102,7 +102,7 @@ function localizeAlertItem(item: string, t: Translate) {
   if (item === "Messaging delivery delays detected") {
     return t(
       "Messaging delivery delays detected",
-      "Retards de livraison de messagerie detectes",
+      "Retards de livraison de messagerie détectés",
       "Verzogerungen bei der Nachrichtenzustellung erkannt",
       "Se detectaron retrasos en la entrega de mensajes",
       "Foram detetados atrasos na entrega de mensagens"
@@ -134,9 +134,9 @@ function localizeSummary(summary: string, t: Translate) {
     return t(
       "Automation execution failures detected. Active incident handling in progress.",
       "Des \u00e9checs d'ex\u00e9cution d'automatisations ont \u00e9t\u00e9 d\u00e9tect\u00e9s. Gestion active de l'incident en cours.",
-      "Fehler bei der Automatisierungsausfuhrung erkannt. Aktive Vorfallsbearbeitung lauft.",
-      "Se detectaron fallos de ejecuci?n de automatizaciones. La gesti?n del incidente esta en curso.",
-      "Foram detetadas falhas na execu??o das automações. A gest?o do incidente esta em curso."
+      "Fehler bei der Automatisierungsausführung erkannt. Aktive Vorfallsbearbeitung läuft.",
+      "Se detectaron fallos de ejecución de automatizaciones. La gesti?n del incidente esta en curso.",
+      "Foram detetadas falhas na execução das automações. A gestão do incidente esta em curso."
     );
   }
   if (summary === "Critical system degradation detected. Immediate action required.") {
@@ -152,7 +152,7 @@ function localizeSummary(summary: string, t: Translate) {
     return t(
       "Payment latency elevated. Monitoring in progress.",
       "La latence des paiements est élevée. Surveillance en cours.",
-      "Die Zahlungslatenz ist erhoht. überwachung lauft.",
+      "Die Zahlungslatenz ist erhoht. überwachung läuft.",
       "La latencia de pago es elevada. Monitorizacion en curso.",
       "A latencia dos pagamentos esta elevada. Monitorizacao em curso."
     );
@@ -163,7 +163,7 @@ function localizeSummary(summary: string, t: Translate) {
       "Toutes les automatisations fonctionnent normalement. Aucun risque critique detecte.",
       "Alle Automatisierungen laufen normal. Keine kritischen Risiken erkannt.",
       "Todas las automatizaciones funcionan con normalidad. No se detectaron riesgos criticos.",
-      "Todas as automacoes estao a funcionar normalmente. N?o foram detetados riscos criticos."
+      "Todas as automações estão a funcionar normalmente. Não foram detetados riscos criticos."
     );
   }
   return summary;
@@ -289,8 +289,8 @@ export function InfrastructureControlDashboard({
             "Live data temporarily unavailable. Showing last updated state.",
             "Les données en direct sont temporairement indisponibles. Affichage du dernier etat connu.",
             "Live-Daten sind vorübergehend nicht verfügbar. Letzter bekannter Stand wird angezeigt.",
-            "Los datos en vivo no est?n disponibles temporalmente. Se muestra el ?ltimo estado conocido.",
-            "Os dados em tempo real estão temporariamente indisponiveis. A mostrar o ?ltimo estado conhecido."
+            "Los datos en vivo no est?n disponibles temporalmente. Se muestra el Último estado conocido.",
+            "Os dados em tempo real estão temporariamente indisponiveis. A mostrar o Último estado conhecido."
           )
         );
       } finally {
@@ -355,8 +355,8 @@ export function InfrastructureControlDashboard({
           "Live data temporarily unavailable. Showing last updated state.",
           "Les données en direct sont temporairement indisponibles. Affichage du dernier etat connu.",
           "Live-Daten sind vorübergehend nicht verfügbar. Letzter bekannter Stand wird angezeigt.",
-          "Los datos en vivo no est?n disponibles temporalmente. Se muestra el ?ltimo estado conocido.",
-          "Os dados em tempo real estão temporariamente indisponiveis. A mostrar o ?ltimo estado conhecido."
+          "Los datos en vivo no est?n disponibles temporalmente. Se muestra el Último estado conocido.",
+          "Os dados em tempo real estão temporariamente indisponiveis. A mostrar o Último estado conhecido."
         )
       );
     } finally {
@@ -381,10 +381,10 @@ export function InfrastructureControlDashboard({
       setWarning(
         t(
           "Retry could not be started. Please open Automation Operations for details.",
-          "La relance n'a pas pu demarrer. Ouvrez les operations d'automatisation pour plus de d?tails.",
+          "La relance n'a pas pu démarrer. Ouvrez les operations d'automatisation pour plus de d?tails.",
           "Der erneute Versuch konnte nicht gestartet werden. Offne die Automatisierungsoperationen für Details.",
           "No se pudo iniciar el reintento. Abre Operaciones de automatización para ver los detalles.",
-          "Não foi poss?vel iniciar a repeticao. Abra Operações de automação para ver os detalhes."
+          "Não foi possível iniciar a repeticao. Abra Operações de automação para ver os detalhes."
         )
       );
     } finally {
@@ -422,11 +422,11 @@ export function InfrastructureControlDashboard({
         value: queueStatusLabel(data.commandStrip.queueStatus, t),
       },
       {
-        label: t("Average Execution", "Ex?cution moyenne", "Durchschnittliche Ausfuhrung", "Ejecuci?n media", "Execu??o media"),
+        label: t("Average Execution", "Ex?cution moyenne", "Durchschnittliche Ausführung", "Ejecución media", "Execução media"),
         value: msLabel(data.commandStrip.averageExecutionMs),
       },
       {
-        label: t("Last Updated", "Derni?re mise ? jour", "Zuletzt aktualisiert", "?ltima actualizacion", "?ltima atualiza??o"),
+        label: t("Last Updated", "Derni?re mise ? jour", "Zuletzt aktualisiert", "Última actualización", "Última atualização"),
         value: new Date(data.commandStrip.lastUpdated).toLocaleTimeString(locale, {
           hour: "2-digit",
           minute: "2-digit",
@@ -450,7 +450,7 @@ export function InfrastructureControlDashboard({
               )}
             >
               <span className="h-2.5 w-2.5 rounded-full bg-current" />
-              {t("System State", "Etat du systeme", "Systemstatus", "Estado del sistema", "Estado do sistema")}:{" "}
+              {t("System State", "Etat du système", "Systemstatus", "Estado del sistema", "Estado do sistema")}:{" "}
               {stateLabel(data.commandStrip.state, t)}
             </span>
             <span className="text-sm text-slate-600">
@@ -466,7 +466,7 @@ export function InfrastructureControlDashboard({
 
           <div className="flex flex-wrap items-center gap-2">
             <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-              {t("Auto-refresh", "Actualisation automatique", "Automatische Aktualisierung", "Actualización autom?tica", "Atualiza??o autom?tica")}
+              {t("Auto-refresh", "Actualisation automatique", "Automatische Aktualisierung", "Actualización automática", "Atualização automática")}
               <button
                 type="button"
                 onClick={() => setAutoRefresh((prev) => !prev)}
@@ -501,8 +501,8 @@ export function InfrastructureControlDashboard({
                 className="bg-transparent text-sm font-medium text-slate-800 outline-none"
               >
                 <option value="today">{t("Today", "Aujourd'hui", "Heute", "Hoy", "Hoje")}</option>
-                <option value="7d">{t("Last 7 Days", "7 derniers jours", "Letzte 7 Tage", "?ltimos 7 d?as", "?ltimos 7 dias")}</option>
-                <option value="30d">{t("Last 30 Days", "30 derniers jours", "Letzte 30 Tage", "?ltimos 30 d?as", "?ltimos 30 dias")}</option>
+                <option value="7d">{t("Last 7 Days", "7 derniers jours", "Letzte 7 Tage", "Últimos 7 días", "Últimos 7 dias")}</option>
+                <option value="30d">{t("Last 30 Days", "30 derniers jours", "Letzte 30 Tage", "Últimos 30 días", "Últimos 30 dias")}</option>
                 <option value="custom">{t("Custom", "Personnalise", "Benutzerdefiniert", "Personalizado", "Personalizado")}</option>
               </select>
             </div>
@@ -585,7 +585,7 @@ export function InfrastructureControlDashboard({
 
         <div className="mt-4 grid gap-4 lg:grid-cols-[1.3fr_0.7fr]">
           <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-slate-500">{t("System State", "Etat du systeme", "Systemstatus", "Estado del sistema", "Estado do sistema")}</p>
+            <p className="text-xs uppercase tracking-[0.16em] text-slate-500">{t("System State", "Etat du système", "Systemstatus", "Estado del sistema", "Estado do sistema")}</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded border border-slate-200 bg-white px-3 py-2">
                 <p className="text-[11px] uppercase text-slate-500">{t("Automation Success Rate", "Taux de reussite des automatisations", "Erfolgsquote der Automatisierungen", "Tasa de ?xito de automatizaciones", "Taxa de sucesso das automações")}</p>
@@ -596,7 +596,7 @@ export function InfrastructureControlDashboard({
                 <p className="text-2xl font-semibold text-slate-900">{data.primary.runsToday}</p>
               </div>
               <div className="rounded border border-slate-200 bg-white px-3 py-2">
-                <p className="text-[11px] uppercase text-slate-500">{t("Failures Today", "Echecs aujourd'hui", "Fehler heute", "Fallos hoy", "Falhas hoje")}</p>
+                <p className="text-[11px] uppercase text-slate-500">{t("Failures Today", "Échecs aujourd'hui", "Fehler heute", "Fallos hoy", "Falhas hoje")}</p>
                 <p className="text-2xl font-semibold text-slate-900">{data.primary.failuresToday}</p>
               </div>
               <div className="rounded border border-slate-200 bg-white px-3 py-2">
@@ -605,7 +605,7 @@ export function InfrastructureControlDashboard({
               </div>
             </div>
             <div className="mt-4 rounded border border-slate-200 bg-white p-3">
-              <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">{t("7-Day Trend", "Tendance sur 7 jours", "7-Tage-Trend", "Tendencia de 7 d?as", "Tendencia de 7 dias")}</p>
+              <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">{t("7-Day Trend", "Tendance sur 7 jours", "7-Tage-Trend", "Tendencia de 7 días", "Tendencia de 7 dias")}</p>
               <div className="mt-1">
                 <Sparkline points={data.primary.trend} />
               </div>
@@ -618,10 +618,10 @@ export function InfrastructureControlDashboard({
             <p className="mt-3 text-sm text-slate-700">
               {t(
                 "This dashboard tracks verified backend events only. Financial state, payment references, and automation execution state are sourced from confirmed records.",
-                "Ce tableau suit uniquement les ?v?nements backend verifies. L'etat financier, les references de paiement et l'etat d'ex?cution des automatisations proviennent d'enregistrements confirmes.",
-                "Dieses Dashboard verfolgt nur verifizierte Backend-Ereignisse. Finanzstatus, Zahlungsreferenzen und der Ausfuhrungsstatus von Automatisierungen stammen aus bestatigten Datensatzen.",
-                "Este panel rastrea solo eventos de backend verificados. El estado financiero, las referencias de pago y el estado de ejecuci?n de automatizaciones provienen de registros confirmados.",
-                "Este painel acompanha apenas eventos de backend verificados. O estado financeiro, as referencias de pagamento e o estado de execu??o das automações provem de registos confirmados."
+                "Ce tableau suit uniquement les événements backend verifies. L'etat financier, les references de paiement et l'etat d'ex?cution des automatisations proviennent d'enregistrements confirmes.",
+                "Dieses Dashboard verfolgt nur verifizierte Backend-Ereignisse. Finanzstatus, Zahlungsreferenzen und der Ausführungsstatus von Automatisierungen stammen aus bestätigten Datensatzen.",
+                "Este panel rastrea solo eventos de backend verificados. El estado financiero, las referencias de pago y el estado de ejecución de automatizaciones provienen de registros confirmados.",
+                "Este painel acompanha apenas eventos de backend verificados. O estado financeiro, as referencias de pagamento e o estado de execução das automações provem de registos confirmados."
               )}
             </p>
           </div>
@@ -671,7 +671,7 @@ export function InfrastructureControlDashboard({
                 </span>
               </div>
               <Link href={withRange("/dashboard/invoices")} className="flex items-center justify-between rounded border border-slate-200 bg-slate-50 px-3 py-2">
-                <span className="text-slate-600">{t("Invoices Sent", "Factures envoyees", "Gesendete Rechnungen", "Facturas enviadas", "Faturas enviadas")}</span>
+                <span className="text-slate-600">{t("Invoices Sent", "Factures envoyées", "Gesendete Rechnungen", "Facturas enviadas", "Faturas enviadas")}</span>
                 <span className="font-semibold text-slate-900">{data.modules.billing.invoicesSent}</span>
               </Link>
               <Link href={withRange("/dashboard/invoices", { status: "OVERDUE" })} className="flex items-center justify-between rounded border border-slate-200 bg-slate-50 px-3 py-2">
@@ -694,7 +694,7 @@ export function InfrastructureControlDashboard({
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-900">{t("Infrastructure Health", "Sante de l'infrastructure", "Infrastrukturzustand", "Salud de la infraestructura", "Saude da infraestrutura")}</h2>
               <Link href={withRange("/admin/logs")} className="text-xs font-semibold text-blue-700">
-                {t("View System Logs", "Voir les journaux systeme", "Systemprotokolle ansehen", "Ver registros del sistema", "Ver registos do sistema")}
+                {t("View System Logs", "Voir les journaux système", "Systemprotokolle ansehen", "Ver registros del sistema", "Ver registos do sistema")}
               </Link>
             </div>
             <div className="mt-3 space-y-2 text-sm">
@@ -735,12 +735,12 @@ export function InfrastructureControlDashboard({
 
       <section className="border border-slate-200 bg-white p-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-slate-900">{t("Recent System Activity", "Activit? systeme recente", "Letzte Systemaktivität", "Actividad reciente del sistema", "Atividade recente do sistema")}</h2>
-          <span className="text-xs text-slate-500">{t("Latest 20 entries", "20 dernieres entrees", "Neueste 20 Eintrage", "?ltimas 20 entradas", "Ultimas 20 entradas")}</span>
+          <h2 className="text-base font-semibold text-slate-900">{t("Recent System Activity", "Activit? système recente", "Letzte Systemaktivität", "Actividad reciente del sistema", "Atividade recente do sistema")}</h2>
+          <span className="text-xs text-slate-500">{t("Latest 20 entries", "20 dernieres entrees", "Neueste 20 Eintrage", "Últimas 20 entradas", "Ultimas 20 entradas")}</span>
         </div>
 
         {visibleTimeline.length === 0 ? (
-          <p className="mt-4 text-sm text-slate-500">{t("No recent system activity.", "Aucune activité systeme recente.", "Keine aktuelle Systemaktivität.", "No hay actividad reciente del sistema.", "Não ha atividade recente do sistema.")}</p>
+          <p className="mt-4 text-sm text-slate-500">{t("No recent system activity.", "Aucune activité système recente.", "Keine aktuelle Systemaktivität.", "No hay actividad reciente del sistema.", "Não há atividade recente do sistema.")}</p>
         ) : (
           <div className="mt-4 space-y-2">
             {visibleTimeline.map((item) => {
@@ -808,7 +808,7 @@ export function InfrastructureControlDashboard({
             onClick={() => setTimelineVisible((count) => Math.min(count + TIMELINE_PAGE_SIZE, data.timeline.length))}
             className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
           >
-            {t("Load More", "Charger plus", "Mehr laden", "Cargar mas", "Carregar mais")}
+            {t("Load More", "Charger plus", "Mehr laden", "Cargar más", "Carregar mais")}
           </button>
         </div>
       ) : null}
@@ -822,7 +822,7 @@ export function InfrastructureControlDashboard({
             ) : (
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
             )}
-            {t("Operational mobile view enabled", "Vue mobile operationnelle activee", "Operative mobile Ansicht aktiviert", "Vista movil operativa activada", "Vista movel operaciónal ativada")}
+            {t("Operational mobile view enabled", "Vue mobile operationnelle activée", "Operative mobile Ansicht aktiviert", "Vista movil operativa activada", "Vista movel operaciónal ativada")}
           </span>
         </div>
       </section>

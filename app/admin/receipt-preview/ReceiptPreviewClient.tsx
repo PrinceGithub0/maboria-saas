@@ -19,7 +19,7 @@ const DOCUMENT_OPTIONS = [
 
 const PREVIEW_MODES = [
   { value: "template", label: text("Template Layout", "Mise en page du modele", "Vorlagenlayout", "Diseno de plantilla", "Esquema do modelo") },
-  { value: "real", label: text("Real Transaction Example", "Exemple de transaction reelle", "Beispiel einer echten Transaktion", "Ejemplo de transaccion real", "Exemplo de transacao real") },
+  { value: "real", label: text("Real Transaction Example", "Exemple de transaction réelle", "Beispiel einer echten Transaktion", "Ejemplo de transaccion real", "Exemplo de transacao real") },
 ] as const;
 
 type DocumentType = (typeof DOCUMENT_OPTIONS)[number]["value"];
@@ -147,7 +147,7 @@ export default function ReceiptPreviewClient() {
     <div className="space-y-5">
       <header className="space-y-1">
         <h1 className="text-3xl font-semibold text-foreground">
-          {t(text("Document Templates", "Modeles de documents", "Dokumentvorlagen", "Plantillas de documentos", "Modelos de documentos"))}
+          {t(text("Document Templates", "Modèles de documents", "Dokumentvorlagen", "Plantillas de documentos", "Modelos de documentos"))}
         </h1>
         <p className="text-sm text-muted-foreground">
           {t(
@@ -187,7 +187,7 @@ export default function ReceiptPreviewClient() {
 
           <label className="grid min-w-0 gap-1">
             <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              {t(text("Preview Mode", "Mode d apercu", "Vorschaumodus", "Modo de vista previa", "Modo de pre-visualiza??o"))}
+              {t(text("Preview Mode", "Mode d aperçu", "Vorschaumodus", "Modo de vista previa", "Modo de pre-visualização"))}
             </span>
             <div className="flex h-10 w-full min-w-0 items-center rounded-md border border-border/70 bg-background p-1">
               {PREVIEW_MODES.map((option) => (
@@ -241,10 +241,10 @@ export default function ReceiptPreviewClient() {
               t(
                 text(
                   "Unable to load receipt examples right now.",
-                  "Impossible de charger les exemples de re?us pour le moment.",
+                  "Impossible de charger les exemples de reçus pour le moment.",
                   "Belegbeispiele koennen derzeit nicht geladen werden.",
                   "No se pueden cargar los ejemplos de recibos en este momento.",
-                  "N?o foi poss?vel carregar os exemplos de recibos neste momento."
+                  "Não foi possível carregar os exemplos de recibos neste momento."
                 )
               )
             )}
@@ -258,7 +258,7 @@ export default function ReceiptPreviewClient() {
             disabled={!canRenderPreview}
             className="w-full sm:w-auto"
           >
-            {t(text("Open Preview", "Ouvrir l apercu", "Vorschau oeffnen", "Abrir vista previa", "Abrir pre-visualiza??o"))}
+            {t(text("Open Preview", "Ouvrir l aperçu", "Vorschau öffnen", "Abrir vista previa", "Abrir pre-visualização"))}
           </Button>
           <Button
             size="sm"
@@ -274,7 +274,7 @@ export default function ReceiptPreviewClient() {
 
       <Card className="space-y-3 p-4">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          {t(text("Template Preview", "Apercu du modele", "Vorlagenvorschau", "Vista previa de plantilla", "Pre-visualiza??o do modelo"))}
+          {t(text("Template Preview", "Aperçu du modele", "Vorlagenvorschau", "Vista previa de plantilla", "Pre-visualização do modelo"))}
         </p>
 
         {!canRenderPreview ? (
@@ -282,26 +282,26 @@ export default function ReceiptPreviewClient() {
             {t(
               text(
                 "Select an example document to render a real preview.",
-                "S?lectionnez un document d exemple pour afficher un apercu reel.",
-                "Waehle ein Beispieldokument aus, um eine echte Vorschau anzuzeigen.",
+                "S?lectionnez un document d exemple pour afficher un aperçu réel.",
+                "Wähle ein Beispieldokument aus, um eine echte Vorschau anzuzeigen.",
                 "Selecciona un documento de ejemplo para mostrar una vista previa real.",
-                "Selecione um documento de exemplo para mostrar uma pre-visualiza??o real."
+                "Selecione um documento de exemplo para mostrar uma pre-visualização real."
               )
             )}
           </div>
         ) : iframeFailed ? (
           <div className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-4">
             <div className="flex h-52 items-center justify-center rounded-lg border border-dashed border-border/70 bg-background text-sm text-muted-foreground">
-              {t(text("PDF Document Placeholder", "Espace reserve au document PDF", "PDF-Dokumentplatzhalter", "Marcador del documento PDF", "Espa?o reservado para o documento PDF"))}
+              {t(text("PDF Document Placeholder", "Espace reserve au document PDF", "PDF-Dokumentplatzhalter", "Marcador del documento PDF", "Espaço reservado para o documento PDF"))}
             </div>
             <p className="text-sm text-muted-foreground">
               {t(
                 text(
                   "PDF preview is not embedded due to browser security restrictions.",
-                  "L apercu PDF n est pas integre en raison des restrictions de securite du navigateur.",
+                  "L aperçu PDF n est pas integre en raison des restrictions de sécurité du navigateur.",
                   "Die PDF-Vorschau ist wegen Sicherheitsbeschrankungen des Browsers nicht eingebettet.",
                   "La vista previa del PDF no est? incrustada por restricciones de seguridad del navegador.",
-                  "A pre-visualiza??o do PDF n?o esta incorporada devido a restri??es de seguran?a do navegador."
+                  "A pre-visualização do PDF não esta incorporada devido a restri??es de segurança do navegador."
                 )
               )}
             </p>
@@ -317,7 +317,7 @@ export default function ReceiptPreviewClient() {
         ) : (
           <iframe
             ref={previewFrameRef}
-            title={t(text("Receipt preview", "Apercu du recu", "Belegvorschau", "Vista previa del recibo", "Pre-visualiza??o do recibo"))}
+            title={t(text("Receipt preview", "Aperçu du recu", "Belegvorschau", "Vista previa del recibo", "Pre-visualização do recibo"))}
             src={previewUrl}
             className="h-[760px] w-full rounded-lg border border-border/70 bg-background"
             onLoad={handleFrameLoad}

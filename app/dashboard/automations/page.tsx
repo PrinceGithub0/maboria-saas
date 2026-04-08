@@ -189,7 +189,7 @@ export default function AutomationsPage() {
         setStatusMessage(
           resolveAutomationErrorMessage(
             detailJson,
-            t("Could not duplicate automation.", "Impossible de dupliquer.", "Automatisierung konnte nicht dupliziert werden.", "No se pudo duplicar la automatización.", "Não foi poss?vel duplicar a automação."),
+            t("Could not duplicate automation.", "Impossible de dupliquer.", "Automatisierung konnte nicht dupliziert werden.", "No se pudo duplicar la automatización.", "Não foi possível duplicar a automação."),
             "automation_duplicate_load_failed"
           )
         );
@@ -218,7 +218,7 @@ export default function AutomationsPage() {
         setStatusMessage(
           resolveAutomationErrorMessage(
             json,
-            t("Could not duplicate automation.", "Impossible de dupliquer.", "Automatisierung konnte nicht dupliziert werden.", "No se pudo duplicar la automatización.", "Não foi poss?vel duplicar a automação."),
+            t("Could not duplicate automation.", "Impossible de dupliquer.", "Automatisierung konnte nicht dupliziert werden.", "No se pudo duplicar la automatización.", "Não foi possível duplicar a automação."),
             "automation_duplicate_failed"
           )
         );
@@ -227,7 +227,7 @@ export default function AutomationsPage() {
         mutate();
       }
     } catch {
-      setStatusMessage(t("Could not duplicate automation.", "Impossible de dupliquer.", "Automatisierung konnte nicht dupliziert werden.", "No se pudo duplicar la automatización.", "Não foi poss?vel duplicar a automação."));
+      setStatusMessage(t("Could not duplicate automation.", "Impossible de dupliquer.", "Automatisierung konnte nicht dupliziert werden.", "No se pudo duplicar la automatización.", "Não foi possível duplicar a automação."));
     } finally {
       clearBusy();
     }
@@ -255,16 +255,16 @@ export default function AutomationsPage() {
         setStatusMessage(
           resolveAutomationErrorMessage(
             json,
-            t("Unable to update automation. Please try again.", "Impossible de mettre ? jour l automation. R?essayez.", "Automatisierung konnte nicht aktualisiert werden. Bitte versuche es erneut.", "No se pudo actualizar la automatización. Intentalo de nuevo.", "Não foi poss?vel atualizar a automação. Tente novamente."),
+            t("Unable to update automation. Please try again.", "Impossible de mettre à jour l automation. Réessayez.", "Automatisierung konnte nicht aktualisiert werden. Bitte versuche es erneut.", "No se pudo actualizar la automatización. Intentalo de nuevo.", "Não foi possível atualizar a automação. Tente novamente."),
             "automation_toggle_failed"
           )
         );
       } else {
-        setStatusMessage(t("Automation updated.", "Automatisation mise ? jour.", "Automatisierung aktualisiert.", "Automatizaci?n actualizada.", "Automa??o atualizada."));
+        setStatusMessage(t("Automation updated.", "Automatisation mise ? jour.", "Automatisierung aktualisiert.", "Automatizaci?n actualizada.", "Automação atualizada."));
         mutate();
       }
     } catch {
-      setStatusMessage(t("Could not update automation.", "Impossible de mettre ? jour.", "Automatisierung konnte nicht aktualisiert werden.", "No se pudo actualizar la automatización.", "Não foi poss?vel atualizar a automação."));
+      setStatusMessage(t("Could not update automation.", "Impossible de mettre à jour.", "Automatisierung konnte nicht aktualisiert werden.", "No se pudo actualizar la automatización.", "Não foi possível atualizar a automação."));
     } finally {
       clearBusy();
     }
@@ -274,25 +274,25 @@ export default function AutomationsPage() {
     {
       label: t("Active Automations", "Automations actives", "Aktive Automatisierungen", "Automatizaciónes activas", "Automações ativas"),
       value: activeAutomations.toLocaleString(),
-      subtext: t("Currently running", "Actuellement en cours", "Derzeit aktiv", "En ejecuci?n", "Em execu??o"),
+      subtext: t("Currently running", "Actuellement en cours", "Derzeit aktiv", "En ejecución", "Em execução"),
     },
     {
-      label: t("Executions This Month", "Executions ce mois", "Ausfuhrungen diesen Monat", "Ejecuciones este mes", "Execucoes este mes"),
+      label: t("Executions This Month", "Executions ce mois", "Ausführungen diesen Monat", "Ejecuciones este mes", "Execucoes este mes"),
       value: executionsThisMonth.toLocaleString(),
-      subtext: t("Across all automations", "Toutes automatisations confondues", "?ber alle Automatisierungen hinweg", "En todas las automatizaciones", "Em todas as automacoes"),
+      subtext: t("Across all automations", "Toutes automatisations confondues", "über alle Automatisierungen hinweg", "En todas las automatizaciones", "Em todas as automações"),
     },
     {
-      label: t("Successful Runs", "Runs reussis", "Erfolgreiche Ausfuhrungen", "Ejecuciones correctas", "Execucoes bem-sucedidas"),
+      label: t("Successful Runs", "Runs reussis", "Erfolgreiche Ausführungen", "Ejecuciones correctas", "Execucoes bem-sucedidas"),
       value: successfulRuns.toLocaleString(),
-      subtext: t("Completed successfully", "Completes avec succes", "Erfolgreich abgeschlossen", "Completadas con ?xito", "Concluidas com sucesso"),
+      subtext: t("Completed successfully", "Completes avec succès", "Erfolgreich abgeschlossen", "Completadas con ?xito", "Concluidas com sucesso"),
     },
     {
-      label: t("Success Rate", "Taux de succes", "Erfolgsquote", "Tasa de ?xito", "Taxa de sucesso"),
+      label: t("Success Rate", "Taux de succès", "Erfolgsquote", "Tasa de ?xito", "Taxa de sucesso"),
       value: `${successRate.toLocaleString()}%`,
       subtext:
         executionsThisMonth > 0
-          ? t("Based on this month's runs", "Base sur les runs de ce mois", "Basierend auf den Ausfuhrungen dieses Monats", "Basado en las ejecuciones de este mes", "Com base nas execucoes deste mes")
-          : t("No runs recorded this month", "Aucun run enregistr? ce mois", "Keine Ausfuhrungen in diesem Monat", "No se registraron ejecuciones este mes", "Não ha execucoes registadas este mes"),
+          ? t("Based on this month's runs", "Base sur les runs de ce mois", "Basierend auf den Ausführungen dieses Monats", "Basado en las ejecuciones de este mes", "Com base nas execucoes deste mes")
+          : t("No runs recorded this month", "Aucun run enregistr? ce mois", "Keine Ausführungen in diesem Monat", "No se registraron ejecuciones este mes", "Não há execucoes registadas este mes"),
     },
   ];
 
@@ -302,7 +302,7 @@ export default function AutomationsPage() {
         if (template.id === "overdue_reminder_3_days") {
           return {
             ...template,
-            title: t("Send payment reminder after 3 days", "Envoyer un rappel de paiement apres 3 jours", "Zahlungserinnerung nach 3 Tagen senden", "Enviar recordatorio de pago despues de 3 d?as", "Enviar lembrete de pagamento após 3 dias"),
+            title: t("Send payment reminder after 3 days", "Envoyer un rappel de paiement après 3 jours", "Zahlungserinnerung nach 3 Tagen senden", "Enviar recordatorio de pago después de 3 días", "Enviar lembrete de pagamento após 3 dias"),
             description: t("Auto-send reminder if invoice unpaid.", "Envoyer automatiquement un rappel si la facture reste impayee.", "Erinnerung automatisch senden, wenn die Rechnung unbezahlt bleibt.", "Enviar recordatorio automatico si la factura sigue impagada.", "Enviar lembrete automaticamente se a fatura continuar por pagar."),
           };
         }
@@ -310,7 +310,7 @@ export default function AutomationsPage() {
           return {
             ...template,
             title: t("Send WhatsApp thank you message", "Envoyer un message WhatsApp de remerciement", "WhatsApp-Dankesnachricht senden", "Enviar mensaje de agradecimiento por WhatsApp", "Enviar mensagem de agradecimento por WhatsApp"),
-            description: t("Automatically thank customers after payment.", "Remercier automatiquement les clients apres paiement.", "Kundinnen und Kunden nach der Zahlung automatisch danken.", "Agradecer autom?ticamente a los clientes tras el pago.", "Agradecer automaticamente aos clientes após o pagamento."),
+            description: t("Automatically thank customers after payment.", "Remercier automatiquement les clients après paiement.", "Kundinnen und Kunden nach der Zahlung automatisch danken.", "Agradecer automáticamente a los clientes tras el pago.", "Agradecer automaticamente aos clientes após o pagamento."),
           };
         }
         return {
@@ -330,10 +330,10 @@ export default function AutomationsPage() {
           <p className="text-sm text-muted-foreground">
             {t(
               "Create automations that run your business automatically.",
-              "Cr?ez des automatisations qui executent votre entreprise automatiquement.",
-              "Erstelle Automatisierungen, die dein Unternehmen automatisch ausfuhren.",
-              "Crea automatizaciones que ejecuten tu negocio autom?ticamente.",
-              "Crie automacoes que executem o seu negocio automaticamente."
+              "Créez des automatisations qui executent votre entreprise automatiquement.",
+              "Erstelle Automatisierungen, die dein Unternehmen automatisch ausführen.",
+              "Crea automatizaciones que ejecuten tu negocio automáticamente.",
+              "Crie automações que executem o seu negocio automaticamente."
             )}
           </p>
         </div>
@@ -373,7 +373,7 @@ export default function AutomationsPage() {
           <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-300">
             {resolveAutomationErrorMessage(
               (flowsError as any)?.data,
-              t("Unable to load automations.", "Impossible de charger les automatisations.", "Automatisierungen konnten nicht geladen werden.", "No se pudieron cargar las automatizaciones.", "Não foi poss?vel carregar as automações."),
+              t("Unable to load automations.", "Impossible de charger les automatisations.", "Automatisierungen konnten nicht geladen werden.", "No se pudieron cargar las automatizaciones.", "Não foi possível carregar as automações."),
               "automation_list_load_failed"
             )}
           </div>
@@ -388,10 +388,10 @@ export default function AutomationsPage() {
             <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
               {t(
                 "Create your first automation to start automating your business.",
-                "Cr?ez votre premiere automatisation pour commencer a automatiser votre entreprise.",
+                "Créez votre premiere automatisation pour commencer a automatiser votre entreprise.",
                 "Erstelle deine erste Automatisierung, um dein Unternehmen zu automatisieren.",
                 "Crea tu primera automatizaci?n para empezar a automatizar tu negocio.",
-                "Crie a sua primeira automa??o para comecar a automatizar o negocio."
+                "Crie a sua primeira automação para começar a automatizar o negocio."
               )}
             </p>
             <button
@@ -399,7 +399,7 @@ export default function AutomationsPage() {
               onClick={() => router.push("/dashboard/automations/new")}
               className="mt-6 inline-flex h-12 w-full items-center justify-center rounded-lg bg-blue-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 sm:w-auto"
             >
-              {t("Create Automation", "Creer une automatisation", "Automatisierung erstellen", "Crear automatización", "Criar automação")}
+              {t("Create Automation", "Créer une automatisation", "Automatisierung erstellen", "Crear automatización", "Criar automação")}
             </button>
           </div>
         ) : null}
@@ -436,10 +436,10 @@ export default function AutomationsPage() {
 
                   <div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
                     <span>
-                      {t("Runs", "Executions", "Ausfuhrungen", "Ejecuciones", "Execucoes")}: <span className="font-semibold text-foreground">{executionsCount}</span>
+                      {t("Runs", "Executions", "Ausführungen", "Ejecuciones", "Execucoes")}: <span className="font-semibold text-foreground">{executionsCount}</span>
                     </span>
                     <span className="text-right">
-                      {t("Last run", "Derni?re ex?cution", "Letzte Ausfuhrung", "?ltima ejecuci?n", "?ltima execu??o")}: <span className="font-semibold text-foreground">{formatRelativeTime(lastRun)}</span>
+                      {t("Last run", "Derni?re ex?cution", "Letzte Ausführung", "Última ejecución", "Última execução")}: <span className="font-semibold text-foreground">{formatRelativeTime(lastRun)}</span>
                     </span>
                   </div>
 
@@ -468,7 +468,7 @@ export default function AutomationsPage() {
                       type="button"
                       role="switch"
                       aria-checked={active}
-                      aria-label={t("Toggle automation", "Basculer l automatisation", "Automatisierung umschalten", "Cambiar automatización", "Alternar automação")}
+                      aria-label={t("Toggle automation", "Basculer l'automatisation", "Automatisierung umschalten", "Cambiar automatización", "Alternar automação")}
                       disabled={isBusy("toggle", flowId)}
                       onClick={() => toggleFlow(flow)}
                       className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition ${
@@ -491,7 +491,7 @@ export default function AutomationsPage() {
 
       <section className="space-y-4">
         <div>
-          <h2 className="text-xl font-semibold text-foreground">{t("Templates", "Modeles", "Vorlagen", "Plantillas", "Modelos")}</h2>
+          <h2 className="text-xl font-semibold text-foreground">{t("Templates", "Modèles", "Vorlagen", "Plantillas", "Modelos")}</h2>
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {localizedTemplates.map((template) => (

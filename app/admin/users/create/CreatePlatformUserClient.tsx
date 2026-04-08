@@ -49,7 +49,7 @@ const STATE_LABELS: Record<string, CompleteLocalizedText> = {
   DISABLED: STATUS_LABELS.DISABLED,
   SUSPENDED: STATUS_LABELS.SUSPENDED,
   PENDING: STATUS_LABELS.PENDING,
-  PAST_DUE: text("Past Due", "En retard", "Ueberfaellig", "Vencido", "Em atraso"),
+  PAST_DUE: text("Past Due", "En retard", "Überfaellig", "Vencido", "Em atraso"),
   CANCELED: text("Canceled", "Annule", "Gekuendigt", "Cancelado", "Cancelado"),
   TRIAL: text("Trial", "Essai", "Testphase", "Prueba", "Teste"),
   NONE: text("None", "Aucun", "Keine", "Ninguno", "Nenhum"),
@@ -267,12 +267,12 @@ export default function CreatePlatformUserPage() {
         }
         if (failure.code === "STEP_UP_INVALID_OR_EXPIRED") {
           setStepUpOpen(true);
-          throw new Error(t("Step-up token expired. Verify again.", "Le jeton de verification renforcee a expire. V?rifiez a nouveau.", "Das Verifizierungstoken ist abgelaufen. Bitte erneut bestaetigen.", "El token de verificacion reforzada ha caducado. Verifica de nuevo.", "O token de verificacao reforcada expirou. Verifique novamente."));
+          throw new Error(t("Step-up token expired. Verify again.", "Le jeton de verification renforcee a expire. Vérifiez a nouveau.", "Das Verifizierungstoken ist abgelaufen. Bitte erneut bestaetigen.", "El token de verificacion reforzada ha caducado. Verifica de nuevo.", "O token de verificacao reforcada expirou. Verifique novamente."));
         }
         if (failure.code === "EMAIL_ALREADY_EXISTS") {
           throw new Error(t("This email already exists.", "Cet e-mail existe déjà.", "Diese E-Mail-Adresse existiert bereits.", "Este correo ya existe.", "Este e-mail ja existe."));
         }
-        throw new Error(String(failure.error || t("Unable to create user.", "Impossible de creer l'utilisateur.", "Benutzer konnte nicht erstellt werden.", "No se pudo crear el usuario.", "Não foi poss?vel criar o utilizador.")));
+        throw new Error(String(failure.error || t("Unable to create user.", "Impossible de créer l'utilisateur.", "Benutzer konnte nicht erstellt werden.", "No se pudo crear el usuario.", "Não foi possível criar o utilizador.")));
       }
 
       const created = payload as IdentityCreateUserResponse;
@@ -283,15 +283,15 @@ export default function CreatePlatformUserPage() {
         setFeedback({
           variant: created.setupEmailSent ? "success" : "info",
           message: created.setupEmailSent
-            ? t("User created and setup email sent.", "Utilisateur cr?e et e-mail de configuration envoy?.", "Benutzer erstellt und Einrichtungs-E-Mail gesendet.", "Usuario creado y correo de configuración enviado.", "Utilizador criado e e-mail de configuração enviado.")
-            : t("User created, but setup email failed. Use 'Resend setup email' from the user actions.", "Utilisateur cr?e, mais l'e-mail de configuration a échoué. Utilisez 'Renvoyer l'e-mail de configuration' depuis les actions utilisateur.", "Benutzer wurde erstellt, aber die Einrichtungs-E-Mail ist fehlgeschlagen. Verwenden Sie 'Einrichtungs-E-Mail erneut senden' in den Benutzeraktionen.", "Se creo el usuario, pero fallo el correo de configuración. Usa 'Reenviar correo de configuración' desde las acciones del usuario.", "O utilizador foi criado, mas o e-mail de configuração falhou. Utilize 'Reenviar e-mail de configuração' nas ações do utilizador."),
+            ? t("User created and setup email sent.", "Utilisateur crée et e-mail de configuration envoy?.", "Benutzer erstellt und Einrichtungs-E-Mail gesendet.", "Usuario creado y correo de configuración enviado.", "Utilizador criado e e-mail de configuração enviado.")
+            : t("User created, but setup email failed. Use 'Resend setup email' from the user actions.", "Utilisateur crée, mais l'e-mail de configuration a échoué. Utilisez 'Renvoyer l'e-mail de configuration' depuis les actions utilisateur.", "Benutzer wurde erstellt, aber die Einrichtungs-E-Mail ist fehlgeschlagen. Verwenden Sie 'Einrichtungs-E-Mail erneut senden' in den Benutzeraktionen.", "Se creo el usuario, pero fallo el correo de configuración. Usa 'Reenviar correo de configuración' desde las acciones del usuario.", "O utilizador foi criado, más o e-mail de configuração falhou. Utilize 'Reenviar e-mail de configuração' nas ações do utilizador."),
         });
         window.setTimeout(() => router.push("/admin/users"), 1200);
       }
     } catch (submitError) {
       setFeedback({
         variant: "error",
-        message: submitError instanceof Error ? submitError.message : t("Unable to create user.", "Impossible de creer l'utilisateur.", "Benutzer konnte nicht erstellt werden.", "No se pudo crear el usuario.", "Não foi poss?vel criar o utilizador."),
+        message: submitError instanceof Error ? submitError.message : t("Unable to create user.", "Impossible de créer l'utilisateur.", "Benutzer konnte nicht erstellt werden.", "No se pudo crear el usuario.", "Não foi possível criar o utilizador."),
       });
     } finally {
       setSubmitting(false);
@@ -303,7 +303,7 @@ export default function CreatePlatformUserPage() {
     if (canAttachTenant && tenantId && !tenantRole) {
       setFeedback({
         variant: "error",
-        message: t("Tenant role is required when tenant workspace is selected.", "Le role locataire est requis lorsqu'un espace de travail locataire est selectionne.", "Eine Mandantenrolle ist erforderlich, wenn ein Mandantenarbeitsbereich ausgewaehlt ist.", "Se requiere el rol del tenant cuando se selecciona un espacio de trabajo del tenant.", "A função do tenant e obrigatoria quando um espa?o de trabalho do tenant e selecionado."),
+        message: t("Tenant role is required when tenant workspace is selected.", "Le role locataire est requis lorsqu'un espace de travail locataire est selectionne.", "Eine Mandantenrolle ist erforderlich, wenn ein Mandantenarbeitsbereich ausgewählt ist.", "Se requiere el rol del tenant cuando se selecciona un espacio de trabajo del tenant.", "A função do tenant e obrigatoria quando um espa?o de trabalho do tenant e selecionado."),
       });
       return;
     }
@@ -312,7 +312,7 @@ export default function CreatePlatformUserPage() {
       if (!superAdminAcknowledge) {
         setFeedback({
           variant: "error",
-          message: t("Acknowledgment is required for Super Admin provisioning.", "Une confirmation est requise pour le provisionnement Super Admin.", "Eine Bestaetigung ist fuer die Bereitstellung als Super-Admin erforderlich.", "Se requiere confirmaci?n para aprovisionar Super Admin.", "A confirma??o e obrigatoria para o provisionamento de Super Admin."),
+          message: t("Acknowledgment is required for Super Admin provisioning.", "Une confirmation est requise pour le provisionnement Super Admin.", "Eine Bestaetigung ist für die Bereitstellung als Super-Admin erforderlich.", "Se requiere confirmación para aprovisionar Super Admin.", "A confirmação e obrigatoria para o provisionamento de Super Admin."),
         });
         return;
       }
@@ -324,7 +324,7 @@ export default function CreatePlatformUserPage() {
 
   const startStepUp = async () => {
     if (!stepUpPassword.trim()) {
-      setFeedback({ variant: "error", message: t("Enter your current password for verification.", "Saisissez votre mot de passe actuel pour verification.", "Geben Sie zur Verifizierung Ihr aktuelles Passwort ein.", "Introduce tu contrase?a actual para verificar.", "Introduza a sua palavra-passe atual para verificacao.") });
+      setFeedback({ variant: "error", message: t("Enter your current password for verification.", "Saisissez votre mot de passe actuel pour verification.", "Geben Sie zur Verifizierung Ihr aktuelles Passwort ein.", "Introduce tu contraseña actual para verificar.", "Introduza a sua palavra-passe atual para verificacao.") });
       return;
     }
     setStepUpLoading(true);
@@ -361,9 +361,9 @@ export default function CreatePlatformUserPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-2">
             <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">{t("Ops Admin", "Admin Ops", "Ops-Admin", "Admin de operaciónes", "Admin de operações")}</p>
-            <h1 className="text-3xl font-semibold text-foreground">{t("Create Platform User", "Creer un utilisateur plateforme", "Plattformbenutzer erstellen", "Crear usuario de plataforma", "Criar utilizador da plataforma")}</h1>
+            <h1 className="text-3xl font-semibold text-foreground">{t("Create Platform User", "Créer un utilisateur plateforme", "Plattformbenutzer erstellen", "Crear usuario de plataforma", "Criar utilizador da plataforma")}</h1>
             <p className="text-sm text-muted-foreground">
-              {t("Provision a new identity within the system.", "Provisionnez une nouvelle identite dans le systeme.", "Stellen Sie eine neue Identitaet im System bereit.", "Aprovisiona una nueva identidad dentro del sistema.", "Provisione uma nova identidade no sistema.")}
+              {t("Provision a new identity within the system.", "Provisionnez une nouvelle identite dans le système.", "Stellen Sie eine neue Identitaet im System bereit.", "Aprovisiona una nueva identidad dentro del sistema.", "Provisione uma nova identidade no sistema.")}
             </p>
           </div>
           <Button variant="secondary" onClick={() => router.push("/admin/users")}>
@@ -374,11 +374,11 @@ export default function CreatePlatformUserPage() {
       </section>
 
       {feedback ? <Alert variant={feedback.variant}>{feedback.message}</Alert> : null}
-      {error ? <Alert variant="error">{t("Unable to load provisioning metadata.", "Impossible de charger les metadonnees de provisionnement.", "Bereitstellungsmetadaten konnten nicht geladen werden.", "No se pudieron cargar los metadatos de aprovisionamiento.", "Não foi poss?vel carregar os metadados de provisionamento.")}</Alert> : null}
+      {error ? <Alert variant="error">{t("Unable to load provisioning metadata.", "Impossible de charger les métadonnées de provisionnement.", "Bereitstellungsmetadaten konnten nicht geladen werden.", "No se pudieron cargar los metadatos de aprovisionamiento.", "Não foi possível carregar os metadados de provisionamento.")}</Alert> : null}
 
       <Card title={t("Identity", "Identite", "Identitaet", "Identidad", "Identidade")}>
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">{t("Loading provisioning metadata...", "Chargement des metadonnees de provisionnement...", "Bereitstellungsmetadaten werden geladen...", "Cargando metadatos de aprovisionamiento...", "A carregar metadados de provisionamento...")}</p>
+          <p className="text-sm text-muted-foreground">{t("Loading provisioning metadata...", "Chargement des métadonnées de provisionnement...", "Bereitstellungsmetadaten werden geladen...", "Cargando metadatos de aprovisionamiento...", "A carregar metadados de provisionamento...")}</p>
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
             <Input
@@ -396,13 +396,13 @@ export default function CreatePlatformUserPage() {
             />
             <div className="md:col-span-2">
               {checkingEmail ? (
-                <p className="text-xs text-muted-foreground">{t("Checking email availability...", "Verification de la disponibilite de l'e-mail...", "E-Mail-Verfuegbarkeit wird geprueft...", "Comprobando disponibilidad del correo...", "A verificar disponibilidade do e-mail...")}</p>
+                <p className="text-xs text-muted-foreground">{t("Checking email availability...", "Vérification de la disponibilité de l'e-mail...", "E-Mail-Verfügbarkeit wird geprüft...", "Comprobando disponibilidad del correo...", "A verificar disponibilidade do e-mail...")}</p>
               ) : emailExists ? (
                 <p className="text-xs font-medium text-rose-700 dark:text-rose-300">
                   {t("This email is already in use.", "Cet e-mail est déjà utilis?.", "Diese E-Mail-Adresse wird bereits verwendet.", "Este correo ya esta en uso.", "Este e-mail ja esta em uso.")}
                 </p>
               ) : email.trim() ? (
-                <p className="text-xs text-emerald-700 dark:text-emerald-300">{t("Email is available.", "L'e-mail est disponible.", "E-Mail ist verfuegbar.", "El correo esta disponible.", "O e-mail esta disponível.")}</p>
+                <p className="text-xs text-emerald-700 dark:text-emerald-300">{t("Email is available.", "L'e-mail est disponible.", "E-Mail ist verfügbar.", "El correo esta disponible.", "O e-mail esta disponível.")}</p>
               ) : null}
             </div>
           </div>
@@ -444,7 +444,7 @@ export default function CreatePlatformUserPage() {
         {role === "SUPER_ADMIN" ? (
           <div className="mt-3 space-y-2">
             <p className="text-sm font-medium text-rose-700 dark:text-rose-300">
-              {t("Creating a super admin grants full platform control.", "Creer un super admin accorde un controle total de la plateforme.", "Das Erstellen eines Super-Admins gewaehert volle Plattformkontrolle.", "Crear un super admin otorga control total de la plataforma.", "Criar um super admin concede controlo total da plataforma.")}
+              {t("Creating a super admin grants full platform control.", "Créer un super admin accorde un controle total de la plateforme.", "Das Erstellen eines Super-Admins gewaehert volle Plattformkontrolle.", "Crear un super admin otorga control total de la plataforma.", "Criar um super admin concede controlo total da plataforma.")}
             </p>
             <label className="flex items-center gap-2 text-sm text-foreground">
               <input
@@ -476,7 +476,7 @@ export default function CreatePlatformUserPage() {
             ))}
           </datalist>
           <label className="text-sm text-muted-foreground">
-            {t("Tenant Workspace", "Espace de travail locataire", "Mandantenarbeitsbereich", "Espacio de trabajo del tenant", "Espa?o de trabalho do tenant")}
+            {t("Tenant Workspace", "Espace de travail locataire", "Mandantenarbeitsbereich", "Espacio de trabajo del tenant", "Espaço de trabalho do tenant")}
             <select
               value={tenantId}
               onChange={(event) => {
@@ -512,7 +512,7 @@ export default function CreatePlatformUserPage() {
               disabled={!canAttachTenant || !tenantId}
               className="mt-1 h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground disabled:opacity-60"
             >
-              <option value="">{t("Select role", "Selectionner un role", "Rolle auswaehlen", "Seleccionar rol", "Selecionar função")}</option>
+              <option value="">{t("Select role", "Selectionner un role", "Rolle auswählen", "Seleccionar rol", "Selecionar função")}</option>
               <option value="MEMBER">{t(TENANT_ROLE_LABELS.MEMBER)}</option>
               <option value="OPS_ADMIN">{t("Ops Admin", "Admin Ops", "Ops-Admin", "Admin de operaciónes", "Admin de operações")}</option>
               <option value="BILLING_ADMIN">{t(TENANT_ROLE_LABELS.BILLING_ADMIN)}</option>
@@ -547,7 +547,7 @@ export default function CreatePlatformUserPage() {
         ) : null}
       </Card>
 
-      <Card title={t("Security", "Sécurité", "Sicherheit", "Seguridad", "Seguran?a")}>
+      <Card title={t("Security", "Sécurité", "Sicherheit", "Seguridad", "Segurança")}>
         <div className="space-y-3">
           <label className="flex items-center gap-2 text-sm text-foreground">
             <input
@@ -556,14 +556,14 @@ export default function CreatePlatformUserPage() {
               onChange={(event) => setSendSetupEmail(event.target.checked)}
               disabled={status === "DISABLED"}
             />
-            {t("Send password setup email (recommended)", "Envoyer l'e-mail de configuration du mot de passe (recommande)", "E-Mail zur Passworteinrichtung senden (empfohlen)", "Enviar correo de configuración de contrase?a (recomendado)", "Enviar e-mail de configuração da palavra-passe (recomendado)")}
+            {t("Send password setup email (recommended)", "Envoyer l'e-mail de configuration du mot de passe (recommande)", "E-Mail zur Passworteinrichtung senden (empfohlen)", "Enviar correo de configuración de contraseña (recomendado)", "Enviar e-mail de configuração da palavra-passe (recomendado)")}
           </label>
           <p className="text-xs text-muted-foreground">
-            {t("If enabled, account status is set to", "Si active, le statut du compte est defini sur", "Wenn aktiviert, wird der Kontostatus auf", "Si esta habilitado, el estado de la cuenta se establece en", "Se ativado, o estado da conta e definido como")} <strong>{t(STATUS_LABELS.PENDING)}</strong> {t("until password setup is completed. If disabled, a temporary password is generated once and must be changed on first login.", "jusqu'a ce que la configuration du mot de passe soit terminée. Si d?sactiv?, un mot de passe temporaire est genere une fois et doit être change lors de la premiere connexion.", "gesetzt, bis die Passworteinrichtung abgeschlossen ist. Wenn deaktiviert, wird einmalig ein temporaeres Passwort generiert, das beim ersten Login geaendert werden muss.", "hasta que se complete la configuración de la contrase?a. Si se deshabilita, se genera una contrase?a temporal una vez y debe cambiarse en el primer inicio de sesión.", "at? que a configuração da palavra-passe esteja conclu?da. Se desativado, e gerada uma palavra-passe temporaria uma vez e deve ser alterada no primeiro inicio de sessão.")}
+            {t("If enabled, account status is set to", "Si activé, le statut du compte est défini sur", "Wenn aktiviert, wird der Kontostatus auf", "Si está habilitado, el estado de la cuenta se establece en", "Se ativado, o estado da conta é definido como")} <strong>{t(STATUS_LABELS.PENDING)}</strong> {t("until password setup is completed. If disabled, a temporary password is generated once and must be changed on first login.", "jusqu'à ce que la configuration du mot de passe soit terminée. Si désactivé, un mot de passe temporaire est généré une fois et doit être changé lors de la première connexion.", "gesetzt, bis die Passworteinrichtung abgeschlossen ist. Wenn deaktiviert, wird einmalig ein temporäres Passwort generiert, das beim ersten Login geändert werden muss.", "hasta que se complete la configuración de la contraseña. Si se deshabilita, se genera una contraseña temporal una vez y debe cambiarse en el primer inicio de sesión.", "até que a configuração da palavra-passe esteja concluída. Se desativado, é gerada uma palavra-passe temporária uma vez e deve ser alterada no primeiro início de sessão.")}
           </p>
           {!sendSetupEmail ? (
             <p className="text-sm font-medium text-rose-700 dark:text-rose-300">
-              {t("Temporary password mode is enabled. Keep generated credentials secure.", "Le mode mot de passe temporaire est active. Conservez les identifiants generes en sécurité.", "Der Modus fuer temporaere Passwoerter ist aktiviert. Bewahren Sie die generierten Zugangsdaten sicher auf.", "El modo de contrase?a temporal esta habilitado. Manten seguras las credenciales generadas.", "O modo de palavra-passe temporaria esta ativado. Mantenha as credenciais geradas em seguran?a.")}
+              {t("Temporary password mode is enabled. Keep generated credentials secure.", "Le mode mot de passe temporaire est active. Conservez les identifiants generes en sécurité.", "Der Modus für temporäre Passwörter ist aktiviert. Bewahren Sie die generierten Zugangsdaten sicher auf.", "El modo de contraseña temporal esta habilitado. Manten seguras las credenciales generadas.", "O modo de palavra-passe temporaria esta ativado. Mantenha as credenciais geradas em segurança.")}
             </p>
           ) : null}
           {status === "DISABLED" ? (
@@ -578,7 +578,7 @@ export default function CreatePlatformUserPage() {
         </Button>
         <Button onClick={handleCreateClick} disabled={disableSubmit} loading={submitting}>
           <UserPlus className="h-4 w-4" />
-          {t("Create User", "Creer l'utilisateur", "Benutzer erstellen", "Crear usuario", "Criar utilizador")}
+          {t("Create User", "Créer l'utilisateur", "Benutzer erstellen", "Crear usuario", "Criar utilizador")}
         </Button>
       </section>
 
@@ -587,7 +587,7 @@ export default function CreatePlatformUserPage() {
         variant="danger"
         title={t("Grant Super Admin Role", "Accorder le role Super Admin", "Super-Admin-Rolle vergeben", "Otorgar rol de Super Admin", "Conceder função de Super Admin")}
         description={t("This user will have full platform control. This action is audited.", "Cet utilisateur aura un controle total de la plateforme. Cette action est journalisee.", "Dieser Benutzer erhaelt volle Plattformkontrolle. Diese Aktion wird protokolliert.", "Este usuario tendra control total de la plataforma. Esta acción se audita.", "Este utilizador tera controlo total da plataforma. Esta ação e auditada.")}
-        confirmLabel={t("Confirm & Create", "Confirmer et creer", "Bestaetigen und erstellen", "Confirmar y crear", "Confirmar e criar")}
+        confirmLabel={t("Confirm & Create", "Confirmer et créer", "Bestaetigen und erstellen", "Confirmar y crear", "Confirmar e criar")}
         onConfirm={() => {
           setSuperAdminConfirmOpen(false);
           setStepUpOpen(true);
@@ -605,21 +605,21 @@ export default function CreatePlatformUserPage() {
       >
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            {t("Re-enter your current password to authorize Super Admin creation.", "Saisissez a nouveau votre mot de passe actuel pour autoriser la cr?ation d'un Super Admin.", "Geben Sie Ihr aktuelles Passwort erneut ein, um die Erstellung eines Super-Admins zu autorisieren.", "Vuelve a introducir tu contrase?a actual para autorizar la creacion de Super Admin.", "Volte a introduzir a sua palavra-passe atual para autorizar a criacao de Super Admin.")}
+            {t("Re-enter your current password to authorize Super Admin creation.", "Saisissez a nouveau votre mot de passe actuel pour autoriser la création d'un Super Admin.", "Geben Sie Ihr aktuelles Passwort erneut ein, um die Erstellung eines Super-Admins zu autorisieren.", "Vuelve a introducir tu contraseña actual para autorizar la creacion de Super Admin.", "Volte a introduzir a sua palavra-passe atual para autorizar a criacao de Super Admin.")}
           </p>
           <Input
-            label={t("Current Password", "Mot de passe actuel", "Aktuelles Passwort", "Contrase?a actual", "Palavra-passe atual")}
+            label={t("Current Password", "Mot de passe actuel", "Aktuelles Passwort", "Contraseña actual", "Palavra-passe atual")}
             type="password"
             value={stepUpPassword}
             onChange={(event) => setStepUpPassword(event.target.value)}
-            placeholder={t("Enter your password", "Saisissez votre mot de passe", "Passwort eingeben", "Introduce tu contrase?a", "Introduza a sua palavra-passe")}
+            placeholder={t("Enter your password", "Saisissez votre mot de passe", "Passwort eingeben", "Introduce tu contraseña", "Introduza a sua palavra-passe")}
           />
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={() => setStepUpOpen(false)}>
               {t("Cancel", "Annuler", "Abbrechen", "Cancelar", "Cancelar")}
             </Button>
             <Button onClick={() => void startStepUp()} loading={stepUpLoading}>
-              {t("Verify & Continue", "Verifier et continuer", "Pruefen und fortfahren", "Verificar y continuar", "Verificar e continuar")}
+              {t("Verify & Continue", "Verifier et continuer", "Prüfen und fortfahren", "Verificar y continuar", "Verificar e continuar")}
             </Button>
           </div>
         </div>
@@ -631,9 +631,9 @@ export default function CreatePlatformUserPage() {
             <div className="flex items-start gap-3">
               <ShieldAlert className="mt-0.5 h-5 w-5 text-amber-600" />
               <div className="space-y-2">
-                <h2 className="text-lg font-semibold text-foreground">{t("Temporary Password Generated", "Mot de passe temporaire genere", "Temporaeres Passwort erstellt", "Contrase?a temporal generada", "Palavra-passe temporaria gerada")}</h2>
+                <h2 className="text-lg font-semibold text-foreground">{t("Temporary Password Generated", "Mot de passe temporaire genere", "Temporäres Passwort erstellt", "Contraseña temporal generada", "Palavra-passe temporaria gerada")}</h2>
                 <p className="text-sm text-muted-foreground">
-                  {t("Copy this password now. It will not be shown again.", "Copiez ce mot de passe maintenant. Il ne sera plus affiche.", "Kopieren Sie dieses Passwort jetzt. Es wird nicht erneut angezeigt.", "Copia esta contrase?a ahora. No se mostrara de nuevo.", "Copie esta palavra-passe agora. Não sera mostrada novamente.")}
+                  {t("Copy this password now. It will not be shown again.", "Copiez ce mot de passe maintenant. Il ne sera plus affiche.", "Kopieren Sie dieses Passwort jetzt. Es wird nicht erneut angezeigt.", "Copia esta contraseña ahora. No se mostrara de nuevo.", "Copie esta palavra-passe agora. Não sera mostrada novamente.")}
                 </p>
               </div>
             </div>
@@ -645,7 +645,7 @@ export default function CreatePlatformUserPage() {
                 variant="secondary"
                 onClick={async () => {
                   await navigator.clipboard.writeText(createdTempPassword);
-                  setFeedback({ variant: "success", message: t("Temporary password copied.", "Mot de passe temporaire copie.", "Temporaeres Passwort kopiert.", "Contrase?a temporal copiada.", "Palavra-passe temporaria copiada.") });
+                  setFeedback({ variant: "success", message: t("Temporary password copied.", "Mot de passe temporaire copie.", "Temporäres Passwort kopiert.", "Contraseña temporal copiada.", "Palavra-passe temporaria copiada.") });
                 }}
               >
                 <Copy className="h-4 w-4" />
@@ -657,7 +657,7 @@ export default function CreatePlatformUserPage() {
             </div>
             {setupEmailSent === false ? (
               <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">
-                {t("Setup email was not sent. Resend from user actions if needed.", "L'e-mail de configuration n'a pas \u00e9t\u00e9 envoy\u00e9. Renvoyez-le depuis les actions utilisateur si n\u00e9cessaire.", "Die Einrichtungs-E-Mail wurde nicht gesendet. Senden Sie sie bei Bedarf ueber die Benutzeraktionen erneut.", "No se envio el correo de configuraci\u00f3n. Reenvialo desde las acciones del usuario si es necesario.", "O e-mail de configura\u00e7\u00e3o n\u00e3o foi enviado. Reenvie-o a partir das a\u00e7\u00f5es do utilizador se necess\u00e1rio.")}
+                {t("Setup email was not sent. Resend from user actions if needed.", "L'e-mail de configuration n'a pas été envoyé. Renvoyéz-le depuis les actions utilisateur si nécessaire.", "Die Einrichtungs-E-Mail wurde nicht gesendet. Senden Sie sie bei Bedarf über die Benutzeraktionen erneut.", "No se envio el correo de configuraci\u00f3n. Reenvialo desde las acciones del usuario si es necesario.", "O e-mail de configura\u00e7\u00e3o n\u00e3o foi enviado. Reenvie-o a partir das a\u00e7\u00f5es do utilizador se necess\u00e1rio.")}
               </p>
             ) : null}
           </div>

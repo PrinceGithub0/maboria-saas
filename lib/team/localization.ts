@@ -99,14 +99,14 @@ const TEAM_SERVER_MESSAGES: Record<string, LocalizedText> = {
     fr: "Impossible de charger l équipe.",
     de: "Team konnte nicht geladen werden.",
     es: "No se pudo cargar el equipo.",
-    pt: "Não foi poss?vel carregar a equipa.",
+    pt: "Não foi possível carregar a equipa.",
   },
   "Failed to load team activity": {
     en: "Failed to load team activity.",
     fr: "Impossible de charger l activité de l équipe.",
     de: "Teamaktivität konnte nicht geladen werden.",
     es: "No se pudo cargar la actividad del equipo.",
-    pt: "Não foi poss?vel carregar a atividade da equipa.",
+    pt: "Não foi possível carregar a atividade da equipa.",
   },
   "Only owners can assign Billing Admin.": {
     en: "Only owners can assign Billing Admin.",
@@ -147,14 +147,14 @@ const TEAM_SERVER_MESSAGES: Record<string, LocalizedText> = {
     en: "Invite failed.",
     fr: "L'invitation a échoué.",
     de: "Einladung fehlgeschlagen.",
-    es: "La invitacion ha fallado.",
+    es: "La invitación ha fallado.",
     pt: "O convite falhou.",
   },
   "Pending invite not found.": {
     en: "Pending invite not found.",
     fr: "Invitation en attente introuvable.",
     de: "Ausstehende Einladung nicht gefunden.",
-    es: "No se encontro la invitacion pendiente.",
+    es: "No se encontró la invitación pendiente.",
     pt: "Convite pendente não encontrado.",
   },
   "Member not found.": {
@@ -164,11 +164,11 @@ const TEAM_SERVER_MESSAGES: Record<string, LocalizedText> = {
     es: "Miembro no encontrado.",
     pt: "Membro não encontrado.",
   },
-  "You do not have permission to resend invites.": {
-    en: "You do not have permission to resend invites.",
+  "You do not have permission to resend invités.": {
+    en: "You do not have permission to resend invités.",
     fr: "Vous n'avez pas l autorisation de renvoyer des invitations.",
     de: "Du hast keine Berechtigung, Einladungen erneut zu senden.",
-    es: "No tienes permiso para reenviar invitaciones.",
+    es: "No tienes permiso para reenviar invitaciónes.",
     pt: "Não tens permissao para reenviar convites.",
   },
   "You do not have permission for this role change.": {
@@ -180,10 +180,10 @@ const TEAM_SERVER_MESSAGES: Record<string, LocalizedText> = {
   },
   "Update failed.": {
     en: "Update failed.",
-    fr: "La mise ? jour a ?chou?.",
+    fr: "La mise ? jour a échoué.",
     de: "Aktualisierung fehlgeschlagen.",
     es: "La actualización ha fallado.",
-    pt: "A atualiza??o falhou.",
+    pt: "A atualização falhou.",
   },
   "Owner cannot be removed.": {
     en: "Owner cannot be removed.",
@@ -225,7 +225,7 @@ const TEAM_SERVER_MESSAGES: Record<string, LocalizedText> = {
     fr: "Historique d activité indisponible.",
     de: "Aktivitätsverlauf nicht verfügbar.",
     es: "Historial de actividad no disponible.",
-    pt: "Histórico de atividade indispon?vel.",
+    pt: "Histórico de atividade indisponível.",
   },
   "Please sign in first.": {
     en: "Please sign in first.",
@@ -301,7 +301,7 @@ export function getTeamActivityActionLabel(actionType: string | null | undefined
       fr: "Mise ? jour de l équipe",
       de: "Team-Aktualisierung",
       es: "Actualización del equipo",
-      pt: "Atualiza??o da equipa",
+      pt: "Atualização da equipa",
     },
     language
   );

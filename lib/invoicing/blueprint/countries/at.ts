@@ -6,7 +6,7 @@ export const austriaComplianceModule = buildDefaultCountryModule("AT", {
   evidence: [
     {
       label: "Austria federal administration requires e-invoices (USP guidance)",
-      url: "https://www.usp.gv.at/en/themen/steuern-finanzen/umsatzsteuer-ueberblick/weitere-informationen-zur-umsatzsteuer/vorsteuerabzug-und-rechnung/e-rechnung-an-die-oeffentliche-verwaltung.html",
+      url: "https://www.usp.gv.at/en/themen/steuern-finanzen/umsatzsteuer-überblick/weitere-informationen-zur-umsatzsteuer/vorsteuerabzug-und-rechnung/e-rechnung-an-die-oeffentliche-verwaltung.html",
       reviewedAt: "2026-04-06",
     },
   ],

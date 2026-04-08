@@ -6,7 +6,7 @@ export const hondurasComplianceModule = buildDefaultCountryModule("HN", {
   evidence: [
     {
       label: "Honduras SAR billing regime guidance",
-      url: "https://www.sar.gob.hn/facturacion/",
+      url: "https://www.sar.gob.hn/facturación/",
       reviewedAt: "2026-04-06",
     },
   ],

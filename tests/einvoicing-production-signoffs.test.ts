@@ -91,10 +91,10 @@ assert.equal(mexico?.blockers.length, 0);
 const poland = getEInvoiceCountryProductionSignoff("PL");
 assert.ok(poland, "Poland should have a planned production signoff record");
 assert.equal(poland?.nextPriority, 40);
-assert.equal(poland?.promotionState, "IN_PROGRESS");
-assert.equal(poland?.productionReady, false);
-assert.equal(poland?.evidenceCount, 1);
-assert.equal(poland?.evidence[0]?.type, "ROLLOUT_REVIEW");
+assert.equal(poland?.promotionState, "READY");
+assert.equal(poland?.productionReady, true);
+assert.equal(poland?.evidenceCount, 6);
+assert.ok(poland?.evidence.some((item) => item.type === "LEGAL_SIGNOFF_MEMO"));
 assert.ok(
   poland?.blockers.every((blocker) => !blocker.includes("Authentication transport")),
   "Transport-ready Poland should no longer expose auth transport blockers"
@@ -103,9 +103,9 @@ assert.ok(
 const unitedArabEmirates = getEInvoiceCountryProductionSignoff("AE");
 assert.ok(unitedArabEmirates, "UAE should have a production signoff record");
 assert.equal(unitedArabEmirates?.nextPriority, 13);
-assert.equal(unitedArabEmirates?.promotionState, "IN_PROGRESS");
-assert.equal(unitedArabEmirates?.productionReady, false);
-assert.equal(unitedArabEmirates?.evidenceCount, 1);
+assert.equal(unitedArabEmirates?.promotionState, "READY");
+assert.equal(unitedArabEmirates?.productionReady, true);
+assert.equal(unitedArabEmirates?.evidenceCount, 6);
 assert.ok(
   unitedArabEmirates?.blockers.every((blocker) => !blocker.includes("Authentication transport")),
   "Transport-ready countries should no longer be blocked on authentication transport"
@@ -114,8 +114,9 @@ assert.ok(
 const egypt = getEInvoiceCountryProductionSignoff("EG");
 assert.ok(egypt, "Egypt should have a production signoff record");
 assert.equal(egypt?.nextPriority, 23);
-assert.equal(egypt?.promotionState, "IN_PROGRESS");
-assert.equal(egypt?.productionReady, false);
+assert.equal(egypt?.promotionState, "READY");
+assert.equal(egypt?.productionReady, true);
+assert.equal(egypt?.evidenceCount, 6);
 assert.ok(
   egypt?.blockers.every((blocker) => !blocker.includes("Authentication transport")),
   "Second-wave transport-ready countries should no longer be blocked on authentication transport"
@@ -124,8 +125,9 @@ assert.ok(
 const mauritius = getEInvoiceCountryProductionSignoff("MU");
 assert.ok(mauritius, "Mauritius should have a production signoff record");
 assert.equal(mauritius?.nextPriority, 33);
-assert.equal(mauritius?.promotionState, "IN_PROGRESS");
-assert.equal(mauritius?.productionReady, false);
+assert.equal(mauritius?.promotionState, "READY");
+assert.equal(mauritius?.productionReady, true);
+assert.equal(mauritius?.evidenceCount, 6);
 assert.ok(
   mauritius?.blockers.every((blocker) => !blocker.includes("Authentication transport")),
   "Third-wave transport-ready countries should no longer be blocked on authentication transport"
@@ -134,8 +136,9 @@ assert.ok(
 const rwanda = getEInvoiceCountryProductionSignoff("RW");
 assert.ok(rwanda, "Rwanda should have a production signoff record");
 assert.equal(rwanda?.nextPriority, 43);
-assert.equal(rwanda?.promotionState, "IN_PROGRESS");
-assert.equal(rwanda?.productionReady, false);
+assert.equal(rwanda?.promotionState, "READY");
+assert.equal(rwanda?.productionReady, true);
+assert.equal(rwanda?.evidenceCount, 6);
 assert.ok(
   rwanda?.blockers.every((blocker) => !blocker.includes("Authentication transport")),
   "Final-wave transport-ready countries should no longer be blocked on authentication transport"

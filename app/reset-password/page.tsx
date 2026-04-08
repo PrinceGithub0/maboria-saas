@@ -13,15 +13,40 @@ import {
   MIN_PASSWORD_LENGTH,
   PASSWORD_MIN_LENGTH_ERROR,
   PASSWORD_MIN_LENGTH_HELPER_TEXT,
+  validatePasswordPolicy,
 } from "@/lib/password-policy";
 
 type ValidationState = "checking" | "valid" | "invalid";
 
+type PasswordStrength = "Empty" | "Weak" | "Medium" | "Strong";
+
+function getPasswordStrength(password: string): { key: PasswordStrength; width: string; tone: string } {
+  if (!password) {
+    return { key: "Empty", width: "0%", tone: "bg-slate-300" };
+  }
+
+  const hasMinimumLength = password.length >= MIN_PASSWORD_LENGTH;
+  const hasMixedCase = /[A-Z]/.test(password) && /[a-z]/.test(password);
+  const hasNumber = /\d/.test(password);
+  const completedChecks = [hasMinimumLength, hasMixedCase, hasNumber].filter(Boolean).length;
+
+  if (validatePasswordPolicy(password)) {
+    return { key: "Strong", width: "100%", tone: "bg-emerald-500" };
+  }
+
+  if (completedChecks >= 2) {
+    return { key: "Medium", width: "65%", tone: "bg-amber-500" };
+  }
+
+  return { key: "Weak", width: "35%", tone: "bg-rose-500" };
+}
+
 function getPasswordStrengthLabel(password: string, t: ReturnType<typeof useLanguage>["t"]) {
-  if (!password) return t("Empty", "Vide", "Leer", "Vacio", "Vazio");
-  if (password.length < MIN_PASSWORD_LENGTH) return t("Weak", "Faible", "Schwach", "Debil", "Fraca");
-  if (password.length < 12) return t("Medium", "Moyen", "Mittel", "Media", "Media");
-  return t("Strong", "Fort", "Stark", "Fuerte", "Forte");
+  const strength = getPasswordStrength(password).key;
+  if (strength === "Empty") return t("Empty", "Vide", "Leer", "Vacio", "Vazio");
+  if (strength === "Weak") return t("Weak", "Faible", "Schwach", "Debil", "Fraca");
+  if (strength === "Medium") return t("Medium", "Moyen", "Mittel", "Media", "Media");
+  return t("Strong", "Fort", "Stark", "Fürte", "Forte");
 }
 
 export default function ResetPasswordPage() {
@@ -37,11 +62,14 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const logoSrc = "/branding/Maboria%20Company%20logo.png";
   const strength = useMemo(
-    () => ({
-      label: getPasswordStrengthLabel(password, t),
-      width: !password ? "0%" : password.length < MIN_PASSWORD_LENGTH ? "35%" : password.length < 12 ? "65%" : "100%",
-      tone: !password ? "bg-slate-300" : password.length < MIN_PASSWORD_LENGTH ? "bg-rose-500" : password.length < 12 ? "bg-amber-500" : "bg-emerald-500",
-    }),
+    () => {
+      const passwordStrength = getPasswordStrength(password);
+      return {
+        label: getPasswordStrengthLabel(password, t),
+        width: passwordStrength.width,
+        tone: passwordStrength.tone,
+      };
+    },
     [password, t]
   );
 
@@ -77,7 +105,7 @@ export default function ResetPasswordPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (password.length < MIN_PASSWORD_LENGTH) {
+    if (!validatePasswordPolicy(password)) {
       setError(PASSWORD_MIN_LENGTH_ERROR);
       return;
     }

@@ -113,7 +113,7 @@ export default function AdminTenantsPage() {
         message:
           action.type === "suspend"
             ? `${t("Tenant", "Locataire", "Mandant", "Tenant", "Tenant")} "${action.tenantName}" ${t("suspended.", "suspendu.", "gesperrt.", "suspendido.", "suspenso.")}`
-            : `${t("Tenant", "Locataire", "Mandant", "Tenant", "Tenant")} "${action.tenantName}" ${t("reactivated.", "reactive.", "reaktiviert.", "reactivado.", "reativado.")}`,
+            : `${t("Tenant", "Locataire", "Mandant", "Tenant", "Tenant")} "${action.tenantName}" ${t("reactivated.", "réactivé.", "reaktiviert.", "reactivado.", "reativado.")}`,
       });
       setAction(null);
       setReason("");
@@ -152,7 +152,7 @@ export default function AdminTenantsPage() {
         <p className="text-xs uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">{t("Admin", "Admin", "Admin", "Admin", "Admin")}</p>
         <h1 className="text-3xl font-semibold text-foreground">{t("Tenants", "Locataires", "Mandanten", "Tenants", "Tenants")}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {t("Monitor workspace health, lifecycle status, and high-risk tenant signals.", "Surveillez la sante des espaces de travail, leur cycle de vie et les signaux de risque élevé.", "Ueberwachen Sie den Zustand der Arbeitsbereiche, den Lebenszyklusstatus und Hochrisiko-Signale von Mandanten.", "Supervisa la salud del espacio de trabajo, el estado del ciclo de vida y las senales de alto riesgo del tenant.", "Monitorize a saude da area de trabalho, o estado do ciclo de vida e os sinais de alto risco do tenant.")}
+          {t("Monitor workspace health, lifecycle status, and high-risk tenant signals.", "Surveillez la santé des espaces de travail, leur cycle de vie et les signaux de risque élevé.", "Überwachen Sie den Zustand der Arbeitsbereiche, den Lebenszyklusstatus und Hochrisiko-Signale von Mandanten.", "Supervisa la salud del espacio de trabajo, el estado del ciclo de vida y las senales de alto riesgo del tenant.", "Monitorize a saude da area de trabalho, o estado do ciclo de vida e os sinais de alto risco do tenant.")}
         </p>
       </div>
 
@@ -177,7 +177,7 @@ export default function AdminTenantsPage() {
               "Impossible de charger les locataires pour le moment.",
               "Mandanten koennen derzeit nicht geladen werden.",
               "No se pueden cargar los tenants en este momento.",
-              "N?o foi poss?vel carregar os tenants neste momento."
+              "Não foi possível carregar os tenants neste momento."
             )
           )}
         </Alert>
@@ -218,10 +218,10 @@ export default function AdminTenantsPage() {
             onChange={(event) => setSort(event.target.value)}
             className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground"
           >
-            <option value="created_desc">{t("Newest first", "Plus recents d'abord", "Neueste zuerst", "Mas recientes primero", "Mais recentes primeiro")}</option>
-            <option value="created_asc">{t("Oldest first", "Plus anciens d'abord", "Aelteste zuerst", "Mas antiguos primero", "Mais antigos primeiro")}</option>
-            <option value="activity_desc">{t("Latest activity", "Activit? la plus recente", "Neueste Aktivitaet", "Actividad mas reciente", "Atividade mais recente")}</option>
-            <option value="activity_asc">{t("Earliest activity", "Activit? la plus ancienne", "Aelteste Aktivitaet", "Actividad mas antigua", "Atividade mais antiga")}</option>
+            <option value="created_desc">{t("Newest first", "Plus recents d'abord", "Neueste zuerst", "Más recientes primero", "Mais recentes primeiro")}</option>
+            <option value="created_asc">{t("Oldest first", "Plus anciens d'abord", "Aelteste zuerst", "Más antiguos primero", "Mais antigos primeiro")}</option>
+            <option value="activity_desc">{t("Latest activity", "Activit? la plus recente", "Neueste Aktivitaet", "Actividad más reciente", "Atividade mais recente")}</option>
+            <option value="activity_asc">{t("Earliest activity", "Activit? la plus ancienne", "Aelteste Aktivitaet", "Actividad más antigua", "Atividade mais antiga")}</option>
           </select>
         </div>
       </Card>
@@ -235,7 +235,7 @@ export default function AdminTenantsPage() {
           </div>
         ) : items.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-            {t("No tenants found for the current filters.", "Aucun locataire trouve pour les filtres actuels.", "Keine Mandanten fuer die aktuellen Filter gefunden.", "No se encontraron tenants para los filtros actuales.", "Não foram encontrados tenants para os filtros atuais.")}
+            {t("No tenants found for the current filters.", "Aucun locataire trouvé pour les filtres actuels.", "Keine Mandanten für die aktuellen Filter gefunden.", "No se encontraron tenants para los filtros actuales.", "Não foram encontrados tenants para os filtros atuais.")}
           </p>
         ) : (
           <>
@@ -260,7 +260,7 @@ export default function AdminTenantsPage() {
                     <th className="px-3 py-3 font-semibold">{t("Plan", "Forfait", "Plan", "Plan", "Plano")}</th>
                     <th className="px-3 py-3 font-semibold">{t("Status", "Statut", "Status", "Estado", "Estado")}</th>
                     <th className="px-3 py-3 font-semibold">{t("Created", "Cr??", "Erstellt", "Creado", "Criado")}</th>
-                    <th className="px-3 py-3 font-semibold">{t("Last activity", "Derni?re activité", "Aktivit?t", "?ltima actividad", "?ltima atividade")}</th>
+                    <th className="px-3 py-3 font-semibold">{t("Last activity", "Derni?re activité", "Aktivität", "Última actividad", "Última atividade")}</th>
                     <th className="px-3 py-3 font-semibold">{t("Risk", "Risque", "Risiko", "Riesgo", "Risco")}</th>
                     <th className="px-3 py-3 font-semibold">{t("Actions", "Actions", "Aktionen", "Acciones", "Ações")}</th>
                   </tr>
@@ -348,7 +348,7 @@ export default function AdminTenantsPage() {
                     <span>{t("Risk:", "Risque :", "Risiko:", "Riesgo:", "Risco:")} {tenant.riskFlags}</span>
                     <span>{t("Created:", "Cr?? :", "Erstellt:", "Creado:", "Criado:")} {formatDateDMY(new Date(tenant.createdAt), LANGUAGE_LOCALES[language])}</span>
                     <span>
-                      {t("Last:", "Dernier :", "Letzte:", "?ltimo:", "?ltima:")} {tenant.lastActivityAt ? formatDateDMY(new Date(tenant.lastActivityAt), LANGUAGE_LOCALES[language]) : "-"}
+                      {t("Last:", "Dernier :", "Letzte:", "Último:", "Última:")} {tenant.lastActivityAt ? formatDateDMY(new Date(tenant.lastActivityAt), LANGUAGE_LOCALES[language]) : "-"}
                     </span>
                   </div>
                 </button>
@@ -359,7 +359,7 @@ export default function AdminTenantsPage() {
 
         <div className="mt-4 flex items-center justify-between gap-3">
           <p className="text-xs text-muted-foreground">
-            {t("Page", "Page", "Seite", "P?gina", "P?gina")} {pagination?.page || page} {t("of", "sur", "von", "de", "de")} {pagination?.totalPages || 1} | {pagination?.totalItems || 0} {t("tenants", "locataires", "Mandanten", "tenants", "tenants")}
+            {t("Page", "Page", "Seite", "Página", "Página")} {pagination?.page || page} {t("of", "sur", "von", "de", "de")} {pagination?.totalPages || 1} | {pagination?.totalItems || 0} {t("tenants", "locataires", "Mandanten", "tenants", "tenants")}
           </p>
           <div className="flex gap-2">
             <Button
@@ -395,7 +395,7 @@ export default function AdminTenantsPage() {
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
               {action.type === "suspend"
-                ? `${t("Suspend", "Suspendre", "Sperren", "Suspender", "Suspender")} "${action.tenantName}"? ${t("This blocks subscriber login and API access without deleting data.", "Cela bloque la connexion des abonnes et l'accès API sans supprimer les données.", "Dies blockiert die Anmeldung von Abonnenten und den API-Zugriff, ohne Daten zu loeschen.", "Esto bloquea el inicio de sesión de suscriptores y el acceso a la API sin eliminar datos.", "Isto bloqueia o inicio de sessão dos subscritores e o acesso a API sem eliminar dados.")}`
+                ? `${t("Suspend", "Suspendre", "Sperren", "Suspender", "Suspender")} "${action.tenantName}"? ${t("This blocks subscriber login and API access without deleting data.", "Cela bloque la connexion des abonnés et l'accès API sans supprimer les données.", "Dies blockiert die Anmeldung von Abonnenten und den API-Zugriff, ohne Daten zu loeschen.", "Esto bloquea el inicio de sesión de suscriptores y el acceso a la API sin eliminar datos.", "Isto bloqueia o inicio de sessão dos subscritores e o acesso a API sem eliminar dados.")}`
                 : `${t("Reactivate", "Reactiver", "Reaktivieren", "Reactivar", "Reativar")} "${action.tenantName}"? ${t("Login and API access will be restored.", "La connexion et l'accès API seront retablis.", "Login und API-Zugriff werden wiederhergestellt.", "Se restauraran el inicio de sesión y el acceso a la API.", "O inicio de sessão e o acesso a API serao restaurados.")}`}
             </p>
             {action.type === "suspend" ? (

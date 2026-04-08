@@ -470,7 +470,7 @@ export default function AutomationErrorsPage() {
               {t(
                 text(
                   "Recover failed automation runs and maintain system reliability.",
-                  "Recuperez les executions d'automatisation échouées et maintenez la fiabilite du systeme.",
+                  "Recuperez les executions d'automatisation échouées et maintenez la fiabilite du système.",
                   "Behebe fehlgeschlagene Automatisierungslaufe und halte die Systemzuverlässigkeit aufrecht.",
                   "Recupera las ejecuciones fallidas de automatización y manten la fiabilidad del sistema.",
                   "Recupere execucoes falhadas da automação e mantenha a fiabilidade do sistema."
@@ -490,9 +490,9 @@ export default function AutomationErrorsPage() {
               onChange={(event) => setAutoRefresh(event.target.value as AutoRefreshMode)}
               className="h-10 rounded-md border border-border/70 bg-background px-3 text-sm"
             >
-              <option value="off">{t("Auto refresh: Off", "Rafra?chissement auto : arr?t", "Auto-Aktualisierung: aus", "Actualización autom?tica: desactivada", "Atualiza??o autom?tica: desligada")}</option>
-              <option value="30">{t("Auto refresh: 30s", "Rafra?chissement auto : 30 s", "Auto-Aktualisierung: 30 s", "Actualización autom?tica: 30 s", "Atualiza??o autom?tica: 30 s")}</option>
-              <option value="60">{t("Auto refresh: 60s", "Rafra?chissement auto : 60 s", "Auto-Aktualisierung: 60 s", "Actualización autom?tica: 60 s", "Atualiza??o autom?tica: 60 s")}</option>
+              <option value="off">{t("Auto refresh: Off", "Rafra?chissement auto : arr?t", "Auto-Aktualisierung: aus", "Actualización automática: desactivada", "Atualização automática: desligada")}</option>
+              <option value="30">{t("Auto refresh: 30s", "Rafra?chissement auto : 30 s", "Auto-Aktualisierung: 30 s", "Actualización automática: 30 s", "Atualização automática: 30 s")}</option>
+              <option value="60">{t("Auto refresh: 60s", "Rafra?chissement auto : 60 s", "Auto-Aktualisierung: 60 s", "Actualización automática: 60 s", "Atualização automática: 60 s")}</option>
             </select>
           </div>
         </div>
@@ -500,7 +500,7 @@ export default function AutomationErrorsPage() {
 
       {error ? (
         <div className="space-y-2">
-          <Alert variant="error">{t("Unable to load automation failures.", "Impossible de charger les echecs d'automatisation.", "Automatisierungsfehler können nicht geladen werden.", "No se pueden cargar los fallos de automatización.", "Não foi poss?vel carregar as falhas de automação.")}</Alert>
+          <Alert variant="error">{t("Unable to load automation failures.", "Impossible de charger les échecs d'automatisation.", "Automatisierungsfehler können nicht geladen werden.", "No se pueden cargar los fallos de automatización.", "Não foi possível carregar as falhas de automação.")}</Alert>
           <Button variant="secondary" onClick={refreshPage}>{t("Retry", "Reessayer", "Erneut versuchen", "Reintentar", "Tentar novamente")}</Button>
         </div>
       ) : null}
@@ -519,11 +519,11 @@ export default function AutomationErrorsPage() {
               <p className="mt-1 text-2xl font-semibold text-foreground">{summary?.impactedFlows24h ?? 0}</p>
             </div>
             <div className="rounded-xl border border-border/70 bg-card px-4 py-3">
-              <p className="text-xs uppercase leading-5 tracking-[0.1em] text-muted-foreground break-words">{t("Impacted Subscribers", "Abonnes impactes", "Betroffene Abonnenten", "Suscriptores afectados", "Subscritores afetados")}</p>
+              <p className="text-xs uppercase leading-5 tracking-[0.1em] text-muted-foreground break-words">{t("Impacted Subscribers", "Abonnés impactes", "Betroffene Abonnenten", "Suscriptores afectados", "Subscritores afetados")}</p>
               <p className="mt-1 text-2xl font-semibold text-foreground">{summary?.impactedSubscribers24h ?? 0}</p>
             </div>
             <div className="rounded-xl border border-border/70 bg-card px-4 py-3">
-              <p className="text-xs uppercase leading-5 tracking-[0.1em] text-muted-foreground break-words">{t("Latest Failure", "Dernier ?chec", "Letzter Fehler", "?ltimo fallo", "?ltima falha")}</p>
+              <p className="text-xs uppercase leading-5 tracking-[0.1em] text-muted-foreground break-words">{t("Latest Failure", "Dernier ?chec", "Letzter Fehler", "Último fallo", "Última falha")}</p>
               <p className="mt-1 text-sm font-semibold text-foreground">
                 {summary?.latestFailureAt ? formatDateTimeDMY(new Date(summary.latestFailureAt), LANGUAGE_LOCALES[language]) : t("N/A", "N/D", "k. A.", "N/D", "N/D")}
               </p>
@@ -534,8 +534,8 @@ export default function AutomationErrorsPage() {
 
       <section className="rounded-xl border border-border/60 bg-card px-5 py-4">
         <div className="mb-3 flex items-center justify-between">
-          <p className="text-sm font-semibold text-foreground">{t("Most impacted flows", "Flux les plus impactes", "Am starksten betroffene Flows", "Flujos mas afectados", "Fluxos mais afetados")}</p>
-          <p className="text-xs text-muted-foreground">{t("Last 24 hours", "Dernieres 24 heures", "Letzte 24 Stunden", "?ltimas 24 horas", "Ultimas 24 horas")}</p>
+          <p className="text-sm font-semibold text-foreground">{t("Most impacted flows", "Flux les plus impactes", "Am starksten betroffene Flows", "Flujos más afectados", "Fluxos mais afetados")}</p>
+          <p className="text-xs text-muted-foreground">{t("Last 24 hours", "Dernieres 24 heures", "Letzte 24 Stunden", "Últimas 24 horas", "Ultimas 24 horas")}</p>
         </div>
         {isLoading ? (
           <Skeleton className="h-24 rounded-lg" />
@@ -571,7 +571,7 @@ export default function AutomationErrorsPage() {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">{t("No automation failures detected. System is operating normally.", "Aucun ?chec d'automatisation detecte. Le systeme fonctionne normalement.", "Keine Automatisierungsfehler erkannt. Das System arbeitet normal.", "No se detectaron fallos de automatización. El sistema funciona con normalidad.", "Não foram detetadas falhas de automação. O sistema esta a funcionar normalmente.")}</p>
+          <p className="text-sm text-muted-foreground">{t("No automation failures detected. System is operating normally.", "Aucun ?chec d'automatisation detecte. Le système fonctionne normalement.", "Keine Automatisierungsfehler erkannt. Das System arbeitet normal.", "No se detectaron fallos de automatización. El sistema funciona con normalidad.", "Não foram detetadas falhas de automação. O sistema esta a funcionar normalmente.")}</p>
         )}
       </section>
 
@@ -583,7 +583,7 @@ export default function AutomationErrorsPage() {
               ref={searchRef}
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              placeholder={t("Search flow, subscriber email, run id", "Rechercher un flux, un email d'abonne, un ID d'ex?cution", "Flow, Abonnenten-E-Mail oder Lauf-ID suchen", "Buscar flujo, correo del suscriptor o ID de ejecuci?n", "Pesquisar fluxo, email do subscritor ou ID da execu??o")}
+              placeholder={t("Search flow, subscriber email, run id", "Rechercher un flux, un email d'abonne, un ID d'ex?cution", "Flow, Abonnenten-E-Mail oder Lauf-ID suchen", "Buscar flujo, correo del suscriptor o ID de ejecución", "Pesquisar fluxo, email do subscritor ou ID da execução")}
               className="h-11 w-full rounded-md border border-border/70 bg-background pl-9 pr-3 text-sm text-foreground"
             />
           </div>
@@ -637,9 +637,9 @@ export default function AutomationErrorsPage() {
             onChange={(event) => applyRange(event.target.value as RangeMode)}
             className="h-10 rounded-md border border-border/70 bg-background px-3 text-sm"
           >
-            <option value="1h">{t("Last 1 hour", "Derni?re heure", "Letzte 1 Stunde", "?ltima hora", "?ltima hora")}</option>
-            <option value="24h">{t("Last 24 hours", "Dernieres 24 heures", "Letzte 24 Stunden", "?ltimas 24 horas", "Ultimas 24 horas")}</option>
-            <option value="7d">{t("Last 7 days", "Derniers 7 jours", "Letzte 7 Tage", "?ltimos 7 d?as", "?ltimos 7 dias")}</option>
+            <option value="1h">{t("Last 1 hour", "Derni?re heure", "Letzte 1 Stunde", "Última hora", "Última hora")}</option>
+            <option value="24h">{t("Last 24 hours", "Dernieres 24 heures", "Letzte 24 Stunden", "Últimas 24 horas", "Ultimas 24 horas")}</option>
+            <option value="7d">{t("Last 7 days", "Derniers 7 jours", "Letzte 7 Tage", "Últimos 7 días", "Últimos 7 dias")}</option>
             <option value="custom">{t("Custom range", "Plage personnalisee", "Benutzerdefinierter Bereich", "Rango personalizado", "Intervalo personalizado")}</option>
           </select>
           <select
@@ -651,8 +651,8 @@ export default function AutomationErrorsPage() {
             }}
             className="h-10 rounded-md border border-border/70 bg-background px-3 text-sm"
           >
-            <option value="created_desc">{t("Newest first", "Plus recentes d'abord", "Neueste zuerst", "Mas recientes primero", "Mais recentes primeiro")}</option>
-            <option value="created_asc">{t("Oldest first", "Plus anciennes d'abord", "Alteste zuerst", "Mas antiguos primero", "Mais antigos primeiro")}</option>
+            <option value="created_desc">{t("Newest first", "Plus recentes d'abord", "Neueste zuerst", "Más recientes primero", "Mais recentes primeiro")}</option>
+            <option value="created_asc">{t("Oldest first", "Plus anciennes d'abord", "Alteste zuerst", "Más antiguos primero", "Mais antigos primeiro")}</option>
           </select>
           {range === "custom" ? (
             <div className="grid gap-2 sm:grid-cols-2">
@@ -725,7 +725,7 @@ export default function AutomationErrorsPage() {
             <span>{t("Status", "Statut", "Status", "Estado", "Estado")}</span>
             <span>{t("Error summary", "Resume de l'erreur", "Fehlerzusammenfassung", "Resumen del error", "Resumo do erro")}</span>
             <span>{t("Created", "Cr??", "Erstellt", "Creado", "Criado")}</span>
-            <span>{t("Retry count", "Nombre de tentatives", "Anzahl Wiederholungen", "N?mero de reintentos", "N?mero de tentativas")}</span>
+            <span>{t("Retry count", "Nombre de tentatives", "Anzahl Wiederholungen", "Número de reintentos", "Número de tentativas")}</span>
             <span>{t("Actions", "Actions", "Aktionen", "Acciones", "Ações")}</span>
           </div>
           <div className="max-h-[calc(100vh-380px)] overflow-y-auto">
@@ -738,7 +738,7 @@ export default function AutomationErrorsPage() {
             ) : rows.length === 0 ? (
               <div className="flex min-h-[280px] flex-col items-center justify-center px-5 text-center">
                  <p className="text-base font-semibold text-foreground">{t("No automation failures detected.", "Aucun ?chec d'automatisation detecte.", "Keine Automatisierungsfehler erkannt.", "No se detectaron fallos de automatización.", "Não foram detetadas falhas de automação.")}</p>
-                 <p className="text-sm text-muted-foreground">{t("System is operating normally.", "Le systeme fonctionne normalement.", "Das System arbeitet normal.", "El sistema funciona con normalidad.", "O sistema esta a funcionar normalmente.")}</p>
+                 <p className="text-sm text-muted-foreground">{t("System is operating normally.", "Le système fonctionne normalement.", "Das System arbeitet normal.", "El sistema funciona con normalidad.", "O sistema esta a funcionar normalmente.")}</p>
               </div>
             ) : (
               rows.map((row) => (
@@ -841,7 +841,7 @@ export default function AutomationErrorsPage() {
         <aside className="rounded-xl border border-border/60 bg-card p-4">
           {!selectedRunId ? (
             <div className="flex min-h-[220px] items-center justify-center text-sm text-muted-foreground">
-              {t("Select a failed run to view diagnostics.", "Sélectionnez une ex?cution échouée pour voir les diagnostics.", "Wähle einen fehlgeschlagenen Lauf aus, um Diagnosen zu sehen.", "Selecciona una ejecuci?n fallida para ver los diagn?sticos.", "Selecione uma execu??o falhada para ver diagn?sticos.")}
+              {t("Select a failed run to view diagnostics.", "Sélectionnez une ex?cution échouée pour voir les diagnostics.", "Wähle einen fehlgeschlagenen Lauf aus, um Diagnosen zu sehen.", "Selecciona una ejecución fallida para ver los diagnósticos.", "Selecione uma execução falhada para ver diagnósticos.")}
             </div>
           ) : detailLoading || !detail ? (
             <div className="space-y-3">
@@ -852,17 +852,17 @@ export default function AutomationErrorsPage() {
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-foreground">{t("Run details", "D?tails de l'ex?cution", "Laufdetails", "Detalles de la ejecuci?n", "Detalhes da execu??o")}</h2>
+                <h2 className="text-lg font-semibold text-foreground">{t("Run details", "D?tails de l'ex?cution", "Laufdetails", "Detalles de la ejecución", "Detalhes da execução")}</h2>
                 <span className={clsx("inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ring-1", statusBadgeClass(detail.status))}>
                   {t(statusLabel(detail.status))}
                 </span>
               </div>
 
               <section className="space-y-2 rounded-lg border border-border/70 bg-muted/20 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t("Run metadata", "Metadonnees de l'ex?cution", "Lauf-Metadaten", "Metadatos de la ejecuci?n", "Metadados da execu??o")}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t("Run metadata", "Métadonnées de l'ex?cution", "Lauf-Metadaten", "Metadatos de la ejecución", "Metadados da execução")}</p>
                 <dl className="space-y-1 text-xs">
                   <div className="flex items-start justify-between gap-2">
-                    <dt className="text-muted-foreground">{t("Run ID", "ID d'ex?cution", "Lauf-ID", "ID de ejecuci?n", "ID da execu??o")}</dt>
+                    <dt className="text-muted-foreground">{t("Run ID", "ID d'ex?cution", "Lauf-ID", "ID de ejecución", "ID da execução")}</dt>
                     <dd className="flex items-center gap-1">
                       <span className="font-mono text-foreground">{detail.runMetadata.runId}</span>
                       <Button
@@ -880,8 +880,8 @@ export default function AutomationErrorsPage() {
                   <div className="flex justify-between gap-2"><dt className="text-muted-foreground">{t("Tenant", "Locataire", "Mandant", "Tenant", "Tenant")}</dt><dd className="text-right text-foreground">{detail.runMetadata.tenantName || detail.runMetadata.tenantId || t("N/A", "N/D", "k. A.", "N/D", "N/D")}</dd></div>
                   <div className="flex justify-between gap-2"><dt className="text-muted-foreground">{t("Trigger", "Declencheur", "Ausloser", "Disparador", "Gatilho")}</dt><dd className="text-foreground">{detail.runMetadata.triggerType}</dd></div>
                   <div className="flex justify-between gap-2"><dt className="text-muted-foreground">{t("Created", "Cr??", "Erstellt", "Creado", "Criado")}</dt><dd className="text-foreground">{formatDateTimeDMY(new Date(detail.runMetadata.createdAt), LANGUAGE_LOCALES[language])}</dd></div>
-                  <div className="flex justify-between gap-2"><dt className="text-muted-foreground">{t("Retry count", "Nombre de tentatives", "Anzahl Wiederholungen", "N?mero de reintentos", "N?mero de tentativas")}</dt><dd className="text-foreground">{detail.retryCount}</dd></div>
-                  <div className="flex justify-between gap-2"><dt className="text-muted-foreground">{t("Last retry", "Derni?re tentative", "Letzte Wiederholung", "?ltimo reintento", "?ltima tentativa")}</dt><dd className="text-foreground">{detail.lastRetryAt ? formatDateTimeDMY(new Date(detail.lastRetryAt), LANGUAGE_LOCALES[language]) : t("Never", "Jamais", "Nie", "Nunca", "Nunca")}</dd></div>
+                  <div className="flex justify-between gap-2"><dt className="text-muted-foreground">{t("Retry count", "Nombre de tentatives", "Anzahl Wiederholungen", "Número de reintentos", "Número de tentativas")}</dt><dd className="text-foreground">{detail.retryCount}</dd></div>
+                  <div className="flex justify-between gap-2"><dt className="text-muted-foreground">{t("Last retry", "Derni?re tentative", "Letzte Wiederholung", "Último reintento", "Última tentativa")}</dt><dd className="text-foreground">{detail.lastRetryAt ? formatDateTimeDMY(new Date(detail.lastRetryAt), LANGUAGE_LOCALES[language]) : t("Never", "Jamais", "Nie", "Nunca", "Nunca")}</dd></div>
                   {detail.relatedLinks.tenant || detail.relatedLinks.subscriber || detail.relatedLinks.flow ? (
                     <div className="pt-1">
                       <dt className="mb-1 text-muted-foreground">{t("Links", "Liens", "Links", "Enlaces", "Ligacoes")}</dt>
@@ -918,7 +918,7 @@ export default function AutomationErrorsPage() {
                 ) : null}
                 {/business profile required|missing recipient email|missing invoice id/i.test(detail.errorMessage || "") ? (
                   <p className="text-xs text-amber-700 dark:text-amber-300">
-                    {t("Likely fix: subscriber profile/data is incomplete. Resolve data then replay.", "Correction probable : le profil ou les données de l'abonne sont incomplets. Corrigez les données puis relancez.", "Wahrscheinliche Lösung: Das Abonnentenprofil bzw. die Daten sind unvollstandig. Daten korrigieren und dann erneut ausfuhren.", "Posible solucion: el perfil o los datos del suscriptor est?n incompletos. Corrige los datos y luego repite.", "Correcao provavel: o perfil ou os dados do subscritor estão incompletos. Corrija os dados e depois repita.")}
+                    {t("Likely fix: subscriber profile/data is incomplete. Resolve data then replay.", "Correction probable : le profil ou les données de l'abonne sont incomplets. Corrigez les données puis relancez.", "Wahrscheinliche Lösung: Das Abonnentenprofil bzw. die Daten sind unvollstandig. Daten korrigieren und dann erneut ausführen.", "Posible solucion: el perfil o los datos del suscriptor est?n incompletos. Corrige los datos y luego repite.", "Correcao provavel: o perfil ou os dados do subscritor estão incompletos. Corrija os dados e depois repita.")}
                   </p>
                 ) : null}
                 <details className="rounded-md border border-border/70 bg-background/80 p-2">
@@ -953,7 +953,7 @@ export default function AutomationErrorsPage() {
               </section>
 
               <section className="space-y-2 rounded-lg border border-border/70 bg-muted/20 p-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t("Execution timeline", "Chronologie d'ex?cution", "Ausfuhrungszeitlinie", "Cronologia de ejecuci?n", "Cronologia de execu??o")}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t("Execution timeline", "Chronologie d'ex?cution", "Ausführungszeitlinie", "Cronologia de ejecución", "Cronologia de execução")}</p>
                 {detail.stepsTimeline.length ? (
                   <div className="max-h-48 space-y-2 overflow-auto pr-1">
                     {detail.stepsTimeline.map((step) => (
@@ -982,7 +982,7 @@ export default function AutomationErrorsPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground">{t("No step execution timeline captured for this run.", "Aucune chronologie d'ex?cution capturee pour cette ex?cution.", "Keine Ausfuhrungszeitlinie für diesen Lauf erfasst.", "No se capturo cronologia de ejecuci?n para esta ejecuci?n.", "Nenhuma cronologia de execu??o foi capturada para esta execu??o.")}</p>
+                  <p className="text-xs text-muted-foreground">{t("No step execution timeline captured for this run.", "Aucune chronologie d'ex?cution capturee pour cette ex?cution.", "Keine Ausführungszeitlinie für diesen Lauf erfasst.", "No se capturo cronologia de ejecución para esta ejecución.", "Nenhuma cronologia de execução foi capturada para esta execução.")}</p>
                 )}
               </section>
 
@@ -1003,7 +1003,7 @@ export default function AutomationErrorsPage() {
                   </Button>
                 </div>
                 {detail.status !== "FAILED" ? (
-                  <p className="text-xs text-muted-foreground">{t("Replay is only available while this run is in FAILED state.", "La relecture est disponible uniquement lorsque cette ex?cution est en etat d'?chec.", "Replay ist nur verfügbar, solange dieser Lauf den Status FEHLGESCHLAGEN hat.", "La repeticion solo esta disponible mientras esta ejecuci?n este en estado FALLIDO.", "A repeticao so esta disponível enquanto esta execu??o estiver no estado FALHADO.")}</p>
+                  <p className="text-xs text-muted-foreground">{t("Replay is only available while this run is in FAILED state.", "La relecture est disponible uniquement lorsque cette ex?cution est en etat d'?chec.", "Replay ist nur verfügbar, solange dieser Lauf den Status FEHLGESCHLAGEN hat.", "La repeticion solo esta disponible mientras esta ejecución este en estado FALLIDO.", "A repeticao so esta disponível enquanto esta execução estiver no estado FALHADO.")}</p>
                 ) : null}
                 {detail.recoveryAttempts.length ? (
                   <div className="max-h-36 space-y-1 overflow-auto">
@@ -1042,7 +1042,7 @@ export default function AutomationErrorsPage() {
                 )}
               </section>
 
-              <p className="text-[11px] text-muted-foreground">{t("Sensitive fields are redacted.", "Les champs sensibles sont masques.", "Sensible Felder sind geschwarzt.", "Los campos sensibles est?n ocultos.", "Os campos sensíveis estão ocultos.")}</p>
+              <p className="text-[11px] text-muted-foreground">{t("Sensitive fields are redacted.", "Les champs sensibles sont masqués.", "Sensible Felder sind geschwarzt.", "Los campos sensibles est?n ocultos.", "Os campos sensíveis estão ocultos.")}</p>
             </div>
           )}
         </aside>
@@ -1055,17 +1055,17 @@ export default function AutomationErrorsPage() {
           setReplayModalRunId(null);
           setReplayReason("");
         }}
-        title={t("Replay automation run?", "Relancer l'ex?cution d'automatisation ?", "Automatisierungslauf erneut ausfuhren?", "Repetir la ejecuci?n de automatización?", "Repetir a execu??o da automação?")}
+        title={t("Replay automation run?", "Relancer l'ex?cution d'automatisation ?", "Automatisierungslauf erneut ausführen?", "Repetir la ejecución de automatización?", "Repetir a execução da automação?")}
       >
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            {t("This creates a new run linked to the original execution. Replay may fail again if the root cause is unresolved.", "Cela cr?e une nouvelle ex?cution liee ? l'ex?cution d'origine. La relecture peut echouer a nouveau si la cause profonde n'est pas résolue.", "Dies erstellt einen neuen Lauf, der mit der ursprunglichen Ausfuhrung verknupft ist. Das Replay kann erneut fehlschlagen, wenn die Grundursache nicht behoben ist.", "Esto crea una nueva ejecuci?n vinculada a la ejecuci?n original. La repeticion puede volver a fallar si la causa raiz no se ha resuelto.", "Isto cria uma nova execu??o ligada a execu??o original. A repeticao pode voltar a falhar se a causa raiz não tiver sido resolvida.")}
+            {t("This creates a new run linked to the original execution. Replay may fail again if the root cause is unresolved.", "Cela crée une nouvelle ex?cution liee ? l'ex?cution d'origine. La relecture peut echouer a nouveau si la cause profonde n'est pas résolue.", "Dies erstellt einen neuen Lauf, der mit der ursprunglichen Ausführung verknupft ist. Das Replay kann erneut fehlschlagen, wenn die Grundursache nicht behoben ist.", "Esto crea una nueva ejecución vinculada a la ejecución original. La repeticion puede volver a fallar si la causa raiz no se ha resuelto.", "Isto cria uma nova execução ligada a execução original. A repeticao pode voltar a falhar se a causa raiz não tiver sido resolvida.")}
           </p>
           <div className="rounded-lg border border-border/70 bg-muted/20 p-3 text-xs text-muted-foreground">
             <p className="font-medium text-foreground">
-              {replayModalRun?.flow.name || t("Selected run", "Ex?cution selectionnee", "Ausgewahlter Lauf", "Ejecuci?n seleccionada", "Execu??o selecionada")}
+              {replayModalRun?.flow.name || t("Selected run", "Ex?cution selectionnee", "Ausgewählter Lauf", "Ejecución seleccionada", "Execução selecionada")}
             </p>
-            <p className="mt-1">{t("Run ID:", "ID d'ex?cution :", "Lauf-ID:", "ID de ejecuci?n:", "ID da execu??o:")} <span className="font-mono text-foreground">{replayModalRun?.id || replayModalRunId}</span></p>
+            <p className="mt-1">{t("Run ID:", "ID d'ex?cution :", "Lauf-ID:", "ID de ejecución:", "ID da execução:")} <span className="font-mono text-foreground">{replayModalRun?.id || replayModalRunId}</span></p>
             <p className="mt-1">{t("Subscriber:", "Abonne :", "Abonnent:", "Suscriptor:", "Subscritor:")} <span className="text-foreground">{replayModalRun?.subscriber.email || t("N/A", "N/D", "k. A.", "N/D", "N/D")}</span></p>
           </div>
           <Textarea

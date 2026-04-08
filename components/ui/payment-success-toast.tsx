@@ -18,7 +18,7 @@ export function PaymentSuccessToast() {
     t(
       "Payment confirmed. Your plan is now active.",
       "Paiement confirme. Votre plan est actif.",
-      "Zahlung bestatigt. Dein Tarif ist jetzt aktiv.",
+      "Zahlung bestätigt. Dein Tarif ist jetzt aktiv.",
       "Pago confirmado. Tu plan ya esta activo.",
       "Pagamento confirmado. O seu plano esta agora ativo."
     )

@@ -14,7 +14,7 @@ export const guamComplianceModule = buildDefaultCountryModule("GU", {
       reviewedAt: "2026-04-07",
     },
     {
-      label: "Guam gross receipts tax filing instructions",
+      label: "Guam groß receipts tax filing instructions",
       url: "https://www.guamtax.com/help/pops/instructions.html",
       reviewedAt: "2026-04-07",
     },
@@ -35,7 +35,7 @@ export const guamComplianceModule = buildDefaultCountryModule("GU", {
       createCountryIssue(
         "invoice.taxBreakdown",
         "GU_GRT_NOTICE",
-        "Confirm whether the transaction is subject to Guam gross receipts tax reporting and monthly return filing.",
+        "Confirm whether the transaction is subject to Guam groß receipts tax reporting and monthly return filing.",
         "WARNING",
         "GU"
       )

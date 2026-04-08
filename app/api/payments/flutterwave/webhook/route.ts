@@ -11,7 +11,8 @@ import { prisma } from "@/lib/prisma";
 import { log } from "@/lib/logger";
 import { subscriptionPlanToUserPlan } from "@/lib/entitlements";
 import { createAdminNotification } from "@/lib/notifications";
-import { getPlanPriceForInterval, type BillingInterval } from "@/lib/pricing";
+import { type BillingInterval } from "@/lib/pricing";
+import { getPlanPriceForIntervalLive } from "@/lib/pricing-live";
 import {
   beginWebhookEvent,
   hashWebhookPayload,
@@ -96,7 +97,7 @@ export const POST = withErrorHandling(async (req: Request) => {
         : null;
       const expected = checkout
         ? Number(checkout.amount)
-        : getPlanPriceForInterval(
+        : await getPlanPriceForIntervalLive(
             plan as "STARTER" | "PRO" | "GROWTH" | "BUSINESS" | "PREMIUM" | "ENTERPRISE",
             currency,
             interval

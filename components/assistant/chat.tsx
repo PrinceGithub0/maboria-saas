@@ -414,7 +414,7 @@ export function AssistantChat() {
             "Impossible de renommer le chat pour le moment.",
             "Der Chat kann momentan nicht umbenannt werden.",
             "No se puede cambiar el nombre del chat en este momento.",
-            "Não e poss?vel renomear o chat neste momento."
+            "Não é possível renomear o chat neste momento."
           )
         )
       );
@@ -443,7 +443,7 @@ export function AssistantChat() {
             "Impossible de supprimer le chat pour le moment.",
             "Der Chat kann momentan nicht gelöscht werden.",
             "No se puede eliminar el chat en este momento.",
-            "Não e poss?vel eliminar o chat neste momento."
+            "Não é possível eliminar o chat neste momento."
           )
         )
       );
@@ -568,7 +568,7 @@ export function AssistantChat() {
                 "Mise a niveau requise.",
                 "Upgrade erforderlich.",
                 "Se requiere una mejora del plan.",
-                "Atualiza??o de plano necessária."
+                "Atualização de plano necessária."
               )
             )
           );
@@ -810,7 +810,7 @@ export function AssistantChat() {
               <p className="mt-1 text-[11px] text-muted-foreground">
                 {t(
                   "Private, secure, and scoped to your workspace.",
-                  "Prive, s?curis?, et limite a votre espace.",
+                  "Prive, sécurisé, et limite a votre espace.",
                   "Privat, sicher und auf deinen Workspace begrenzt.",
                   "Privado, seguro y limitado a tu espacio de trabajo.",
                   "Privado, seguro e limitado ao teu espa?o de trabalho."
@@ -845,8 +845,8 @@ export function AssistantChat() {
                 "Start a new chat to see history here.",
                 "Demarrez un nouveau chat pour voir l'historique.",
                 "Starte einen neuen Chat, um hier den Verlauf zu sehen.",
-                "Inicia un nuevo chat para ver aqui el historial.",
-                "Inicia um novo chat para ver aqui o histórico."
+                "Inicia un nuevo chat para ver aquí el historial.",
+                "Inicia um novo chat para ver aquí o histórico."
               )}
             </div>
           )}
@@ -999,15 +999,15 @@ export function AssistantChat() {
                     "Ask about automations, invoices, revenue, or insights. We'll help you move faster with clear next steps.",
                     "Posez des questions sur automatisations, factures, revenus ou insights. Nous vous aidons a avancer.",
                     "Frage nach Automatisierungen, Rechnungen, Umsatz oder Einblicken. Wir helfen dir mit klaren nächsten Schritten schneller voranzukommen.",
-                    "Pregunta por automatizaciones, facturas, ingresos o analiticas. Te ayudaremos a avanzar mas rapido con pasos claros.",
-                    "Pergunta sobre automações, faturas, receita ou insights. Vamos ajudar-te a avançar mais rapido com próximos passos claros."
+                    "Pregunta por automatizaciones, facturas, ingresos o analiticas. Te ayudaremos a avanzar más rápido con pasos claros.",
+                    "Pergunta sobre automações, faturas, receita ou insights. Vamos ajudar-te a avançar mais rápido com próximos passos claros."
                   )}
                 </p>
                 <div className="mt-4 flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
                   {[
-                    t("Draft a follow-up automation", "Generer une automatisation de relance", "Eine Folge-Automatisierung entwerfen", "Crear una automatizaci?n de seguimiento", "Criar uma automa??o de acompanhamento"),
+                    t("Draft a follow-up automation", "Generer une automatisation de relance", "Eine Folge-Automatisierung entwerfen", "Crear una automatizaci?n de seguimiento", "Criar uma automação de acompanhamento"),
                     t("Summarize weekly revenue", "Resumer les revenus de la semaine", "Wochentlichen Umsatz zusammenfassen", "Resumir los ingresos semanales", "Resumir a receita semanal"),
-                    t("Diagnose a failed run", "Diagnostiquer un ?chec", "Einen fehlgeschlagenen Lauf analysieren", "Diagnosticar una ejecuci?n fallida", "Diagnosticar uma execu??o falhada"),
+                    t("Diagnose a failed run", "Diagnostiquer un ?chec", "Einen fehlgeschlagenen Lauf analysieren", "Diagnosticar una ejecución fallida", "Diagnosticar uma execução falhada"),
                   ].map((item) => (
                     <span key={item} className="rounded-full border border-border/60 px-3 py-1 text-indigo-700">
                       {item}
@@ -1112,7 +1112,7 @@ export function AssistantChat() {
             </div>
             <div className="flex flex-wrap items-center gap-5 text-[11px] text-muted-foreground">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="uppercase tracking-[0.2em]">{t("Model", "Modele", "Modell", "Modelo", "Modelo")}</span>
+                <span className="uppercase tracking-[0.2em]">{t("Model", "Modèle", "Modell", "Modelo", "Modelo")}</span>
                 <div className="relative" ref={modelMenuRef}>
                   <button
                     type="button"
@@ -1150,7 +1150,7 @@ export function AssistantChat() {
                             "Deeper reasoning. Slower responses, more detailed analysis.",
                             "Raisonnement plus profond. Réponses plus lentes, analyse detaillee.",
                             "Tieferes Denken. Langsamere Antworten, detailliertere Analyse.",
-                            "Razonamiento mas profundo. Respuestas mas lentas y analisis mas detallado.",
+                            "Razonamiento más profundo. Respuestas más lentas y analisis más detallado.",
                             "Raciocinio mais profundo. Respostas mais lentas e analise mais detalhada."
                           ),
                         },
@@ -1254,10 +1254,10 @@ export function AssistantChat() {
             <p className="text-[11px] text-muted-foreground">
               {t(
                 "Responses are generated automatically. Verify important details before acting.",
-                "Les réponses sont generees automatiquement. V?rifiez les d?tails avant d agir.",
+                "Les réponses sont generees automatiquement. Vérifiez les d?tails avant d agir.",
                 "Antworten werden automatisch erzeugt. Prüfe wichtige Details, bevor du handelst.",
-                "Las respuestas se generan autom?ticamente. Verifica los detalles importantes antes de actuar.",
-                "As respostas s?o geradas automaticamente. Confirma os detalhes importantes antes de agir."
+                "Las respuestas se generan automáticamente. Verifica los detalles importantes antes de actuar.",
+                "As respostas são geradas automaticamente. Confirma os detalhes importantes antes de agir."
               )}
             </p>
           </div>

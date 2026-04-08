@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -187,7 +187,7 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
         Messaging: { en: "Messaging", fr: "Messagerie", de: "Nachrichten", es: "Mensajeria", pt: "Mensagens" },
         "Send a Message": { en: "Send a Message", fr: "Envoyer un message", de: "Nachricht senden", es: "Enviar un mensaje", pt: "Enviar uma mensagem" },
         "Manage Invoice": { en: "Manage Invoice", fr: "Gerer la facture", de: "Rechnung verwalten", es: "Gestionar factura", pt: "Gerir fatura" },
-        "Payment & Confirmation": { en: "Payment & Confirmation", fr: "Paiement et confirmation", de: "Zahlung und Bestätigung", es: "Pago y confirmaci?n", pt: "Pagamento e confirma??o" },
+        "Payment & Confirmation": { en: "Payment & Confirmation", fr: "Paiement et confirmation", de: "Zahlung und Bestätigung", es: "Pago y confirmación", pt: "Pagamento e confirmação" },
         "Update Customer": { en: "Update Customer", fr: "Mettre ? jour le client", de: "Kunde aktualisieren", es: "Actualizar cliente", pt: "Atualizar cliente" },
         "AI Assist": { en: "AI Assist", fr: "Assistance IA", de: "KI-Hilfe", es: "Asistencia IA", pt: "Assistencia IA" },
         "Internal / Team Action": { en: "Internal / Team Action", fr: "Action interne / équipe", de: "Interne / Team-Aktion", es: "Acción interna / equipo", pt: "Ação interna / equipa" },
@@ -200,9 +200,9 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
         send_email: { en: "Send Email", fr: "Envoyer un email", de: "E-Mail senden", es: "Enviar correo", pt: "Enviar email" },
         send_receipt: { en: "Send Receipt", fr: "Envoyer le recu", de: "Beleg senden", es: "Enviar recibo", pt: "Enviar recibo" },
         send_payment_reminder: { en: "Send Payment Reminder", fr: "Envoyer un rappel de paiement", de: "Zahlungserinnerung senden", es: "Enviar recordatorio de pago", pt: "Enviar lembrete de pagamento" },
-        send_payment_confirmation: { en: "Send Payment Confirmation", fr: "Envoyer une confirmation de paiement", de: "Zahlungsbestätigung senden", es: "Enviar confirmaci?n de pago", pt: "Enviar confirma??o de pagamento" },
+        send_payment_confirmation: { en: "Send Payment Confirmation", fr: "Envoyer une confirmation de paiement", de: "Zahlungsbestätigung senden", es: "Enviar confirmación de pago", pt: "Enviar confirmação de pagamento" },
         send_failed_payment_message: { en: "Send Failed Payment Message", fr: "Envoyer un message d ?chec de paiement", de: "Nachricht bei fehlgeschlagener Zahlung senden", es: "Enviar mensaje de pago fallido", pt: "Enviar mensagem de falha de pagamento" },
-        create_invoice: { en: "Create Invoice", fr: "Creer une facture", de: "Rechnung erstellen", es: "Crear factura", pt: "Criar fatura" },
+        create_invoice: { en: "Create Invoice", fr: "Créer une facture", de: "Rechnung erstellen", es: "Crear factura", pt: "Criar fatura" },
         mark_as_paid: { en: "Mark as Paid", fr: "Marquer comme payee", de: "Als bezahlt markieren", es: "Marcar como pagada", pt: "Marcar como paga" },
         apply_late_fee: { en: "Apply Late Fee", fr: "Appliquer des frais de retard", de: "Mahngebühr anwenden", es: "Aplicar recargo por demora", pt: "Aplicar taxa de atraso" },
         cancel_invoice: { en: "Cancel Invoice", fr: "Annuler la facture", de: "Rechnung stornieren", es: "Cancelar factura", pt: "Cancelar fatura" },
@@ -212,15 +212,15 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
         add_tag: { en: "Add Tag", fr: "Ajouter une etiquette", de: "Tag hinzufügen", es: "Agregar etiqueta", pt: "Adicionar etiqueta" },
         remove_tag: { en: "Remove Tag", fr: "Supprimer une etiquette", de: "Tag entfernen", es: "Eliminar etiqueta", pt: "Remover etiqueta" },
         update_status: { en: "Update Status", fr: "Mettre ? jour le statut", de: "Status aktualisieren", es: "Actualizar estado", pt: "Atualizar estado" },
-        assign_team_member: { en: "Assign to Team Member", fr: "Assigner a un membre de l équipe", de: "Teammitglied zuweisen", es: "Asignar a un miembro del equipo", pt: "Atribuir a um membro da equipa" },
+        assign_team_member: { en: "Assign to Team Member", fr: "Assigner à un membre de l'équipe", de: "Teammitglied zuweisen", es: "Asignar a un miembro del equipo", pt: "Atribuir a um membro da equipa" },
         add_internal_note: { en: "Add Internal Note", fr: "Ajouter une note interne", de: "Interne Notiz hinzufügen", es: "Agregar nota interna", pt: "Adicionar nota interna" },
-        improve_message: { en: "Improve Message", fr: "Ameliorer le message", de: "Nachricht verbessern", es: "Mejorar mensaje", pt: "Melhorar mensagem" },
-        rewrite_tone: { en: "Rewrite Tone", fr: "Reecrire le ton", de: "Ton umschreiben", es: "Reescribir tono", pt: "Reescrever tom" },
-        generate_auto_reply: { en: "Generate Auto Reply", fr: "Generer une réponse automatique", de: "Automatische Antwort erzeugen", es: "Generar respuesta autom?tica", pt: "Gerar resposta autom?tica" },
-        generate_summary: { en: "Generate Summary", fr: "Generer un resume", de: "Zusammenfassung erzeugen", es: "Generar resumen", pt: "Gerar resumo" },
-        create_internal_task: { en: "Create Internal Task", fr: "Creer une tache interne", de: "Interne Aufgabe erstellen", es: "Crear tarea interna", pt: "Criar tarefa interna" },
-        log_activity: { en: "Log Activity", fr: "Journaliser l activité", de: "Aktivität protokollieren", es: "Registrar actividad", pt: "Registar atividade" },
-        notify_team: { en: "Notify Team", fr: "Notifier l équipe", de: "Team benachrichtigen", es: "Notificar al equipo", pt: "Notificar a equipa" },
+        improve_message: { en: "Improve Message", fr: "Améliorer le message", de: "Nachricht verbessern", es: "Mejorar mensaje", pt: "Melhorar mensagem" },
+        rewrite_tone: { en: "Rewrite Tone", fr: "Réécrire le ton", de: "Ton umschreiben", es: "Reescribir tono", pt: "Reescrever tom" },
+        generate_auto_reply: { en: "Generate Auto Reply", fr: "Générer une réponse automatique", de: "Automatische Antwort erzeugen", es: "Generar respuesta automática", pt: "Gerar resposta automática" },
+        generate_summary: { en: "Generate Summary", fr: "Générer un résumé", de: "Zusammenfassung erzeugen", es: "Generar resumen", pt: "Gerar resumo" },
+        create_internal_task: { en: "Create Internal Task", fr: "Créer une tâche interne", de: "Interne Aufgabe erstellen", es: "Crear tarea interna", pt: "Criar tarefa interna" },
+        log_activity: { en: "Log Activity", fr: "Journaliser l'activité", de: "Aktivität protokollieren", es: "Registrar actividad", pt: "Registar atividade" },
+        notify_team: { en: "Notify Team", fr: "Notifier l'équipe", de: "Team benachrichtigen", es: "Notificar al equipo", pt: "Notificar a equipa" },
       }[id] || { en: id }
     );
   const startTitle = (id: StartId) =>
@@ -231,7 +231,7 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
         invoice_overdue: { en: "Invoice Overdue", fr: "Facture en retard", de: "Rechnung überfällig", es: "Factura vencida", pt: "Fatura vencida" },
         payment_received: { en: "Payment Received", fr: "Paiement recu", de: "Zahlung erhalten", es: "Pago recibido", pt: "Pagamento recebido" },
         payment_failed: { en: "Payment Failed", fr: "Paiement échoué", de: "Zahlung fehlgeschlagen", es: "Pago fallido", pt: "Pagamento falhou" },
-        customer_created: { en: "New Customer Created", fr: "Nouveau client cr?e", de: "Neuer Kunde erstellt", es: "Nuevo cliente creado", pt: "Novo cliente criado" },
+        customer_created: { en: "New Customer Created", fr: "Nouveau client crée", de: "Neuer Kunde erstellt", es: "Nuevo cliente creado", pt: "Novo cliente criado" },
         whatsapp_received: { en: "New WhatsApp Message Received", fr: "Nouveau message WhatsApp recu", de: "Neue WhatsApp-Nachricht erhalten", es: "Nuevo mensaje de WhatsApp recibido", pt: "Nova mensagem de WhatsApp recebida" },
         email_received: { en: "New Email Received", fr: "Nouvel email recu", de: "Neue E-Mail erhalten", es: "Nuevo correo recibido", pt: "Novo email recebido" },
       }[id]
@@ -242,8 +242,8 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
         invoice_created: { en: "When a new invoice is issued", fr: "Lorsqu une nouvelle facture est emise", de: "Wenn eine neue Rechnung erstellt wird", es: "Cuando se emite una nueva factura", pt: "Quando uma nova fatura e emitida" },
         invoice_paid: { en: "When a customer completes payment", fr: "Lorsqu un client termin? le paiement", de: "Wenn ein Kunde die Zahlung abschliesst", es: "Cuando un cliente completa el pago", pt: "Quando um cliente conclui o pagamento" },
         invoice_overdue: { en: "When an unpaid invoice passes its due date", fr: "Lorsqu une facture impayee depasse son echeance", de: "Wenn eine unbezahlte Rechnung ihr Falligkeitsdatum überschreitet", es: "Cuando una factura impagada supera su vencimiento", pt: "Quando uma fatura por pagar ultrapassa a data de vencimento" },
-        payment_received: { en: "When money is received successfully", fr: "Lorsqu un paiement est recu avec succes", de: "Wenn Geld erfolgreich eingeht", es: "Cuando se recibe el pago correctamente", pt: "Quando o pagamento e recebido com sucesso" },
-        payment_failed: { en: "When a payment attempt does not complete", fr: "Lorsqu une tentative de paiement n aboutit pas", de: "Wenn ein Zahlungsversuch nicht abgeschlossen wird", es: "Cuando un intento de pago no se completa", pt: "Quando uma tentativa de pagamento não e conclu?da" },
+        payment_received: { en: "When money is received successfully", fr: "Lorsqu un paiement est recu avec succès", de: "Wenn Geld erfolgreich eingeht", es: "Cuando se recibe el pago correctamente", pt: "Quando o pagamento e recebido com sucesso" },
+        payment_failed: { en: "When a payment attempt does not complete", fr: "Lorsqu une tentative de paiement n aboutit pas", de: "Wenn ein Zahlungsversuch nicht abgeschlossen wird", es: "Cuando un intento de pago no se completa", pt: "Quando uma tentativa de pagamento não e concluída" },
         customer_created: { en: "When a new customer profile is added", fr: "Lorsqu un nouveau profil client est ajoute", de: "Wenn ein neues Kundenprofil hinzugefugt wird", es: "Cuando se agrega un nuevo perfil de cliente", pt: "Quando um novo perfil de cliente e adicionado" },
         whatsapp_received: { en: "When a customer sends a WhatsApp message", fr: "Lorsqu un client envoie un message WhatsApp", de: "Wenn ein Kunde eine WhatsApp-Nachricht sendet", es: "Cuando un cliente envia un mensaje de WhatsApp", pt: "Quando um cliente envia uma mensagem de WhatsApp" },
         email_received: { en: "When a customer sends an email", fr: "Lorsqu un client envoie un email", de: "Wenn ein Kunde eine E-Mail sendet", es: "Cuando un cliente envia un correo", pt: "Quando um cliente envia um email" },
@@ -256,8 +256,8 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
         invoice_paid: { en: "an invoice is paid", fr: "une facture est payee", de: "eine Rechnung bezahlt wird", es: "se paga una factura", pt: "uma fatura e paga" },
         invoice_overdue: { en: "an invoice becomes overdue", fr: "une facture devient en retard", de: "eine Rechnung überfällig wird", es: "una factura vence", pt: "uma fatura entra em atraso" },
         payment_received: { en: "a payment is received", fr: "un paiement est recu", de: "eine Zahlung eingeht", es: "se recibe un pago", pt: "um pagamento e recebido" },
-        payment_failed: { en: "a payment fails", fr: "un paiement échoué", de: "eine Zahlung fehlschlagt", es: "un pago falla", pt: "um pagamento falha" },
-        customer_created: { en: "a new customer is created", fr: "un nouveau client est cr?e", de: "ein neuer Kunde erstellt wird", es: "se crea un nuevo cliente", pt: "um novo cliente e criado" },
+        payment_failed: { en: "a payment fails", fr: "un paiement échoué", de: "eine Zahlung fehlschlägt", es: "un pago falla", pt: "um pagamento falha" },
+        customer_created: { en: "a new customer is created", fr: "un nouveau client est crée", de: "ein neuer Kunde erstellt wird", es: "se crea un nuevo cliente", pt: "um novo cliente e criado" },
         whatsapp_received: { en: "a WhatsApp message is received", fr: "un message WhatsApp est recu", de: "eine WhatsApp-Nachricht eingeht", es: "se recibe un mensaje de WhatsApp", pt: "uma mensagem de WhatsApp e recebida" },
         email_received: { en: "an email is received", fr: "un email est recu", de: "eine E-Mail eingeht", es: "se recibe un correo", pt: "um email e recebido" },
       }[id]
@@ -267,7 +267,7 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
       {
         minutes: { en: "minutes", fr: "minutes", de: "Minuten", es: "minutos", pt: "minutos" },
         hours: { en: "hours", fr: "heures", de: "Stunden", es: "horas", pt: "horas" },
-        days: { en: "days", fr: "jours", de: "Tage", es: "d?as", pt: "dias" },
+        days: { en: "days", fr: "jours", de: "Tage", es: "días", pt: "dias" },
       }[unit]
     );
 
@@ -367,7 +367,7 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
       return;
     }
     if (!safeAutomationId) {
-      setStatus(t("Invalid automation link.", "Lien d automatisation invalide.", "Ungültiger Link zur Automatisierung.", "Enlace de automatización no valido.", "Liga??o de automação invalida."));
+      setStatus(t("Invalid automation link.", "Lien d'automatisation invalide.", "Ungültiger Link zur Automatisierung.", "Enlace de automatización no valido.", "Ligação de automação invalida."));
       setIsHydratingEdit(false);
       return;
     }
@@ -384,7 +384,7 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
           setStatus(
             resolveFriendlyApiMessage(
               json,
-              t("Unable to load automation. Please try again.", "Impossible de charger l automatisation. R?essayez.", "Automatisierung konnte nicht geladen werden. Bitte versuche es erneut.", "No se pudo cargar la automatización. Intentalo de nuevo.", "Não foi poss?vel carregar a automação. Tente novamente."),
+              t("Unable to load automation. Please try again.", "Impossible de charger l'automatisation. Réessayez.", "Automatisierung konnte nicht geladen werden. Bitte versuche es erneut.", "No se pudo cargar la automatización. Intentalo de nuevo.", "Não foi possível carregar a automação. Tente novamente."),
               "automation_edit_load_failed"
             )
           );
@@ -491,15 +491,15 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
             t(
               "This automation contains steps or triggers that are not supported by the live builder yet. Editing is blocked here to avoid losing configuration.",
               "Cette automatisation contient des etapes ou declencheurs non pris en charge par le generateur actif. La modification est bloquee ici pour eviter toute perte de configuration.",
-              "Diese Automatisierung enthalt Schritte oder Ausloser, die vom Live-Builder noch nicht unterst?tzt werden. Das Bearbeiten ist hier blockiert, um Konfigurationsverlust zu vermeiden.",
-              "Esta automatizaci?n contiene pasos o disparadores que el generador en vivo a?n no admite. La edicion se bloquea aqui para evitar perder configuraci?n.",
-              "Esta automa??o contem passos ou acionadores que o construtor ativo ainda n?o suporta. A edicao esta bloqueada aqui para evitar perda de configura??o."
+              "Diese Automatisierung enthalt Schritte oder Ausloser, die vom Live-Builder noch nicht unterstützt werden. Das Bearbeiten ist hier blockiert, um Konfigurationsverlust zu vermeiden.",
+              "Esta automatizaci?n contiene pasos o disparadores que el generador en vivo a?n no admite. La edicion se bloquea aquí para evitar perder configuración.",
+              "Esta automação contem passos ou acionadores que o construtor ativo ainda não suporta. A edicao esta bloqueada aquí para evitar perda de configuração."
             )
           );
         }
       } catch {
         if (!active) return;
-        setStatus(t("Unable to load automation. Please try again.", "Impossible de charger l automatisation. R?essayez.", "Automatisierung konnte nicht geladen werden. Bitte versuche es erneut.", "No se pudo cargar la automatización. Intentalo de nuevo.", "Não foi poss?vel carregar a automação. Tente novamente."));
+        setStatus(t("Unable to load automation. Please try again.", "Impossible de charger l'automatisation. Réessayez.", "Automatisierung konnte nicht geladen werden. Bitte versuche es erneut.", "No se pudo cargar la automatización. Intentalo de nuevo.", "Não foi possível carregar a automação. Tente novamente."));
       } finally {
         if (active) setIsHydratingEdit(false);
       }
@@ -519,7 +519,7 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
     if (hydratedTemplateId === templateId) return;
 
     if (userPlan === "free") {
-      setStatus(t("Upgrade required to use automation templates.", "Mise a niveau requise pour utiliser les modeles d automatisation.", "Upgrade erforderlich, um Automatisierungsvorlagen zu verwenden.", "Se requiere una mejora para usar plantillas de automatización.", "E necessario atualizar o plano para usar modelos de automação."));
+      setStatus(t("Upgrade required to use automation templates.", "Mise à niveau requise pour utiliser les modèles d'automatisation.", "Upgrade erforderlich, um Automatisierungsvorlagen zu verwenden.", "Se requiere una mejora para usar plantillas de automatización.", "É necessário atualizar o plano para usar modelos de automação."));
       setHydratedTemplateId(templateId);
       return;
     }
@@ -584,7 +584,7 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
     e.preventDefault();
     if (!form.title.trim() || !start || actions.length === 0) return;
     if (mode === "edit" && !safeAutomationId) {
-      setStatus(t("Invalid automation link.", "Lien d automatisation invalide.", "Ungültiger Link zur Automatisierung.", "Enlace de automatización no valido.", "Liga??o de automação invalida."));
+      setStatus(t("Invalid automation link.", "Lien d'automatisation invalide.", "Ungültiger Link zur Automatisierung.", "Enlace de automatización no valido.", "Ligação de automação invalida."));
       return;
     }
     setLoading(true);
@@ -604,8 +604,8 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
           resolveFriendlyApiMessage(
             json,
             mode === "edit"
-              ? t("Unable to update automation. Please try again.", "Impossible de mettre ? jour l automatisation. R?essayez.", "Automatisierung konnte nicht aktualisiert werden. Bitte versuche es erneut.", "No se pudo actualizar la automatización. Intentalo de nuevo.", "Não foi poss?vel atualizar a automação. Tente novamente.")
-              : t("Unable to save automation. Please try again.", "Impossible d enregistrer l automatisation. R?essayez.", "Automatisierung konnte nicht gespeichert werden. Bitte versuche es erneut.", "No se pudo guardar la automatización. Intentalo de nuevo.", "Não foi poss?vel guardar a automação. Tente novamente."),
+              ? t("Unable to update automation. Please try again.", "Impossible de mettre à jour l'automatisation. Réessayez.", "Automatisierung konnte nicht aktualisiert werden. Bitte versuche es erneut.", "No se pudo actualizar la automatización. Intentalo de nuevo.", "Não foi possível atualizar a automação. Tente novamente.")
+              : t("Unable to save automation. Please try again.", "Impossible d enregistrer l'automatisation. Réessayez.", "Automatisierung konnte nicht gespeichert werden. Bitte versuche es erneut.", "No se pudo guardar la automatización. Intentalo de nuevo.", "Não foi possível guardar a automação. Tente novamente."),
             mode === "edit" ? "automation_update_failed" : "automation_create_failed"
           )
         );
@@ -620,8 +620,8 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
     } catch {
       setStatus(
         mode === "edit"
-          ? t("Network error while updating automation. Please try again.", "Erreur r?seau pendant la mise ? jour de l automatisation. R?essayez.", "Netzwerkfehler beim Aktualisieren der Automatisierung. Bitte versuche es erneut.", "Error de red al actualizar la automatización. Intentalo de nuevo.", "Erro de rede ao atualizar a automação. Tente novamente.")
-          : t("Network error while saving automation. Please try again.", "Erreur r?seau pendant l enregistrement de l automatisation. R?essayez.", "Netzwerkfehler beim Speichern der Automatisierung. Bitte versuche es erneut.", "Error de red al guardar la automatización. Intentalo de nuevo.", "Erro de rede ao guardar a automação. Tente novamente.")
+          ? t("Network error while updating automation. Please try again.", "Erreur réseau pendant la mise à jour de l'automatisation. Réessayez.", "Netzwerkfehler beim Aktualisieren der Automatisierung. Bitte versuche es erneut.", "Error de red al actualizar la automatización. Intentalo de nuevo.", "Erro de rede ao atualizar a automação. Tente novamente.")
+          : t("Network error while saving automation. Please try again.", "Erreur réseau pendant l enregistrement de l'automatisation. Réessayez.", "Netzwerkfehler beim Speichern der Automatisierung. Bitte versuche es erneut.", "Error de red al guardar la automatización. Intentalo de nuevo.", "Erro de rede ao guardar a automação. Tente novamente.")
       );
     } finally {
       setLoading(false);
@@ -703,14 +703,14 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
   const timing = (a: Act) =>
     a.mode === "now"
       ? t("Immediately", "Immediatement", "Sofort", "Inmediatamente", "Imediatamente")
-      : `${a.val || "1"} ${unitLabel(a.unit)} ${t("later", "plus tard", "spater", "despues", "depois")}`;
+      : `${a.val || "1"} ${unitLabel(a.unit)} ${t("later", "plus tard", "später", "después", "depois")}`;
   const triggerDelayValue =
     mappedTriggerConfig && "delayValue" in mappedTriggerConfig ? Number(mappedTriggerConfig.delayValue || 0) : 0;
   const triggerDelayUnit =
     mappedTriggerConfig && "delayUnit" in mappedTriggerConfig ? mappedTriggerConfig.delayUnit : undefined;
   const triggerTiming =
     triggerDelayValue > 0 && triggerDelayUnit
-      ? `${t("after", "apres", "nach", "despues de", "apos")} ${triggerDelayValue} ${unitLabel(triggerDelayUnit)}`
+      ? `${t("after", "après", "nach", "después de", "após")} ${triggerDelayValue} ${unitLabel(triggerDelayUnit)}`
       : "";
   const previewData = (() => {
     if (!actions.length) {
@@ -729,23 +729,23 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
 
     if (actions.length === 1) {
       const action = actions[0];
-      const line = action.mode === "now" ? phrase(action.aid) : `${phrase(action.aid)} ${t("after", "apres", "nach", "despues de", "após")} ${action.val || "1"} ${unitLabel(action.unit)}`;
-      return { title: `${t("When", "Quand", "Wenn", "Cuando", "Quando")} ${startPhrase(start.id).toLocaleLowerCase(locale)}${triggerTiming ? ` ${triggerTiming}` : ""}, ${t("the system will", "le systeme va", "wird das System", "el sistema va a", "o sistema vai")} ${line}.`, steps: [] as string[] };
+      const line = action.mode === "now" ? phrase(action.aid) : `${phrase(action.aid)} ${t("after", "après", "nach", "después de", "após")} ${action.val || "1"} ${unitLabel(action.unit)}`;
+      return { title: `${t("When", "Quand", "Wenn", "Cuando", "Quando")} ${startPhrase(start.id).toLocaleLowerCase(locale)}${triggerTiming ? ` ${triggerTiming}` : ""}, ${t("the system will", "le système va", "wird das System", "el sistema va a", "o sistema vai")} ${line}.`, steps: [] as string[] };
     }
 
     return {
       title: `${t("When", "Quand", "Wenn", "Cuando", "Quando")} ${startPhrase(start.id).toLocaleLowerCase(locale)}${triggerTiming ? ` ${triggerTiming}` : ""}:`,
-      steps: actions.map((a) => (a.mode === "now" ? `${phrase(a.aid)} ${t("immediately", "immediatement", "sofort", "inmediatamente", "imediatamente")}` : `${phrase(a.aid)} ${t("after", "apres", "nach", "despues de", "após")} ${a.val || "1"} ${unitLabel(a.unit)}`)),
+      steps: actions.map((a) => (a.mode === "now" ? `${phrase(a.aid)} ${t("immediately", "immediatement", "sofort", "inmediatamente", "imediatamente")}` : `${phrase(a.aid)} ${t("after", "après", "nach", "después de", "após")} ${a.val || "1"} ${unitLabel(a.unit)}`)),
     };
   })();
 
   const renderStartConfig = (id: StartId) => {
-    if (id === "invoice_overdue") return <div className="space-y-3"><label className="block space-y-2 text-sm text-foreground"><span>{t("Send reminder after", "Envoyer un rappel apres", "Erinnerung senden nach", "Enviar recordatorio despues de", "Enviar lembrete após")}</span><div className="flex items-center gap-2"><input type="number" min={0} value={cfg.overdueDays} onChange={(e) => setCfg((p) => ({ ...p, overdueDays: e.target.value }))} className={`${inputClass} max-w-[140px]`} /><span className="text-sm text-slate-600">{t("days", "jours", "Tage", "d?as", "dias")}</span></div></label><label className="inline-flex items-center gap-2 text-sm text-foreground"><input type="checkbox" checked={cfg.onlyIfUnpaid} onChange={(e) => setCfg((p) => ({ ...p, onlyIfUnpaid: e.target.checked }))} className="h-4 w-4 rounded border-border text-blue-600 focus:ring-blue-500" /><span>{t("Only if invoice is still unpaid", "Seulement si la facture est toujours impayee", "Nur wenn die Rechnung noch unbezahlt ist", "Solo si la factura sigue impagada", "So se a fatura continuar por pagar")}</span></label></div>;
-    if (id === "invoice_paid") return <label className="block space-y-2 text-sm text-foreground"><span>{t("Send confirmation after", "Envoyer la confirmation apres", "Bestätigung senden nach", "Enviar confirmaci?n despues de", "Enviar confirma??o após")}</span><div className="flex items-center gap-2"><input type="number" min={0} value={cfg.paidDelayHours} onChange={(e) => setCfg((p) => ({ ...p, paidDelayHours: e.target.value }))} className={`${inputClass} max-w-[140px]`} /><span className="text-sm text-slate-600">{t("hours", "heures", "Stunden", "horas", "horas")}</span></div></label>;
-    if (id === "payment_received") return <label className="block space-y-2 text-sm text-foreground"><span>{t("Confirm payment after", "Confirmer le paiement apres", "Zahlung bestätigen nach", "Confirmar pago despues de", "Confirmar pagamento após")}</span><div className="flex items-center gap-2"><input type="number" min={0} value={cfg.paymentConfirmMinutes} onChange={(e) => setCfg((p) => ({ ...p, paymentConfirmMinutes: e.target.value }))} className={`${inputClass} max-w-[140px]`} /><span className="text-sm text-slate-600">{t("minutes", "minutes", "Minuten", "minutos", "minutos")}</span></div></label>;
-    if (id === "payment_failed") return <label className="block space-y-2 text-sm text-foreground"><span>{t("Try again after", "Reessayer apres", "Erneut versuchen nach", "Reintentar despues de", "Tentar novamente após")}</span><div className="flex items-center gap-2"><input type="number" min={0} value={cfg.paymentRetryHours} onChange={(e) => setCfg((p) => ({ ...p, paymentRetryHours: e.target.value }))} className={`${inputClass} max-w-[140px]`} /><span className="text-sm text-slate-600">{t("hours", "heures", "Stunden", "horas", "horas")}</span></div></label>;
-    if (id === "customer_created") return <label className="block space-y-2 text-sm text-foreground"><span>{t("Send welcome message after", "Envoyer le message de bienvenue apres", "Willkommensnachricht senden nach", "Enviar mensaje de bienvenida despues de", "Enviar mensagem de boas-vindas após")}</span><div className="flex items-center gap-2"><input type="number" min={0} value={cfg.customerDelayDays} onChange={(e) => setCfg((p) => ({ ...p, customerDelayDays: e.target.value }))} className={`${inputClass} max-w-[140px]`} /><span className="text-sm text-slate-600">{t("days", "jours", "Tage", "d?as", "dias")}</span></div></label>;
-    return <label className="block space-y-2 text-sm text-foreground"><span>{t("Send reply after", "Envoyer la réponse apres", "Antwort senden nach", "Enviar respuesta despues de", "Enviar resposta após")}</span><div className="flex items-center gap-2"><input type="number" min={0} value={cfg.messageDelayMinutes} onChange={(e) => setCfg((p) => ({ ...p, messageDelayMinutes: e.target.value }))} className={`${inputClass} max-w-[140px]`} /><span className="text-sm text-slate-600">{t("minutes", "minutes", "Minuten", "minutos", "minutos")}</span></div></label>;
+    if (id === "invoice_overdue") return <div className="space-y-3"><label className="block space-y-2 text-sm text-foreground"><span>{t("Send reminder after", "Envoyer un rappel après", "Erinnerung senden nach", "Enviar recordatorio después de", "Enviar lembrete após")}</span><div className="flex items-center gap-2"><input type="number" min={0} value={cfg.overdueDays} onChange={(e) => setCfg((p) => ({ ...p, overdueDays: e.target.value }))} className={`${inputClass} max-w-[140px]`} /><span className="text-sm text-slate-600">{t("days", "jours", "Tage", "días", "dias")}</span></div></label><label className="inline-flex items-center gap-2 text-sm text-foreground"><input type="checkbox" checked={cfg.onlyIfUnpaid} onChange={(e) => setCfg((p) => ({ ...p, onlyIfUnpaid: e.target.checked }))} className="h-4 w-4 rounded border-border text-blue-600 focus:ring-blue-500" /><span>{t("Only if invoice is still unpaid", "Seulement si la facture est toujours impayee", "Nur wenn die Rechnung noch unbezahlt ist", "Solo si la factura sigue impagada", "So se a fatura continuar por pagar")}</span></label></div>;
+    if (id === "invoice_paid") return <label className="block space-y-2 text-sm text-foreground"><span>{t("Send confirmation after", "Envoyer la confirmation après", "Bestätigung senden nach", "Enviar confirmación después de", "Enviar confirmação após")}</span><div className="flex items-center gap-2"><input type="number" min={0} value={cfg.paidDelayHours} onChange={(e) => setCfg((p) => ({ ...p, paidDelayHours: e.target.value }))} className={`${inputClass} max-w-[140px]`} /><span className="text-sm text-slate-600">{t("hours", "heures", "Stunden", "horas", "horas")}</span></div></label>;
+    if (id === "payment_received") return <label className="block space-y-2 text-sm text-foreground"><span>{t("Confirm payment after", "Confirmer le paiement après", "Zahlung bestätigen nach", "Confirmar pago después de", "Confirmar pagamento após")}</span><div className="flex items-center gap-2"><input type="number" min={0} value={cfg.paymentConfirmMinutes} onChange={(e) => setCfg((p) => ({ ...p, paymentConfirmMinutes: e.target.value }))} className={`${inputClass} max-w-[140px]`} /><span className="text-sm text-slate-600">{t("minutes", "minutes", "Minuten", "minutos", "minutos")}</span></div></label>;
+    if (id === "payment_failed") return <label className="block space-y-2 text-sm text-foreground"><span>{t("Try again after", "Reessayer après", "Erneut versuchen nach", "Reintentar después de", "Tentar novamente após")}</span><div className="flex items-center gap-2"><input type="number" min={0} value={cfg.paymentRetryHours} onChange={(e) => setCfg((p) => ({ ...p, paymentRetryHours: e.target.value }))} className={`${inputClass} max-w-[140px]`} /><span className="text-sm text-slate-600">{t("hours", "heures", "Stunden", "horas", "horas")}</span></div></label>;
+    if (id === "customer_created") return <label className="block space-y-2 text-sm text-foreground"><span>{t("Send welcome message after", "Envoyer le message de bienvenue après", "Willkommensnachricht senden nach", "Enviar mensaje de bienvenida después de", "Enviar mensagem de boas-vindas após")}</span><div className="flex items-center gap-2"><input type="number" min={0} value={cfg.customerDelayDays} onChange={(e) => setCfg((p) => ({ ...p, customerDelayDays: e.target.value }))} className={`${inputClass} max-w-[140px]`} /><span className="text-sm text-slate-600">{t("days", "jours", "Tage", "días", "dias")}</span></div></label>;
+    return <label className="block space-y-2 text-sm text-foreground"><span>{t("Send reply after", "Envoyer la réponse après", "Antwort senden nach", "Enviar respuesta después de", "Enviar resposta após")}</span><div className="flex items-center gap-2"><input type="number" min={0} value={cfg.messageDelayMinutes} onChange={(e) => setCfg((p) => ({ ...p, messageDelayMinutes: e.target.value }))} className={`${inputClass} max-w-[140px]`} /><span className="text-sm text-slate-600">{t("minutes", "minutes", "Minuten", "minutos", "minutos")}</span></div></label>;
   };
   const statusOptions: Array<{ value: AutomationStatus; label: string }> = [
     { value: "DRAFT", label: t("Draft", "Brouillon", "Entwurf", "Borrador", "Rascunho") },
@@ -777,12 +777,12 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
           </div>
           <div>
             <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-              {mode === "edit" ? t("Edit Automation", "Modifier l'automatisation", "Automatisierung bearbeiten", "Editar automatización", "Editar automação") : t("Create Automation", "Creer une automatisation", "Automatisierung erstellen", "Crear automatización", "Criar automação")}
+              {mode === "edit" ? t("Edit Automation", "Modifier l'automatisation", "Automatisierung bearbeiten", "Editar automatización", "Editar automação") : t("Create Automation", "Créer une automatisation", "Automatisierung erstellen", "Crear automatización", "Criar automação")}
             </h1>
             <p className="mt-2 text-base text-muted-foreground">
               {mode === "edit"
-                ? t("Update this automation and save your changes.", "Mettez a jour cette automatisation et enregistrez vos modifications.", "Aktualisiere diese Automatisierung und speichere deine Änderungen.", "Actualiza esta automatización y guarda tus cambios.", "Atualize esta automação e guarde as suas alteracoes.")
-                : t("Automate tasks so your business runs automatically.", "Automatisez les taches pour que votre activité fonctionne automatiquement.", "Automatisiere Aufgaben, damit dein Geschäft automatisch arbeitet.", "Automatiza tareas para que tu negocio funcione autom?ticamente.", "Automatize tarefas para que o seu negocio funcione automaticamente.")}
+                ? t("Update this automation and save your changes.", "Mettez à jour cette automatisation et enregistrez vos modifications.", "Aktualisiere diese Automatisierung und speichere deine Änderungen.", "Actualiza esta automatización y guarda tus cambios.", "Atualize esta automação e guarde as suas alterações.")
+                : t("Automate tasks so your business runs automatically.", "Automatisez les tâches pour que votre activité fonctionne automatiquement.", "Automatisiere Aufgaben, damit dein Geschäft automatisch arbeitet.", "Automatiza tareas para que tu negocio funcione automáticamente.", "Automatize tarefas para que o seu negócio funcione automaticamente.")}
             </p>
           </div>
         </header>
@@ -795,7 +795,7 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
         <form id="automation-form" onSubmit={save} className="space-y-10 lg:space-y-12">
           <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
             <h2 className="text-lg font-semibold text-foreground">
-              {mode === "edit" ? t("Automation Details", "D?tails de l'automatisation", "Automatisierungsdetails", "Detalles de la automatización", "Detalhes da automação") : t("Create Automation", "Creer une automatisation", "Automatisierung erstellen", "Crear automatización", "Criar automação")}
+              {mode === "edit" ? t("Automation Details", "D?tails de l'automatisation", "Automatisierungsdetails", "Detalles de la automatización", "Detalhes da automação") : t("Create Automation", "Créer une automatisation", "Automatisierung erstellen", "Crear automatización", "Criar automação")}
             </h2>
             <label className="mt-4 block space-y-2 text-sm text-foreground"><span className="font-semibold text-foreground">{t("Automation Name", "Nom de l'automatisation", "Name der Automatisierung", "Nombre de la automatización", "Nome da automação")}</span><input required value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} placeholder={t("Example: Invoice reminder", "Exemple : rappel de facture", "Beispiel: Rechnungserinnerung", "Ejemplo: recordatorio de factura", "Exemplo: lembrete de fatura")} className={inputClass} /></label>
             <label className="mt-4 block space-y-2 text-sm text-foreground"><span className="font-semibold text-foreground">{t("Short Description", "Description courte", "Kurze Beschreibung", "Descripcion breve", "Descricao curta")}</span><textarea required value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} placeholder={t("Describe what this automation should do.", "Decrivez ce que cette automatisation doit faire.", "Beschreibe, was diese Automatisierung tun soll.", "Describe lo que debe hacer esta automatización.", "Descreva o que esta automação deve fazer.")} className="min-h-[110px] w-full rounded-xl border border-border bg-background px-3 py-2 text-foreground outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" /></label>
@@ -807,11 +807,11 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
                 ))}
               </select>
               <span className="block text-xs text-muted-foreground">
-                {t("New automations default to draft so you can review before going live.", "Les nouvelles automatisations commencent en brouillon pour permettre une verification avant la mise en ligne.", "Neue Automatisierungen starten als Entwurf, damit du sie vor dem Livegang prufen kannst.", "Las nuevas automatizaciones empiezan como borrador para revisarlas antes de activarlas.", "As novas automacoes comecam como rascunho para rever antes de ativar.")}
+                {t("New automations default to draft so you can review before going live.", "Les nouvelles automatisations commencent en brouillon pour permettre une verification avant la mise en ligne.", "Neue Automatisierungen starten als Entwurf, damit du sie vor dem Livegang prüfen kannst.", "Las nuevas automatizaciones empiezan como borrador para revisarlas antes de activarlas.", "As novas automações comecam como rascunho para rever antes de ativar.")}
               </span>
             </label>
             <div className="mt-5 rounded-xl border border-blue-200/60 bg-blue-50/70 p-4 dark:border-blue-400/20 dark:bg-blue-500/10">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-900/70 dark:text-blue-200/80">{t("Live preview", "Apercu en direct", "Live-Vorschau", "Vista previa en vivo", "Pre-visualiza??o em direto")}</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-900/70 dark:text-blue-200/80">{t("Live preview", "Aperçu en direct", "Live-Vorschau", "Vista previa en vivo", "Pre-visualização em direto")}</p>
               <p className="mt-2 text-sm text-foreground">{previewData.title}</p>
               {previewData.steps.length > 0 ? (
                 <ul className="mt-2 space-y-1 text-sm text-foreground">
@@ -829,7 +829,7 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
           <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
             <h2 className="text-lg font-semibold text-foreground">{t("What starts this automation?", "Qu'est-ce qui demarre cette automatisation ?", "Was startet diese Automatisierung?", "Que inicia esta automatización?", "O que inicia esta automação?")}</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              {t("Live starts are currently wired for invoice and payment events.", "Les demarrages en direct sont actuellement relies aux ?v?nements de facture et de paiement.", "Live-Starts sind derzeit für Rechnungs- und Zahlungsereignisse aktiviert.", "Los inicios en vivo est?n conectados actualmente a eventos de factura y pago.", "Os inicios em direto estão ligados atualmente aos eventos de fatura e pagamento.")}
+              {t("Live starts are currently wired for invoice and payment events.", "Les demarrages en direct sont actuellement relies aux événements de facture et de paiement.", "Live-Starts sind derzeit für Rechnungs- und Zahlungsereignisse aktiviert.", "Los inicios en vivo est?n conectados actualmente a eventos de factura y pago.", "Os inicios em direto estão ligados atualmente aos eventos de fatura e pagamento.")}
             </p>
             <div className="mt-5 space-y-5">
               {(["Invoices", "Payments", "Customers", "Messaging"] as const).map((group) => (
@@ -849,9 +849,9 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
           </section>
 
           <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
-            <h2 className="text-lg font-semibold text-foreground">{t("What should the system do?", "Que doit faire le systeme ?", "Was soll das System tun?", "Que debe hacer el sistema?", "O que deve o sistema fazer?")}</h2>
+            <h2 className="text-lg font-semibold text-foreground">{t("What should the system do?", "Que doit faire le système ?", "Was soll das System tun?", "Que debe hacer el sistema?", "O que deve o sistema fazer?")}</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              {t("The catalog only shows actions that have live runtime behavior today.", "Le catalogue n affiche que les actions qui ont un comportement actif aujourd hui.", "Der Katalog zeigt nur Aktionen, die heute echtes Laufzeitverhalten haben.", "El catalogo solo muestra acciones con comportamiento real en ejecuci?n hoy.", "O catalogo mostra apenas ações com comportamento real em execu??o hoje.")}
+              {t("The catalog only shows actions that have live runtime behavior today.", "Le catalogue n affiche que les actions qui ont un comportement actif aujourd hui.", "Der Katalog zeigt nur Aktionen, die heute echtes Laufzeitverhalten haben.", "El catalogo solo muestra acciones con comportamiento real en ejecución hoy.", "O catalogo mostra apenas ações com comportamento real em execução hoje.")}
             </p>
             <div className="mt-6 border-t border-border pt-5">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t("Steps you have added", "Etapes ajoutees", "Hinzugefugte Schritte", "Pasos agregados", "Passos adicionados")}</p>
@@ -886,12 +886,12 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
                         <div>
                           <span className="inline-flex rounded-full border border-border bg-background px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">{t("Step", "Etape", "Schritt", "Paso", "Passo")} {idx + 1}</span>
                           <p className="mt-1 text-sm font-semibold text-foreground">{label(a.aid)}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">{t("Template", "Modele", "Vorlage", "Plantilla", "Modelo")}: {a.note || t("Default", "Par defaut", "Standard", "Predeterminado", "Predefinido")}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{t("Template", "Modèle", "Vorlage", "Plantilla", "Modelo")}: {a.note || t("Default", "Par défaut", "Standard", "Predeterminado", "Predefinido")}</p>
                           <p className="text-xs text-muted-foreground">{t("Send", "Envoyer", "Senden", "Enviar", "Enviar")}: {timing(a)}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
-                        <button type="button" onClick={() => updateAction(a.id, { edit: !a.edit })} className="inline-flex h-8 items-center justify-center rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground transition hover:bg-muted">{a.edit ? t("Close", "Fermer", "Schlie?en", "Cerrar", "Fechar") : t("Edit", "Modifier", "Bearbeiten", "Editar", "Editar")}</button>
+                        <button type="button" onClick={() => updateAction(a.id, { edit: !a.edit })} className="inline-flex h-8 items-center justify-center rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground transition hover:bg-muted">{a.edit ? t("Close", "Fermer", "Schließen", "Cerrar", "Fechar") : t("Edit", "Modifier", "Bearbeiten", "Editar", "Editar")}</button>
                         <button type="button" onClick={() => removeAction(a.id)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition hover:bg-muted hover:text-rose-600"><Trash2 className="h-4 w-4" /></button>
                       </div>
                     </div>
@@ -903,12 +903,12 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
                           if (!options.length) return null;
                           return <optgroup key={g} label={groupLabel(g)}>{options.map((d) => <option key={d.id} value={d.id}>{actionLabel(d.id)}</option>)}</optgroup>;
                         })}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /></div></label>
-                        <label className="block space-y-2 text-sm text-foreground"><span>{t("Template or message details", "Modele ou d?tails du message", "Vorlage oder Nachrichtendetails", "Plantilla o detalles del mensaje", "Modelo ou detalhes da mensagem")}</span><input value={a.note} onChange={(e) => updateAction(a.id, { note: e.target.value })} placeholder={t("Example: Payment Reminder", "Exemple : rappel de paiement", "Beispiel: Zahlungserinnerung", "Ejemplo: recordatorio de pago", "Exemplo: lembrete de pagamento")} className={`${inputClass} h-10 text-sm`} /></label>
+                        <label className="block space-y-2 text-sm text-foreground"><span>{t("Template or message details", "Modèle ou d?tails du message", "Vorlage oder Nachrichtendetails", "Plantilla o detalles del mensaje", "Modelo ou detalhes da mensagem")}</span><input value={a.note} onChange={(e) => updateAction(a.id, { note: e.target.value })} placeholder={t("Example: Payment Reminder", "Exemple : rappel de paiement", "Beispiel: Zahlungserinnerung", "Ejemplo: recordatorio de pago", "Exemplo: lembrete de pagamento")} className={`${inputClass} h-10 text-sm`} /></label>
                         <div className="grid gap-3 sm:grid-cols-[minmax(0,180px)_minmax(0,1fr)] sm:items-end">
-                          <label className="block space-y-2 text-sm text-foreground"><span>{t("Send timing", "Moment d envoi", "Sendezeitpunkt", "Momento de envio", "Momento de envio")}</span><select value={a.mode} onChange={(e) => updateAction(a.id, { mode: e.target.value as Mode })} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"><option value="now">{t("Send immediately", "Envoyer immediatement", "Sofort senden", "Enviar inmediatamente", "Enviar imediatamente")}</option><option value="after">{t("Send after", "Envoyer apres", "Senden nach", "Enviar despues de", "Enviar após")}</option></select></label>
-                          {a.mode === "after" ? <div className="grid gap-2 sm:grid-cols-[120px_1fr]"><input type="number" min={1} value={a.val} onChange={(e) => updateAction(a.id, { val: e.target.value })} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" /><select value={a.unit} onChange={(e) => updateAction(a.id, { unit: e.target.value as Unit })} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"><option value="minutes">{t("minutes", "minutes", "Minuten", "minutos", "minutos")}</option><option value="hours">{t("hours", "heures", "Stunden", "horas", "horas")}</option><option value="days">{t("days", "jours", "Tage", "d?as", "dias")}</option></select></div> : null}
+                          <label className="block space-y-2 text-sm text-foreground"><span>{t("Send timing", "Moment d envoi", "Sendezeitpunkt", "Momento de envio", "Momento de envio")}</span><select value={a.mode} onChange={(e) => updateAction(a.id, { mode: e.target.value as Mode })} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"><option value="now">{t("Send immediately", "Envoyer immediatement", "Sofort senden", "Enviar inmediatamente", "Enviar imediatamente")}</option><option value="after">{t("Send after", "Envoyer après", "Senden nach", "Enviar después de", "Enviar após")}</option></select></label>
+                          {a.mode === "after" ? <div className="grid gap-2 sm:grid-cols-[120px_1fr]"><input type="number" min={1} value={a.val} onChange={(e) => updateAction(a.id, { val: e.target.value })} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20" /><select value={a.unit} onChange={(e) => updateAction(a.id, { unit: e.target.value as Unit })} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"><option value="minutes">{t("minutes", "minutes", "Minuten", "minutos", "minutos")}</option><option value="hours">{t("hours", "heures", "Stunden", "horas", "horas")}</option><option value="days">{t("days", "jours", "Tage", "días", "dias")}</option></select></div> : null}
                         </div>
-                        <details className="rounded-xl border border-border bg-background p-3"><summary className="cursor-pointer text-sm font-medium text-foreground">{t("Advanced settings", "Paramêtres avances", "Erweiterte Einstellungen", "Configuración avanzada", "Definições avancadas")}</summary><div className="mt-3 space-y-3"><label className="block space-y-2 text-sm text-foreground"><span>{t("Run this step", "Executer cette etape", "Diesen Schritt ausfuhren", "Ejecutar este paso", "Executar este passo")}</span><select value={a.window} onChange={(e) => updateAction(a.id, { window: e.target.value as Window })} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"><option value="anytime">{t("Anytime", "A tout moment", "Jederzeit", "En cualquier momento", "A qualquer momento")}</option><option value="business">{t("Only during business hours", "Seulement pendant les heures ouvrables", "Nur w?hrend der Geschäftszeiten", "Solo durante el horario laboral", "Apenas durante o horario comercial")}</option><option value="outside">{t("Only outside business hours", "Seulement hors heures ouvrables", "Nur außerhalb der Geschäftszeiten", "Solo fuera del horario laboral", "Apenas fora do horario comercial")}</option></select></label><label className="inline-flex items-center gap-2 text-sm text-foreground"><input type="checkbox" checked={a.stop} onChange={(e) => updateAction(a.id, { stop: e.target.checked })} className="h-4 w-4 rounded border-border text-blue-600 focus:ring-blue-500" /><span>{t("Stop automation if this step fails", "Arreter l automatisation si cette etape échoué", "Automatisierung stoppen, wenn dieser Schritt fehlschlagt", "Detener la automatización si este paso falla", "Parar a automação se este passo falhar")}</span></label></div></details>
+                        <details className="rounded-xl border border-border bg-background p-3"><summary className="cursor-pointer text-sm font-medium text-foreground">{t("Advanced settings", "Paramètres avancés", "Erweiterte Einstellungen", "Configuración avanzada", "Definições avançadas")}</summary><div className="mt-3 space-y-3"><label className="block space-y-2 text-sm text-foreground"><span>{t("Run this step", "Exécuter cette étape", "Diesen Schritt ausführen", "Ejecutar este paso", "Executar este passo")}</span><select value={a.window} onChange={(e) => updateAction(a.id, { window: e.target.value as Window })} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"><option value="anytime">{t("Anytime", "À tout moment", "Jederzeit", "En cualquier momento", "A qualquer momento")}</option><option value="business">{t("Only during business hours", "Seulement pendant les heures ouvrables", "Nur während der Geschäftszeiten", "Solo durante el horario laboral", "Apenas durante o horário comercial")}</option><option value="outside">{t("Only outside business hours", "Seulement hors heures ouvrables", "Nur außerhalb der Geschäftszeiten", "Solo füra del horario laboral", "Apenas fora do horario comercial")}</option></select></label><label className="inline-flex items-center gap-2 text-sm text-foreground"><input type="checkbox" checked={a.stop} onChange={(e) => updateAction(a.id, { stop: e.target.checked })} className="h-4 w-4 rounded border-border text-blue-600 focus:ring-blue-500" /><span>{t("Stop automation if this step fails", "Arrêter l'automatisation si cette étape échoue", "Automatisierung stoppen, wenn dieser Schritt fehlschlägt", "Detener la automatización si este paso falla", "Parar a automação se este passo falhar")}</span></label></div></details>
                       </div>
                     </div>
                   </article>
@@ -925,7 +925,7 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
 
             <div className={`mt-6 border-t border-border transition-all duration-300 ${showCatalog ? "pt-5 opacity-100" : "pt-0 opacity-90"}`}>
               <div className={`overflow-hidden transition-all duration-300 ${showCatalog ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"}`}>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t("Available actions", "Actions disponibles", "Verfügbare Aktionen", "Acciones disponibles", "Ações dispon?veis")}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{t("Available actions", "Actions disponibles", "Verfügbare Aktionen", "Acciones disponibles", "Ações disponíveis")}</p>
                 <div className="mt-3 grid gap-4 sm:grid-cols-2">
                   {GROUPS.map((g) => (
                     <div key={g} className="rounded-xl border border-border bg-muted/40 p-4">
@@ -968,10 +968,10 @@ export function AutomationBuilder({ mode, automationId }: AutomationBuilderProps
           title={t("Delete this step?", "Supprimer cette etape ?", "Diesen Schritt l?schen?", "Eliminar este paso?", "Eliminar este passo?")}
           description={t(
             "This step will be removed from the automation draft.",
-            "Cette etape sera supprimee du brouillon d automatisation.",
+            "Cette etape sera supprimee du brouillon d'automatisation.",
             "Dieser Schritt wird aus dem Automatisierungsentwurf entfernt.",
             "Este paso se eliminara del borrador de automatizaci?n.",
-            "Este passo sera removido do rascunho da automa??o."
+            "Este passo sera removido do rascunho da automação."
           )}
           confirmLabel={t("Delete step", "Supprimer l etape", "Schritt l?schen", "Eliminar paso", "Eliminar passo")}
           onConfirm={confirmRemoveAction}

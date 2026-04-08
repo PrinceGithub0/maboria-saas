@@ -161,7 +161,7 @@ export default function CustomersPage() {
           "Nom et email sont requis.",
           "Name und E-Mail sind erforderlich.",
           "El nombre y el correo electr?nico son obligatorios.",
-          "Nome e email s?o obrigatorios."
+          "Nome e email são obrigatorios."
         ),
       });
       return;
@@ -173,8 +173,8 @@ export default function CustomersPage() {
           "Address, city, state, and country are required.",
           "Adresse, ville, etat et pays sont requis.",
           "Adresse, Stadt, Bundesland und Land sind erforderlich.",
-          "La direcci?n, la ciudad, el estado y el pa?s son obligatorios.",
-          "Morada, cidade, estado e pa?s s?o obrigatorios."
+          "La direcci?n, la ciudad, el estado y el país son obligatorios.",
+          "Morada, cidade, estado e país são obrigatorios."
         ),
       });
       return;
@@ -186,8 +186,8 @@ export default function CustomersPage() {
           "Country must be a 2-letter code like US or FR.",
           "Le pays doit être un code a 2 lettres comme US ou FR.",
           "Das Land muss ein 2-Buchstaben-Code wie US oder FR sein.",
-          "El pa?s debe ser un código de 2 letras como US o FR.",
-          "O pa?s deve ser um código de 2 letras como US ou FR."
+          "El país debe ser un código de 2 letras como US o FR.",
+          "O país deve ser um código de 2 letras como US ou FR."
         ),
       });
       return;
@@ -200,9 +200,9 @@ export default function CustomersPage() {
         variant: "warning",
         message: t(
           "Phone is required for WhatsApp delivery.",
-          "Le t?l?phone est requis pour la livraison WhatsApp.",
+          "Le téléphone est requis pour la livraison WhatsApp.",
           "Für die WhatsApp-Zustellung ist eine Telefonnummer erforderlich.",
-          "El tel?fono es obligatorio para la entrega por WhatsApp.",
+          "El teléfono es obligatorio para la entrega por WhatsApp.",
           "O telefone e obrigatório para a entrega por WhatsApp."
         ),
       });
@@ -231,7 +231,7 @@ export default function CustomersPage() {
               "Impossible d'enregistrer le client.",
               "Der Kunde konnte nicht gespeichert werden.",
               "No se pudo guardar el cliente.",
-              "Não foi poss?vel guardar o cliente."
+              "Não foi possível guardar o cliente."
             ),
         });
         return;
@@ -252,7 +252,7 @@ export default function CustomersPage() {
           "Impossible d'enregistrer le client.",
           "Der Kunde konnte nicht gespeichert werden.",
           "No se pudo guardar el cliente.",
-          "Não foi poss?vel guardar o cliente."
+          "Não foi possível guardar o cliente."
         ),
       });
     } finally {
@@ -331,10 +331,10 @@ export default function CustomersPage() {
             ) : customers.length === 0 ? (
               <div className="px-6 py-16 text-center">
                 <p className="text-base font-semibold text-foreground">
-                  {t("No customers found", "Aucun client trouve", "Keine Kunden gefunden", "No se encontraron clientes", "Nenhum cliente encontrado")}
+                  {t("No customers found", "Aucun client trouvé", "Keine Kunden gefunden", "No se encontraron clientes", "Nenhum cliente encontrado")}
                 </p>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {t("Create your first customer to start issuing invoices.", "Cr?ez votre premier client pour commencer a emettre des factures.", "Erstelle deinen ersten Kunden, um Rechnungen auszustellen.", "Crea tu primer cliente para empezar a emitir facturas.", "Crie o seu primeiro cliente para comecar a emitir faturas.")}
+                  {t("Create your first customer to start issuing invoices.", "Créez votre premier client pour commencer a emettre des factures.", "Erstelle deinen ersten Kunden, um Rechnungen auszustellen.", "Crea tu primer cliente para empezar a emitir facturas.", "Crie o seu primeiro cliente para começar a emitir faturas.")}
                 </p>
               </div>
             ) : (

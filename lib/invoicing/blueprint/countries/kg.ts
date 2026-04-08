@@ -15,7 +15,7 @@ export const kyrgyzstanComplianceModule = buildDefaultCountryModule("KG", {
       reviewedAt: "2026-04-07",
     },
   ],
-  extendValidation(issues, document) {
+  extendValidation(issues) {
     issues.push(
       createCountryIssue(
         "invoice.externalReference",

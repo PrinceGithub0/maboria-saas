@@ -12,13 +12,23 @@ import {
   maskEmailForLogs,
   resolveAppBaseUrl,
 } from "@/lib/password-reset";
-import { MIN_PASSWORD_LENGTH, PASSWORD_MIN_LENGTH_ERROR } from "@/lib/password-policy";
+import {
+  MIN_PASSWORD_LENGTH,
+  PASSWORD_MIN_LENGTH_ERROR,
+  validatePasswordPolicy,
+} from "@/lib/password-policy";
 
 const resetPasswordSchema = z
   .object({
     token: z.string().min(20),
-    password: z.string().min(MIN_PASSWORD_LENGTH, PASSWORD_MIN_LENGTH_ERROR),
-    confirm: z.string().min(MIN_PASSWORD_LENGTH, PASSWORD_MIN_LENGTH_ERROR),
+    password: z
+      .string()
+      .min(MIN_PASSWORD_LENGTH, PASSWORD_MIN_LENGTH_ERROR)
+      .refine(validatePasswordPolicy, PASSWORD_MIN_LENGTH_ERROR),
+    confirm: z
+      .string()
+      .min(MIN_PASSWORD_LENGTH, PASSWORD_MIN_LENGTH_ERROR)
+      .refine(validatePasswordPolicy, PASSWORD_MIN_LENGTH_ERROR),
   })
   .refine((value) => value.password === value.confirm, {
     message: "Passwords do not match",

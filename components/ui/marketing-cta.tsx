@@ -75,7 +75,7 @@ export function MarketingCta({ variant }: { variant: Variant }) {
     return (
       <div className="mt-3 flex flex-col gap-2">
         <Link href="/signup">
-          <Button className="w-full">{t("Create account", "Creer un compte")}</Button>
+          <Button className="w-full">{t("Create account", "Créer un compte")}</Button>
         </Link>
         <Link href="/login">
           <Button variant="secondary" className="w-full">

@@ -62,9 +62,9 @@ const text = (en: string, fr: string, de: string, es: string, pt: string): Compl
 
 const CATEGORY_OPTIONS: Array<{ value: AuditCategory; label: CompleteLocalizedText }> = [
   { value: "all", label: text("All categories", "Toutes les categories", "Alle Kategorien", "Todas las categorias", "Todas as categorias") },
-  { value: "impersonation", label: text("Impersonation", "Usurpation", "Identit?tswechsel", "Suplantacion", "Representacao") },
+  { value: "impersonation", label: text("Impersonation", "Usurpation", "Identitätswechsel", "Suplantacion", "Representacao") },
   { value: "role", label: text("Role changes", "Changements de role", "Rollenänderungen", "Cambios de rol", "Alteracoes de função") },
-  { value: "system_flags", label: text("System flags", "Drapeaux systeme", "System-Flags", "Indicadores del sistema", "Indicadores do sistema") },
+  { value: "system_flags", label: text("System flags", "Drapeaux système", "System-Flags", "Indicadores del sistema", "Indicadores do sistema") },
   { value: "tenant", label: text("Tenant actions", "Actions du locataire", "Mandantenaktionen", "Acciones del tenant", "Ações do tenant") },
 ];
 
@@ -75,7 +75,7 @@ const SOURCE_OPTIONS: Array<{ value: AuditSource; label: CompleteLocalizedText }
     value: "system_flag",
     label: text(
       "System flag audits",
-      "Audits des drapeaux systeme",
+      "Audits des drapeaux système",
       "System-Flag-Audits",
       "Auditorias de indicadores del sistema",
       "Auditorias de indicadores do sistema"
@@ -86,9 +86,9 @@ const SOURCE_OPTIONS: Array<{ value: AuditSource; label: CompleteLocalizedText }
 const METADATA_PREVIEW_LIMIT = 1800;
 
 function categoryLabel(category: AuditExplorerItem["category"]) {
-  if (category === "impersonation") return text("Impersonation", "Usurpation", "Identit?tswechsel", "Suplantacion", "Representacao");
+  if (category === "impersonation") return text("Impersonation", "Usurpation", "Identitätswechsel", "Suplantacion", "Representacao");
   if (category === "role") return text("Role change", "Changement de role", "Rollenänderung", "Cambio de rol", "Alteração de função");
-  if (category === "system_flags") return text("System flag", "Drapeau systeme", "System-Flag", "Indicador del sistema", "Indicador do sistema");
+  if (category === "system_flags") return text("System flag", "Drapeau système", "System-Flag", "Indicador del sistema", "Indicador do sistema");
   return text("Tenant action", "Action du locataire", "Mandantenaktion", "Acción del tenant", "Ação do tenant");
 }
 
@@ -219,10 +219,10 @@ export default function AuditExplorerClient() {
           {t(
             text(
               "Unified audit timeline for impersonation, role changes, system flags, and tenant actions.",
-              "Chronologie d'audit unifiee pour l'usurpation, les changements de role, les drapeaux systeme et les actions des locataires.",
-              "Einheitliche Audit-Zeitleiste für Identit?tswechsel, Rollenänderungen, System-Flags und Mandantenaktionen.",
+              "Chronologie d'audit unifiee pour l'usurpation, les changements de role, les drapeaux système et les actions des locataires.",
+              "Einheitliche Audit-Zeitleiste für Identitätswechsel, Rollenänderungen, System-Flags und Mandantenaktionen.",
               "Cronologia de auditoria unificada para suplantacion, cambios de rol, indicadores del sistema y acciones del tenant.",
-              "Cronologia de auditoria unificada para representacao, alteracoes de função, indicadores do sistema e ações do tenant."
+              "Cronologia de auditoria unificada para representação, alteracoes de função, indicadores do sistema e ações do tenant."
             )
           )}
         </p>
@@ -236,7 +236,7 @@ export default function AuditExplorerClient() {
             placeholder={t(
               text(
                 "Search action, actor, tenant, or metadata",
-                "Rechercher une action, un acteur, un locataire ou des metadonnees",
+                "Rechercher une action, un acteur, un locataire ou des métadonnées",
                 "Aktion, Akteur, Mandant oder Metadaten suchen",
                 "Buscar acción, actor, tenant o metadatos",
                 "Pesquisar ação, ator, tenant ou metadados"
@@ -286,7 +286,7 @@ export default function AuditExplorerClient() {
                   `A mostrar ${rows.length} de ${data.total} eventos`
                 )
               )
-            : t("Loading events...", "Chargement des ?v?nements...", "Ereignisse werden geladen...", "Cargando eventos...", "A carregar eventos...")}
+            : t("Loading events...", "Chargement des événements...", "Ereignisse werden geladen...", "Cargando eventos...", "A carregar eventos...")}
         </p>
       </Card>
 
@@ -299,10 +299,10 @@ export default function AuditExplorerClient() {
                 language,
                 t(
                   "Unable to load audit events right now.",
-                  "Impossible de charger les ?v?nements d'audit pour le moment.",
+                  "Impossible de charger les événements d'audit pour le moment.",
                   "Audit-Ereignisse koennen derzeit nicht geladen werden.",
                   "No se pueden cargar los eventos de auditoria en este momento.",
-                  "N?o foi poss?vel carregar os eventos de auditoria neste momento."
+                  "Não foi possível carregar os eventos de auditoria neste momento."
                 )
               )}
             </span>
@@ -396,7 +396,7 @@ export default function AuditExplorerClient() {
                       <div className="rounded-lg border border-border/70 bg-background p-3">
                         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                            {t("Metadata", "Metadonnees", "Metadaten", "Metadatos", "Metadados")}
+                            {t("Metadata", "Métadonnées", "Metadaten", "Metadatos", "Metadados")}
                           </p>
                           <div className="flex flex-wrap items-center gap-2">
                             {metadata.length > METADATA_PREVIEW_LIMIT ? (

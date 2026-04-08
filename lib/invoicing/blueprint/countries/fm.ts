@@ -35,7 +35,7 @@ export const micronesiaComplianceModule = buildDefaultCountryModule("FM", {
       createCountryIssue(
         "invoice.supportingDocuments",
         "FM_REVENUE_SUPPORT_NOTICE",
-        "Maintain invoice support for FSM customs and gross-revenue tax filings where applicable.",
+        "Maintain invoice support for FSM customs and groß-revenue tax filings where applicable.",
         "WARNING",
         "FM"
       )

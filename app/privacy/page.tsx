@@ -50,6 +50,7 @@ const sections: PrivacySection[] = [
     paragraphs: [
       "We may share data with payment providers, messaging providers, e-invoicing providers, infrastructure partners, and service providers only as needed to operate, secure, support, or improve the platform.",
       "Maboria does not sell customer or user data for advertising.",
+      "Additional information about provider categories and processing terms may be available on the Subprocessors page and DPA request page.",
     ],
   },
   {
@@ -83,7 +84,7 @@ const sections: PrivacySection[] = [
   {
     title: duplicateEnglish("11. Changes and Contact"),
     paragraphs: [
-      "We may update this Privacy Policy from time to time. For privacy requests, use Settings for account export or erasure, use customer records for customer-specific controls, or use the official support channels for issues that require manual review.",
+      "We may update this Privacy Policy from time to time. For privacy requests, use Settings for account export or erasure, use customer records for customer-specific controls, review the Subprocessors and DPA pages where available, or use the official support channels for issues that require manual review.",
     ],
   },
 ];

@@ -30,7 +30,7 @@ export default async function InvoicePaymentErrorPage({ searchParams }: PageProp
               en: "This payment link is invalid. Please use the latest invoice link from the sender.",
               fr: "Ce lien de paiement est invalide. Veuillez utiliser le dernier lien de facture envoy? par l'exp?diteur.",
               de: "Dieser Zahlungslink ist ungültig. Bitte verwende den neuesten Rechnungslink des Absenders.",
-              es: "Este enlace de pago no es valido. Usa el ?ltimo enlace de factura del emisor.",
+              es: "Este enlace de pago no es valido. Usa el Último enlace de factura del emisor.",
               pt: "Este link de pagamento e invalido. Utilize o link de fatura mais recente enviado pelo remetente.",
             },
             language
@@ -53,8 +53,8 @@ export default async function InvoicePaymentErrorPage({ searchParams }: PageProp
                 en: "This invoice could not be found. Please contact the sender for a new payment link.",
                 fr: "Cette facture est introuvable. Veuillez contacter l'exp?diteur pour obtenir un nouveau lien de paiement.",
                 de: "Diese Rechnung wurde nicht gefunden. Bitte kontaktiere den Absender für einen neuen Zahlungslink.",
-                es: "No se encontro esta factura. Contacta con el emisor para obtener un nuevo enlace de pago.",
-                pt: "Não foi poss?vel encontrar esta fatura. Contacte o remetente para obter um novo link de pagamento.",
+                es: "No se encontró esta factura. Contacta con el emisor para obtener un nuevo enlace de pago.",
+                pt: "Não foi possível encontrar esta fatura. Contacte o remetente para obter um novo link de pagamento.",
               },
               language
             ),
@@ -66,7 +66,7 @@ export default async function InvoicePaymentErrorPage({ searchParams }: PageProp
                 fr: "Paiement indisponible",
                 de: "Zahlung nicht verfügbar",
                 es: "Pago no disponible",
-                pt: "Pagamento indispon?vel",
+                pt: "Pagamento indisponível",
               },
               language
             ),

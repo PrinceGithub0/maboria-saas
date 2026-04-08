@@ -23,7 +23,7 @@ export default function StatusPage() {
   const { data } = useSWR("/api/health", fetcher);
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-6 py-10 text-foreground max-md:mx-0 max-md:w-full max-md:max-w-none">
-      <h1 className="text-3xl font-semibold">{t("System Status", "Etat du systeme")}</h1>
+      <h1 className="text-3xl font-semibold">{t("System Status", "Etat du système")}</h1>
       <div className="grid gap-4 md:grid-cols-2">
         <Card title={t("Core services", "Services coeur")}>
           <div className="space-y-2">
@@ -34,9 +34,14 @@ export default function StatusPage() {
         </Card>
         <Card title={t("Integrations", "Integrations")}>
           <div className="space-y-2">
-            <StatusItem label="Flutterwave" status={data?.flutterwave === "configured" ? "green" : "yellow"} />
-            <StatusItem label="Paystack" status={data?.paystack === "configured" ? "green" : "yellow"} />
-            <StatusItem label={t("AI engine", "Moteur IA")} status="green" />
+            <StatusItem
+              label={t("Payments", "Paiements")}
+              status={data?.payments === "available" ? "green" : "yellow"}
+            />
+            <StatusItem
+              label={t("AI engine", "Moteur IA")}
+              status={data?.ai === "available" ? "green" : "yellow"}
+            />
           </div>
         </Card>
       </div>

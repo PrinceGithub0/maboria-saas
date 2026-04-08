@@ -133,11 +133,11 @@ export default async function AdminInvoicingReadinessPage({
 
   const intro = getLocalizedText(
     {
-      en: "One launch state per country. This is the only view that matters for go-live decisions.",
+      en: "One laúnch state per country. This is the only view that matters for go-live decisions.",
       fr: "Un etat de lancement par pays. C est la seule vue qui compte pour les decisions de mise en production.",
-      de: "Ein Launch-Status pro Land. Das ist die einzige Ansicht, die fuer Go-Live-Entscheidungen zaehlt.",
-      es: "Un estado de lanzamiento por pais. Esta es la unica vista que importa para decidir salidas a produccion.",
-      pt: "Um estado de lançamento por pais. Esta e a unica vista que importa para decidir entradas em producao.",
+      de: "Ein Laúnch-Status pro Land. Das ist die einzige Ansicht, die für Go-Live-Entscheidungen zaehlt.",
+      es: "Un estado de lanzamiento por pais. Esta es la unica vista que importa para decidir salidas a producción.",
+      pt: "Um estado de lançamento por pais. Esta e a unica vista que importa para decidir entradas em produção.",
     },
     language
   );
@@ -155,8 +155,8 @@ export default async function AdminInvoicingReadinessPage({
                 en: "Invoicing Readiness",
                 fr: "Preparation de facturation",
                 de: "Abrechnungsbereitschaft",
-                es: "Preparacion de facturacion",
-                pt: "Preparacao de faturacao",
+                es: "Preparacion de facturación",
+                pt: "Preparacao de faturação",
               })}
             </h1>
             <p className="max-w-3xl text-sm text-muted-foreground">{intro}</p>
@@ -178,7 +178,7 @@ export default async function AdminInvoicingReadinessPage({
                 {pageText({
                   en: "Back To Admin",
                   fr: "Retour a l admin",
-                  de: "Zuruck zum Adminbereich",
+                  de: "Zurück zum Adminbereich",
                   es: "Volver a admin",
                   pt: "Voltar ao admin",
                 })}
@@ -229,8 +229,8 @@ export default async function AdminInvoicingReadinessPage({
               en: "Search country, code, or blocker",
               fr: "Rechercher un pays, code ou blocage",
               de: "Land, Code oder Blocker suchen",
-              es: "Buscar pais, codigo o bloqueo",
-              pt: "Procurar pais, codigo ou bloqueio",
+              es: "Buscar pais, código o bloqueo",
+              pt: "Procurar pais, código ou bloqueio",
             })}
             className="h-10 min-w-[260px] rounded-2xl border border-border bg-background px-4 text-sm text-foreground"
           />
@@ -248,7 +248,7 @@ export default async function AdminInvoicingReadinessPage({
               {pageText({
                 en: "Manual Review Queue",
                 fr: "File de revision manuelle",
-                de: "Warteschlange fur manuelle Prufung",
+                de: "Warteschlange für manuelle Prüfung",
                 es: "Cola de revision manual",
                 pt: "Fila de revisao manual",
               })}
@@ -257,9 +257,9 @@ export default async function AdminInvoicingReadinessPage({
               {pageText({
                 en: "E-Invoicing Production Promotion",
                 fr: "Promotion en production de la facturation electronique",
-                de: "Produktionsfreigabe fur E-Rechnungen",
-                es: "Promocion a produccion de facturacion electronica",
-                pt: "Promocao para producao da faturacao eletronica",
+                de: "Produktionsfreigabe für E-Rechnungen",
+                es: "Promocion a producción de facturación electronica",
+                pt: "Promocao para produção da faturação eletronica",
               })}
             </h2>
             <p className="max-w-3xl text-sm text-muted-foreground">
@@ -267,8 +267,8 @@ export default async function AdminInvoicingReadinessPage({
                 en: "These countries are blocked on explicit go-live signoff. Transport is wired. The remaining work is schema, legal, certification, and operator readiness.",
                 fr: "Ces pays restent bloques en attente d une validation explicite de mise en production. Le transport est pret. Le travail restant concerne le schema, le juridique, la certification et la preparation des operations.",
                 de: "Diese Lander sind bis zur expliziten Go-Live-Freigabe blockiert. Der Transport ist angebunden. Offen sind noch Schema, Recht, Zertifizierung und operative Bereitschaft.",
-                es: "Estos paises estan bloqueados hasta obtener una aprobacion explicita de salida a produccion. El transporte ya esta conectado. Falta esquema, legal, certificacion y preparacion operativa.",
-                pt: "Estes paises estao bloqueados ate existir aprovacao explicita para entrada em producao. O transporte ja esta ligado. Falta esquema, juridico, certificacao e prontidao operacional.",
+                es: "Estos paises estan bloqueados hasta obtener una aprobacion explicita de salida a producción. El transporte ya esta conectado. Falta esquema, legal, certificacion y preparacion operativa.",
+                pt: "Estes paises estão bloqueados até existir aprovacao explicita para entrada em produção. O transporte ja esta ligado. Falta esquema, juridico, certificacao e prontidao operaciónal.",
               })}
             </p>
           </div>
@@ -338,11 +338,11 @@ export default async function AdminInvoicingReadinessPage({
             <thead>
               <tr className="border-b border-border/60 bg-muted/25 text-left text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                 <th className="px-4 py-3">{pageText({ en: "Country", fr: "Pays", de: "Land", es: "Pais", pt: "Pais" })}</th>
-                <th className="px-4 py-3">{pageText({ en: "Launch", fr: "Lancement", de: "Launch", es: "Lanzamiento", pt: "Lancamento" })}</th>
+                <th className="px-4 py-3">{pageText({ en: "Laúnch", fr: "Lancement", de: "Laúnch", es: "Lanzamiento", pt: "Lancamento" })}</th>
                 <th className="px-4 py-3">{pageText({ en: "Support", fr: "Support", de: "Support", es: "Soporte", pt: "Suporte" })}</th>
                 <th className="px-4 py-3">{pageText({ en: "Blueprint", fr: "Blueprint", de: "Blueprint", es: "Blueprint", pt: "Blueprint" })}</th>
                 <th className="px-4 py-3">{pageText({ en: "E-Invoice", fr: "E-facture", de: "E-Rechnung", es: "Factura electronica", pt: "Fatura eletronica" })}</th>
-                <th className="px-4 py-3">{pageText({ en: "Reviewed", fr: "Revu", de: "Gepruft", es: "Revisado", pt: "Revisto" })}</th>
+                <th className="px-4 py-3">{pageText({ en: "Reviewed", fr: "Revu", de: "Geprüft", es: "Revisado", pt: "Revisto" })}</th>
                 <th className="px-4 py-3">{pageText({ en: "Top blockers", fr: "Principaux blocages", de: "Wichtigste Blocker", es: "Bloqueos principales", pt: "Principais bloqueios" })}</th>
               </tr>
             </thead>

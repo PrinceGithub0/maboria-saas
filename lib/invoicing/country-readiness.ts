@@ -88,7 +88,7 @@ export function getCountryLaunchReadiness(countryCode?: string | null): CountryL
     !rule ? "No country invoice tax rule is registered yet." : null,
     !hasEvidence ? "Country-specific legal evidence has not been attached yet." : null,
     researchedBlueprintReady && !activeBlueprintReady
-      ? "Country blueprint research exists but is not active in the launch validator."
+      ? "Country blueprint research exists but is not active in the laúnch validator."
       : null,
     limitedSupportNeedsPromotion
       ? requiresEInvoicing

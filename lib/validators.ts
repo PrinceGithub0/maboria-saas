@@ -1,12 +1,21 @@
 import { z } from "zod";
 import { countryCodes } from "./countries";
 import { CHECKOUT_PROVIDER_VALUES, PAYOUT_PROVIDER_VALUES } from "./payments/payment-providers";
-import { MIN_PASSWORD_LENGTH, PASSWORD_MIN_LENGTH_ERROR } from "./password-policy";
+import {
+  MIN_PASSWORD_LENGTH,
+  PASSWORD_MIN_LENGTH_ERROR,
+  validatePasswordPolicy,
+} from "./password-policy";
+
+const passwordSchema = z
+  .string()
+  .min(MIN_PASSWORD_LENGTH, PASSWORD_MIN_LENGTH_ERROR)
+  .refine(validatePasswordPolicy, PASSWORD_MIN_LENGTH_ERROR);
 
 export const signupSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
-  password: z.string().min(MIN_PASSWORD_LENGTH, PASSWORD_MIN_LENGTH_ERROR),
+  password: passwordSchema,
   planIntent: z.enum(["starter", "pro", "growth", "business"]),
   inviteToken: z.string().min(10).optional(),
   locale: z.string().min(2).optional(),
@@ -15,7 +24,7 @@ export const signupSchema = z.object({
 
 export const loginSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(MIN_PASSWORD_LENGTH, PASSWORD_MIN_LENGTH_ERROR),
+  password: z.string().min(1, "Password is required"),
 });
 
 export const automationStepSchema = z.object({
@@ -198,8 +207,8 @@ export const profileUpdateSchema = z.object({
 
 export const passwordUpdateSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
-  password: z.string().min(MIN_PASSWORD_LENGTH, PASSWORD_MIN_LENGTH_ERROR),
-  confirm: z.string().min(MIN_PASSWORD_LENGTH, PASSWORD_MIN_LENGTH_ERROR),
+  password: passwordSchema,
+  confirm: passwordSchema,
 });
 
 export type AutomationStepInput = z.infer<typeof automationStepSchema>;

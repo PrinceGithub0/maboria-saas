@@ -1,6 +1,7 @@
 import type { SubscriptionPlan } from "@prisma/client";
 
 import { getPlanPriceForInterval, type BillingInterval } from "@/lib/pricing";
+import { getPlanPriceForIntervalLive } from "@/lib/pricing-live";
 
 const PLAN_ORDER: SubscriptionPlan[] = [
   "STARTER",
@@ -149,6 +150,91 @@ export function buildSubscriptionCheckoutQuote(input: {
     currentInterval: input.currentInterval,
   });
   const currentPrice = getPlanPriceForInterval(input.currentPlan, input.currency, input.currentInterval);
+  const creditAmount =
+    currentPrice == null || remainingRatio <= 0 ? 0 : roundCurrency(currentPrice * remainingRatio);
+  const proratedTargetAmount =
+    input.currentInterval === input.targetInterval
+      ? roundCurrency(fullAmount * remainingRatio)
+      : roundCurrency(fullAmount);
+  const amountDue = Math.max(0, roundCurrency(proratedTargetAmount - creditAmount));
+
+  return {
+    action: "upgrade" as const,
+    targetPlan: input.targetPlan,
+    targetInterval: input.targetInterval,
+    currentPlan: input.currentPlan,
+    currentInterval: input.currentInterval,
+    fullAmount: roundCurrency(fullAmount),
+    amountDue,
+    creditAmount,
+    remainingRatio,
+  };
+}
+
+export async function buildSubscriptionCheckoutQuoteLive(input: {
+  currency: string;
+  targetPlan: SubscriptionPlan;
+  targetInterval: BillingInterval;
+  currentPlan?: SubscriptionPlan | null;
+  currentInterval?: BillingInterval | null;
+  currentPeriodStart?: Date | null;
+  currentPeriodEnd?: Date | null;
+  now?: Date;
+}) {
+  const now = input.now ? new Date(input.now) : new Date();
+  const fullAmount = await getPlanPriceForIntervalLive(
+    input.targetPlan,
+    input.currency,
+    input.targetInterval
+  );
+  if (fullAmount == null) {
+    return null;
+  }
+
+  if (!input.currentPlan || !input.currentInterval) {
+    const rounded = roundCurrency(fullAmount);
+    return {
+      action: "new_subscription" as const,
+      targetPlan: input.targetPlan,
+      targetInterval: input.targetInterval,
+      currentPlan: null,
+      currentInterval: null,
+      fullAmount: rounded,
+      amountDue: rounded,
+      creditAmount: 0,
+      remainingRatio: 0,
+    };
+  }
+
+  if (
+    input.currentPlan === input.targetPlan &&
+    input.currentInterval === input.targetInterval
+  ) {
+    const rounded = roundCurrency(fullAmount);
+    return {
+      action: "renewal" as const,
+      targetPlan: input.targetPlan,
+      targetInterval: input.targetInterval,
+      currentPlan: input.currentPlan,
+      currentInterval: input.currentInterval,
+      fullAmount: rounded,
+      amountDue: rounded,
+      creditAmount: 0,
+      remainingRatio: 0,
+    };
+  }
+
+  const remainingRatio = resolveRemainingRatio({
+    now,
+    currentPeriodStart: input.currentPeriodStart,
+    currentPeriodEnd: input.currentPeriodEnd,
+    currentInterval: input.currentInterval,
+  });
+  const currentPrice = await getPlanPriceForIntervalLive(
+    input.currentPlan,
+    input.currency,
+    input.currentInterval
+  );
   const creditAmount =
     currentPrice == null || remainingRatio <= 0 ? 0 : roundCurrency(currentPrice * remainingRatio);
   const proratedTargetAmount =

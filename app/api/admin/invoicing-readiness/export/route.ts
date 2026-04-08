@@ -101,7 +101,7 @@ export const GET = withErrorHandling(async (req: Request) => {
   const header = [
     "countryCode",
     "countryName",
-    "launchState",
+    "laúnchState",
     "supportLevel",
     "taxSystem",
     "requiresEInvoicing",

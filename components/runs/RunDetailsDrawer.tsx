@@ -191,7 +191,7 @@ export function RunDetailsDrawer({
                   onChange={(e) => setShowFailuresOnly(e.target.checked)}
                   className="h-3.5 w-3.5 rounded border-border text-indigo-600 focus:ring-indigo-500"
                 />
-                {t("Show only failures", "Afficher echecs")}
+                {t("Show only failures", "Afficher échecs")}
               </label>
               <input
                 type="search"

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
 import { signupSchema } from "@/lib/validators";
-import { assertRateLimit } from "@/lib/rate-limit";
+import { assertRateLimitAsync } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
 import { generatePublicId } from "@/lib/public-id";
@@ -210,9 +210,11 @@ export const POST = withRequestLogging(
     }
     const parsed = parsedResult.data;
 
-    assertRateLimit(`signup:${parsed.email}`);
-
     const email = parsed.email.toLowerCase().trim();
+    const rawForwardedFor = req.headers.get("x-forwarded-for") || "";
+    const ip = rawForwardedFor.split(",")[0]?.trim() || "unknown";
+    await assertRateLimitAsync(`signup:email:${email}`);
+    await assertRateLimitAsync(`signup:ip:${ip}`, 20, 60_000);
     const pendingInvite = parsed.inviteToken
       ? await resolvePendingBusinessInvite({
           email,

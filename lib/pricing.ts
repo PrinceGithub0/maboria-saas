@@ -1,8 +1,10 @@
 import { STANDARD_VAT_RATE, applyVatToSubtotal } from "./vat";
+import { roundPricingDisplayAmount } from "./pricing-rounding";
 
 export type Plan = "STARTER" | "PRO" | "GROWTH" | "BUSINESS" | "PREMIUM" | "ENTERPRISE";
 export type BillingInterval = "monthly" | "yearly";
 type Currency = "USD" | "NGN";
+export const PRICING_PLAN_ORDER: Plan[] = ["STARTER", "PRO", "GROWTH", "BUSINESS", "ENTERPRISE"];
 
 type PricingMeta = { usd?: number; ngn?: number; displayName: string; features: string[] };
 
@@ -109,15 +111,21 @@ export const FX_RATES_NGN_PER: Record<string, number> = {
 
 export function getPlanPriceForCurrency(plan: Plan, currency: string) {
   const data = pricingTable[plan];
-  if (currency.toUpperCase() === "USD" && data.usd != null) {
+  const normalizedCurrency = currency.toUpperCase();
+  if (normalizedCurrency === "USD" && data.usd != null) {
     return data.usd;
   }
   const ngn = data.ngn ?? null;
   if (ngn == null) return null;
-  const rate = FX_RATES_NGN_PER[currency.toUpperCase()] ?? FX_RATES_NGN_PER.NGN;
+  const rate = FX_RATES_NGN_PER[normalizedCurrency];
+  if (!Number.isFinite(rate) || rate <= 0) return null;
   const base = ngn / rate;
   const { total } = applyVatToSubtotal(base, STANDARD_VAT_RATE);
-  return Math.round(total * 100) / 100;
+  return roundPricingDisplayAmount(total);
+}
+
+export function getPlanUsdPrice(plan: Plan) {
+  return pricingTable[plan]?.usd ?? null;
 }
 
 export function getPlanPriceForInterval(
@@ -129,15 +137,14 @@ export function getPlanPriceForInterval(
   if (monthly == null) return null;
   if (interval === "yearly") {
     const yearly = monthly * 12 * 0.85;
-    return Math.round(yearly * 100) / 100;
+    return roundPricingDisplayAmount(yearly);
   }
   return monthly;
 }
 
 export function getPlanFromAmountWithInterval(currency: string, amount: number) {
   const normalized = currency.toUpperCase();
-  const ordered: Plan[] = ["STARTER", "PRO", "GROWTH", "BUSINESS", "ENTERPRISE"];
-  for (const plan of ordered) {
+  for (const plan of PRICING_PLAN_ORDER) {
     const monthly = getPlanPriceForCurrency(plan, normalized);
     if (monthly != null && Math.abs(monthly - amount) < 0.01) {
       return { plan, interval: "monthly" as const };
@@ -159,16 +166,19 @@ export function getPlanPrice(plan: Plan, currency: Currency) {
   const data = pricingTable[plan];
   if (currency === "NGN" && data.ngn) {
     const { total } = applyVatToSubtotal(data.ngn, STANDARD_VAT_RATE);
-    return total;
+    return roundPricingDisplayAmount(total);
   }
   return getPlanPriceForCurrency(plan, currency);
 }
 
 export function pricingTableForUI(currency: Currency) {
-  const ordered: Plan[] = ["STARTER", "PRO", "GROWTH", "BUSINESS", "ENTERPRISE"];
-  return ordered.map((plan) => {
+  return PRICING_PLAN_ORDER.map((plan) => {
     const meta = pricingTable[plan];
-    const ngnWithVat = meta.ngn ? applyVatToSubtotal(meta.ngn, STANDARD_VAT_RATE).total : null;
+    const ngnWithVat = meta.ngn
+      ? roundPricingDisplayAmount(
+          applyVatToSubtotal(meta.ngn, STANDARD_VAT_RATE).total
+        )
+      : null;
     return {
       plan,
       label: meta.displayName,
@@ -179,10 +189,13 @@ export function pricingTableForUI(currency: Currency) {
 }
 
 export function pricingTableDualCurrency() {
-  const ordered: Plan[] = ["STARTER", "PRO", "GROWTH", "BUSINESS", "ENTERPRISE"];
-  return ordered.map((plan) => {
+  return PRICING_PLAN_ORDER.map((plan) => {
     const meta = pricingTable[plan];
-    const ngnWithVat = meta.ngn ? applyVatToSubtotal(meta.ngn, STANDARD_VAT_RATE).total : null;
+    const ngnWithVat = meta.ngn
+      ? roundPricingDisplayAmount(
+          applyVatToSubtotal(meta.ngn, STANDARD_VAT_RATE).total
+        )
+      : null;
     return {
       plan,
       label: meta.displayName,

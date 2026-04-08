@@ -6,12 +6,12 @@ export const boliviaComplianceModule = buildDefaultCountryModule("BO", {
   evidence: [
     {
       label: "Bolivia SIAT factura electronica en linea",
-      url: "https://siatanexo.impuestos.gob.bo/index.php/modalidades-facturacion/facturacion-electronica",
+      url: "https://siatanexo.impuestos.gob.bo/index.php/modalidades-facturación/facturación-electronica",
       reviewedAt: "2026-04-06",
     },
     {
-      label: "Bolivia SIAT informacion general facturacion electronica",
-      url: "https://siatanexo.impuestos.gob.bo/index.php/informacion-gral",
+      label: "Bolivia SIAT información general facturación electronica",
+      url: "https://siatanexo.impuestos.gob.bo/index.php/información-gral",
       reviewedAt: "2026-04-06",
     },
   ],

@@ -52,7 +52,7 @@ export default function ForgotPasswordPage() {
             <p className="text-sm text-muted-foreground">
               {t(
                 "Enter your account email and we'll send you a secure reset link.",
-                "Entrez votre email de compte et nous vous enverrons un lien s?curis?."
+                "Entrez votre email de compte et nous vous enverrons un lien sécurisé."
               )}
             </p>
           </div>

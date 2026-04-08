@@ -212,11 +212,50 @@ export async function GET() {
     name: user.name,
   });
 
+  await prisma.$transaction([
+    prisma.activityLog.create({
+      data: {
+        userId,
+        action: "USER_PRIVACY_EXPORT_GENERATED",
+        resourceType: "privacy_export",
+        resourceId: user.id,
+        metadata: {
+          orgId: orgContext?.orgId ?? null,
+          format: "json",
+          recordCounts: {
+            memberships: memberships.length,
+            subscriptions: subscriptions.length,
+            eInvoicingConnections: eInvoicingConnections.length,
+            connectedMailboxes: connectedMailboxes.length,
+            activityLogs: activityLogs.length,
+            auditLogs: auditLogs.length,
+            userActivityLogs: userActivityLogs.length,
+            supportTickets: supportTickets.length,
+          },
+        },
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        userId,
+        orgId: orgContext?.orgId ?? null,
+        targetUserId: user.id,
+        action: "USER_PRIVACY_EXPORT_GENERATED",
+        actionType: "USER_PRIVACY_EXPORT_GENERATED",
+        metadata: {
+          format: "json",
+          exportedAt,
+        },
+      },
+    }),
+  ]);
+
   return new NextResponse(JSON.stringify(payload, null, 2), {
     status: 200,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
       "Content-Disposition": `attachment; filename="${filename}"`,
+      "Cache-Control": "no-store",
     },
   });
 }

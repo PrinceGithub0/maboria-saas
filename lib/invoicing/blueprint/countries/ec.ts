@@ -5,8 +5,8 @@ export const ecuadorComplianceModule = buildDefaultCountryModule("EC", {
   ruleVersion: "2026-04-06",
   evidence: [
     {
-      label: "Ecuador SRI facturacion electronica",
-      url: "https://www.sri.gob.ec/facturacion-electronica",
+      label: "Ecuador SRI facturación electronica",
+      url: "https://www.sri.gob.ec/facturación-electronica",
       reviewedAt: "2026-04-06",
     },
     {

@@ -68,7 +68,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   AL_FISCALIZATION: {
@@ -76,7 +76,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   AR_AFIP: {
@@ -84,7 +84,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   AZ_ETAX_INVOICE: {
@@ -92,7 +92,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   BE_PEPPOL: {
@@ -100,7 +100,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   BO_SIAT: {
@@ -108,7 +108,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   CI_FNE: {
@@ -116,7 +116,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   CR_HACIENDA: {
@@ -124,7 +124,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   DO_DGII_ECF: {
@@ -132,7 +132,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   EC_SRI: {
@@ -140,7 +140,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   EG_EINVOICE: {
@@ -148,7 +148,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   FR_PPFE: {
@@ -156,7 +156,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   GH_EVAT: {
@@ -164,7 +164,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   GT_FEL: {
@@ -172,7 +172,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   ID_EFAKTUR: {
@@ -180,7 +180,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   IL_ISRAEL_EINVOICE: {
@@ -188,7 +188,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   JO_JOFOTARA: {
@@ -196,7 +196,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   KE_ETIMS: {
@@ -204,7 +204,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   KR_HOMETAX: {
@@ -212,7 +212,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   KZ_IS_ESF: {
@@ -220,7 +220,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   MU_MRA_EINVOICE: {
@@ -228,7 +228,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   MW_MRA_EIS: {
@@ -236,7 +236,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   NG_FIRS_EFS: {
@@ -244,7 +244,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   OM_EINVOICING: {
@@ -252,7 +252,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   PA_DGI: {
@@ -260,7 +260,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   PH_EIS: {
@@ -268,7 +268,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   PK_FBR_DIGITAL_INVOICING: {
@@ -276,7 +276,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   PL_KSEF: {
@@ -284,7 +284,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   PY_SIFEN: {
@@ -292,7 +292,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   RS_EFISKALIZACIJA: {
@@ -300,7 +300,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   RW_EBM: {
@@ -308,7 +308,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   SV_DTE: {
@@ -316,7 +316,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   TR_EFATURA: {
@@ -324,7 +324,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   TW_EGUI: {
@@ -332,7 +332,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   UA_EINVOICE: {
@@ -340,7 +340,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   UG_EFRIS: {
@@ -348,7 +348,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   UY_CFE: {
@@ -356,7 +356,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   VN_EINVOICE: {
@@ -364,7 +364,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   ZM_SMART_INVOICE: {
@@ -372,7 +372,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
   ZW_FDMS: {
@@ -380,7 +380,7 @@ const plannedProviderOverrides: Partial<Record<EInvoiceProviderDefinition["key"]
     supportsStatusSync: true,
     completionStage: "CANCEL_READY",
     capabilitySummary:
-      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before launch.",
+      "Accredited gateway submission, status sync, and cancellation transport are wired. Country-specific certification and production signoff still need completion before laúnch.",
     credentialFields: gatewayCredentialFields,
   },
 };

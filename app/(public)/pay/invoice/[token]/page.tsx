@@ -87,7 +87,7 @@ export default async function PublicInvoicePage({ params, searchParams }: PagePr
           {t(
             "This invoice has an unsupported currency. Please contact the sender.",
             "Cette facture utilis? une devise non prise en charge. Veuillez contacter l'exp?diteur.",
-            "Diese Rechnung verwendet eine nicht unterstutzte Währung. Bitte kontaktiere den Absender.",
+            "Diese Rechnung verwendet eine nicht unterstützte Währung. Bitte kontaktiere den Absender.",
             "Esta factura usa una moneda no compatible. Contacta con el emisor.",
             "Esta fatura utiliza uma moeda não suportada. Contacte o remetente."
           )}
@@ -145,7 +145,7 @@ export default async function PublicInvoicePage({ params, searchParams }: PagePr
 
       {isPaid ? (
         <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-900">
-          <p className="text-base font-semibold">{t("Payment confirmed", "Paiement confirme", "Zahlung bestatigt", "Pago confirmado", "Pagamento confirmado")}</p>
+          <p className="text-base font-semibold">{t("Payment confirmed", "Paiement confirme", "Zahlung bestätigt", "Pago confirmado", "Pagamento confirmado")}</p>
           <p className="mt-1 text-sm text-emerald-800">
             {t(
               "Your payment was received successfully and your invoice is now marked as paid.",
@@ -168,7 +168,7 @@ export default async function PublicInvoicePage({ params, searchParams }: PagePr
             </div>
             <div>
               <p className="text-xs uppercase tracking-wide text-emerald-700/80">{t("Payment provider", "Fournisseur de paiement", "Zahlungsanbieter", "Proveedor de pago", "Fornecedor de pagamento")}</p>
-              <p className="font-semibold text-emerald-950">{paymentProviderLabel || t("Secure checkout", "Paiement s?curis?", "Sicherer Checkout", "Pago seguro", "Checkout seguro")}</p>
+              <p className="font-semibold text-emerald-950">{paymentProviderLabel || t("Secure checkout", "Paiement sécurisé", "Sicherer Checkout", "Pago seguro", "Checkout seguro")}</p>
             </div>
             <div>
               <p className="text-xs uppercase tracking-wide text-emerald-700/80">{t("Receipt", "Recu", "Beleg", "Recibo", "Recibo")}</p>
@@ -196,9 +196,9 @@ export default async function PublicInvoicePage({ params, searchParams }: PagePr
           {t(
             "Payment could not be confirmed. Please try again or contact the sender.",
             "Le paiement n'a pas pu être confirme. Veuillez réessayer ou contacter l'exp?diteur.",
-            "Die Zahlung konnte nicht bestatigt werden. Bitte versuche es erneut oder kontaktiere den Absender.",
+            "Die Zahlung konnte nicht bestätigt werden. Bitte versuche es erneut oder kontaktiere den Absender.",
             "No se pudo confirmar el pago. Intentalo de nuevo o contacta con el emisor.",
-            "Não foi poss?vel confirmar o pagamento. Tente novamente ou contacte o remetente."
+            "Não foi possível confirmar o pagamento. Tente novamente ou contacte o remetente."
           )}
         </div>
       ) : null}

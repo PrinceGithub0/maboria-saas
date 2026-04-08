@@ -178,8 +178,8 @@ export default function DashboardSupportPage() {
     en: "Support replies appear here and by email",
     fr: "Les réponses support apparaissent ici et par email",
     de: "Supportantworten erscheinen hier und per E-Mail",
-    es: "Las respuestas de soporte aparecen aqui y por correo",
-    pt: "As respostas do suporte aparecem aqui e por email",
+    es: "Las respuestas de soporte aparecen aquí y por correo",
+    pt: "As respostas do suporte aparecem aquí e por email",
   });
 
   const urgencyClassMap: Record<Urgency, string> = {
@@ -202,11 +202,11 @@ export default function DashboardSupportPage() {
 
     for (const file of incoming) {
       if (!ALLOWED_ATTACHMENT_TYPES.includes(file.type as (typeof ALLOWED_ATTACHMENT_TYPES)[number])) {
-        nextError = t("Only JPG, PNG, or PDF files are supported.", "Seuls les fichiers JPG, PNG, ou PDF sont acceptes.", "Nur JPG-, PNG- oder PDF-Dateien werden unterst?tzt.", "Solo se admiten archivos JPG, PNG o PDF.", "Apenas s?o suportados ficheiros JPG, PNG ou PDF.");
+        nextError = t("Only JPG, PNG, or PDF files are supported.", "Seuls les fichiers JPG, PNG, ou PDF sont acceptes.", "Nur JPG-, PNG- oder PDF-Dateien werden unterstützt.", "Solo se admiten archivos JPG, PNG o PDF.", "Apenas são suportados ficheiros JPG, PNG ou PDF.");
         continue;
       }
       if (file.size > 5 * 1024 * 1024) {
-        nextError = t("File too large. Maximum allowed is 5MB.", "Fichier trop volumineux. Le maximum autorise est de 5 Mo.", "Datei zu gross. Maximal 5 MB sind erlaubt.", "El archivo es demasiado grande. El maximo permitido es 5 MB.", "Ficheiro demasiado grande. O maximo permitido e 5 MB.");
+        nextError = t("File too large. Maximum allowed is 5MB.", "Fichier trop volumineux. Le maximum autorise est de 5 Mo.", "Datei zu groß. Maximal 5 MB sind erlaubt.", "El archivo es demasiado grande. El maximo permitido es 5 MB.", "Ficheiro demasiado grande. O maximo permitido e 5 MB.");
         continue;
       }
       if (nextFiles.some((existing) => existing.name === file.name && existing.size === file.size && existing.lastModified === file.lastModified)) {
@@ -216,7 +216,7 @@ export default function DashboardSupportPage() {
         nextError = t(
           "You can attach up to 3 files per ticket.",
           "Vous pouvez joindre jusqu a 3 fichiers par ticket.",
-          "Du kannst bis zu 3 Dateien pro Ticket anhangen.",
+          "Du kannst bis zu 3 Dateien pro Ticket anhängen.",
           "Puedes adjuntar hasta 3 archivos por ticket.",
           "Pode anexar at? 3 ficheiros por ticket."
         );
@@ -276,7 +276,7 @@ export default function DashboardSupportPage() {
     const subject = form.subject.trim();
     const message = form.message.trim();
     const nextErrors: { subject?: string; message?: string } = {};
-    if (subject.length < 5) nextErrors.subject = t("Subject must be at least 5 characters.", "Le sujet doit comporter au moins 5 caractères.", "Der Betreff muss mindestens 5 Zeichen lang sein.", "El asunto debe tener al menos 5 caracteres.", "O assunto tem de ter pelo menos 5 caracteres.");
+    if (subject.length < 5) nextErrors.subject = t("Subject must be at least 5 characters.", "Le sujet doit comporter au moins 5 caractères.", "Der Bêtreff muss mindestens 5 Zeichen lang sein.", "El asunto debe tener al menos 5 caracteres.", "O assunto tem de ter pelo menos 5 caracteres.");
     if (message.length < 10) nextErrors.message = t("Message must be at least 10 characters.", "Le message doit comporter au moins 10 caracteres.", "Die Nachricht muss mindestens 10 Zeichen lang sein.", "El mensaje debe tener al menos 10 caracteres.", "A mensagem tem de ter pelo menos 10 caracteres.");
     if (Object.keys(nextErrors).length) {
       setErrors(nextErrors);
@@ -325,8 +325,8 @@ export default function DashboardSupportPage() {
               en: "Ticket submitted, but support email delivery failed. Updates will still appear here.",
               fr: "Ticket envoy?, mais l envoi de l email support a échoué. Les mises a jour apparaitront quand meme ici.",
               de: "Ticket gesendet, aber die Zustellung der Support-E-Mail ist fehlgeschlagen. Aktualisierungen erscheinen weiterhin hier.",
-              es: "El ticket se envio, pero la entrega del correo de soporte fallo. Las actualizaciones seguiran apareciendo aqui.",
-              pt: "O ticket foi enviado, mas a entrega do email de suporte falhou. As atualizacoes continuarao a aparecer aqui.",
+              es: "El ticket se envio, pero la entrega del correo de soporte fallo. Las actualizaciones seguiran apareciendo aquí.",
+              pt: "O ticket foi enviado, más a entrega do email de suporte falhou. As atualizacoes continuarao a aparecer aquí.",
             }),
             variant: "warning",
           });
@@ -334,7 +334,7 @@ export default function DashboardSupportPage() {
           setStatus({
             message: t(
               "Ticket submitted successfully. You can track updates in Recent tickets.",
-              "Ticket envoy? avec succes. Suivez les mises a jour dans les tickets recents.",
+              "Ticket envoy? avec succès. Suivez les mises a jour dans les tickets recents.",
               "Ticket erfolgreich gesendet. Du kannst Aktualisierungen in Letzte Tickets verfolgen.",
               "Ticket enviado correctamente. Puedes seguir las actualizaciones en Tickets recientes.",
               "Ticket enviado com sucesso. Pode acompanhar as atualizacoes em Tickets recentes."
@@ -354,7 +354,7 @@ export default function DashboardSupportPage() {
           fr: "Impossible de soumettre le ticket. Veuillez réessayer.",
           de: "Ticket konnte nicht gesendet werden. Bitte versuche es erneut.",
           es: "No se pudo enviar el ticket. Intentalo de nuevo.",
-          pt: "Não foi poss?vel submeter o ticket. Tente novamente.",
+          pt: "Não foi possível submeter o ticket. Tente novamente.",
         }),
         variant: "error",
       });
@@ -468,7 +468,7 @@ export default function DashboardSupportPage() {
               >
                 {t(
                   "Create a support ticket or continue your existing support conversation.",
-                  "Cr?ez un ticket de support ou poursuivez votre conversation de support existante.",
+                  "Créez un ticket de support ou poursuivez votre conversation de support existante.",
                   "Erstelle ein Support-Ticket oder setze deine bestehende Support-Konversation fort.",
                   "Crea un ticket de soporte o continua tu conversación de soporte existente.",
                   "Crie um ticket de suporte ou continue a sua conversa de suporte existente."
@@ -482,7 +482,7 @@ export default function DashboardSupportPage() {
                 onClick={scrollToSubmitTicket}
                 className="min-h-12 rounded-2xl bg-[linear-gradient(135deg,#4F8EF7,#2F6DEB)] px-7 text-base shadow-[0_16px_34px_rgba(47,109,235,0.28)] hover:brightness-105"
               >
-                {t("Create Ticket", "Creer un ticket", "Ticket erstellen", "Crear ticket", "Criar ticket")}
+                {t("Create Ticket", "Créer un ticket", "Ticket erstellen", "Crear ticket", "Criar ticket")}
               </Button>
               <div className="flex flex-wrap items-center gap-2.5">
                 <span
@@ -562,7 +562,7 @@ export default function DashboardSupportPage() {
                     t("What you were trying to do", "Ce que vous tentiez de faire", "Was du versucht hast zu tun", "Lo que intentabas hacer", "O que estava a tentar fazer"),
                     t("Exact error message", "Le message d erreur exact", "Genaue Fehlermeldung", "Mensaje de error exacto", "Mensagem de erro exata"),
                     t("Steps taken and expected outcome", "Etapes suivies et resultat attendu", "Ausgeführte Schritte und erwartetes Ergebnis", "Pasos realizados y resultado esperado", "Passos efetuados e resultado esperado"),
-                    t("Screenshots or attachments (if available)", "Captures d ecran ou pieces jointes (si disponibles)", "Screenshots oder Anhange (falls vorhanden)", "Capturas o archivos adjuntos (si est?n disponibles)", "Capturas de ecran ou anexos (se dispon?veis)"),
+                    t("Screenshots or attachments (if available)", "Captures d ecran ou pieces jointes (si disponibles)", "Screenshots oder Anhange (falls vorhanden)", "Capturas o archivos adjuntos (si est?n disponibles)", "Capturas de ecran ou anexos (se disponíveis)"),
                   ].map((item) => (
                     <li
                       key={item}
@@ -600,7 +600,7 @@ export default function DashboardSupportPage() {
                     "Nous n'avons pas pu charger vos tickets support recents pour le moment.",
                     "Deine letzten Support-Tickets konnten derzeit nicht geladen werden.",
                     "No pudimos cargar tus tickets de soporte recientes en este momento.",
-                    "Não foi poss?vel carregar os seus tickets de suporte recentes neste momento."
+                    "Não foi possível carregar os seus tickets de suporte recentes neste momento."
                   )}
                 </Alert>
               ) : recentTickets.length === 0 ? (
@@ -615,15 +615,15 @@ export default function DashboardSupportPage() {
                       "When you submit a support request, it will appear here.",
                       "Quand vous soumettez une demande de support, elle apparait ici.",
                       "Wenn du eine Support-Anfrage einreichst, erscheint sie hier.",
-                      "Cuando envies una solicitud de soporte, aparecera aqui.",
-                      "Quando submeter um pedido de suporte, ele aparecera aqui."
+                      "Cuando envies una solicitud de soporte, aparecera aquí.",
+                      "Quando submeter um pedido de suporte, ele aparecera aquí."
                     )}
                   </p>
                   <Link
                     href="/dashboard/support#submit-ticket"
                     className="mt-3 inline-flex rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-[#334155] dark:text-slate-200 dark:hover:bg-slate-700/40"
                   >
-                    {t("Create a Support Ticket", "Creer un ticket support", "Support-Ticket erstellen", "Crear un ticket de soporte", "Criar um ticket de suporte")}
+                    {t("Create a Support Ticket", "Créer un ticket support", "Support-Ticket erstellen", "Crear un ticket de soporte", "Criar um ticket de suporte")}
                   </Link>
                 </div>
               ) : (
@@ -737,7 +737,7 @@ export default function DashboardSupportPage() {
             </div>
 
             <Input
-              label={t("Subject", "Sujet", "Betreff", "Asunto", "Assunto")}
+              label={t("Subject", "Sujet", "Bêtreff", "Asunto", "Assunto")}
               placeholder={t("Billing, automation, AI...", "Facturation, automatisation, IA...", "Abrechnung, Automatisierung, KI...", "Facturación, automatización, IA...", "Faturação, automação, IA...")}
               value={form.subject}
               onChange={(e) => {
@@ -773,7 +773,7 @@ export default function DashboardSupportPage() {
             />
 
             <div className="space-y-3">
-              <p className="text-sm font-medium text-slate-900 dark:text-[#E2E8F0]">{t("Attach File", "Joindre un fichier", "Datei anhangen", "Adjuntar archivo", "Anexar ficheiro")}</p>
+              <p className="text-sm font-medium text-slate-900 dark:text-[#E2E8F0]">{t("Attach File", "Joindre un fichier", "Datei anhängen", "Adjuntar archivo", "Anexar ficheiro")}</p>
               <label
                 className={`group relative flex w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 text-center transition-colors ${
                   attachments.length > 0 ? "min-h-[102px]" : "min-h-[120px]"
@@ -795,7 +795,7 @@ export default function DashboardSupportPage() {
               >
                 <Paperclip className="h-5 w-5 text-slate-500 dark:text-slate-300" />
                 <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                  {t("Drag & drop files here", "Glissez-deposez vos fichiers ici", "Dateien hierher ziehen und ablegen", "Arrastra y suelta archivos aqui", "Arraste e largue os ficheiros aqui")}
+                  {t("Drag & drop files here", "Glissez-deposez vos fichiers ici", "Dateien hierher ziehen und ablegen", "Arrastra y suelta archivos aquí", "Arraste e largue os ficheiros aquí")}
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {t("or click to upload", "ou cliquez pour télevérser", "oder klicken zum Hochladen", "o haz clic para subirlos", "ou clique para carregar")}
@@ -829,10 +829,10 @@ export default function DashboardSupportPage() {
                               src={preview}
                               alt={t({
                                 en: "Attachment preview",
-                                fr: "Apercu de la piece jointe",
+                                fr: "Aperçu de la piece jointe",
                                 de: "Vorschau des Anhangs",
                                 es: "Vista previa del adjunto",
-                                pt: "Pre-visualiza??o do anexo",
+                                pt: "Pre-visualização do anexo",
                               })}
                               width={36}
                               height={36}

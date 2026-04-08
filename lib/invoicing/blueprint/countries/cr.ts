@@ -10,7 +10,7 @@ export const costaRicaComplianceModule = buildDefaultCountryModule("CR", {
       reviewedAt: "2026-04-06",
     },
     {
-      label: "Costa Rica informacion tributaria comprobantes electronicos",
+      label: "Costa Rica información tributaria comprobantes electronicos",
       url: "https://www.hacienda.go.cr/ATV/ComprobanteElectronico/frmAnexosyEstructuras.aspx",
       reviewedAt: "2026-04-06",
     },

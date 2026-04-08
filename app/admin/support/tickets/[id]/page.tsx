@@ -274,7 +274,7 @@ export default function AdminSupportTicketDetailPage() {
       );
     }
     const agent = agents.find((item) => item.id === assigneeId);
-    return agent?.name || agent?.email || t("Selected admin", "Admin selectionne", "Ausgewahlter Admin", "Admin seleccionado", "Admin selecionado");
+    return agent?.name || agent?.email || t("Selected admin", "Admin selectionne", "Ausgewählter Admin", "Admin seleccionado", "Admin selecionado");
   };
 
   const supportListKeyFilter = (key: unknown) =>
@@ -808,10 +808,10 @@ export default function AdminSupportTicketDetailPage() {
                       language,
                       t(
                         "Support action failed.",
-                        "L'action de support a ?chou?.",
+                        "L'action de support a échoué.",
                         "Support-Aktion fehlgeschlagen.",
-                        "La accion de soporte fallo.",
-                        "A acao de suporte falhou."
+                        "La acción de soporte fallo.",
+                        "A ação de suporte falhou."
                       )
                     )
                   : feedback.message}
@@ -841,7 +841,7 @@ export default function AdminSupportTicketDetailPage() {
                   "Impossible de charger le detail du ticket.",
                   "Ticketdetails konnten nicht geladen werden.",
                   "No se pudo cargar el detalle del ticket.",
-                  "Não foi poss?vel carregar o detalhe do ticket."
+                  "Não foi possível carregar o detalhe do ticket."
                 )
             )}
           </Alert>
@@ -942,7 +942,7 @@ export default function AdminSupportTicketDetailPage() {
                                         ? "Sent"
                                         : "Queued",
                                   entry.deliveryStatus === "FAILED"
-                                    ? "Echoue"
+                                    ? "Échoué"
                                     : entry.deliveryStatus === "DELIVERED"
                                       ? "Livre"
                                       : entry.deliveryStatus === "SENT"
@@ -1092,7 +1092,7 @@ export default function AdminSupportTicketDetailPage() {
                     <button
                       type="button"
                       className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-foreground hover:bg-muted"
-                      aria-label={t("More options", "Plus d options", "Weitere Optionen", "Mas opciones", "Mais opcoes")}
+                      aria-label={t("More options", "Plus d options", "Weitere Optionen", "Más opciones", "Mais opcoes")}
                       onClick={() => {
                         setShowMoreMenu((prev) => !prev);
                         setShowEmojiPicker(false);
@@ -1246,7 +1246,7 @@ export default function AdminSupportTicketDetailPage() {
 
                 <div className="space-y-1 border-t border-border/70 pt-4 text-sm">
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                    {t("Ticket metadata", "Metadonnees du ticket", "Ticket-Metadaten", "Metadatos del ticket", "Metadados do ticket")}
+                    {t("Ticket metadata", "Métadonnées du ticket", "Ticket-Metadaten", "Metadatos del ticket", "Metadados do ticket")}
                   </p>
                   <p className="text-muted-foreground">
                     {t("Updated", "Mis ? jour", "Aktualisiert", "Actualizado", "Atualizado")} {formatDateTimeDMY(new Date(ticket.lastActivityAt), LANGUAGE_LOCALES[language])}
@@ -1302,7 +1302,7 @@ export default function AdminSupportTicketDetailPage() {
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">
-                      {t("SLA not available.", "SLA indisponible.", "SLA nicht verfügbar.", "SLA no disponible.", "SLA indispon?vel.")}
+                      {t("SLA not available.", "SLA indisponible.", "SLA nicht verfügbar.", "SLA no disponible.", "SLA indisponível.")}
                     </p>
                   )}
                 </div>
@@ -1364,7 +1364,7 @@ export default function AdminSupportTicketDetailPage() {
                       onClick={() => setTimelinePage((prev) => prev + 1)}
                       disabled={timelineLoading}
                     >
-                      {t("Load more", "Charger plus", "Mehr laden", "Cargar mas", "Carregar mais")}
+                      {t("Load more", "Charger plus", "Mehr laden", "Cargar más", "Carregar mais")}
                     </Button>
                   ) : null}
                 </div>

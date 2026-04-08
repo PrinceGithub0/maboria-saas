@@ -7,7 +7,7 @@ const ASSISTANT_SERVER_MESSAGES: Record<string, LocalizedText> = {
     fr: "Mise a niveau requise.",
     de: "Upgrade erforderlich.",
     es: "Se requiere una mejora del plan.",
-    pt: "Atualiza??o de plano necessária.",
+    pt: "Atualização de plano necessária.",
   },
   "Payment required": {
     en: "Payment required.",
@@ -70,14 +70,14 @@ const ASSISTANT_SERVER_MESSAGES: Record<string, LocalizedText> = {
     fr: "Impossible de renommer le chat pour le moment.",
     de: "Der Chat kann momentan nicht umbenannt werden.",
     es: "No se puede cambiar el nombre del chat en este momento.",
-    pt: "Não e poss?vel renomear o chat neste momento.",
+    pt: "Não é possível renomear o chat neste momento.",
   },
   "Unable to delete chat right now.": {
     en: "Unable to delete chat right now.",
     fr: "Impossible de supprimer le chat pour le moment.",
     de: "Der Chat kann momentan nicht gelöscht werden.",
     es: "No se puede eliminar el chat en este momento.",
-    pt: "Não e poss?vel eliminar o chat neste momento.",
+    pt: "Não é possível eliminar o chat neste momento.",
   },
   "Thanks for the feedback.": {
     en: "Thanks for the feedback.",

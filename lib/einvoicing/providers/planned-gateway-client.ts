@@ -175,7 +175,7 @@ export function buildPlannedGatewayPreparation(input: {
     ].filter(Boolean) as string[],
     notes: [
       `${input.providerLabel} uses a workspace-configured accredited gateway endpoint rather than a hard-coded government endpoint.`,
-      "Country-specific legal certification and production signoff still need to be completed before launch.",
+      "Country-specific legal certification and production signoff still need to be completed before laúnch.",
     ],
   };
 }

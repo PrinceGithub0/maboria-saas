@@ -11,7 +11,7 @@ export const liechtensteinComplianceModule = buildDefaultCountryModule("LI", {
     },
     {
       label: "Liechtenstein public procurement e-invoicing guidance",
-      url: "https://www.llv.li/de/landesverwaltung/amt-fuer-finanzen/wissenswertes/erechnung",
+      url: "https://www.llv.li/de/landesverwaltung/amt-für-finanzen/wissenswertes/erechnung",
       reviewedAt: "2026-04-06",
     },
   ],

@@ -3,7 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import type { NextAuthOptions } from "next-auth";
 import { prisma } from "./prisma";
 import { verifyTotp } from "./totp";
-import { assertRateLimit } from "./rate-limit";
+import { assertRateLimitAsync } from "./rate-limit";
 import { safeDecryptSecret } from "./crypto";
 import { isPlatformRole } from "./global-role";
 import { logUserActivity } from "./user-activity";
@@ -116,8 +116,8 @@ export const authOptions: NextAuthOptions = {
         // Basic abuse prevention. Keep limits strict for auth + 2FA attempts.
         // Do not throw from NextAuth authorize (keeps auth flow stable); treat as failed signin.
         try {
-          assertRateLimit(`auth:login:ip:${ip}`, 30, 60_000);
-          assertRateLimit(`auth:login:email:${email}`, 10, 60_000);
+          await assertRateLimitAsync(`auth:login:ip:${ip}`, 30, 60_000);
+          await assertRateLimitAsync(`auth:login:email:${email}`, 10, 60_000);
         } catch {
           await recordLoginFailure("rate_limited");
           return null;
@@ -149,7 +149,7 @@ export const authOptions: NextAuthOptions = {
         // If TOTP 2FA is enabled, require either a valid 6-digit code or an unused backup code.
         if (user.twoFactorEnabled) {
           try {
-            assertRateLimit(`auth:2fa:email:${email}`, 5, 60_000);
+            await assertRateLimitAsync(`auth:2fa:email:${email}`, 5, 60_000);
           } catch {
             await recordLoginFailure("2fa_rate_limited", user.id);
             return null;

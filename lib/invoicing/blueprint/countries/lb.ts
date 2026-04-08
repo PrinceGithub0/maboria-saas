@@ -10,7 +10,7 @@ export const lebanonComplianceModule = buildDefaultCountryModule("LB", {
       reviewedAt: "2026-04-06",
     },
   ],
-  extendRequiredFields(fields, document) {
+  extendRequiredFields(fields) {
     fields.push("supplier.legalName");
     fields.push("supplier.addressLine1");
     fields.push("supplier.registrationNumber");

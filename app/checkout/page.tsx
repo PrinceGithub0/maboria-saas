@@ -1,18 +1,61 @@
 ﻿import { getServerSession } from "next-auth";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { CheckoutPanel } from "@/components/checkout/checkout-panel";
 import { isAllowedCurrency, normalizeCurrency } from "@/lib/payments/currency-allowlist";
-import { getPlanPriceForInterval } from "@/lib/pricing";
+import { type BillingInterval, type Plan } from "@/lib/pricing";
 import { requireOrgPermission, resolveOrgContext } from "@/lib/org-auth";
 import { ensureCurrentSubscriptionForOrg } from "@/lib/subscription-downgrade";
 import { getLocalizedText, normalizeLanguage } from "@/lib/i18n";
+import { getCountryFromRequestHeaders } from "@/lib/payments/payment-providers";
+import {
+  PRICING_CURRENCY_COOKIE,
+  resolveInitialPricingCurrency,
+} from "@/lib/pricing-currency";
+import {
+  getPlanPriceForIntervalLive,
+  getPricingSupportedCurrencies,
+} from "@/lib/pricing-live";
 
-export default async function CheckoutPage() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+function readSearchParam(
+  params: Record<string, string | string[] | undefined> | undefined,
+  key: string
+) {
+  const value = params?.[key];
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function normalizeCheckoutPlan(value: string | null | undefined): Exclude<Plan, "PREMIUM" | "ENTERPRISE"> | null {
+  const normalized = String(value || "").trim().toUpperCase();
+  switch (normalized) {
+    case "STARTER":
+    case "PRO":
+    case "GROWTH":
+    case "BUSINESS":
+      return normalized;
+    default:
+      return null;
+  }
+}
+
+function normalizeCheckoutInterval(value: string | null | undefined): BillingInterval | null {
+  const normalized = String(value || "").trim().toLowerCase();
+  return normalized === "monthly" || normalized === "yearly" ? normalized : null;
+}
+
+export default async function CheckoutPage({
+  searchParams,
+}: {
+  searchParams?: SearchParams;
+}) {
   const cookieStore = await cookies();
+  const requestHeaders = await headers();
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const language = normalizeLanguage(cookieStore.get("maboria_language")?.value);
   const t = (en: string, fr?: string, de?: string, es?: string, pt?: string) =>
     getLocalizedText({ en, fr, de, es, pt }, language);
@@ -52,7 +95,7 @@ export default async function CheckoutPage() {
           <p className="mt-2 text-sm text-muted-foreground">
             {t(
               "We couldn't locate an active or pending subscription for this account. Please contact support to restore billing or sign out and try again.",
-              "Nous n'avons pas pu trouver d'abonnement actif ou en attente pour ce compte. Veuillez contacter le support pour restaurer la facturation ou vous déconnecter puis réessayer.",
+              "Nous n'avons pas pu trouvér d'abonnement actif ou en attente pour ce compte. Veuillez contacter le support pour restaurer la facturation ou vous déconnecter puis réessayer.",
               "Wir konnten kein aktives oder ausstehendes Abonnement für dieses Konto finden. Bitte kontaktiere den Support, um die Abrechnung wiederherzustellen, oder melde dich ab und versuche es erneut.",
               "No pudimos encontrar una suscripción activa o pendiente para esta cuenta. Contacta con soporte para restaurar la facturación o cierra sesión e inténtalo de nuevo.",
               "Não conseguimos encontrar uma subscrição ativa ou pendente para esta conta. Contacte o suporte para restaurar a faturação ou termine a sessão e tente novamente."
@@ -81,13 +124,25 @@ export default async function CheckoutPage() {
     where: { id: checkoutUserId },
     select: { preferredCurrency: true },
   });
-  let currency = normalizeCurrency(user?.preferredCurrency || "USD");
-  if (!isAllowedCurrency(currency)) {
-    currency = "USD";
-  }
+  const requestedCurrency = normalizeCurrency(readSearchParam(resolvedSearchParams, "currency") || "");
+  const supportedPricingCurrencies = await getPricingSupportedCurrencies();
+  const currency = resolveInitialPricingCurrency({
+    preferredCurrency: isAllowedCurrency(requestedCurrency) ? requestedCurrency : null,
+    cookieValue: cookieStore.get(PRICING_CURRENCY_COOKIE)?.value || user?.preferredCurrency || null,
+    countryCode: getCountryFromRequestHeaders(requestHeaders),
+    acceptLanguage: requestHeaders.get("accept-language"),
+    supportedCurrencies: supportedPricingCurrencies,
+  });
+  const selectedPlan =
+    normalizeCheckoutPlan(readSearchParam(resolvedSearchParams, "plan")) ||
+    normalizeCheckoutPlan(subscription.plan) ||
+    "STARTER";
+  const selectedInterval =
+    normalizeCheckoutInterval(readSearchParam(resolvedSearchParams, "interval")) ||
+    (subscription.interval === "yearly" ? "yearly" : "monthly");
 
-  const monthlyPrice = getPlanPriceForInterval(subscription.plan, currency, "monthly");
-  const yearlyPrice = getPlanPriceForInterval(subscription.plan, currency, "yearly");
+  const monthlyPrice = await getPlanPriceForIntervalLive(selectedPlan, currency, "monthly");
+  const yearlyPrice = await getPlanPriceForIntervalLive(selectedPlan, currency, "yearly");
   return (
     <div className="min-h-screen bg-white px-4 py-12 text-slate-900 sm:px-6">
       <div className="mx-auto w-full max-w-[980px]">
@@ -109,8 +164,8 @@ export default async function CheckoutPage() {
         </div>
         <CheckoutPanel
           userId={checkoutUserId}
-          plan={subscription.plan}
-          interval={subscription.interval === "yearly" ? "yearly" : "monthly"}
+          plan={selectedPlan}
+          interval={selectedInterval}
           currency={currency}
           monthlyPrice={monthlyPrice}
           yearlyPrice={yearlyPrice}

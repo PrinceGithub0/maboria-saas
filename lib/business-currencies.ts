@@ -217,8 +217,8 @@ export function getBusinessCurrencyFlag(code: string) {
   return "";
 }
 
-export function formatBusinessCurrencyOption(code: string) {
+export function formatBusinessCurrencyOption(code: string, locale = "en") {
   const normalized = normalizeCurrency(code);
-  const flag = getBusinessCurrencyFlag(normalized);
-  return flag ? `${flag} ${normalized}` : normalized;
+  const name = getBusinessCurrencyName(normalized, locale);
+  return name && name !== normalized ? `${normalized} · ${name}` : normalized;
 }

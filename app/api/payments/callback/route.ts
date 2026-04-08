@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
-import { getPlanFromAmountWithInterval, type BillingInterval } from "@/lib/pricing";
+import { type BillingInterval } from "@/lib/pricing";
 import { fromMinorUnits } from "@/lib/payments/currency-allowlist";
 import { log } from "@/lib/logger";
 import { subscriptionPlanToUserPlan } from "@/lib/entitlements";
+import { getPlanFromAmountWithIntervalLive } from "@/lib/pricing-live";
 import {
   recordPaystackPayment,
   verifyPaystackTransaction,
@@ -52,7 +53,7 @@ export const GET = withRequestLogging(withErrorHandling(async (req: Request) => 
 
     const amount = fromMinorUnits(Number(data?.amount || 0), data?.currency || "NGN");
     const currency = (data?.currency || "NGN").toUpperCase();
-    const inferred = getPlanFromAmountWithInterval(currency, amount);
+    const inferred = await getPlanFromAmountWithIntervalLive(currency, amount);
     const userId = (data?.metadata?.userId as string | undefined) || undefined;
     const plan = (data?.metadata?.plan as string | undefined) || inferred?.plan;
     const rawInterval = String(data?.metadata?.interval || "");
@@ -106,7 +107,7 @@ export const GET = withRequestLogging(withErrorHandling(async (req: Request) => 
 
   const amount = Number(verified?.amount || 0);
   const currency = (verified?.currency || "USD").toUpperCase();
-  const inferred = getPlanFromAmountWithInterval(currency, amount);
+  const inferred = await getPlanFromAmountWithIntervalLive(currency, amount);
   const userId = (verified?.meta?.userId as string | undefined) || undefined;
   const plan = (verified?.meta?.plan as string | undefined) || inferred?.plan;
   const rawInterval = String(verified?.meta?.interval || "");

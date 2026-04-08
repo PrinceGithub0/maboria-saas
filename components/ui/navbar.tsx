@@ -107,7 +107,7 @@ export function Navbar({ role }: { role?: string }) {
       Automations: t("Automations", "Automatisations"),
       AutomationOperations: t("Automation Operations", "Operations automatisation"),
       "AI Assistant": t("AI Assistant", "Assistant IA"),
-      Inbox: t("Inbox", "Bo?te de reception"),
+      Inbox: t("Inbox", "Boîte de réception"),
       Team: t("Team", "équipe"),
       Invoices: t("Invoices", "Factures"),
       Customers: t("Customers", "Clients"),
@@ -118,12 +118,12 @@ export function Navbar({ role }: { role?: string }) {
       Admin: t("Admin Dashboard", "Tableau admin"),
       AdminDashboard: t("Admin Dashboard", "Tableau admin"),
       "Admin Metrics": t("Admin Metrics", "Mesures admin"),
-      "System Logs": t("System Logs", "Journaux systeme"),
+      "System Logs": t("System Logs", "Journaux système"),
       Users: t("Users", "Utilisateurs"),
       Notifications: t("Notifications", "Notifications"),
       "Automation Errors": t("Automation Errors", "Erreurs automatisation"),
       Prelaunch: "Prelaunch",
-      "System Flags": t("System Flags", "Drapeaux systeme"),
+      "System Flags": t("System Flags", "Drapeaux système"),
       "Receipt Preview": t("Receipt Preview", "Aperçu recu"),
     }),
     [t]
@@ -180,20 +180,20 @@ export function Navbar({ role }: { role?: string }) {
         ? [
             {
               id: "create-automation",
-              label: t("Create automation", "Creer une automatisation"),
-              description: t("Build a new flow", "Creer un nouveau flux"),
+              label: t("Create automation", "Créer une automatisation"),
+              description: t("Build a new flow", "Créer un nouveau flux"),
               href: "/dashboard/automations/new",
               icon: Workflow,
-              group: t("Create", "Creer"),
+              group: t("Create", "Créer"),
               keywords: ["automation", "flow", "new"],
             },
             {
               id: "create-invoice",
-              label: t("Create invoice", "Creer une facture"),
+              label: t("Create invoice", "Créer une facture"),
               description: t("Generate a new invoice", "Generer une nouvelle facture"),
               href: "/dashboard/invoices",
               icon: Receipt,
-              group: t("Create", "Creer"),
+              group: t("Create", "Créer"),
               keywords: ["invoice", "billing"],
             },
             {
@@ -211,7 +211,7 @@ export function Navbar({ role }: { role?: string }) {
               description: t("Ask Maboria AI", "Demander a Maboria IA"),
               href: "/dashboard/assistant",
               icon: Sparkles,
-              group: t("Create", "Creer"),
+              group: t("Create", "Créer"),
               keywords: ["ai", "assistant", "copilot"],
             },
             {
@@ -357,7 +357,7 @@ export function Navbar({ role }: { role?: string }) {
                   "Rechercher automatisations, factures, paiements",
                   "Automatisierungen, Rechnungen, Zahlungen durchsuchen",
                   "Buscar automatizaciones, facturas, pagos",
-                  "Pesquisar automacoes, faturas, pagamentos"
+                  "Pesquisar automações, faturas, pagamentos"
                 )}
                 className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
                 aria-label={t("Search", "Rechercher", "Suchen", "Buscar", "Pesquisar")}
@@ -381,7 +381,7 @@ export function Navbar({ role }: { role?: string }) {
               type="button"
               onClick={() => setNotificationsOpen((open) => !open)}
               className="relative rounded-full border border-border bg-card p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-              aria-label={t("Notifications", "Notifications", "Benachrichtigungen", "Notificaciones", "Notificacoes")}
+              aria-label={t("Notifications", "Notifications", "Benachrichtigungen", "Notificaciónes", "Notificações")}
               aria-expanded={notificationsOpen}
             >
               <Bell className="h-4 w-4" />

@@ -18,7 +18,8 @@ import {
 import { prisma } from "../prisma";
 import { emitSystemEvent } from "../system-events";
 import { clampAnchorDay } from "../usage/cycle";
-import { getPlanPriceForInterval, type BillingInterval } from "../pricing";
+import { type BillingInterval } from "../pricing";
+import { getPlanPriceForIntervalLive } from "../pricing-live";
 import { isAllowedCurrency, isProviderCurrency, normalizeCurrency } from "./currency-allowlist";
 import { extractFlutterwaveStoredPaymentMethod } from "./flutterwave-recurring";
 import { isSubscriptionReceiptProvider, maybeSendSubscriptionReceipt } from "../subscription-receipt";
@@ -542,7 +543,7 @@ export async function finalizeSubscriptionPayment({
       return null;
     }
 
-    const expected = getPlanPriceForInterval(
+    const expected = await getPlanPriceForIntervalLive(
       normalizedPlan as "STARTER" | "PRO" | "GROWTH" | "BUSINESS" | "ENTERPRISE",
       normalizedCurrency,
       resolvedInterval

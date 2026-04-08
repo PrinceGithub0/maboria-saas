@@ -212,8 +212,8 @@ export function SubscriberOverviewDashboard({
         "Dashboard access could not be verified. Please reload the page.",
         "L accès au tableau de bord n'a pas pu être verifie. Rechargez la page.",
         "Der Dashboard-Zugriff konnte nicht verifiziert werden. Bitte lade die Seite neu.",
-        "No se pudo verificar el acceso al panel. Recarga la p?gina.",
-        "Não foi poss?vel verificar o acesso ao painel. Recarregue a p?gina."
+        "No se pudo verificar el acceso al panel. Recarga la página.",
+        "Não foi possível verificar o acesso ao painel. Recarregue a página."
       );
     },
     [t]
@@ -302,7 +302,7 @@ export function SubscriberOverviewDashboard({
           router.refresh();
           return;
         }
-        setWarning(t("Live data temporarily unavailable. Showing last updated state.", "Les données en direct sont temporairement indisponibles. Affichage du dernier etat connu.", "Live-Daten sind vorübergehend nicht verfügbar. Letzter bekannter Stand wird angezeigt.", "Los datos en vivo no est?n disponibles temporalmente. Se muestra el ?ltimo estado conocido.", "Os dados em tempo real estão temporariamente indisponiveis. A mostrar o ?ltimo estado conhecido."));
+        setWarning(t("Live data temporarily unavailable. Showing last updated state.", "Les données en direct sont temporairement indisponibles. Affichage du dernier etat connu.", "Live-Daten sind vorübergehend nicht verfügbar. Letzter bekannter Stand wird angezeigt.", "Los datos en vivo no est?n disponibles temporalmente. Se muestra el Último estado conocido.", "Os dados em tempo real estão temporariamente indisponiveis. A mostrar o Último estado conhecido."));
       } finally {
         inFlightRef.current = false;
         if (!silent) setIsRefreshing(false);
@@ -368,7 +368,7 @@ export function SubscriberOverviewDashboard({
       if (note === "No payment subaccount connected") {
         return t(
           "No payment subaccount connected",
-          "Aucun sous-compte de paiement connect?",
+          "Aucun sous-compte de paiement connecté",
           "Kein Zahlungsunterkonto verbunden",
           "No hay subcuenta de pago conectada",
           "Nenhuma subconta de pagamento ligada"
@@ -389,8 +389,8 @@ export function SubscriberOverviewDashboard({
         "Invoice overdue": t("Invoice overdue", "Facture en retard", "Rechnung überfällig", "Factura vencida", "Fatura em atraso"),
         "Invoice created": t("Invoice created", "Facture creee", "Rechnung erstellt", "Factura creada", "Fatura criada"),
         "Automation failed": t("Automation failed", "Automatisation échouée", "Automatisierung fehlgeschlagen", "Automatización fallida", "Automação falhou"),
-        "Automation completed": t("Automation completed", "Automatisation terminée", "Automatisierung abgeschlossen", "Automatización completada", "Automação conclu?da"),
-        "Automation running": t("Automation running", "Automatisation en cours", "Automatisierung lauft", "Automatización en curso", "Automação em execu??o"),
+        "Automation completed": t("Automation completed", "Automatisation terminée", "Automatisierung abgeschlossen", "Automatización completada", "Automação concluída"),
+        "Automation running": t("Automation running", "Automatisation en cours", "Automatisierung läuft", "Automatización en curso", "Automação em execução"),
         "Automation queued": t("Automation queued", "Automatisation en file d attente", "Automatisierung in Warteschlange", "Automatización en cola", "Automação em fila"),
         "Message delivery failed": t("Message delivery failed", "?chec de livraison du message", "Nachrichtenzustellung fehlgeschlagen", "Fallo en la entrega del mensaje", "Falha na entrega da mensagem"),
         "Message read": t("Message read", "Message lu", "Nachricht gelesen", "Mensaje leido", "Mensagem lida"),
@@ -456,7 +456,7 @@ export function SubscriberOverviewDashboard({
         router.refresh();
         return;
       }
-      setWarning(t("Live data temporarily unavailable. Showing last updated state.", "Les données en direct sont temporairement indisponibles. Affichage du dernier etat connu.", "Live-Daten sind vorübergehend nicht verfügbar. Letzter bekannter Stand wird angezeigt.", "Los datos en vivo no est?n disponibles temporalmente. Se muestra el ?ltimo estado conocido.", "Os dados em tempo real estão temporariamente indisponiveis. A mostrar o ?ltimo estado conhecido."));
+      setWarning(t("Live data temporarily unavailable. Showing last updated state.", "Les données en direct sont temporairement indisponibles. Affichage du dernier etat connu.", "Live-Daten sind vorübergehend nicht verfügbar. Letzter bekannter Stand wird angezeigt.", "Los datos en vivo no est?n disponibles temporalmente. Se muestra el Último estado conocido.", "Os dados em tempo real estão temporariamente indisponiveis. A mostrar o Último estado conhecido."));
     } finally {
       setIsRefreshing(false);
     }
@@ -543,8 +543,8 @@ export function SubscriberOverviewDashboard({
               className={controlClass}
             >
               <option value="today">{t("Today", "Aujourd'hui", "Heute", "Hoy", "Hoje")}</option>
-              <option value="last7">{t("Last 7 Days", "7 derniers jours", "Letzte 7 Tage", "?ltimos 7 d?as", "?ltimos 7 dias")}</option>
-              <option value="last30">{t("Last 30 Days", "30 derniers jours", "Letzte 30 Tage", "?ltimos 30 d?as", "?ltimos 30 dias")}</option>
+              <option value="last7">{t("Last 7 Days", "7 derniers jours", "Letzte 7 Tage", "Últimos 7 días", "Últimos 7 dias")}</option>
+              <option value="last30">{t("Last 30 Days", "30 derniers jours", "Letzte 30 Tage", "Últimos 30 días", "Últimos 30 dias")}</option>
               <option value="custom">{t("Custom", "Personnalise", "Benutzerdefiniert", "Personalizado", "Personalizado")}</option>
             </select>
             {data.dateRange.key === "custom" ? (
@@ -571,7 +571,7 @@ export function SubscriberOverviewDashboard({
               </div>
             ) : null}
             <span className="text-xs text-slate-500 dark:text-slate-400">
-              {t("Last updated", "Derni?re mise ? jour", "Zuletzt aktualisiert", "?ltima actualizacion", "?ltima atualiza??o")}{" "}
+              {t("Last updated", "Derni?re mise ? jour", "Zuletzt aktualisiert", "Última actualización", "Última atualização")}{" "}
               {compactTime(data.generatedAt)}
             </span>
             <button
@@ -584,7 +584,7 @@ export function SubscriberOverviewDashboard({
               {t("Refresh", "Actualiser", "Aktualisieren", "Actualizar", "Atualizar")}
             </button>
             <label className="inline-flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-              {t("Auto-refresh", "Actualisation automatique", "Automatische Aktualisierung", "Actualización autom?tica", "Atualiza??o autom?tica")}
+              {t("Auto-refresh", "Actualisation automatique", "Automatische Aktualisierung", "Actualización automática", "Atualização automática")}
               <button
                 type="button"
                 onClick={() => setAutoRefresh((prev) => !prev)}
@@ -617,7 +617,7 @@ export function SubscriberOverviewDashboard({
             {t("Business Overview", "Vue d'ensemble de l'activité", "Geschäftsübersicht", "Resumen del negocio", "Visao geral do negocio")}
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            {t("Key signals for the selected range", "Signaux cles pour la periode choisie", "Wichtige Signale für den gewahlten Zeitraum", "Senales clave para el periodo seleccionado", "Sinais principais para o periodo selecionado")}
+            {t("Key signals for the selected range", "Signaux cles pour la periode choisie", "Wichtige Signale für den gewählten Zeitraum", "Senales clave para el periodo seleccionado", "Sinais principais para o periodo selecionado")}
           </p>
         </div>
         <div
@@ -649,7 +649,7 @@ export function SubscriberOverviewDashboard({
                 </p>
               </Link>
               <Link href="/dashboard/invoices" className={metricCellClass}>
-                <p className="text-[11px] uppercase leading-5 tracking-[0.1em] text-slate-500 break-words dark:text-slate-400">{t("Invoices Sent", "Factures envoyees", "Gesendete Rechnungen", "Facturas enviadas", "Faturas enviadas")}</p>
+                <p className="text-[11px] uppercase leading-5 tracking-[0.1em] text-slate-500 break-words dark:text-slate-400">{t("Invoices Sent", "Factures envoyées", "Gesendete Rechnungen", "Facturas enviadas", "Faturas enviadas")}</p>
                 <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{data.overview.invoicesSent}</p>
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   {t("Overdue", "En retard", "überfällig", "Vencidas", "Em atraso")} {data.overview.invoicesOverdue}
@@ -676,7 +676,7 @@ export function SubscriberOverviewDashboard({
               <p className="text-[11px] uppercase leading-5 tracking-[0.1em] text-slate-500 break-words dark:text-slate-400">{t("AI", "IA", "KI", "IA", "IA")}</p>
               <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">{data.overview.aiRequests}</p>
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                {t("Requests in range", "Requetes sur la periode", "Anfragen im Zeitraum", "Solicitudes en el rango", "Pedidos no intervalo")}
+                {t("Requests in range", "Requêtes sur la periode", "Anfragen im Zeitraum", "Solicitudes en el rango", "Pedidos no intervalo")}
               </p>
             </Link>
           ) : null}
@@ -687,14 +687,14 @@ export function SubscriberOverviewDashboard({
         <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">{t("Risk & Attention", "Risques et attention", "Risiko und Aufmerksamkeit", "Riesgo y atencion", "Risco e atencao")}</h2>
         {data.permissions.canViewBilling && data.risk.paymentConnectionIssue ? (
           <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
-            {t("Payment subaccount not connected.", "Le sous-compte de paiement n'est pas connect?.", "Zahlungsunterkonto nicht verbunden.", "La subcuenta de pago no est? conectada.", "A subconta de pagamento não esta ligada.")}
+            {t("Payment subaccount not connected.", "Le sous-compte de paiement n'est pas connecté.", "Zahlungsunterkonto nicht verbunden.", "La subcuenta de pago no est? conectada.", "A subconta de pagamento não esta ligada.")}
             <Link href="/dashboard/settings?tab=payout" className="ml-2 font-semibold text-blue-700 hover:underline dark:text-blue-300">
               {t("Complete payout setup", "Finaliser la configuration des virements", "Auszahlungseinrichtung abschliessen", "Completar la configuración de cobros", "Concluir a configuração de recebimentos")}
             </Link>
           </div>
         ) : null}
         {riskRows.length === 0 && !(data.permissions.canViewBilling && data.risk.paymentConnectionIssue) ? (
-          <p className="mt-2 text-sm text-emerald-700 dark:text-emerald-300">{t("All systems operating normally.", "Tous les systemes fonctionnent normalement.", "Alle Systeme arbeiten normal.", "Todos los sistemas funcionan con normalidad.", "Todos os sistemas estão a funcionar normalmente.")}</p>
+          <p className="mt-2 text-sm text-emerald-700 dark:text-emerald-300">{t("All systems operating normally.", "Tous les systèmes fonctionnent normalement.", "Alle Systeme arbeiten normal.", "Todos los sistemas funcionan con normalidad.", "Todos os sistemas estão a funcionar normalmente.")}</p>
         ) : (
           <div className="mt-2 divide-y divide-amber-200 overflow-hidden rounded-xl border border-amber-300 bg-amber-50 dark:divide-amber-500/20 dark:border-amber-500/40 dark:bg-amber-500/10">
             {riskRows.map((row) => (
@@ -734,7 +734,7 @@ export function SubscriberOverviewDashboard({
             <div className="mt-2 space-y-1 text-sm text-slate-700 dark:text-slate-300">
               <p>{t("Runs", "Executions", "Laufe", "Ejecuciones", "Execucoes")}: {data.modules.automation.runs}</p>
               <p>{t("Failed", "Echouees", "Fehlgeschlagen", "Fallidas", "Falhadas")}: {data.modules.automation.failed}</p>
-              <p>{t("Active automations", "Automatisations actives", "Aktive Automatisierungen", "Automatizaciones activas", "Automacoes ativas")}: {data.modules.automation.active}</p>
+              <p>{t("Active automations", "Automatisations actives", "Aktive Automatisierungen", "Automatizaciónes activas", "Automações ativas")}: {data.modules.automation.active}</p>
             </div>
             <Link href={navigateWithRange("/dashboard/automations")} className="mt-3 inline-block text-sm font-semibold text-blue-700 dark:text-blue-300">
               {t("View automations", "Voir les automatisations", "Automatisierungen ansehen", "Ver automatizaciones", "Ver automações")}
@@ -757,7 +757,7 @@ export function SubscriberOverviewDashboard({
       <section className={sectionClass}>
         <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">{t("Recent Activity Timeline", "Chronologie de l'activité recente", "Zeitleiste der letzten Aktivität", "Cronologia de actividad reciente", "Cronologia da atividade recente")}</h2>
         {timelineRows.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t("No recent system activity.", "Aucune activité systeme recente.", "Keine aktuelle Systemaktivität.", "No hay actividad reciente del sistema.", "Não ha atividade recente do sistema.")}</p>
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t("No recent system activity.", "Aucune activité système recente.", "Keine aktuelle Systemaktivität.", "No hay actividad reciente del sistema.", "Não há atividade recente do sistema.")}</p>
         ) : (
           <div
             className={clsx(

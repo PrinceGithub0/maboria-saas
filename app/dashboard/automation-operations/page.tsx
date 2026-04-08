@@ -127,7 +127,7 @@ export default function AutomationOperationsPage() {
   const statusLabel = useCallback((run: RunRecord) => {
     const s = norm(run.runStatus);
     if (s === "SUCCESS") return t("Completed", "Termin?e", "Abgeschlossen", "Completada", "Conclu?da");
-    if (s === "FAILED") return t("Failed", "?chou?e", "Fehlgeschlagen", "Fallida", "Falhou");
+    if (s === "FAILED") return t("Failed", "échouée", "Fehlgeschlagen", "Fallida", "Falhou");
     if (s === "RUNNING") return t("In progress", "En cours", "In Bearbeitung", "En curso", "Em curso");
     if (isFutureScheduledRun(run)) return t("Scheduled", "Planifiee", "Geplant", "Programada", "Agendada");
     return t("Pending", "En attente", "Ausstehend", "Pendiente", "Pendente");
@@ -148,20 +148,20 @@ export default function AutomationOperationsPage() {
   const localizeOpsMessage = useCallback((message?: string | null) => {
     const raw = String(message || "").trim();
     const mapped: Record<string, string> = {
-      "Unable to retry this automation.": t("Unable to retry this automation.", "Impossible de relancer cette automatisation.", "Diese Automatisierung kann nicht erneut ausgeführt werden.", "No se puede volver a ejecutar esta automatización.", "Não foi poss?vel repetir esta automação."),
-      "Automation retry started.": t("Automation retry started.", "Relance de l automatisation demarree.", "Die Wiederholung der Automatisierung wurde gestartet.", "Se inicio el reintento de la automatización.", "Foi iniciado o novo processamento da automação."),
-      "Network error. Please try again.": t("Network error. Please try again.", "Erreur r?seau. R?essayez.", "Netzwerkfehler. Bitte versuche es erneut.", "Error de red. Intentalo de nuevo.", "Erro de rede. Tente novamente."),
+      "Unable to retry this automation.": t("Unable to retry this automation.", "Impossible de relancer cette automatisation.", "Diese Automatisierung kann nicht erneut ausgeführt werden.", "No se puede volver a ejecutar esta automatización.", "Não foi possível repetir esta automação."),
+      "Automation retry started.": t("Automation retry started.", "Relance de l'automatisation demarree.", "Die Wiederholung der Automatisierung wurde gestartet.", "Se inicio el reintento de la automatización.", "Foi iniciado o novo processamento da automação."),
+      "Network error. Please try again.": t("Network error. Please try again.", "Erreur réseau. Réessayez.", "Netzwerkfehler. Bitte versuche es erneut.", "Error de red. Intentalo de nuevo.", "Erro de rede. Tente novamente."),
       "Failed step retry started.": t("Failed step retry started.", "Relance de l etape en ?chec demarree.", "Die Wiederholung des fehlgeschlagenen Schritts wurde gestartet.", "Se inicio el reintento del paso fallido.", "Foi iniciado o novo processamento do passo falhado."),
-      "Unable to retry this step.": t("Unable to retry this step.", "Impossible de relancer cette etape.", "Dieser Schritt kann nicht erneut ausgeführt werden.", "No se puede volver a ejecutar este paso.", "Não foi poss?vel repetir este passo."),
+      "Unable to retry this step.": t("Unable to retry this step.", "Impossible de relancer cette etape.", "Dieser Schritt kann nicht erneut ausgeführt werden.", "No se puede volver a ejecutar este paso.", "Não foi possível repetir este passo."),
       "Activity ID copied.": t("Activity ID copied.", "ID d activité copie.", "Aktivitäts-ID kopiert.", "ID de actividad copiado.", "ID da atividade copiado."),
-      "Automation ID copied.": t("Automation ID copied.", "ID d automatisation copie.", "Automatisierungs-ID kopiert.", "ID de automatización copiado.", "ID da automação copiado."),
+      "Automation ID copied.": t("Automation ID copied.", "ID d'automatisation copie.", "Automatisierungs-ID kopiert.", "ID de automatización copiado.", "ID da automação copiado."),
     };
     mapped["Unable to refresh automation operations."] = t(
       "Unable to refresh automation operations.",
-      "Impossible d actualiser les operations d automatisation.",
+      "Impossible d actualiser les operations d'automatisation.",
       "Automatisierungsoperationen konnten nicht aktualisiert werden.",
-      "No se pudieron actualizar las operaciones de automatizaci\u00f3n.",
-      "N?o foi poss?vel atualizar as operacoes de automa??o."
+      "No se pudieron actualizar las operaciónes de automatización.",
+      "Não foi possível atualizar as operações de automação."
     );
     return mapped[raw] || raw;
   }, [t]);
@@ -174,11 +174,11 @@ export default function AutomationOperationsPage() {
     const eventMap: Record<string, string> = {
       invoice_status: t("Invoice status changed", "Statut de facture modifie", "Rechnungsstatus geändert", "Estado de factura cambiado", "Estado da fatura alterado"),
       "invoice.status.changed": t("Invoice status changed", "Statut de facture modifie", "Rechnungsstatus geändert", "Estado de factura cambiado", "Estado da fatura alterado"),
-      "payment.verified": t("Payment confirmed", "Paiement confirme", "Zahlung bestatigt", "Pago confirmado", "Pagamento confirmado"),
-      manual: t("Manual start", "Demarrage manuel", "Manueller Start", "Inicio manual", "Inicio manual"),
+      "payment.verified": t("Payment confirmed", "Paiement confirme", "Zahlung bestätigt", "Pago confirmado", "Pagamento confirmado"),
+      manual: t("Manual start", "Démarrage manuel", "Manueller Start", "Inicio manual", "Inicio manual"),
       webhook: t("Webhook event", "Evenement webhook", "Webhook-Ereignis", "Evento webhook", "Evento webhook"),
-      schedule: t("Scheduled start", "Demarrage planifie", "Geplanter Start", "Inicio programado", "Inicio agendado"),
-      system: t("System event", "Evenement systeme", "Systemereignis", "Evento del sistema", "Evento do sistema"),
+      schedule: t("Scheduled start", "Démarrage planifie", "Geplanter Start", "Inicio programado", "Inicio agendado"),
+      system: t("System event", "Evenement système", "Systemereignis", "Evento del sistema", "Evento do sistema"),
     };
     return {
       startedBy: eventMap[event] || String(input.event || run.trigger || run.source || t("System", "Systeme", "System", "Sistema", "Sistema")),
@@ -530,7 +530,7 @@ export default function AutomationOperationsPage() {
     whatsappDelay > 0
       ? t(
           "WhatsApp delivery delays detected",
-          "Retards de livraison WhatsApp detectes",
+          "Retards de livraison WhatsApp détectés",
           "WhatsApp-Zustellverzogerungen erkannt",
           "Se detectaron retrasos de entrega en WhatsApp",
           "Foram detetados atrasos de entrega no WhatsApp"
@@ -661,7 +661,7 @@ export default function AutomationOperationsPage() {
                 <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
                   {scheduledPending
                     ? t("Scheduled for", "Planifiee pour", "Geplant f?r", "Programada para", "Agendada para")
-                    : t("Next attempt", "Prochaine tentative", "Nachster Versuch", "Siguiente intento", "Proxima tentativa")}
+                    : t("Next attempt", "Prochaine tentative", "Nächster Versuch", "Siguiente intento", "Próxima tentativa")}
                 </p>
                 <p className="mt-0.5 text-sm text-slate-800 dark:text-slate-100">{formatDateTime(run.nextRunAt)}</p>
               </div>
@@ -683,7 +683,7 @@ export default function AutomationOperationsPage() {
                     <Copy className="h-3.5 w-3.5" />{t("Copy activity ID", "Copier l ID d activité", "Aktivitäts-ID kopieren", "Copiar ID de actividad", "Copiar ID da atividade")}
                   </button>
                   <button type="button" onClick={() => { navigator.clipboard.writeText(run.flowId); setNotice({ type: "success", message: localizeOpsMessage("Automation ID copied.") }); setMenuOpenId(null); }} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-slate-700 hover:bg-slate-100">
-                    <Copy className="h-3.5 w-3.5" />{t("Copy automation ID", "Copier l ID d automatisation", "Automatisierungs-ID kopieren", "Copiar ID de automatización", "Copiar ID da automação")}
+                    <Copy className="h-3.5 w-3.5" />{t("Copy automation ID", "Copier l ID d'automatisation", "Automatisierungs-ID kopieren", "Copiar ID de automatización", "Copiar ID da automação")}
                   </button>
                 </div>
               ) : null}
@@ -699,7 +699,7 @@ export default function AutomationOperationsPage() {
       ? "Automationsbetrieb"
       : language === "es"
         ? "Operaciones automaticas"
-        : t("Automation Operations", "Operations d automatisation", "Automatisierungsoperationen", "Operaciones de automatización", "Operações de automação");
+        : t("Automation Operations", "Operations d'automatisation", "Automatisierungsoperationen", "Operaciones de automatización", "Operações de automação");
 
   const headerDescription =
     language === "de"
@@ -708,7 +708,7 @@ export default function AutomationOperationsPage() {
         ? "Supervisa el estado, revisa problemas y repite pasos fallidos."
         : t(
             "Monitor automation health, investigate issues, and replay failed steps.",
-            "Surveillez la sante, investiguez les echecs et relancez les etapes.",
+            "Surveillez la santé, investiguez les échecs et relancez les etapes.",
             "überwache die Gesundheit der Automatisierungen, untersuche Probleme und starte fehlgeschlagene Schritte erneut.",
             "Supervisa la salud de la automatización, investiga problemas y vuelve a ejecutar pasos fallidos.",
             "Monitorize a saude da automação, investigue problemas e repita passos falhados."
@@ -717,14 +717,14 @@ export default function AutomationOperationsPage() {
   const autoRefreshLabel =
     language === "de" || language === "es"
       ? "Auto-refresh"
-      : t("Auto-refresh", "Actualisation auto", "Automatisch aktualisieren", "Actualización autom?tica", "Atualiza??o autom?tica");
+      : t("Auto-refresh", "Actualisation auto", "Automatisch aktualisieren", "Actualización automática", "Atualização automática");
 
   const toggleAutoRefreshLabel =
     language === "de"
       ? "Auto-refresh umschalten"
       : language === "es"
         ? "Alternar auto-refresh"
-        : t("Toggle auto-refresh", "Basculer l actualisation auto", "Automatische Aktualisierung umschalten", "Alternar actualización autom?tica", "Alternar atualiza??o autom?tica");
+        : t("Toggle auto-refresh", "Basculer l actualisation auto", "Automatische Aktualisierung umschalten", "Alternar actualización automática", "Alternar atualização automática");
 
   const refreshLabel = language === "de" || language === "es" ? "Refresh" : t("Refresh", "Actualiser", "Aktualisieren", "Actualizar", "Atualizar");
 
@@ -733,7 +733,7 @@ export default function AutomationOperationsPage() {
       ? "Aktualisiert"
       : language === "es"
         ? "Actualizado"
-        : t("Last updated", "Derni?re mise ? jour", "Zuletzt aktualisiert", "?ltima actualizacion", "?ltima atualiza??o");
+        : t("Last updated", "Derni?re mise ? jour", "Zuletzt aktualisiert", "Última actualización", "Última atualização");
 
   const systemHealthyLabel =
     language === "de"
@@ -809,7 +809,7 @@ export default function AutomationOperationsPage() {
           {isRefreshing ? (
             <p className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2 py-1 font-medium text-blue-700 dark:border-blue-400/30 dark:bg-blue-400/10 dark:text-blue-300">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              {t("Refreshing data", "Actualisation des donnees", "Daten werden aktualisiert", "Actualizando datos", "A atualizar dados")}
+              {t("Refreshing data", "Actualisation des données", "Daten werden aktualisiert", "Actualizando datos", "A atualizar dados")}
             </p>
           ) : null}
           {!alerts.length ? (
@@ -867,7 +867,7 @@ export default function AutomationOperationsPage() {
           <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400 [overflow-wrap:anywhere]">{t("Completed Today", "Terminees aujourd hui", "Heute abgeschlossen", "Completadas hoy", "Concluidas hoje")}</p>
           <p className="mt-2 text-3xl font-semibold text-slate-900 dark:text-slate-50">{completedToday}</p>
           <div className="mt-2 flex min-w-0 items-center justify-between gap-3">
-            <span className="min-w-0 text-xs text-slate-500 dark:text-slate-400">{t("7-day trend", "Tendance sur 7 jours", "7-Tage-Trend", "Tendencia de 7 d?as", "Tendencia de 7 dias")}</span>
+            <span className="min-w-0 text-xs text-slate-500 dark:text-slate-400">{t("7-day trend", "Tendance sur 7 jours", "7-Tage-Trend", "Tendencia de 7 días", "Tendencia de 7 dias")}</span>
             <Sparkline values={series.done} color="#16a34a" />
           </div>
         </article>
@@ -875,7 +875,7 @@ export default function AutomationOperationsPage() {
           <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400 [overflow-wrap:anywhere]">{t("Failed Today", "Echouees aujourd hui", "Heute fehlgeschlagen", "Fallidas hoy", "Falhadas hoje")}</p>
           <p className="mt-2 text-3xl font-semibold text-slate-900 dark:text-slate-50">{failedToday}</p>
           <div className="mt-2 flex min-w-0 items-center justify-between gap-3">
-            <span className="min-w-0 text-xs text-slate-500 dark:text-slate-400">{t("7-day trend", "Tendance sur 7 jours", "7-Tage-Trend", "Tendencia de 7 d?as", "Tendencia de 7 dias")}</span>
+            <span className="min-w-0 text-xs text-slate-500 dark:text-slate-400">{t("7-day trend", "Tendance sur 7 jours", "7-Tage-Trend", "Tendencia de 7 días", "Tendencia de 7 dias")}</span>
             <Sparkline values={series.fail} color="#e11d48" />
           </div>
         </article>
@@ -883,7 +883,7 @@ export default function AutomationOperationsPage() {
           <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400 [overflow-wrap:anywhere]">{t("Pending", "En attente", "Ausstehend", "Pendiente", "Pendente")}</p>
           <p className="mt-2 text-3xl font-semibold text-slate-900 dark:text-slate-50">{pendingCount}</p>
           <div className="mt-2 flex min-w-0 items-center justify-between gap-3">
-            <span className="min-w-0 text-xs text-slate-500 dark:text-slate-400">{t("7-day trend", "Tendance sur 7 jours", "7-Tage-Trend", "Tendencia de 7 d?as", "Tendencia de 7 dias")}</span>
+            <span className="min-w-0 text-xs text-slate-500 dark:text-slate-400">{t("7-day trend", "Tendance sur 7 jours", "7-Tage-Trend", "Tendencia de 7 días", "Tendencia de 7 dias")}</span>
             <Sparkline values={series.pend} color="#d97706" />
           </div>
         </article>
@@ -891,7 +891,7 @@ export default function AutomationOperationsPage() {
           <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400 [overflow-wrap:anywhere]">{t("Average Duration", "Durée moyenne", "Durchschnittliche Dauer", "Duración media", "Duracao media")}</p>
           <p className="mt-2 text-3xl font-semibold text-slate-900 dark:text-slate-50">{avgDuration}</p>
           <div className="mt-2 flex min-w-0 items-center justify-between gap-3">
-            <span className="min-w-0 text-xs text-slate-500 dark:text-slate-400">{t("7-day trend", "Tendance sur 7 jours", "7-Tage-Trend", "Tendencia de 7 d?as", "Tendencia de 7 dias")}</span>
+            <span className="min-w-0 text-xs text-slate-500 dark:text-slate-400">{t("7-day trend", "Tendance sur 7 jours", "7-Tage-Trend", "Tendencia de 7 días", "Tendencia de 7 dias")}</span>
             <Sparkline values={series.dur} color="#2563eb" />
           </div>
         </article>
@@ -929,7 +929,7 @@ export default function AutomationOperationsPage() {
           >
             <option value="all">{t("All statuses", "Tous les statuts", "Alle Status", "Todos los estados", "Todos os estados")}</option>
             <option value="SUCCESS">{t("Completed", "Termin?e", "Abgeschlossen", "Completada", "Conclu?da")}</option>
-            <option value="FAILED">{t("Failed", "?chou?e", "Fehlgeschlagen", "Fallida", "Falhou")}</option>
+            <option value="FAILED">{t("Failed", "échouée", "Fehlgeschlagen", "Fallida", "Falhou")}</option>
             <option value="RUNNING">{t("In progress", "En cours", "In Bearbeitung", "En curso", "Em curso")}</option>
             <option value="PENDING">{t("Pending", "En attente", "Ausstehend", "Pendiente", "Pendente")}</option>
           </select>
@@ -965,26 +965,26 @@ export default function AutomationOperationsPage() {
       <section className="space-y-3">
         {isInitialLoading ? (
           <div className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-            {t("Loading automation operations...", "Chargement des operations d automatisation...", "Automatisierungsvorgange werden geladen...", "Cargando operaciónes de automatización...", "A carregar operações de automação...")}
+            {t("Loading automation operations...", "Chargement des operations d'automatisation...", "Automatisierungsvorgange werden geladen...", "Cargando operaciónes de automatización...", "A carregar operações de automação...")}
           </div>
         ) : error ? (
           <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-10 text-center text-sm text-rose-700 dark:border-rose-400/30 dark:bg-rose-400/10 dark:text-rose-300">
             {t(
               "Unable to load automation operations. Please try again.",
-              "Impossible de charger les operations d automatisation. R?essayez.",
+              "Impossible de charger les operations d'automatisation. Réessayez.",
               "Automatisierungsoperationen konnten nicht geladen werden. Bitte versuche es erneut.",
               "No se pudieron cargar las operaciónes de automatización. Intentalo de nuevo.",
-              "Não foi poss?vel carregar as operações de automação. Tente novamente."
+              "Não foi possível carregar as operações de automação. Tente novamente."
             )}
           </div>
         ) : !runs.length ? (
           <div className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center dark:border-slate-700 dark:bg-slate-900">
-            <p className="text-lg font-semibold text-slate-900 dark:text-slate-50">{t("No automation activity yet.", "Aucune activité d automatisation pour l instant.", "Noch keine Automatisierungsaktivität.", "Aún no hay actividad de automatización.", "Ainda não ha atividade de automação.")}</p>
-            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{t("When automations begin running, they will appear here.", "Lorsque les automatisations commenceront a s executer, elles apparaitront ici.", "Sobald Automatisierungen laufen, erscheinen sie hier.", "Cuando las automatizaciones empiecen a ejecutarse, apareceran aqui.", "Quando as automações comecarem a executar, aparecerao aqui.")}</p>
+            <p className="text-lg font-semibold text-slate-900 dark:text-slate-50">{t("No automation activity yet.", "Aucune activité d'automatisation pour l instant.", "Noch keine Automatisierungsaktivität.", "Aún no hay actividad de automatización.", "Ainda não ha atividade de automação.")}</p>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{t("When automations begin running, they will appear here.", "Lorsque les automatisations commenceront a s executer, elles apparaitront ici.", "Sobald Automatisierungen laufen, erscheinen sie hier.", "Cuando las automatizaciones empiecen a ejecutarse, apareceran aquí.", "Quando as automações começarem a executar, aparecerao aquí.")}</p>
           </div>
         ) : !filteredRuns.length ? (
           <div className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center dark:border-slate-700 dark:bg-slate-900">
-            <p className="text-lg font-semibold text-slate-900 dark:text-slate-50">{t("No automation activity matches your filters.", "Aucune activité d automatisation ne correspond a vos filtres.", "Keine Automatisierungsaktivität entspricht deinen Filtern.", "Ninguna actividad de automatización coincide con tus filtros.", "Nenhuma atividade de automação corresponde aos seus filtros.")}</p>
+            <p className="text-lg font-semibold text-slate-900 dark:text-slate-50">{t("No automation activity matches your filters.", "Aucune activité d'automatisation ne correspond a vos filtres.", "Keine Automatisierungsaktivität entspricht deinen Filtern.", "Ninguna actividad de automatización coincide con tus filtros.", "Nenhuma atividade de automação corresponde aos seus filtros.")}</p>
             <button
               type="button"
               onClick={clearFilters}
@@ -1026,7 +1026,7 @@ export default function AutomationOperationsPage() {
           <aside className="absolute inset-x-0 bottom-0 top-12 overflow-y-auto rounded-t-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900 md:inset-y-0 md:left-auto md:right-0 md:top-0 md:w-[560px] md:rounded-none md:rounded-l-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{t("Run Overview", "Vue d ensemble de l ex?cution", "Laufübersicht", "Resumen de la ejecuci?n", "Visao geral da execu??o")}</p>
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{t("Run Overview", "Vue d ensemble de l ex?cution", "Laufübersicht", "Resumen de la ejecución", "Visao geral da execução")}</p>
                 <h2 className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-50">
                   {selectedRun.flow?.title || t("Untitled automation", "Automatisation sans titre", "Unbenannte Automatisierung", "Automatización sin título", "Automação sem título")}
                 </h2>
@@ -1076,7 +1076,7 @@ export default function AutomationOperationsPage() {
                       <p className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
                         {isFutureScheduledRun(selectedRun)
                           ? t("Scheduled for", "Planifiee pour", "Geplant f?r", "Programada para", "Agendada para")
-                          : t("Next attempt", "Prochaine tentative", "Nachster Versuch", "Siguiente intento", "Proxima tentativa")}
+                          : t("Next attempt", "Prochaine tentative", "Nächster Versuch", "Siguiente intento", "Próxima tentativa")}
                       </p>
                       <p className="mt-1 font-medium text-slate-900 dark:text-slate-50">{formatDateTime(selectedRun.nextRunAt)}</p>
                     </div>
@@ -1144,7 +1144,7 @@ export default function AutomationOperationsPage() {
                   ))
                 ) : (
                   <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
-                    {t("No step timeline available for this run.", "Aucune chronologie d etapes disponible pour cette ex?cution.", "Kein Schrittverlauf für diese Ausfuhrung verfügbar.", "No hay linea de tiempo de pasos para esta ejecuci?n.", "Não ha cronologia de passos para esta execu??o.")}
+                    {t("No step timeline available for this run.", "Aucune chronologie d etapes disponible pour cette ex?cution.", "Kein Schrittverlauf für diese Ausführung verfügbar.", "No hay linea de tiempo de pasos para esta ejecución.", "Não há cronologia de passos para esta execução.")}
                   </div>
                 )}
               </div>
@@ -1164,7 +1164,7 @@ export default function AutomationOperationsPage() {
           <div className="absolute left-1/2 top-1/2 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
             <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50">{t("Confirm Full Run Retry", "Confirmer la relance complete", "Vollständigen erneuten Lauf bestätigen", "Confirmar reintento completo", "Confirmar repeticao completa")}</h3>
             <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-              {t("This retry will start the full automation again from the beginning.", "Cette relance redemarrera l automatisation complete depuis le debut.", "Dieser erneute Lauf startet die komplette Automatisierung erneut von Anfang an.", "Este reintento iniciara toda la automatización de nuevo desde el principio.", "Esta repeticao iniciara toda a automação novamente desde o inicio.")}
+              {t("This retry will start the full automation again from the beginning.", "Cette relance redémarrerà l'automatisation complete depuis le debut.", "Dieser erneute Lauf startet die komplette Automatisierung erneut von Anfang an.", "Este reintento iniciara toda la automatización de nuevo desde el principio.", "Esta repeticao iniciara toda a automação novamente desde o inicio.")}
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button
@@ -1183,7 +1183,7 @@ export default function AutomationOperationsPage() {
                 }}
                 className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {retrying ? t("Retrying...", "Relance...", "Wird erneut ausgeführt...", "Reintentando...", "A repetir...") : t("Retry full run", "Relancer l ex?cution complete", "Gesamten Lauf erneut ausfuhren", "Reintentar ejecuci?n completa", "Repetir execu??o completa")}
+                {retrying ? t("Retrying...", "Relance...", "Wird erneut ausgeführt...", "Reintentando...", "A repetir...") : t("Retry full run", "Relancer l ex?cution complete", "Gesamten Lauf erneut ausführen", "Reintentar ejecución completa", "Repetir execução completa")}
               </button>
             </div>
           </div>

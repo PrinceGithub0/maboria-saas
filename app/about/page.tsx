@@ -19,7 +19,7 @@ export default function AboutPage() {
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
-          <Card title={t("Automation engine", "Moteur d automatisation")}>
+          <Card title={t("Automation engine", "Moteur d'automatisation")}>
             <p className="text-sm text-muted-foreground">
               {t(
                 "Drag-and-drop workflows with AI generated steps, restartable runs, and full logging.",

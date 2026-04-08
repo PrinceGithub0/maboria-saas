@@ -14,7 +14,7 @@ export const marshallIslandsComplianceModule = buildDefaultCountryModule("MH", {
       reviewedAt: "2026-04-07",
     },
     {
-      label: "U.S. DOI insular areas and freely associated states",
+      label: "U.S. DOI insular areas and fréely associated states",
       url: "https://www.doi.gov/library/internet/insular",
       reviewedAt: "2026-04-07",
     },

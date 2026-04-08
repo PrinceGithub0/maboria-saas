@@ -138,7 +138,7 @@ function chartLabel(feature: UsageFeatureKey, t: ReturnType<typeof useLanguage>[
   if (feature === "ai_requests") return t("AI", "IA", "KI", "IA", "IA");
   if (feature === "invoices") return t("Invoices", "Factures", "Rechnungen", "Facturas", "Faturas");
   if (feature === "automations_runs") return t("Automations", "Automatisations", "Automatisierungen", "Automatizaciónes", "Automações");
-  if (feature === "workspace_connections") return t("Connections", "Connexions", "Verbindungen", "Conexiones", "Conexões");
+  if (feature === "workspace_connections") return t("Connections", "Connexions", "Verbindungen", "Conexiónes", "Conexões");
   return t("Team", "Équipe", "Team", "Equipo", "Equipa");
 }
 
@@ -146,7 +146,7 @@ function featureTitle(feature: UsageFeatureKey, t: ReturnType<typeof useLanguage
   if (feature === "ai_requests") return t("AI Usage", "Utilisation IA", "KI-Nutzung", "Uso de IA", "Utilização de IA");
   if (feature === "invoices") return t("Invoices", "Factures", "Rechnungen", "Facturas", "Faturas");
   if (feature === "automations_runs") return t("Automations", "Automatisations", "Automatisierungen", "Automatizaciónes", "Automações");
-  if (feature === "workspace_connections") return t("Connections", "Connexions", "Verbindungen", "Conexiones", "Conexões");
+  if (feature === "workspace_connections") return t("Connections", "Connexions", "Verbindungen", "Conexiónes", "Conexões");
   return t("Team Members", "Membres de l équipe", "Teammitglieder", "Miembros del equipo", "Membros da equipa");
 }
 
@@ -154,7 +154,7 @@ function featureSubtitle(feature: UsageFeatureKey, t: ReturnType<typeof useLangu
   if (feature === "ai_requests") {
     return t(
       "Requests used this cycle",
-      "Requetes utilisees ce cycle",
+      "Requêtes utilisees ce cycle",
       "In diesem Zyklus genutzte Anfragen",
       "Solicitudes usadas este ciclo",
       "Pedidos utilizados neste ciclo"
@@ -163,7 +163,7 @@ function featureSubtitle(feature: UsageFeatureKey, t: ReturnType<typeof useLangu
   if (feature === "invoices") {
     return t(
       "Invoices sent this cycle",
-      "Factures envoyees ce cycle",
+      "Factures envoyées ce cycle",
       "In diesem Zyklus gesendete Rechnungen",
       "Facturas enviadas este ciclo",
       "Faturas enviadas neste ciclo"
@@ -181,7 +181,7 @@ function featureSubtitle(feature: UsageFeatureKey, t: ReturnType<typeof useLangu
   if (feature === "automations_runs") {
     return t(
       "Successful automation runs this cycle",
-      "Executions d automatisation reussies ce cycle",
+      "Executions d'automatisation reussies ce cycle",
       "Erfolgreiche Automatisierungslaufe in diesem Zyklus",
       "Ejecuciones de automatización correctas este ciclo",
       "Execucoes de automação bem-sucedidas neste ciclo"
@@ -279,7 +279,7 @@ export default function ReportPage() {
           <p className="text-sm text-rose-700">
             {accessError
               ? t("You no longer have access to this report.", "Vous n'avez plus accès a ce rapport.", "Sie haben keinen Zugriff mehr auf diesen Bericht.", "Ya no tienes acceso a este informe.", "Ja não tem acesso a este relatorio.")
-              : t("Unable to load usage metrics right now. Please refresh.", "Impossible de charger les métriques d'utilisation pour le moment. Veuillez actualiser.", "Nutzungsmetriken können gerade nicht geladen werden. Bitte aktualisieren.", "No se pueden cargar las métricas de uso en este momento. Actualiza la p?gina.", "Não foi poss?vel carregar as métricas de utilização agora. Atualize a p?gina.")}
+              : t("Unable to load usage metrics right now. Please refresh.", "Impossible de charger les métriques d'utilisation pour le moment. Veuillez actualiser.", "Nutzungsmetriken können gerade nicht geladen werden. Bitte aktualisieren.", "No se pueden cargar las métricas de uso en este momento. Actualiza la página.", "Não foi possível carregar as métricas de utilização agora. Atualize a página.")}
           </p>
           <Button variant="secondary" onClick={() => mutate()}>
             {t("Retry", "Reessayer", "Erneut versuchen", "Reintentar", "Tentar novamente")}
@@ -295,7 +295,7 @@ export default function ReportPage() {
         <Card className="border-amber-200 bg-amber-50 text-amber-900">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm">
-              {t("Live report refresh failed. Showing the last available snapshot.", "L'actualisation du rapport a ?chou?. Dernier apercu disponible affiche.", "Die Live-Aktualisierung des Berichts ist fehlgeschlagen. Letzter verfuegbarer Stand wird angezeigt.", "La actualizacion en vivo del informe ha fallado. Se muestra la ?ltima captura disponible.", "A atualiza??o em tempo real do relatorio falhou. A mostrar a ?ltima captura dispon?vel.")}
+              {t("Live report refresh failed. Showing the last available snapshot.", "L'actualisation du rapport a échoué. Dernier aperçu disponible affiche.", "Die Live-Aktualisierung des Berichts ist fehlgeschlagen. Letzter verfügbarer Stand wird angezeigt.", "La actualización en vivo del informe ha fallado. Se muestra la Última captura disponible.", "A atualização em tempo real do relatorio falhou. A mostrar a Última captura disponível.")}
             </p>
             <Button variant="secondary" onClick={() => mutate()}>
               {t("Retry", "Reessayer", "Erneut versuchen", "Reintentar", "Tentar novamente")}
@@ -331,7 +331,7 @@ export default function ReportPage() {
                 <div className="space-y-2 text-right">
                   <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
                     <ShieldCheck className="h-3.5 w-3.5" />
-                    {t("Unlimited usage enabled", "Utilisation illimitee activee", "Unbegrenzte Nutzung aktiviert", "Uso ilimitado activado", "Utilização ilimitada ativada")}
+                    {t("Unlimited usage enabled", "Utilisation illimitee activée", "Unbegrenzte Nutzung aktiviert", "Uso ilimitado activado", "Utilização ilimitada ativada")}
                   </span>
                   {data.plan.apiAccessEnabled ? (
                     <p className="text-xs font-medium text-foreground">{t("API access enabled", "Accès API active", "API-Zugriff aktiviert", "Acceso API activado", "Acesso API ativado")}</p>
@@ -442,7 +442,7 @@ export default function ReportPage() {
         {!hasAnyUsage ? (
         <Card title={t("Usage trend", "Tendance d'utilisation", "Nutzungstrend", "Tendencia de uso", "Tendencia de utilização")}>
           <p className="text-sm text-muted-foreground">
-            {t("No usage yet in this cycle. Once activity starts, trend and activity rows will appear here.", "Aucune utilisation sur ce cycle pour le moment. Une fois l'activité demarree, la tendance et les lignes d'activité apparaitront ici.", "In diesem Zyklus gibt es noch keine Nutzung. Sobald Aktivität beginnt, erscheinen hier Trend und Aktivität.", "Aún no hay uso en este ciclo. Cuando empiece la actividad, la tendencia y el historial apareceran aqui.", "Ainda não ha utilização neste ciclo. Quando a atividade comecar, a tendencia e a atividade aparecerao aqui.")}
+            {t("No usage yet in this cycle. Once activity starts, trend and activity rows will appear here.", "Aucune utilisation sur ce cycle pour le moment. Une fois l'activité demarree, la tendance et les lignes d'activité apparaitront ici.", "In diesem Zyklus gibt es noch keine Nutzung. Sobald Aktivität beginnt, erscheinen hier Trend und Aktivität.", "Aún no hay uso en este ciclo. Cuando empiece la actividad, la tendencia y el historial apareceran aquí.", "Ainda não ha utilização neste ciclo. Quando a atividade começar, a tendencia e a atividade aparecerao aquí.")}
           </p>
         </Card>
       ) : (
@@ -516,7 +516,7 @@ export default function ReportPage() {
             </table>
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">{t("No recent usage activity for this cycle.", "Aucune activité recente pour ce cycle.", "Keine aktuelle Nutzung in diesem Zyklus.", "No hay actividad de uso reciente en este ciclo.", "Não ha atividade recente neste ciclo.")}</p>
+          <p className="text-sm text-muted-foreground">{t("No recent usage activity for this cycle.", "Aucune activité recente pour ce cycle.", "Keine aktuelle Nutzung in diesem Zyklus.", "No hay actividad de uso reciente en este ciclo.", "Não há atividade recente neste ciclo.")}</p>
         )}
       </Card>
     </div>

@@ -20,7 +20,7 @@ const quickQuestions = [
       en: "Use the Automations area in your dashboard or the AI flow generator to set up workflows.",
       fr: "Utilisez l'espace Automatisations ou le générateur IA pour configurer les workflows.",
       de: "Nutze den Bereich Automatisierungen in deinem Dashboard oder den KI-Flow-Generator, um Workflows einzurichten.",
-      es: "Usa el área de Automatizaciones en tu panel o el generador de flujos con IA para configurar flujos de trabajo.",
+      es: "Usa el área de Automatizaciónes en tu panel o el generador de flujos con IA para configurar flujos de trabajo.",
       pt: "Use a área de Automações no seu painel ou o gerador de fluxos com IA para configurar fluxos de trabalho.",
     },
   },
@@ -75,7 +75,7 @@ const commonIssues = [
   },
   {
     en: "Enable WhatsApp messaging and send a test reminder to verify delivery.",
-    fr: "Activez WhatsApp et envoyez un rappel de test pour vérifier l'envoi.",
+    fr: "Activez WhatsApp et envoyéz un rappel de test pour vérifier l'envoi.",
     de: "Aktiviere WhatsApp-Nachrichten und sende eine Testerinnerung, um die Zustellung zu prüfen.",
     es: "Activa la mensajería de WhatsApp y envía un recordatorio de prueba para verificar la entrega.",
     pt: "Ative as mensagens por WhatsApp e envie um lembrete de teste para verificar a entrega.",
@@ -105,7 +105,7 @@ export default function SupportPage() {
       nextErrors.subject = t(
         "Subject must be at least 5 characters.",
         "Le sujet doit comporter au moins 5 caractères.",
-        "Der Betreff muss mindestens 5 Zeichen lang sein.",
+        "Der Bêtreff muss mindestens 5 Zeichen lang sein.",
         "El asunto debe tener al menos 5 caracteres.",
         "O assunto deve ter pelo menos 5 caracteres."
       );
@@ -370,7 +370,7 @@ export default function SupportPage() {
             onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
           />
           <Input
-            label={t("Subject", "Sujet", "Betreff", "Asunto", "Assunto")}
+            label={t("Subject", "Sujet", "Bêtreff", "Asunto", "Assunto")}
             placeholder={t(
               "Billing, automation, WhatsApp, account access...",
               "Facturation, automatisation, WhatsApp, accès compte...",

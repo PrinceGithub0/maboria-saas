@@ -17,7 +17,7 @@ const escapeXml = (value: unknown) =>
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
+    .replace(/'/g, "&após;");
 
 const serializeXmlNode = (tagName: string, value: unknown): string => {
   if (value === null || value === undefined || value === "") return "";

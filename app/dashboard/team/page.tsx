@@ -313,9 +313,9 @@ export default function TeamPage() {
               language,
               t(
                 "Invite failed. Please try again.",
-                "L'invitation a échoué. R?essayez.",
+                "L'invitation a échoué. Réessayez.",
                 "Einladung fehlgeschlagen. Bitte versuche es erneut.",
-                "La invitacion ha fallado. Intentalo de nuevo.",
+                "La invitación ha fallado. Intentalo de nuevo.",
                 "O convite falhou. Tenta novamente."
               )
             )
@@ -337,7 +337,7 @@ export default function TeamPage() {
           variant: "info",
         });
       } else if (payload?.invited) {
-        setStatus(successMessage(t("Invitation sent.", "Invitation envoyee.", "Einladung gesendet.", "Invitacion enviada.", "Convite enviado.")));
+        setStatus(successMessage(t("Invitation sent.", "Invitation envoyée.", "Einladung gesendet.", "Invitacion enviada.", "Convite enviado.")));
         setEmail("");
         setRole("member");
         setShowInvite(false);
@@ -361,9 +361,9 @@ export default function TeamPage() {
             language,
             t(
               "Invite failed. Please try again.",
-              "L'invitation a échoué. R?essayez.",
+              "L'invitation a échoué. Réessayez.",
               "Einladung fehlgeschlagen. Bitte versuche es erneut.",
-              "La invitacion ha fallado. Intentalo de nuevo.",
+              "La invitación ha fallado. Intentalo de nuevo.",
               "O convite falhou. Tenta novamente."
             )
           )
@@ -435,10 +435,10 @@ export default function TeamPage() {
               language,
               t(
                 "Role update failed.",
-                "La mise ? jour du role a ?chou?.",
+                "La mise ? jour du role a échoué.",
                 "Rollenaktualisierung fehlgeschlagen.",
                 "La actualización del rol ha fallado.",
-                "A atualiza??o do papel falhou."
+                "A atualização do papel falhou."
               )
             )
           )
@@ -459,10 +459,10 @@ export default function TeamPage() {
             language,
             t(
               "Role update failed.",
-              "La mise ? jour du role a ?chou?.",
+              "La mise ? jour du role a échoué.",
               "Rollenaktualisierung fehlgeschlagen.",
               "La actualización del rol ha fallado.",
-              "A atualiza??o do papel falhou."
+              "A atualização do papel falhou."
             )
           )
         )
@@ -493,7 +493,7 @@ export default function TeamPage() {
           )
         );
       } else {
-        setStatus(successMessage(t("Invitation resent.", "Invitation renvoyee.", "Einladung erneut gesendet.", "Invitacion reenviada.", "Convite reenviado.")));
+        setStatus(successMessage(t("Invitation resent.", "Invitation renvoyée.", "Einladung erneut gesendet.", "Invitacion reenviada.", "Convite reenviado.")));
         await mutate();
       }
     } catch (err: any) {
@@ -669,7 +669,7 @@ export default function TeamPage() {
                 onChange={(event) => setRoleFilter(event.target.value)}
                 className="h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition focus:border-blue-500"
               >
-                <option value="all">{t("All roles", "Tous les roles", "Alle Rollen", "Todos los roles", "Todos os papeis")}</option>
+                <option value="all">{t("All roles", "Tous les rôles", "Alle Rollen", "Todos los roles", "Todos os papeis")}</option>
                 <option value="owner">{getTeamRoleLabel("owner", language)}</option>
                 <option value="admin">{getTeamRoleLabel("admin", language)}</option>
                 <option value="billing_admin">{getTeamRoleLabel("billing_admin", language)}</option>
@@ -733,7 +733,7 @@ export default function TeamPage() {
               {filteredMembers.length === 0 && !isLoading ? (
                 <div className="px-5 py-8 text-sm text-muted-foreground">
                   {query || roleFilter !== "all"
-                    ? t("No team members found.", "Aucun membre trouve.", "Keine Teammitglieder gefunden.", "No se encontraron miembros del equipo.", "Nenhum membro da equipa encontrado.")
+                    ? t("No team members found.", "Aucun membre trouvé.", "Keine Teammitglieder gefunden.", "No se encontraron miembros del equipo.", "Nenhum membro da equipa encontrado.")
                     : t("No members yet.", "Aucun membre pour le moment.", "Noch keine Mitglieder.", "Todavia no hay miembros.", "Ainda não ha membros.")}
                 </div>
               ) : null}
@@ -985,7 +985,7 @@ export default function TeamPage() {
               </div>
               {pendingInvites.length === 0 ? (
                 <div className="px-5 py-8 text-sm text-muted-foreground">
-                  {t("No pending invitations.", "Aucune invitation en attente.", "Keine ausstehenden Einladungen.", "No hay invitaciones pendientes.", "Não ha convites pendentes.")}
+                  {t("No pending invitations.", "Aucune invitation en attente.", "Keine ausstehenden Einladungen.", "No hay invitaciónes pendientes.", "Não há convites pendentes.")}
                 </div>
               ) : (
                 pendingInvites.map((invite) => (
@@ -1082,12 +1082,12 @@ export default function TeamPage() {
                   "Les d?tails d activité sont reserves aux gestionnaires de l'espace.",
                   "Aktivitätsdetails sind nur für Workspace-Manager sichtbar.",
                   "Los detalles de actividad solo est?n disponibles para gestores del espacio.",
-                  "Os detalhes da atividade estão dispon?veis apenas para gestores do espa?o."
+                  "Os detalhes da atividade estão disponíveis apenas para gestores do espa?o."
                 )}
               </p>
             ) : recentActivity.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                {t("No recent team activity.", "Aucune activité recente.", "Keine aktuelle Teamaktivität.", "No hay actividad reciente del equipo.", "Não ha atividade recente da equipa.")}
+                {t("No recent team activity.", "Aucune activité recente.", "Keine aktuelle Teamaktivität.", "No hay actividad reciente del equipo.", "Não há atividade recente da equipa.")}
               </p>
             ) : (
               recentActivity.map((entry) => (

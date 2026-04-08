@@ -27,7 +27,7 @@ const faqSections: FaqSection[] = [
     meta: text(
       "What Maboria does and who it's for",
       "Ce que fait Maboria et a qui cela s adresse",
-      "Was Maboria macht und fuer wen es gedacht ist",
+      "Was Maboria macht und für wen es gedacht ist",
       "Que hace Maboria y para quien es",
       "O que a Maboria faz e para quem e"
     ),
@@ -36,18 +36,18 @@ const faqSections: FaqSection[] = [
         question: text("What is Maboria?", "Qu est-ce que Maboria ?", "Was ist Maboria?", "Que es Maboria?", "O que e a Maboria?"),
         answer: text(
           "Maboria is a revenue automation platform that helps businesses invoice customers, collect payments, send WhatsApp messages, automate follow-ups, generate receipts, and track operations from one dashboard.",
-          "Maboria est une plateforme d automatisation des revenus qui aide les entreprises a facturer les clients, collecter les paiements, envoyer des messages WhatsApp, automatiser les relances, generer des re?us et suivre les operations depuis un seul tableau de bord.",
-          "Maboria ist eine Plattform fuer Umsatzautomatisierung, mit der Unternehmen Kunden Rechnungen stellen, Zahlungen einziehen, WhatsApp-Nachrichten senden, Nachfassaktionen automatisieren, Belege erstellen und Ablaeufe ueber ein einziges Dashboard verfolgen koennen.",
+          "Maboria est une plateforme d'automatisation des revenus qui aide les entreprises à facturer les clients, collecter les paiements, envoyer des messages WhatsApp, automatiser les relances, générer des reçus et suivre les opérations depuis un seul tableau de bord.",
+          "Maboria ist eine Plattform für Umsatzautomatisierung, mit der Unternehmen Kunden Rechnungen stellen, Zahlungen einziehen, WhatsApp-Nachrichten senden, Nachfassaktionen automatisieren, Belege erstellen und Ablaeufe über ein einziges Dashboard verfolgen koennen.",
           "Maboria es una plataforma de automatización de ingresos que ayuda a las empresas a facturar a los clientes, cobrar pagos, enviar mensajes de WhatsApp, automatizar seguimientos, generar recibos y supervisar operaciónes desde un solo panel.",
           "A Maboria e uma plataforma de automatizacao de receitas que ajuda as empresas a faturar clientes, cobrar pagamentos, enviar mensagens no WhatsApp, automatizar acompanhamentos, gerar recibos e acompanhar operações a partir de um unico painel."
         ),
       },
       {
-        question: text("Who is Maboria for?", "Pour qui est Maboria ?", "Fuer wen ist Maboria?", "Para quien es Maboria?", "Para quem e a Maboria?"),
+        question: text("Who is Maboria for?", "Pour qui est Maboria ?", "Für wen ist Maboria?", "Para quien es Maboria?", "Para quem e a Maboria?"),
         answer: text(
           "Maboria is for businesses that want predictable cash flow without manually chasing customers - founders, operators, and teams managing invoicing and collections.",
-          "Maboria s adresse aux entreprises qui veulent une tresorerie previsible sans courir apres les clients manuellement : fondateurs, operateurs et équipes qui gèrent la facturation et les encaissements.",
-          "Maboria ist fuer Unternehmen gedacht, die vorhersehbaren Cashflow wollen, ohne Kunden manuell hinterherzulaufen - Gruender, Operatoren und Teams, die Rechnungen und Einzuege verwalten.",
+          "Maboria s adresse aux entreprises qui veulent une tresorerie previsible sans courir après les clients manuellement : fondateurs, operateurs et équipes qui gèrent la facturation et les encaissements.",
+          "Maboria ist für Unternehmen gedacht, die vorhersehbaren Cashflow wollen, ohne Kunden manuell hinterherzulaufen - Gruender, Operatoren und Teams, die Rechnungen und Einzuege verwalten.",
           "Maboria es para empresas que quieren un flujo de caja predecible sin perseguir manualmente a los clientes: fundadores, operadores y equipos que gestionan facturación y cobros.",
           "A Maboria e para empresas que querem fluxo de caixa previsivel sem perseguir clientes manualmente: fundadores, operadores e equipas que gerem faturação e cobrancas."
         ),
@@ -59,7 +59,7 @@ const faqSections: FaqSection[] = [
     title: text("Payments & Trust", "Paiements et confiance", "Zahlungen und Vertrauen", "Pagos y confianza", "Pagamentos e confianca"),
     meta: text(
       "How money flows and who handles it",
-      "Comment l argent circule et qui le g?re",
+      "Comment l argent circule et qui le gère",
       "Wie Geld fliesst und wer es abwickelt",
       "Como fluye el dinero y quien lo gestiona",
       "Como o dinheiro circula e quem o gere"
@@ -75,10 +75,10 @@ const faqSections: FaqSection[] = [
         ),
         answer: text(
           "No. Maboria does not hold funds. Payments are processed by Paystack or Flutterwave and are paid directly into your connected business account or sub-account.",
-          "Non. Maboria ne detient pas les fonds. Les paiements sont traites par Paystack ou Flutterwave et verses directement sur votre compte professionnel connect? ou votre sous-compte.",
+          "Non. Maboria ne detient pas les fonds. Les paiements sont traites par Paystack ou Flutterwave et verses directement sur votre compte professionnel connecté ou votre sous-compte.",
           "Nein. Maboria haelt keine Gelder. Zahlungen werden von Paystack oder Flutterwave verarbeitet und direkt auf dein verbundenes Geschaeftskonto oder Unterkonto ausgezahlt.",
           "No. Maboria no retiene fondos. Los pagos son procesados por Paystack o Flutterwave y se abonan directamente en tu cuenta comercial conectada o subcuenta.",
-          "Não. A Maboria não guarda fundos. Os pagamentos s?o processados pela Paystack ou Flutterwave e enviados diretamente para a sua conta empresarial ligada ou subconta."
+          "Não. A Maboria não guarda fundos. Os pagamentos são processados pela Paystack ou Flutterwave e enviados diretamente para a sua conta empresarial ligada ou subconta."
         ),
       },
       {
@@ -92,9 +92,9 @@ const faqSections: FaqSection[] = [
         answer: text(
           "No. Maboria is not a wallet. It automates invoicing and operations. Payment processing and settlements are handled entirely by Paystack or Flutterwave.",
           "Non. Maboria n est pas un portefeuille. Elle automatise la facturation et les operations. Le traitement des paiements et les règlements sont entierement geres par Paystack ou Flutterwave.",
-          "Nein. Maboria ist keine Wallet. Sie automatisiert Rechnungsstellung und Ablaeufe. Zahlungsabwicklung und Auszahlungen werden vollstaendig von Paystack oder Flutterwave uebernommen.",
+          "Nein. Maboria ist keine Wallet. Sie automatisiert Rechnungsstellung und Ablaeufe. Zahlungsabwicklung und Auszahlungen werden vollstaendig von Paystack oder Flutterwave übernommen.",
           "No. Maboria no es una billetera. Automatiza la facturación y las operaciónes. El procesamiento de pagos y las liquidaciones son gestionados por completo por Paystack o Flutterwave.",
-          "Não. A Maboria não e uma carteira. Ela automatiza a faturação e as operações. O processamento de pagamentos e as liquidacoes s?o geridos inteiramente pela Paystack ou Flutterwave."
+          "Não. A Maboria não e uma carteira. Ela automatiza a faturação e as operações. O processamento de pagamentos e as liquidacoes são geridos inteiramente pela Paystack ou Flutterwave."
         ),
       },
       {
@@ -109,7 +109,7 @@ const faqSections: FaqSection[] = [
           "Maboria detects the payment instantly, updates the invoice status, issues a receipt automatically (if enabled), and triggers any follow-ups or reports you've configured.",
           "Maboria detecte le paiement instantanement, met a jour le statut de la facture, ?met automatiquement un recu (si active) et declenche les relances ou rapports que vous avez configures.",
           "Maboria erkennt die Zahlung sofort, aktualisiert den Rechnungsstatus, erstellt automatisch einen Beleg (falls aktiviert) und loest alle von dir konfigurierten Nachfassaktionen oder Berichte aus.",
-          "Maboria detecta el pago al instante, actualiza el estado de la factura, emite un recibo autom?ticamente (si esta activado) y activa los seguimientos o informes que hayas configurado.",
+          "Maboria detecta el pago al instante, actualiza el estado de la factura, emite un recibo automáticamente (si esta activado) y activa los seguimientos o informes que hayas configurado.",
           "A Maboria deteta o pagamento de imediato, atualiza o estado da fatura, emite automaticamente um recibo (se estiver ativado) e aciona os acompanhamentos ou relatórios que configurou."
         ),
       },
@@ -129,7 +129,7 @@ const faqSections: FaqSection[] = [
       "Ou les fonds sont verses et pourquoi c est important",
       "Wo Gelder ausgezahlt werden und warum das wichtig ist",
       "Donde se liquidan los fondos y por que importa",
-      "Onde os fundos s?o liquidados e porque isso importa"
+      "Onde os fundos são liquidados e porque isso importa"
     ),
     items: [
       {
@@ -142,8 +142,8 @@ const faqSections: FaqSection[] = [
         ),
         answer: text(
           "A sub-account is a payout destination connected through Paystack or Flutterwave. When customers pay, money goes directly into that account. Maboria does not store or delay funds.",
-          "Un sous-compte est une destination de versement connect?e via Paystack ou Flutterwave. Quand les clients paient, l argent va directement sur ce compte. Maboria ne stocke pas et ne retarde pas les fonds.",
-          "Ein Unterkonto ist ein Auszahlungsziel, das ueber Paystack oder Flutterwave verbunden ist. Wenn Kunden zahlen, geht das Geld direkt auf dieses Konto. Maboria speichert oder verzoegert keine Gelder.",
+          "Un sous-compte est une destination de versement connectée via Paystack ou Flutterwave. Quand les clients paient, l argent va directement sur ce compte. Maboria ne stocke pas et ne retarde pas les fonds.",
+          "Ein Unterkonto ist ein Auszahlungsziel, das über Paystack oder Flutterwave verbunden ist. Wenn Kunden zahlen, geht das Geld direkt auf dieses Konto. Maboria speichert oder verzoegert keine Gelder.",
           "Una subcuenta es un destino de pago conectado mediante Paystack o Flutterwave. Cuando los clientes pagan, el dinero va directamente a esa cuenta. Maboria no almacena ni retrasa fondos.",
           "Uma subconta e um destino de pagamento ligado pela Paystack ou Flutterwave. Quando os clientes pagam, o dinheiro vai diretamente para essa conta. A Maboria não armazena nem atrasa fundos."
         ),
@@ -158,10 +158,10 @@ const faqSections: FaqSection[] = [
         ),
         answer: text(
           "Yes. Payments are settled directly to your connected business account or sub-account via the payment provider.",
-          "Oui. Les paiements sont verses directement sur votre compte professionnel connect? ou votre sous-compte via le prestataire de paiement.",
-          "Ja. Zahlungen werden ueber den Zahlungsanbieter direkt auf dein verbundenes Geschaeftskonto oder Unterkonto ausgezahlt.",
+          "Oui. Les paiements sont verses directement sur votre compte professionnel connecté ou votre sous-compte via le prestataire de paiement.",
+          "Ja. Zahlungen werden über den Zahlungsanbieter direkt auf dein verbundenes Geschaeftskonto oder Unterkonto ausgezahlt.",
           "Si. Los pagos se liquidan directamente en tu cuenta comercial conectada o subcuenta a traves del proveedor de pagos.",
-          "Sim. Os pagamentos s?o liquidados diretamente na sua conta empresarial ligada ou subconta através do fornecedor de pagamentos."
+          "Sim. Os pagamentos são liquidados diretamente na sua conta empresarial ligada ou subconta através do fornecedor de pagamentos."
         ),
       },
     ],
@@ -177,7 +177,7 @@ const faqSections: FaqSection[] = [
     ),
     meta: text(
       "Messaging inside Maboria and automation rules",
-      "Messagerie dans Maboria et règles d automatisation",
+      "Messagerie dans Maboria et règles d'automatisation",
       "Nachrichten in Maboria und Automatisierungsregeln",
       "Mensajeria dentro de Maboria y reglas de automatización",
       "Mensagens dentro da Maboria e regras de automatizacao"
@@ -209,9 +209,9 @@ const faqSections: FaqSection[] = [
         ),
         answer: text(
           "Yes. You can automate WhatsApp reminders, payment confirmations, and follow-ups based on invoice status or payment events.",
-          "Oui. Vous pouvez automatiser les rappels WhatsApp, les confirmations de paiement et les relances selon le statut de la facture ou les ?v?nements de paiement.",
+          "Oui. Vous pouvez automatiser les rappels WhatsApp, les confirmations de paiement et les relances selon le statut de la facture ou les événements de paiement.",
           "Ja. Du kannst WhatsApp-Erinnerungen, Zahlungsbestaetigungen und Nachfassaktionen basierend auf Rechnungsstatus oder Zahlungsereignissen automatisieren.",
-          "Si. Puedes automatizar recordatorios de WhatsApp, confirmaciones de pago y seguimientos seg?n el estado de la factura o los eventos de pago.",
+          "Si. Puedes automatizar recordatorios de WhatsApp, confirmaciones de pago y seguimientos según el estado de la factura o los eventos de pago.",
           "Sim. Pode automatizar lembretes no WhatsApp, confirmacoes de pagamento e acompanhamentos com base no estado da fatura ou nos eventos de pagamento."
         ),
       },
@@ -226,9 +226,9 @@ const faqSections: FaqSection[] = [
         answer: text(
           "Maboria's built-in communication channel is WhatsApp. Email notifications can be automated through integrations or workflows, but WhatsApp is the native channel inside the app.",
           "Le canal de communication integre de Maboria est WhatsApp. Les notifications email peuvent être automatisees via des integrations ou des workflows, mais WhatsApp est le canal natif dans l application.",
-          "Der integrierte Kommunikationskanal von Maboria ist WhatsApp. E-Mail-Benachrichtigungen koennen ueber Integrationen oder Workflows automatisiert werden, aber WhatsApp ist der native Kanal in der App.",
+          "Der integrierte Kommunikationskanal von Maboria ist WhatsApp. E-Mail-Benachrichtigungen koennen über Integrationen oder Workflows automatisiert werden, aber WhatsApp ist der native Kanal in der App.",
           "El canal de comunicacion integrado de Maboria es WhatsApp. Las notificaciones por correo pueden automatizarse mediante integraciónes o flujos de trabajo, pero WhatsApp es el canal nativo dentro de la aplicación.",
-          "O canal de comunicacao nativo da Maboria e o WhatsApp. As notificacoes por email podem ser automatizadas por integrações ou fluxos de trabalho, mas o WhatsApp e o canal nativo dentro da aplica??o."
+          "O canal de comunicacao nativo da Maboria e o WhatsApp. As notificações por email podem ser automatizadas por integrações ou fluxos de trabalho, más o WhatsApp e o canal nativo dentro da aplicação."
         ),
       },
     ],
@@ -240,7 +240,7 @@ const faqSections: FaqSection[] = [
       "What runs automatically once configured",
       "Ce qui s execute automatiquement une fois configure",
       "Was nach der Einrichtung automatisch laeuft",
-      "Que se ejecuta autom?ticamente una vez configurado",
+      "Que se ejecuta automáticamente una vez configurado",
       "O que corre automaticamente depois de configurado"
     ),
     items: [
@@ -254,8 +254,8 @@ const faqSections: FaqSection[] = [
         ),
         answer: text(
           "You can automate invoice creation, payment receipts, WhatsApp reminders, overdue follow-ups, reports, and operational workflows.",
-          "Vous pouvez automatiser la cr?ation de factures, les re?us de paiement, les rappels WhatsApp, les relances d impayes, les rapports et les workflows operationnels.",
-          "Du kannst Rechnungserstellung, Zahlungsbelege, WhatsApp-Erinnerungen, ueberfaellige Nachfassaktionen, Berichte und operative Workflows automatisieren.",
+          "Vous pouvez automatiser la création de factures, les reçus de paiement, les rappels WhatsApp, les relances d impayes, les rapports et les workflows operationnels.",
+          "Du kannst Rechnungserstellung, Zahlungsbelege, WhatsApp-Erinnerungen, überfaellige Nachfassaktionen, Berichte und operative Workflows automatisieren.",
           "Puedes automatizar la creacion de facturas, recibos de pago, recordatorios de WhatsApp, seguimientos por vencimiento, informes y flujos operativos.",
           "Pode automatizar a criacao de faturas, recibos de pagamento, lembretes no WhatsApp, acompanhamentos de atrasos, relatórios e fluxos operaciónais."
         ),
@@ -265,7 +265,7 @@ const faqSections: FaqSection[] = [
           "Do automations run automatically once set up?",
           "Les automatisations s executent-elles automatiquement une fois configurees ?",
           "Laufen Automatisierungen nach der Einrichtung automatisch?",
-          "Las automatizaciones se ejecutan autom?ticamente una vez configuradas?",
+          "Las automatizaciones se ejecutan automáticamente una vez configuradas?",
           "As automatizacoes correm automaticamente depois de configuradas?"
         ),
         answer: text(
@@ -314,10 +314,10 @@ const faqSections: FaqSection[] = [
           "A IA age sozinha?"
         ),
         answer: text(
-          "No. AI assists and suggests. Actions only run based on rules you configure.",
+          "No. AI assistés and suggests. Actions only run based on rules you configure.",
           "Non. L?IA assiste et suggere. Les actions ne s executent qu en fonction des règles que vous configurez.",
           "Nein. KI unterstuetzt und schlaegt vor. Aktionen laufen nur auf Basis der Regeln, die du konfigurierst.",
-          "No. La IA asiste y sugiere. Las acciones solo se ejecutan seg?n las reglas que configures.",
+          "No. La IA asiste y sugiere. Las acciones solo se ejecutan según las reglas que configures.",
           "Não. A IA apoia e sugere. As ações so correm com base nas regras que configurar."
         ),
       },
@@ -350,10 +350,10 @@ const faqSections: FaqSection[] = [
         ),
         answer: text(
           "Yes. Pro, Growth, Business, and Enterprise plans can add team members and control access based on roles.",
-          "Oui. Les plans Pro, Growth, Business et Enterprise peuvent ajouter des membres d ?quipe et controler l acc?s selon les roles.",
+          "Oui. Les plans Pro, Growth, Business et Enterprise peuvent ajouter des membres d équipe et controler l accès selon les rôles.",
           "Ja. Mit Pro-, Growth-, Business- und Enterprise-Plänen kannst du Teammitglieder hinzufuegen und den Zugriff nach Rollen steuern.",
-          "Si. Los planes Pro, Growth, Business y Enterprise pueden agregar miembros del equipo y controlar el acceso seg?n los roles.",
-          "Sim. Os planos Pro, Growth, Business e Enterprise podem adicionar membros da equipa e controlar o acesso com base em funcoes."
+          "Si. Los planes Pro, Growth, Business y Enterprise pueden agregar miembros del equipo y controlar el acceso según los roles.",
+          "Sim. Os planos Pro, Growth, Business e Enterprise podem adicionar membros da equipa e controlar o acesso com base em funções."
         ),
       },
       {
@@ -366,10 +366,10 @@ const faqSections: FaqSection[] = [
         ),
         answer: text(
           "Yes. Invoice activity, payment events, and automation execution are logged for visibility and tracking.",
-          "Oui. L activité des factures, les ?v?nements de paiement et l ex?cution des automatisations sont journalises pour la visibilit? et le suivi.",
-          "Ja. Rechnungsaktivitaeten, Zahlungsereignisse und die Ausfuehrung von Automatisierungen werden fuer Transparenz und Nachverfolgung protokolliert.",
-          "Si. La actividad de facturas, los eventos de pago y la ejecuci?n de automatizaciones se registran para visibilidad y seguimiento.",
-          "Sim. A atividade das faturas, os eventos de pagamento e a execu??o das automatizacoes s?o registados para visibilidade e acompanhamento."
+          "Oui. L activité des factures, les événements de paiement et l ex?cution des automatisations sont journalises pour la visibilité et le suivi.",
+          "Ja. Rechnungsaktivitaeten, Zahlungsereignisse und die Ausfuehrung von Automatisierungen werden für Transparenz und Nachverfolgung protokolliert.",
+          "Si. La actividad de facturas, los eventos de pago y la ejecución de automatizaciones se registran para visibilidad y seguimiento.",
+          "Sim. A atividade das faturas, os eventos de pagamento e a execução das automatizacoes são registados para visibilidade e acompanhamento."
         ),
       },
       {
@@ -397,12 +397,12 @@ const faqSections: FaqSection[] = [
       "Sécurité et fiabilite",
       "Sicherheit und Zuverlaessigkeit",
       "Seguridad y fiabilidad",
-      "Seguran?a e fiabilidade"
+      "Segurança e fiabilidade"
     ),
     meta: text(
       "Reliability and governance for teams",
       "Fiabilite et gouvernance pour les équipes",
-      "Zuverlaessigkeit und Governance fuer Teams",
+      "Zuverlaessigkeit und Governance für Teams",
       "Fiabilidad y gobierno para equipos",
       "Fiabilidade e governanca para equipas"
     ),
@@ -411,14 +411,14 @@ const faqSections: FaqSection[] = [
         question: text(
           "Is Maboria suitable for serious businesses?",
           "Maboria convient-elle aux entreprises serieuses ?",
-          "Ist Maboria fuer anspruchsvolle Unternehmen geeignet?",
+          "Ist Maboria für anspruchsvolle Unternehmen geeignet?",
           "Maboria es adecuada para empresas serias?",
           "A Maboria e adequada para empresas exigentes?"
         ),
         answer: text(
           "Yes. Maboria includes role-based access, audit logs, and operational visibility designed for teams that need reliability and control.",
-          "Oui. Maboria inclut un accès base sur les roles, des journaux d audit et une visibilit? operationnelle concus pour les équipes qui ont besoin de fiabilite et de controle.",
-          "Ja. Maboria bietet rollenbasierten Zugriff, Audit-Protokolle und operative Transparenz fuer Teams, die Zuverlaessigkeit und Kontrolle brauchen.",
+          "Oui. Maboria inclut un accès basé sur les rôles, des journaux d'audit et une visibilité opérationnelle conçue pour les équipes qui ont besoin de fiabilité et de contrôle.",
+          "Ja. Maboria bietet rollenbasierten Zugriff, Audit-Protokolle und operative Transparenz für Teams, die Zuverlaessigkeit und Kontrolle brauchen.",
           "Si. Maboria incluye acceso basado en roles, registros de auditoria y visibilidad operativa pensados para equipos que necesitan fiabilidad y control.",
           "Sim. A Maboria inclui acesso baseado em funções, registos de auditoria e visibilidade operaciónal pensados para equipas que precisam de fiabilidade e controlo."
         ),
@@ -457,7 +457,7 @@ const faqSections: FaqSection[] = [
           "Can I upgrade later?",
           "Puis-je changer d offre plus tard ?",
           "Kann ich spaeter upgraden?",
-          "Puedo actualizar mas adelante?",
+          "Puedo actualizar más adelante?",
           "Posso fazer upgrade mais tarde?"
         ),
         answer: text(
@@ -494,7 +494,7 @@ const faqSections: FaqSection[] = [
           "Support -> support@maboria.com (aide et problemes de l application). Facturation -> billing@maboria.com (abonnements et paiements). General -> info@maboria.com.",
           "Support -> support@maboria.com (App-Hilfe und Probleme). Abrechnung -> billing@maboria.com (Abos und Zahlungen). Allgemein -> info@maboria.com.",
           "Soporte -> support@maboria.com (ayuda de la aplicación y problemas). Facturación -> billing@maboria.com (suscripciones y pagos). General -> info@maboria.com.",
-          "Suporte -> support@maboria.com (ajuda na aplica??o e problemas). Faturação -> billing@maboria.com (subscricoes e pagamentos). Geral -> info@maboria.com."
+          "Suporte -> support@maboria.com (ajuda na aplicação e problemas). Faturação -> billing@maboria.com (subscricoes e pagamentos). Geral -> info@maboria.com."
         ),
       },
       {
@@ -581,7 +581,7 @@ export function FAQSection() {
             {t(
               text(
                 "Clear answers about payments, automation, WhatsApp messaging, AI assistance, and how Maboria works.",
-                "Des réponses claires sur les paiements, l automatisation, la messagerie WhatsApp, l assistance IA et le fonctionnement de Maboria.",
+                "Des réponses claires sur les paiements, l'automatisation, la messagerie WhatsApp, l assistance IA et le fonctionnement de Maboria.",
                 "Klare Antworten zu Zahlungen, Automatisierung, WhatsApp-Nachrichten, KI-Unterstuetzung und dazu, wie Maboria funktioniert.",
                 "Respuestas claras sobre pagos, automatización, mensajeria de WhatsApp, asistencia con IA y como funciona Maboria.",
                 "Respostas claras sobre pagamentos, automatizacao, mensagens no WhatsApp, assistencia com IA e como a Maboria funciona."
@@ -672,7 +672,7 @@ export function FAQSection() {
             href="/signup"
             className="rounded-full bg-indigo-600 px-6 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500"
           >
-            {t(text("Get started", "Commencer", "Loslegen", "Empezar", "Comecar"))}
+            {t(text("Get started", "Commencer", "Loslegen", "Empezar", "Começar"))}
           </a>
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
@@ -681,8 +681,8 @@ export function FAQSection() {
               "Last updated: Feb 2026",
               "Derni?re mise ? jour : fev 2026",
               "Zuletzt aktualisiert: Feb 2026",
-              "?ltima actualizacion: feb 2026",
-              "?ltima atualiza??o: fev 2026"
+              "Última actualización: feb 2026",
+              "Última atualização: fev 2026"
             )
           )}
         </p>

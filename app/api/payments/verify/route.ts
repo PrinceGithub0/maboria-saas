@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { assertRateLimit } from "@/lib/rate-limit";
+import { assertRateLimitAsync } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
 import {
@@ -20,10 +20,12 @@ import {
 import { subscriptionPlanToUserPlan } from "@/lib/entitlements";
 import { requireOrgPermission } from "@/lib/org-auth";
 import {
-  getPlanFromAmountWithInterval,
-  getPlanPriceForInterval,
   type BillingInterval,
 } from "@/lib/pricing";
+import {
+  getPlanFromAmountWithIntervalLive,
+  getPlanPriceForIntervalLive,
+} from "@/lib/pricing-live";
 import { fromMinorUnits } from "@/lib/payments/currency-allowlist";
 import { log } from "@/lib/logger";
 
@@ -39,7 +41,7 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const parsed = payloadSchema.parse(await req.json());
-  assertRateLimit(`payment-verify:${session.user.id}`, 10, 60_000);
+  await assertRateLimitAsync(`payment-verify:${session.user.id}`, 10, 60_000);
 
   const canActForUser = async (targetUserId: string) => {
     if (targetUserId === session.user.id) return true;
@@ -120,7 +122,7 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     }
     const amount = fromMinorUnits(Number(data?.amount || 0), data?.currency || "NGN");
     const currency = (data?.currency || "NGN").toUpperCase();
-    const inferred = getPlanFromAmountWithInterval(currency, amount);
+    const inferred = await getPlanFromAmountWithIntervalLive(currency, amount);
     const userId = (data?.metadata?.userId as string | undefined) || session.user.id;
     const plan = (data?.metadata?.plan as string | undefined) || inferred?.plan;
     const rawInterval = String(data?.metadata?.interval || "");
@@ -156,7 +158,11 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
             select: { amount: true },
           })
         : null;
-      const expected = checkout ? Number(checkout.amount) : planKey ? getPlanPriceForInterval(planKey, currency, interval) : null;
+      const expected = checkout
+        ? Number(checkout.amount)
+        : planKey
+          ? await getPlanPriceForIntervalLive(planKey, currency, interval)
+          : null;
       if (expected && Math.abs(amount - expected) > 0.01) {
         log("warn", "paystack_amount_mismatch", { userId, plan: normalizedPlan, amount, expected, source: "verify" });
         return NextResponse.json({ status: "pending" });
@@ -198,7 +204,7 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
 
   const amount = Number(verified?.amount || 0);
   const currency = (verified?.currency || "USD").toUpperCase();
-  const inferred = getPlanFromAmountWithInterval(currency, amount);
+  const inferred = await getPlanFromAmountWithIntervalLive(currency, amount);
   const userId = (verified?.meta?.userId as string | undefined) || session.user.id;
   const plan = (verified?.meta?.plan as string | undefined) || inferred?.plan;
   const rawInterval = String(verified?.meta?.interval || "");
@@ -226,7 +232,11 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
           select: { amount: true },
         })
       : null;
-    const expected = checkout ? Number(checkout.amount) : planKey ? getPlanPriceForInterval(planKey, currency, interval) : null;
+    const expected = checkout
+      ? Number(checkout.amount)
+      : planKey
+        ? await getPlanPriceForIntervalLive(planKey, currency, interval)
+        : null;
     if (expected && Math.abs(amount - expected) > 0.01) {
       log("warn", "flutterwave_amount_mismatch", { userId, plan: normalizedPlan, amount, expected, source: "verify" });
       return NextResponse.json({ status: "pending" });

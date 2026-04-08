@@ -35,7 +35,7 @@ export const palauComplianceModule = buildDefaultCountryModule("PW", {
       createCountryIssue(
         "invoice.supportingDocuments",
         "PW_PGRT_SUPPORT_NOTICE",
-        "Retain invoice support for Palau gross-revenue tax and customs review where applicable.",
+        "Retain invoice support for Palau groß-revenue tax and customs review where applicable.",
         "WARNING",
         "PW"
       )

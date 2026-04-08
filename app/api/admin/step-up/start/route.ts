@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { withErrorHandling } from "@/lib/api-handler";
-import { assertRateLimit } from "@/lib/rate-limit";
+import { assertRateLimitAsync } from "@/lib/rate-limit";
 import { log } from "@/lib/logger";
 import { requireNoImpersonationMode, requirePlatformAdmin } from "@/lib/admin/admin-rbac";
 import { startSuperAdminStepUp, toHttpError } from "@/lib/admin/users";
@@ -36,8 +36,8 @@ export const POST = withErrorHandling(async (req: Request) => {
   }
 
   try {
-    assertRateLimit(`step-up-start:actor:${actorUserId}`, 10, 60_000);
-    assertRateLimit(`step-up-start:ip:${ip}`, 20, 60_000);
+    await assertRateLimitAsync(`step-up-start:actor:${actorUserId}`, 10, 60_000);
+    await assertRateLimitAsync(`step-up-start:ip:${ip}`, 20, 60_000);
   } catch (rateError: any) {
     return NextResponse.json(
       { error: "Rate limit exceeded. Try again shortly.", code: "RATE_LIMITED", retryAfter: rateError?.retryAfter ?? 60 },

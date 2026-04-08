@@ -6,12 +6,12 @@ export const dominicanRepublicComplianceModule = buildDefaultCountryModule("DO",
   evidence: [
     {
       label: "DGII electronic fiscal receipt framework",
-      url: "https://dgii.gov.do/cicloContribuyente/facturacion/comprobantesFiscalesElectronicosE-CF/Paginas/marcoLegal.aspx",
+      url: "https://dgii.gov.do/cicloContribuyente/facturación/comprobantesFiscalesElectronicosE-CF/Paginas/marcoLegal.aspx",
       reviewedAt: "2026-04-06",
     },
     {
       label: "DGII electronic fiscal receipt structure and rules",
-      url: "https://dgii.gov.do/cicloContribuyente/facturacion/comprobantesFiscalesElectronicosE-CF/Paginas/TipoyEstructurae-CF.aspx",
+      url: "https://dgii.gov.do/cicloContribuyente/facturación/comprobantesFiscalesElectronicosE-CF/Paginas/TipoyEstructurae-CF.aspx",
       reviewedAt: "2026-04-06",
     },
   ],

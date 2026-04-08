@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { sendPlatformMail } from "@/lib/email";
-import { assertRateLimit } from "@/lib/rate-limit";
+import { assertRateLimitAsync } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
 import { log } from "@/lib/logger";
@@ -41,8 +41,8 @@ export const POST = withRequestLogging(
     log("info", "password_reset_request_received", { email: emailKey, ip });
 
     try {
-      assertRateLimit(`password-reset:email:${email}`, 3, 60 * 60 * 1000);
-      assertRateLimit(`password-reset:ip:${ip}`, 20, 60 * 60 * 1000);
+      await assertRateLimitAsync(`password-reset:email:${email}`, 3, 60 * 60 * 1000);
+      await assertRateLimitAsync(`password-reset:ip:${ip}`, 20, 60 * 60 * 1000);
     } catch (error: any) {
       log("warn", "password_reset_request_rate_limited", {
         email: emailKey,

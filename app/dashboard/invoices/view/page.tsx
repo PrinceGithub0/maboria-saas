@@ -89,7 +89,7 @@ export default async function InvoiceDetailPage({ searchParams }: PageProps) {
   if (candidates.length === 0) {
     return (
       <div className="space-y-4">
-        <Alert variant="error">{t("Invalid invoice link.", "Lien de facture invalide.", "Ungültiger Rechnungslink.", "Enlace de factura no valido.", "Liga??o de fatura invalida.")}</Alert>
+        <Alert variant="error">{t("Invalid invoice link.", "Lien de facture invalide.", "Ungültiger Rechnungslink.", "Enlace de factura no valido.", "Ligação de fatura invalida.")}</Alert>
         <Link
           href="/dashboard/invoices"
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-muted px-4 py-2 text-sm font-semibold text-foreground hover:brightness-95"
@@ -154,8 +154,8 @@ export default async function InvoiceDetailPage({ searchParams }: PageProps) {
             "Invoice not found. It may have been deleted or the link is incorrect.",
             "Facture introuvable. Elle a peut-\u00eatre \u00e9t\u00e9 supprim\u00e9e ou le lien est incorrect.",
             "Rechnung nicht gefunden. Sie wurde moglicherweise gelöscht oder der Link ist falsch.",
-            "No se encontro la factura. Puede que se haya eliminado o que el enlace sea incorrecto.",
-            "Fatura não encontrada. Pode ter sido eliminada ou a liga??o esta incorreta."
+            "No se encontró la factura. Puede que se haya eliminado o que el enlace sea incorrecto.",
+            "Fatura não encontrada. Pode ter sido eliminada ou a ligação esta incorreta."
           )}
         </Alert>
         <Link
@@ -281,7 +281,7 @@ export default async function InvoiceDetailPage({ searchParams }: PageProps) {
         <Alert variant="error">
           {t(
             "Business profile snapshot is missing on this invoice. Please recreate the invoice.",
-            "Profil entreprise manquant sur cette facture. Veuillez recreer la facture.",
+            "Profil entreprise manquant sur cette facture. Veuillez recréer la facture.",
             "Der Snapshot des Unternehmensprofils fehlt auf dieser Rechnung. Bitte erstelle die Rechnung erneut.",
             "Falta la instantanea del perfil de empresa en esta factura. Vuelve a crear la factura.",
             "Falta o snapshot do perfil da empresa nesta fatura. Crie a fatura novamente."
@@ -316,7 +316,7 @@ export default async function InvoiceDetailPage({ searchParams }: PageProps) {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-1">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                {t("Compliance", "Conformite", "Compliance", "Cumplimiento", "Conformidade")}
+                {t("Compliance", "Conformité", "Compliance", "Cumplimiento", "Conformidade")}
               </p>
               <h2 className="text-lg font-semibold text-foreground">
                 {`Support level: ${String(complianceRecord.supportLevel || "UNKNOWN").toLowerCase()}`}
@@ -341,7 +341,7 @@ export default async function InvoiceDetailPage({ searchParams }: PageProps) {
               <Alert variant="error">
                 {t(
                   "Compliance blockers detected. Resolve the errors before sending this invoice.",
-                  "Blocages de conformite detectes. Corrigez les erreurs avant l envoi.",
+                  "Blocages de conformité détectés. Corrigez les erreurs avant l envoi.",
                   "Compliance-Fehler gefunden. Behebe sie vor dem Versand.",
                   "Se detectaron bloqueos de cumplimiento. Corrige los errores antes de enviar.",
                   "Bloqueios de conformidade detectados. Corrija os erros antes de enviar."

@@ -394,10 +394,10 @@ export function EInvoicingStatusCard({ invoiceId, initialSnapshot, invoiceStatus
       {snapshot.requirement === "REQUIRED" && !snapshot.productionReady ? (
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
           {t(
-            "Retry is disabled until country launch signoff is complete, even if transport is already wired.",
-            "La nouvelle tentative est désactivée tant que la validation de lancement du pays n'est pas terminée, même si le transport est deja cable.",
-            "Erneutes Senden ist deaktiviert, bis die Laender-Go-live-Freigabe abgeschlossen ist, auch wenn der Transport bereits verdrahtet ist.",
-            "El reintento está desactivado hasta que se complete la aprobación de lanzamiento del país, aunque el transporte ya esté conectado.",
+            "Retry is disabled until country laúnch signoff is complete, even if transport is already wired.",
+            "La nouvelle tentative est désactivée tant que la validation de lancement du pays n'est pas terminée, même si le transport est déjà cable.",
+            "Erneutes Senden ist deaktiviert, bis die Länder-Go-live-Freigabe abgeschlossen ist, auch wenn der Transport bereits verdrahtet ist.",
+            "El reintento está desactivado hasta que se complete la aprobación de lanzamiento del país, aúnque el transporte ya esté conectado.",
             "A nova tentativa está desativada até que a aprovacão de lancamento do pais esteja concluida, mesmo que o transporte ja esteja ligado."
           )}
         </p>

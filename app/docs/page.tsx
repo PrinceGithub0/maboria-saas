@@ -38,7 +38,7 @@ export default function DocsPage() {
         <p className="text-sm text-muted-foreground">
           {t(
             "Users, subscriptions, payments, invoices, automations, runs, AI memory, logs, settings.",
-            "Users, abonnements, paiements, factures, automatisations, runs, memoire IA, logs, paramêtres."
+            "Utilisateurs, abonnements, paiements, factures, automatisations, exécutions, mémoire IA, journaux, paramètres."
           )}
         </p>
       </section>
@@ -52,7 +52,7 @@ export default function DocsPage() {
         </p>
       </section>
       <section>
-        <h2 className="text-xl font-semibold">{t("Automation engine", "Moteur d automatisation")}</h2>
+        <h2 className="text-xl font-semibold">{t("Automation engine", "Moteur d'automatisation")}</h2>
         <p className="text-sm text-muted-foreground">
           {t(
             "Executes steps: parse, condition, extract, API call, DB write, webhook, invoice, email, AI transform, usage metering, recovery.",
@@ -76,7 +76,7 @@ export default function DocsPage() {
           <li>{t("Provision Postgres + run prisma migrate deploy", "Provisionner Postgres + prisma migrate deploy")}</li>
           <li>{t("Configure Flutterwave/Paystack webhooks", "Configurer webhooks Flutterwave/Paystack")}</li>
           <li>{t("Deploy Next.js (Vercel) and verify /api/health", "Deployer Next.js (Vercel) et verifier /api/health")}</li>
-          <li>{t("Run pre-launch checklist UI/API", "Executer checklist pre-lancement UI/API")}</li>
+          <li>{t("Run pre-laúnch checklist UI/API", "Executer checklist pre-lancement UI/API")}</li>
         </ol>
       </section>
     </div>

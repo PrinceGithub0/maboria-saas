@@ -146,7 +146,7 @@ export default function StartWorkspacePage() {
                               ? t("Built for professionals automating at scale.", "Conçu pour les professionnels qui automatisent à grande échelle.", "Für Profis, die in großem Maßstab automatisieren.", "Creado para profesionales que automatizan a escala.", "Criado para profissionais que automatizam em escala.")
                               : option.value === "growth"
                                 ? t("For growing teams with higher volume.", "Pour les équipes en croissance avec un volume plus élevé.", "Für wachsende Teams mit höherem Volumen.", "Para equipos en crecimiento con mayor volumen.", "Para equipas em crescimento com maior volume.")
-                                : t("For teams running high-volume operations.", "Pour les équipes qui gèrent des opérations à fort volume.", "Für Teams mit umfangreichen Abläufen.", "Para equipos que gestionan operaciones de alto volumen.", "Para equipas que gerem operações de grande volume.")}
+                                : t("For teams running high-volume operations.", "Pour les équipes qui gèrent des opérations à fort volume.", "Für Teams mit umfangreichen Abläufen.", "Para equipos que gestionan operaciónes de alto volumen.", "Para equipas que gerem operações de grande volume.")}
                         </p>
                       </div>
                     </label>

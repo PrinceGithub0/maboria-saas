@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { assertRateLimit } from "@/lib/rate-limit";
+import { assertRateLimitAsync } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
 import { withRequestLogging } from "@/lib/request-logger";
 import { z } from "zod";
@@ -26,7 +26,7 @@ export const POST = withRequestLogging(withErrorHandling(async (req: Request) =>
     })
     .parse(await req.json());
 
-  assertRateLimit(`flutterwave:${session.user.id}`, 20, 60_000);
+  await assertRateLimitAsync(`flutterwave:${session.user.id}`, 20, 60_000);
   const access = await requireOrgPermission(session.user.id, {
     permission: "subscription:manage",
     requireActiveSubscription: false,

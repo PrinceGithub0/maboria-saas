@@ -46,42 +46,42 @@ export default function BillingPage() {
   const locale = LANGUAGE_LOCALES[language];
   const featureMap: Record<string, LocalizedText> = {
     "1 workspace": { en: "1 workspace", fr: "1 espace de travail", de: "1 Workspace", es: "1 espacio de trabajo", pt: "1 workspace" },
-    "2 connections total": { en: "2 connections total", fr: "2 connexions au total", de: "2 Verbindungen insgesamt", es: "2 conexiones en total", pt: "2 ligacoes no total" },
+    "2 connections total": { en: "2 connections total", fr: "2 connexions au total", de: "2 Verbindungen insgesamt", es: "2 conexiónes en total", pt: "2 ligacoes no total" },
     "Unified inbox": { en: "Unified inbox", fr: "Boite de reception unifiee", de: "Einheitlicher Posteingang", es: "Bandeja unificada", pt: "Caixa de entrada unificada" },
     "Send invoices and track payments": { en: "Send invoices and track payments", fr: "Envoyer des factures et suivre les paiements", de: "Rechnungen senden und Zahlungen verfolgen", es: "Enviar facturas y seguir pagos", pt: "Enviar faturas e acompanhar pagamentos" },
     "Automated follow-ups": { en: "Automated follow-ups", fr: "Relances automatisees", de: "Automatisierte Nachfassaktionen", es: "Seguimientos automatizados", pt: "Follow-ups automatizados" },
     "Basic workflows": { en: "Basic workflows", fr: "Workflows de base", de: "Grundlegende Workflows", es: "Flujos basicos", pt: "Workflows basicos" },
     "AI assistant": { en: "AI assistant", fr: "Assistant IA", de: "KI-Assistent", es: "Asistente de IA", pt: "Assistente de IA" },
     "1 seat": { en: "1 seat", fr: "1 siege", de: "1 Platz", es: "1 asiento", pt: "1 lugar" },
-    "Up to 8 connections": { en: "Up to 8 connections", fr: "Jusqu a 8 connexions", de: "Bis zu 8 Verbindungen", es: "Hasta 8 conexiones", pt: "Ate 8 ligacoes" },
+    "Up to 8 connections": { en: "Up to 8 connections", fr: "Jusqu a 8 connexions", de: "Bis zu 8 Verbindungen", es: "Hasta 8 conexiónes", pt: "Até 8 ligacoes" },
     "Shared inbox": { en: "Shared inbox", fr: "Boite de reception partagee", de: "Geteilter Posteingang", es: "Bandeja compartida", pt: "Caixa de entrada partilhada" },
-    "Smart automation workflows": { en: "Smart automation workflows", fr: "Workflows d'automatisation intelligents", de: "Intelligente Automatisierungs-Workflows", es: "Flujos de automatizacion inteligentes", pt: "Workflows de automacao inteligentes" },
-    "AI-powered replies": { en: "AI-powered replies", fr: "Reponses assistees par IA", de: "KI-gestutzte Antworten", es: "Respuestas con IA", pt: "Respostas com IA" },
+    "Smart automation workflows": { en: "Smart automation workflows", fr: "Workflows d'automatisation intelligents", de: "Intelligente Automatisierungs-Workflows", es: "Flujos de automatización inteligentes", pt: "Workflows de automação inteligentes" },
+    "AI-powered replies": { en: "AI-powered replies", fr: "Réponses assistees par IA", de: "KI-gestützte Antworten", es: "Respuestas con IA", pt: "Respostas com IA" },
     "Payment tracking": { en: "Payment tracking", fr: "Suivi des paiements", de: "Zahlungsverfolgung", es: "Seguimiento de pagos", pt: "Acompanhamento de pagamentos" },
     "Exports": { en: "Exports", fr: "Exports", de: "Exporte", es: "Exportaciones", pt: "Exportacoes" },
-    "Role-based access": { en: "Role-based access", fr: "Acces base sur les roles", de: "Rollenbasierter Zugriff", es: "Acceso basado en roles", pt: "Acesso baseado em funcoes" },
+    "Role-based access": { en: "Role-based access", fr: "Accès base sur les rôles", de: "Rollenbasierter Zugriff", es: "Acceso basado en roles", pt: "Acesso baseado em funções" },
     "3 seats": { en: "3 seats", fr: "3 sieges", de: "3 Platze", es: "3 asientos", pt: "3 lugares" },
-    "Up to 20 connections": { en: "Up to 20 connections", fr: "Jusqu a 20 connexions", de: "Bis zu 20 Verbindungen", es: "Hasta 20 conexiones", pt: "Ate 20 ligacoes" },
-    "Multiple connected inboxes": { en: "Multiple connected inboxes", fr: "Plusieurs boites connectees", de: "Mehrere verbundene Posteingange", es: "Multiples bandejas conectadas", pt: "Varias caixas de entrada ligadas" },
+    "Up to 20 connections": { en: "Up to 20 connections", fr: "Jusqu a 20 connexions", de: "Bis zu 20 Verbindungen", es: "Hasta 20 conexiónes", pt: "Até 20 ligacoes" },
+    "Multiple connected inboxes": { en: "Multiple connected inboxes", fr: "Plusieurs boites connectees", de: "Mehrere verbundene Posteingänge", es: "Multiples bandejas conectadas", pt: "Varias caixas de entrada ligadas" },
     "Advanced routing and assignment": { en: "Advanced routing and assignment", fr: "Routage et attribution avances", de: "Erweitertes Routing und Zuweisung", es: "Enrutamiento y asignacion avanzados", pt: "Encaminhamento e atribuicao avancados" },
-    "Reporting and team visibility": { en: "Reporting and team visibility", fr: "Rapports et visibilite equipe", de: "Reporting und Team-Transparenz", es: "Informes y visibilidad del equipo", pt: "Relatorios e visibilidade da equipa" },
-    "Longer history retention": { en: "Longer history retention", fr: "Retention d'historique plus longue", de: "Langere Verlaufsspeicherung", es: "Retencion de historial mas larga", pt: "Retencao de historico mais longa" },
+    "Reporting and team visibility": { en: "Reporting and team visibility", fr: "Rapports et visibilite équipe", de: "Reporting und Team-Transparenz", es: "Informes y visibilidad del equipo", pt: "Relatórios e visibilidade da equipa" },
+    "Longer history retention": { en: "Longer history retention", fr: "Rétention d'historique plus longue", de: "Langere Verlaufsspeicherung", es: "Retención de historial más larga", pt: "Retenção de histórico mais longa" },
     "Priority support": { en: "Priority support", fr: "Support prioritaire", de: "Priorisierter Support", es: "Soporte prioritario", pt: "Suporte prioritario" },
-    "Up to 8 seats": { en: "Up to 8 seats", fr: "Jusqu a 8 sieges", de: "Bis zu 8 Platze", es: "Hasta 8 asientos", pt: "Ate 8 lugares" },
-    "Unlimited connections": { en: "Unlimited connections", fr: "Connexions illimitees", de: "Unbegrenzte Verbindungen", es: "Conexiones ilimitadas", pt: "Ligacoes ilimitadas" },
-    "Advanced inbox operations": { en: "Advanced inbox operations", fr: "Operations de boite avancees", de: "Erweiterte Posteingangsoperationen", es: "Operaciones avanzadas de bandeja", pt: "Operacoes avancadas da caixa de entrada" },
-    "Roles and permissions": { en: "Roles and permissions", fr: "Roles et permissions", de: "Rollen und Berechtigungen", es: "Roles y permisos", pt: "Funcoes e permissoes" },
+    "Up to 8 seats": { en: "Up to 8 seats", fr: "Jusqu a 8 sieges", de: "Bis zu 8 Platze", es: "Hasta 8 asientos", pt: "Até 8 lugares" },
+    "Unlimited connections": { en: "Unlimited connections", fr: "Connexions illimitees", de: "Unbegrenzte Verbindungen", es: "Conexiónes ilimitadas", pt: "Ligacoes ilimitadas" },
+    "Advanced inbox operations": { en: "Advanced inbox operations", fr: "Operations de boite avancees", de: "Erweiterte Posteingangsoperationen", es: "Operaciones avanzadas de bandeja", pt: "Operações avancadas da caixa de entrada" },
+    "Roles and permissions": { en: "Roles and permissions", fr: "Roles et permissions", de: "Rollen und Berechtigungen", es: "Roles y permisos", pt: "Funções e permissoes" },
     "Audit logs": { en: "Audit logs", fr: "Journaux d'audit", de: "Audit-Protokolle", es: "Registros de auditoria", pt: "Registos de auditoria" },
-    "Admin controls": { en: "Admin controls", fr: "Controles administrateur", de: "Admin-Steuerung", es: "Controles de administracion", pt: "Controlos de administracao" },
-    "Advanced reporting": { en: "Advanced reporting", fr: "Rapports avances", de: "Erweitertes Reporting", es: "Informes avanzados", pt: "Relatorios avancados" },
-    "Compliance and e-invoicing support": { en: "Compliance and e-invoicing support", fr: "Support conformite et e-facturation", de: "Compliance- und E-Rechnungs-Support", es: "Soporte de cumplimiento y facturacion electronica", pt: "Suporte de conformidade e faturacao eletronica" },
-    "Onboarding assistance": { en: "Onboarding assistance", fr: "Aide a l'onboarding", de: "Onboarding-Unterstutzung", es: "Ayuda de onboarding", pt: "Ajuda de onboarding" },
-    "Up to 15 seats": { en: "Up to 15 seats", fr: "Jusqu a 15 sieges", de: "Bis zu 15 Platze", es: "Hasta 15 asientos", pt: "Ate 15 lugares" },
+    "Admin controls": { en: "Admin controls", fr: "Controles administrateur", de: "Admin-Steuerung", es: "Controles de administración", pt: "Controlos de administração" },
+    "Advanced reporting": { en: "Advanced reporting", fr: "Rapports avances", de: "Erweitertes Reporting", es: "Informes avanzados", pt: "Relatórios avancados" },
+    "Compliance and e-invoicing support": { en: "Compliance and e-invoicing support", fr: "Support conformité et e-facturation", de: "Compliance- und E-Rechnungs-Support", es: "Soporte de cumplimiento y facturación electronica", pt: "Suporte de conformidade e faturação eletronica" },
+    "Onboarding assistance": { en: "Onboarding assistance", fr: "Aide à l'onboarding", de: "Onboarding-Unterstützung", es: "Ayuda de onboarding", pt: "Ajuda de onboarding" },
+    "Up to 15 seats": { en: "Up to 15 seats", fr: "Jusqu a 15 sieges", de: "Bis zu 15 Platze", es: "Hasta 15 asientos", pt: "Até 15 lugares" },
     "Custom throughput": { en: "Custom throughput", fr: "Debit personnalise", de: "Individueller Durchsatz", es: "Capacidad personalizada", pt: "Capacidade personalizada" },
     "SLA guarantee": { en: "SLA guarantee", fr: "Garantie SLA", de: "SLA-Garantie", es: "Garantia SLA", pt: "Garantia SLA" },
-    "Custom integrations": { en: "Custom integrations", fr: "Integrations personnalisees", de: "Individuelle Integrationen", es: "Integraciones personalizadas", pt: "Integracoes personalizadas" },
+    "Custom integrations": { en: "Custom integrations", fr: "Integrations personnalisees", de: "Individuelle Integrationen", es: "Integraciónes personalizadas", pt: "Integrações personalizadas" },
     "Dedicated support": { en: "Dedicated support", fr: "Support dedie", de: "Dedizierter Support", es: "Soporte dedicado", pt: "Suporte dedicado" },
-    "Compliance rollout assistance": { en: "Compliance rollout assistance", fr: "Aide au deploiement conformite", de: "Unterstutzung beim Compliance-Rollout", es: "Ayuda para despliegue de cumplimiento", pt: "Ajuda no rollout de conformidade" },
+    "Compliance rollout assistance": { en: "Compliance rollout assistance", fr: "Aide au deploiement conformité", de: "Unterstützung beim Compliance-Rollout", es: "Ayuda para despliegue de cumplimiento", pt: "Ajuda no rollout de conformidade" },
     "Negotiated limits and controls": { en: "Negotiated limits and controls", fr: "Limites et controles negocies", de: "Verhandelte Limits und Steuerungen", es: "Limites y controles negociados", pt: "Limites e controlos negociados" },
     "Custom seat volume": { en: "Custom seat volume", fr: "Volume de sieges personnalise", de: "Individuelles Sitzvolumen", es: "Volumen de asientos personalizado", pt: "Volume de lugares personalizado" },
   };
@@ -91,12 +91,12 @@ export default function BillingPage() {
     );
   const localizeBillingError = (message?: string) => {
     const normalized = String(message || "").trim();
-    if (!normalized) return t("Unable to load billing history.", "Impossible de charger l'historique de facturation.", "Der Abrechnungsverlauf konnte nicht geladen werden.", "No se pudo cargar el historial de facturación.", "Não foi poss?vel carregar o histórico de faturação.");
+    if (!normalized) return t("Unable to load billing history.", "Impossible de charger l'historique de facturation.", "Der Abrechnungsverlauf konnte nicht geladen werden.", "No se pudo cargar el historial de facturación.", "Não foi possível carregar o histórico de faturação.");
     const mappings: Record<string, string> = {
-      "Unable to load billing history.": t("Unable to load billing history.", "Impossible de charger l'historique de facturation.", "Der Abrechnungsverlauf konnte nicht geladen werden.", "No se pudo cargar el historial de facturación.", "Não foi poss?vel carregar o histórico de faturação."),
+      "Unable to load billing history.": t("Unable to load billing history.", "Impossible de charger l'historique de facturation.", "Der Abrechnungsverlauf konnte nicht geladen werden.", "No se pudo cargar el historial de facturación.", "Não foi possível carregar o histórico de faturação."),
       Unauthorized: t("Please sign in and try again.", "Veuillez vous connecter puis réessayer.", "Bitte melde dich an und versuche es erneut.", "Inicia sesión y vuelve a intentarlo.", "Inicie sessão e tente novamente."),
       Forbidden: t("You do not have access to billing.", "Vous n'avez pas accès a la facturation.", "Du hast keinen Zugriff auf die Abrechnung.", "No tienes acceso a la facturación.", "Não tem acesso a faturação."),
-      "Request failed": t("Unable to load billing history.", "Impossible de charger l'historique de facturation.", "Der Abrechnungsverlauf konnte nicht geladen werden.", "No se pudo cargar el historial de facturación.", "Não foi poss?vel carregar o histórico de faturação."),
+      "Request failed": t("Unable to load billing history.", "Impossible de charger l'historique de facturation.", "Der Abrechnungsverlauf konnte nicht geladen werden.", "No se pudo cargar el historial de facturación.", "Não foi possível carregar o histórico de faturação."),
     };
     return mappings[normalized] || normalized;
   };
@@ -186,10 +186,10 @@ export default function BillingPage() {
           <Alert variant="error">
             {t(
               "Billing history could not be loaded. Check billing permissions or try again.",
-              "L'historique de facturation n'a pas pu être charge. V?rifiez les permissions ou r?essayez.",
+              "L'historique de facturation n'a pas pu être charge. Vérifiez les permissions ou réessayez.",
               "Der Abrechnungsverlauf konnte nicht geladen werden. überprüfe die Berechtigungen oder versuche es erneut.",
               "No se pudo cargar el historial de facturación. Revisa los permisos o intentalo de nuevo.",
-              "Não foi poss?vel carregar o histórico de faturação. Verifique as permiss?es ou tente novamente."
+              "Não foi possível carregar o histórico de faturação. Verifique as permissões ou tente novamente."
             )}
           </Alert>
         ) : payments.length === 0 ? (
@@ -199,8 +199,8 @@ export default function BillingPage() {
               "Completed subscription and invoice payments will appear here.",
               "Les paiements d abonnement et de facture apparaitront ici.",
               "Abgeschlossene Abonnement- und Rechnungszahlungen werden hier angezeigt.",
-              "Los pagos completados de suscripciones y facturas apareceran aqui.",
-              "Os pagamentos concluidos de subscricoes e faturas aparecem aqui."
+              "Los pagos completados de suscripciones y facturas apareceran aquí.",
+              "Os pagamentos concluidos de subscricoes e faturas aparecem aquí."
             )}
           />
         ) : (
@@ -236,10 +236,10 @@ export default function BillingPage() {
           <Alert variant="error">
             {t(
               "Invoices could not be loaded. Check billing permissions or try again.",
-              "Les factures n'ont pas pu être chargees. V?rifiez les permissions ou r?essayez.",
+              "Les factures n'ont pas pu être chargees. Vérifiez les permissions ou réessayez.",
               "Die Rechnungen konnten nicht geladen werden. überprüfe die Berechtigungen oder versuche es erneut.",
               "No se pudieron cargar las facturas. Revisa los permisos o intentalo de nuevo.",
-              "Não foi poss?vel carregar as faturas. Verifique as permiss?es ou tente novamente."
+              "Não foi possível carregar as faturas. Verifique as permissões ou tente novamente."
             )}
           </Alert>
         ) : invoices.length === 0 ? (
@@ -249,8 +249,8 @@ export default function BillingPage() {
               "Generated invoices will appear here once you start billing customers.",
               "Les factures generees apparaitront ici quand vous commencerez a facturer des clients.",
               "Erstellte Rechnungen erscheinen hier, sobald du Kunden in Rechnung stellst.",
-              "Las facturas generadas apareceran aqui cuando empieces a facturar a tus clientes.",
-              "As faturas geradas aparecem aqui quando comecar a faturar clientes."
+              "Las facturas generadas apareceran aquí cuando empieces a facturar a tus clientes.",
+              "As faturas geradas aparecem aquí quando começar a faturar clientes."
             )}
           />
         ) : (

@@ -27,7 +27,7 @@ import {
 import { resolveOrgContext } from "@/lib/org-auth";
 import { ensureCurrentSubscriptionForOrg } from "@/lib/subscription-downgrade";
 import {
-  buildSubscriptionCheckoutQuote,
+  buildSubscriptionCheckoutQuoteLive,
   isDowngradeChange,
   normalizeBillingInterval,
 } from "@/lib/payments/subscription-change";
@@ -293,6 +293,8 @@ export async function startCheckoutSession({
   let currency = normalizeCurrency(
     requestedCurrency || user.preferredCurrency || subscription.currency || "USD"
   );
+  const requestedCurrencyNormalized = normalizeCurrency(requestedCurrency || "");
+  const requestedCurrencyExplicit = Boolean(requestedCurrencyNormalized);
   if (!isAllowedCurrency(currency) && !isStripeSupportedCurrency(currency)) {
     currency = "USD";
   }
@@ -311,8 +313,8 @@ export async function startCheckoutSession({
     ),
   ].filter((provider, index, providers) => providers.indexOf(provider) === index);
 
-  const checkoutCandidates = providerCandidates
-    .map((provider) => {
+  const checkoutCandidates = (await Promise.all(
+    providerCandidates.map(async (provider) => {
       if (!isCheckoutProviderEnabled(provider)) return null;
       let providerCurrency = currency;
       const providerAcceptsRequestedCurrency =
@@ -320,6 +322,9 @@ export async function startCheckoutSession({
         (provider !== "PAYSTACK" || isPaystackCurrencyEnabled(providerCurrency));
 
       if (!providerAcceptsRequestedCurrency) {
+        if (requestedCurrencyExplicit) {
+          return null;
+        }
         providerCurrency = "USD";
       }
 
@@ -331,7 +336,7 @@ export async function startCheckoutSession({
         return null;
       }
 
-      const quote = buildSubscriptionCheckoutQuote({
+      const quote = await buildSubscriptionCheckoutQuoteLive({
         currency: providerCurrency,
         targetPlan,
         targetInterval: billingCycle,
@@ -359,7 +364,7 @@ export async function startCheckoutSession({
         } satisfies CheckoutContextPayload,
       };
     })
-    .filter(
+  )).filter(
       (
         candidate
       ): candidate is {
@@ -373,7 +378,12 @@ export async function startCheckoutSession({
 
   const initialCheckout = checkoutCandidates[0];
   if (!initialCheckout) {
-    throw createHttpError("Unsupported currency", 400);
+    throw createHttpError(
+      requestedCurrencyExplicit
+        ? `Selected currency ${currency} is not available for checkout.`
+        : "Unsupported currency",
+      400
+    );
   }
 
   log("info", "checkout_provider_resolved", {

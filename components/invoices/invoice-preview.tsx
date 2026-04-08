@@ -278,7 +278,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 </div>
                 {props.poNumber ? (
                   <div className="flex items-start justify-between gap-4 lg:justify-end lg:text-right">
-                    <span className="text-muted-foreground">{t("PO Number", "Bon de commande", "Bestellnummer", "N?mero OC", "N?mero OC")}</span>
+                    <span className="text-muted-foreground">{t("PO Number", "Bon de commande", "Bestellnummer", "Número OC", "Número OC")}</span>
                     <span className="max-w-[65%] break-words font-semibold text-foreground">{props.poNumber}</span>
                   </div>
                 ) : null}
@@ -624,7 +624,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 </div>
                 {props.poNumber ? (
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-muted-foreground">{t("PO Number", "Bon de commande", "Bestellnummer", "N?mero OC", "N?mero OC")}</span>
+                    <span className="text-muted-foreground">{t("PO Number", "Bon de commande", "Bestellnummer", "Número OC", "Número OC")}</span>
                     <span className="max-w-[60%] break-words text-right font-semibold text-foreground">{props.poNumber}</span>
                   </div>
                 ) : null}
@@ -644,7 +644,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                   {t("SSL encrypted", "SSL chiffre", "SSL-verschlusselt", "SSL cifrado", "SSL encriptado")}
                 </span>
                 <span className="rounded-full border border-slate-200/80 bg-white/80 px-2.5 py-1 dark:border-slate-700/80 dark:bg-slate-950/60">
-                  {paymentProviderLabel || t("Secure payment route", "Route de paiement s?curis?e", "Sicherer Zahlungsweg", "Ruta de pago segura", "Rota de pagamento segura")}
+                  {paymentProviderLabel || t("Secure payment route", "Route de paiement sécurisée", "Sicherer Zahlungsweg", "Ruta de pago segura", "Rota de pagamento segura")}
                 </span>
               </div>
               <div className="mt-5">
@@ -653,11 +653,11 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                     href={props.paymentLink}
                     className="inline-flex w-full items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#6657ff_0%,#5547f0_48%,#4338ca_100%)] px-4 py-3 text-sm font-semibold text-white shadow-[0_22px_46px_-22px_rgba(79,70,229,0.88)] hover:bg-[linear-gradient(135deg,#7163ff_0%,#5f51f4_48%,#4b3fd4_100%)]"
                   >
-                    {t("Pay Now Securely", "Payer de maniere s?curis?e", "Jetzt sicher bezahlen", "Pagar ahora de forma segura", "Pagar agora com seguran?a")}
+                    {t("Pay Now Securely", "Payer de manière sécurisée", "Jetzt sicher bezahlen", "Pagar ahora de forma segura", "Pagar agora com segurança")}
                   </a>
                 ) : (
                   <span className="inline-flex w-full items-center justify-center rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
-                    {t("Payment unavailable", "Paiement indisponible", "Zahlung nicht verfügbar", "Pago no disponible", "Pagamento indispon?vel")}
+                    {t("Payment unavailable", "Paiement indisponible", "Zahlung nicht verfügbar", "Pago no disponible", "Pagamento indisponível")}
                   </span>
                 )}
               </div>
@@ -832,7 +832,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
             <span>
               {props.dueDate
                 ? t("Payment is expected by the due date shown above.", "Le paiement est attendu avant l’échéance indiquée ci-dessus.", "Die Zahlung wird bis zum oben angegebenen Fälligkeitsdatum erwartet.", "Se espera el pago antes de la fecha de vencimiento indicada arriba.", "O pagamento é esperado até à data de vencimento indicada acima.")
-                : t("Please complete payment using the secure checkout link.", "Veuillez effectuer le paiement via le lien s?curis?.", "Bitte schliesse die Zahlung über den sicheren Checkout-Link ab.", "Completa el pago usando el enlace seguro de pago.", "Conclua o pagamento usando a liga??o segura de checkout.")}
+                : t("Please complete payment using the secure checkout link.", "Veuillez effectuer le paiement via le lien sécurisé.", "Bitte schliesse die Zahlung über den sicheren Checkout-Link ab.", "Completa el pago usando el enlace seguro de pago.", "Conclua o pagamento usando a ligação segura de checkout.")}
             </span>
             <span className="font-semibold text-foreground">
               {t("Generated with Maboria", "Genere avec Maboria", "Erstellt mit Maboria", "Generado con Maboria", "Gerado com a Maboria")}
@@ -1301,7 +1301,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
             </div>
             {props.poNumber ? (
               <div className="inline-flex items-baseline justify-end gap-2">
-                <span className="font-semibold text-foreground">{t("PO Number:", "Bon de commande :", "Bestellnummer:", "N?mero OC:", "N?mero OC:")}</span>
+                <span className="font-semibold text-foreground">{t("PO Number:", "Bon de commande :", "Bestellnummer:", "Número OC:", "Número OC:")}</span>
                 <span className="min-w-[150px] text-left text-foreground">{props.poNumber}</span>
               </div>
             ) : null}
@@ -1397,7 +1397,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
               {formatCurrency(totalDue, props.currency)}
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
-              {t("Secure payment checkout", "Paiement s?curis?", "Sicherer Zahlungs-Checkout", "Pago seguro", "Checkout de pagamento seguro")}
+              {t("Secure payment checkout", "Paiement sécurisé", "Sicherer Zahlungs-Checkout", "Pago seguro", "Checkout de pagamento seguro")}
             </p>
             {paymentProviderLabel ? (
               <p className="mt-1 text-xs font-semibold text-foreground">
@@ -1409,7 +1409,7 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                 {t("SSL encrypted", "SSL chiffre", "SSL-verschlusselt", "SSL cifrado", "SSL encriptado")}
               </span>
               <span className="rounded-full border border-border/70 bg-background/80 px-2.5 py-1">
-                {t("Trusted payment provider", "Prestataire de paiement s?curis?", "Vertrauenswurdiger Zahlungsanbieter", "Proveedor de pago confiable", "Prestador de pagamento confiavel")}
+                {t("Trusted payment provider", "Prestataire de paiement sécurisé", "Vertrauenswurdiger Zahlungsanbieter", "Proveedor de pago confiable", "Prestador de pagamento confiavel")}
               </span>
             </div>
             <div className="mt-4">
@@ -1418,18 +1418,18 @@ export function InvoicePreview(props: InvoicePreviewProps) {
                   href={props.paymentLink}
                   className="inline-flex w-full items-center justify-center rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-500"
                 >
-                  {t("Pay Now Securely", "Payer de maniere s?curis?e", "Jetzt sicher bezahlen", "Pagar ahora de forma segura", "Pagar agora com seguran?a")}
+                  {t("Pay Now Securely", "Payer de manière sécurisée", "Jetzt sicher bezahlen", "Pagar ahora de forma segura", "Pagar agora com segurança")}
                 </a>
               ) : (
                 <span className="inline-flex w-full items-center justify-center rounded-full border border-border bg-muted px-4 py-2 text-sm text-muted-foreground">
-                  {t("Payment unavailable", "Paiement indisponible", "Zahlung nicht verfügbar", "Pago no disponible", "Pagamento indispon?vel")}
+                  {t("Payment unavailable", "Paiement indisponible", "Zahlung nicht verfügbar", "Pago no disponible", "Pagamento indisponível")}
                 </span>
               )}
             </div>
             <p className="mt-3 text-[11px] text-muted-foreground">
               {t(
                 "Your payment details are encrypted and handled on a secure provider page.",
-                "Les d?tails de paiement sont chiffres et traites sur une page s?curis?e."
+                "Les d?tails de paiement sont chiffres et traites sur une page sécurisée."
               )}
             </p>
           </div>

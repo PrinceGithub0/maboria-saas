@@ -40,8 +40,8 @@ function localizeOnboardingError(error: unknown, t: Translate) {
       "Unable to complete onboarding.",
       "Impossible de terminer l onboarding.",
       "Onboarding konnte nicht abgeschlossen werden.",
-      "No se pudo completar la incorporacion.",
-      "Não foi poss?vel concluir a configuração inicial."
+      "No se pudo completar la incorporación.",
+      "Não foi possível concluir a configuração inicial."
     );
   }
 
@@ -57,28 +57,28 @@ function localizeOnboardingError(error: unknown, t: Translate) {
       "An active subscription is required before onboarding.",
       "Un abonnement actif est requis avant l onboarding.",
       "Vor dem Onboarding ist ein aktives Abonnement erforderlich.",
-      "Se requiere una suscripción activa antes de la incorporacion.",
+      "Se requiere una suscripción activa antes de la incorporación.",
       "E necessária uma subscrição ativa antes da configuração inicial."
     ),
     "Unsupported currency": t(
       "Select a supported currency.",
       "Sélectionnez une devise prise en charge.",
-      "Wähle eine unterstutzte Währung aus.",
+      "Wähle eine unterstützte Währung aus.",
       "Selecciona una moneda compatible.",
       "Selecione uma moeda suportada."
     ),
     "Invalid country code": t(
       "Select a supported country.",
       "Sélectionnez un pays pris en charge.",
-      "Wähle ein unterstutztes Land aus.",
-      "Selecciona un pa?s compatible.",
-      "Selecione um pa?s suportado."
+      "Wähle ein unterstütztes Land aus.",
+      "Selecciona un país compatible.",
+      "Selecione um país suportado."
     ),
     "Invalid phone number": t(
       "Enter a valid business phone in international format, for example +14155550123.",
       "Saisissez un num?ro professionnel valide au format international, par exemple +14155550123.",
       "Gib eine gültige internationale Geschäftstelefonnummer ein, zum Beispiel +14155550123.",
-      "Introduce un tel?fono comercial valido en formato internacional, por ejemplo +14155550123.",
+      "Introduce un teléfono comercial valido en formato internacional, por ejemplo +14155550123.",
       "Introduza um telefone comercial valido em formato internacional, por exemplo +14155550123."
     ),
     "Business name too short": t(
@@ -92,7 +92,7 @@ function localizeOnboardingError(error: unknown, t: Translate) {
       "Please review your onboarding details and try again.",
       "Veuillez verifier vos informations d onboarding puis réessayer.",
       "Bitte überprüfe deine Onboarding-Daten und versuche es erneut.",
-      "Revisa los datos de incorporacion y vuelve a intentarlo.",
+      "Revisa los datos de incorporación y vuelve a intentarlo.",
       "Verifique os dados da configuração inicial e tente novamente."
     ),
   };
@@ -170,7 +170,7 @@ export default function OnboardingWizard() {
       title: t("Customer thank-you automation", "Automatisation de remerciement client"),
       description: t(
         "Start from a WhatsApp thank-you template after payment.",
-        "Commencez avec un modele WhatsApp de remerciement apres paiement."
+        "Commencez avec un modele WhatsApp de remerciement après paiement."
       ),
     },
     {
@@ -239,8 +239,8 @@ export default function OnboardingWizard() {
           "Unable to complete onboarding.",
           "Impossible de terminer l onboarding.",
           "Onboarding konnte nicht abgeschlossen werden.",
-          "No se pudo completar la incorporacion.",
-          "Não foi poss?vel concluir a configuração inicial."
+          "No se pudo completar la incorporación.",
+          "Não foi possível concluir a configuração inicial."
         )
       );
     } finally {
@@ -347,7 +347,7 @@ export default function OnboardingWizard() {
               {selectedTemplateId
                 ? t(
                     "After onboarding, we will open your selected template in the automation builder.",
-                    "Apres l onboarding, nous ouvrirons votre modele selectionne dans le builder."
+                    "Après l onboarding, nous ouvrirons votre modele selectionne dans le builder."
                   )
                 : t(
                     "You can skip this step and choose a template later.",

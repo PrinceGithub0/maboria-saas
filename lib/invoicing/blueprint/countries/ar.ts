@@ -6,7 +6,7 @@ export const argentinaComplianceModule = buildDefaultCountryModule("AR", {
   evidence: [
     {
       label: "AFIP electronic invoicing vs fiscal controller requirements",
-      url: "https://www.afip.gov.ar/facturacion/comprobantes/fe-vs-cf.asp",
+      url: "https://www.afip.gov.ar/facturación/comprobantes/fe-vs-cf.asp",
       reviewedAt: "2026-04-06",
     },
   ],

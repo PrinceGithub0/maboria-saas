@@ -55,7 +55,7 @@ export default function LoginPage() {
     ) {
       return t({
         en: "The sign-in request could not reach the auth endpoint. If you are using a tunnel or custom dev URL, make sure NEXTAUTH_URL and APP_URL match the browser URL.",
-        fr: "La requete de connexion n'a pas pu joindre l'endpoint d'authentification. Si vous utilisez un tunnel ou une URL de dev personnalisee, v?rifiez que NEXTAUTH_URL et APP_URL correspondent a l'URL du navigateur.",
+        fr: "La requête de connexion n'a pas pu joindre l'endpoint d'authentification. Si vous utilisez un tunnel ou une URL de dev personnalisee, vérifiez que NEXTAUTH_URL et APP_URL correspondent à l'URL du navigateur.",
         de: "The sign-in request could not reach the auth endpoint. If you are using a tunnel or custom dev URL, make sure NEXTAUTH_URL and APP_URL match the browser URL.",
         es: "The sign-in request could not reach the auth endpoint. If you are using a tunnel or custom dev URL, make sure NEXTAUTH_URL and APP_URL match the browser URL.",
         pt: "The sign-in request could not reach the auth endpoint. If you are using a tunnel or custom dev URL, make sure NEXTAUTH_URL and APP_URL match the browser URL.",
@@ -65,7 +65,7 @@ export default function LoginPage() {
     if (normalized.includes("unexpected token") || normalized.includes("json")) {
       return t({
         en: "The auth endpoint returned an invalid response. Check the server log for the failing /api/auth request.",
-        fr: "L'endpoint d'authentification a retourne une r?ponse invalide. V?rifiez le journal serveur pour la requete /api/auth en ?chec.",
+        fr: "L'endpoint d'authentification a retourne une réponse invalide. Vérifiez le journal serveur pour la requête /api/auth en ?chec.",
         de: "The auth endpoint returned an invalid response. Check the server log for the failing /api/auth request.",
         es: "The auth endpoint returned an invalid response. Check the server log for the failing /api/auth request.",
         pt: "The auth endpoint returned an invalid response. Check the server log for the failing /api/auth request.",
@@ -212,7 +212,7 @@ export default function LoginPage() {
               <p className="mt-3 max-w-xl text-sm leading-7 text-slate-600">
                 {t(
                   "Existing teammates can accept the invite without creating a duplicate account. If you do not have an account yet, use the create account link below and the invite will stay attached.",
-                  "Les membres existants peuvent accepter l'invitation sans creer de compte en double. Si vous n'avez pas encore de compte, utilisez le lien de cr?ation ci-dessous et l'invitation restera attachee."
+                  "Les membres existants peuvent accepter l'invitation sans créer de compte en double. Si vous n'avez pas encore de compte, utilisez le lien de création ci-dessous et l'invitation restera attachee."
                 )}
               </p>
             </div>
@@ -365,7 +365,7 @@ export default function LoginPage() {
 
             <div className="mt-6 flex items-center justify-between text-sm text-muted-foreground">
               <Link href={createAccountHref} className="transition hover:text-indigo-500 dark:hover:text-indigo-300">
-                {t("Create account", "Creer un compte")}
+                {t("Create account", "Créer un compte")}
               </Link>
               <Link href={forgotPasswordHref} className="transition hover:text-indigo-500 dark:hover:text-indigo-300">
                 {t("Forgot password?", "Mot de passe oublié ?")}

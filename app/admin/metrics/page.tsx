@@ -172,9 +172,9 @@ function formatLastUpdated(iso: string | undefined, locale: string, t: (value: C
   const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / (1000 * 60)));
   const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
   if (minutes < 1) return t(text("Last updated just now", "Mis ? jour à l'instant", "Gerade aktualisiert", "Actualizado hace un momento", "Atualizado agora mesmo"));
-  if (minutes < 60) return `${t(text("Last updated", "Mis ? jour", "Zuletzt aktualisiert", "?ltima actualizacion", "?ltima atualiza??o"))} ${rtf.format(-minutes, "minute")}`;
+  if (minutes < 60) return `${t(text("Last updated", "Mis ? jour", "Zuletzt aktualisiert", "Última actualización", "Última atualização"))} ${rtf.format(-minutes, "minute")}`;
   const hours = Math.floor(minutes / 60);
-  return `${t(text("Last updated", "Mis ? jour", "Zuletzt aktualisiert", "?ltima actualizacion", "?ltima atualiza??o"))} ${rtf.format(-hours, "hour")}`;
+  return `${t(text("Last updated", "Mis ? jour", "Zuletzt aktualisiert", "Última actualización", "Última atualização"))} ${rtf.format(-hours, "hour")}`;
 }
 
 function StatusBadge({ level }: { level: EngineStatusLevel; label: string }) {
@@ -263,7 +263,7 @@ function LineChart({ data }: { data: MetricsResponse["revenue"]["series"] }) {
         <p className="text-xs text-muted-foreground">{row.name}</p>
         <p className="mt-1 text-sm font-semibold text-foreground">{formatCurrency(row.revenue, "USD")}</p>
         <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
-          <p>{t("New subs:", "Nouveaux abonnes :", "Neue Abonnenten:", "Nuevos suscriptores:", "Novos subscritores:")} {row.newSubscribers}</p>
+          <p>{t("New subs:", "Nouveaux abonnés :", "Neue Abonnenten:", "Nuevos suscriptores:", "Novos subscritores:")} {row.newSubscribers}</p>
           <p>{t("Churned:", "Perdus :", "Abgaenge:", "Cancelados:", "Cancelados:")} {row.churnedSubscribers}</p>
           <p>{t("Net:", "Net :", "Netto:", "Neto:", "Liquido:")} {row.netSubscriberChange}</p>
         </div>
@@ -323,7 +323,7 @@ function LineChart({ data }: { data: MetricsResponse["revenue"]["series"] }) {
             stroke="rgba(100,116,139,0.85)"
             strokeWidth={1.2}
             strokeDasharray="5 4"
-            name={t("Net subs", "Abonnes nets", "Netto-Abonnenten", "Suscriptores netos", "Subscritores liquidos")}
+            name={t("Net subs", "Abonnés nets", "Netto-Abonnenten", "Suscriptores netos", "Subscritores liquidos")}
             dot={false}
           />
           <Line
@@ -332,7 +332,7 @@ function LineChart({ data }: { data: MetricsResponse["revenue"]["series"] }) {
             dataKey="newSubscriberMarker"
             stroke="transparent"
             strokeWidth={0}
-            name={t("New subs", "Nouveaux abonnes", "Neue Abonnenten", "Nuevos suscriptores", "Novos subscritores")}
+            name={t("New subs", "Nouveaux abonnés", "Neue Abonnenten", "Nuevos suscriptores", "Novos subscritores")}
             dot={{ r: 3, fill: "#10b981", stroke: "#10b981" }}
             activeDot={{ r: 4, fill: "#10b981", stroke: "#10b981" }}
           />
@@ -383,7 +383,7 @@ function PlanRevenueTable({
   const topPlan = rows[0]?.plan || null;
   const sortableHeaders: Array<{ key: PlanSortKey; label: string }> = [
     { key: "plan", label: t("Plan Name", "Nom du forfait", "Planname", "Nombre del plan", "Nome do plano") },
-    { key: "subscribers", label: t("Subscribers", "Abonnes", "Abonnenten", "Suscriptores", "Subscritores") },
+    { key: "subscribers", label: t("Subscribers", "Abonnés", "Abonnenten", "Suscriptores", "Subscritores") },
     { key: "mrrUsd", label: t("MRR (USD)", "MRR (USD)", "MRR (USD)", "MRR (USD)", "MRR (USD)") },
     { key: "sharePercent", label: t("% of Revenue", "% du revenu", "% des Umsatzes", "% de ingresos", "% da receita") },
   ];
@@ -493,7 +493,7 @@ export default function AdminMetricsPage() {
             {t("Subscription engine financial and retention performance.", "Performance financiere et de rétention du moteur d'abonnement.", "Finanz- und Bindungsleistung der Abonnement-Engine.", "Rendimiento financiero y de retención del motor de suscripciones.", "Desempenho financeiro e de retenção do motor de subscricoes.")}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {t("Provider settles in local currency; reporting normalized to USD.", "Le fournisseur regle en devise locale ; le reporting est normalise en USD.", "Der Anbieter rechnet in lokaler Währung ab; das Reporting wird auf USD normalisiert.", "El proveedor liquida en moneda local; los informes se normalizan a USD.", "O fornecedor liquida em moeda local; os relatórios s?o normalizados para USD.")}
+            {t("Provider settles in local currency; reporting normalized to USD.", "Le fournisseur regle en devise locale ; le reporting est normalise en USD.", "Der Anbieter rechnet in lokaler Währung ab; das Reporting wird auf USD normalisiert.", "El proveedor liquida en moneda local; los informes se normalizan a USD.", "O fornecedor liquida em moeda local; os relatórios são normalizados para USD.")}
           </p>
         </div>
         <div className="flex flex-col items-end gap-2">
@@ -518,7 +518,7 @@ export default function AdminMetricsPage() {
 
       {error ? (
         <section className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-rose-800 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-200">
-          <p className="text-sm font-medium">{t("Unable to load engine metrics right now.", "Impossible de charger les métriques moteur pour le moment.", "Engine-Metriken koennen derzeit nicht geladen werden.", "No se pueden cargar las métricas del motor en este momento.", "Não foi poss?vel carregar as métricas do motor neste momento.")}</p>
+          <p className="text-sm font-medium">{t("Unable to load engine metrics right now.", "Impossible de charger les métriques moteur pour le moment.", "Engine-Metriken koennen derzeit nicht geladen werden.", "No se pueden cargar las métricas del motor en este momento.", "Não foi possível carregar as métricas do motor neste momento.")}</p>
           <button
             type="button"
             onClick={() => void mutate()}
@@ -541,7 +541,7 @@ export default function AdminMetricsPage() {
             <>
               <div className="xl:border-r xl:border-border/60">
                 <MetricItem
-                  label={t("Active Subscribers", "Abonnes actifs", "Aktive Abonnenten", "Suscriptores activos", "Subscritores ativos")}
+                  label={t("Active Subscribers", "Abonnés actifs", "Aktive Abonnenten", "Suscriptores activos", "Subscritores ativos")}
                   value={String(kpis.activeSubscribers.value)}
                   context={kpis.activeSubscribers.context}
                   deltaValue={kpis.activeSubscribers.delta}
@@ -560,7 +560,7 @@ export default function AdminMetricsPage() {
               </div>
               <div className="xl:border-r xl:border-border/60">
                 <MetricItem
-                  label={t("30-Day Growth", "Croissance sur 30 jours", "30-Tage-Wachstum", "Crecimiento de 30 d?as", "Crescimento de 30 dias")}
+                  label={t("30-Day Growth", "Croissance sur 30 jours", "30-Tage-Wachstum", "Crecimiento de 30 días", "Crescimento de 30 dias")}
                   value={formatPercent(kpis.growth30d.value)}
                   context={kpis.growth30d.context}
                   deltaValue={kpis.growth30d.deltaPercent}
@@ -614,7 +614,7 @@ export default function AdminMetricsPage() {
           {isLoading || !revenue ? <Skeleton className="h-[300px] w-full" /> : <LineChart data={revenue.series} />}
           {revenue ? (
             <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 border-t border-border/60 pt-4 text-sm text-muted-foreground">
-              <Delta value={revenue.netSubscribers} compareLabel={t("subscribers", "abonnes", "Abonnenten", "suscriptores", "subscritores")} mode="muted" precision={0} />
+              <Delta value={revenue.netSubscribers} compareLabel={t("subscribers", "abonnés", "Abonnenten", "suscriptores", "subscritores")} mode="muted" precision={0} />
               
               <Delta
                 value={revenue.netRevenueDeltaUsd}
@@ -633,7 +633,7 @@ export default function AdminMetricsPage() {
                   { label: t("New Revenue", "Nouveaux revenus", "Neuer Umsatz", "Nuevos ingresos", "Nova receita"), value: revenue?.mrrMovement.newRevenueUsd ?? 0 },
                   { label: t("Churned Revenue", "Revenus perdus", "Verlorener Umsatz", "Ingresos perdidos", "Receita perdida"), value: revenue?.mrrMovement.churnedRevenueUsd ?? 0, negative: true },
                   { label: t("Downgrades", "Retrogradations", "Downgrades", "Bajadas de plan", "Downgrades"), value: revenue?.mrrMovement.downgradeRevenueUsd ?? 0, negative: true },
-                  { label: t("Net Change", "Variation nette", "Nettoveraenderung", "Cambio neto", "Variacao liquida"), value: revenue?.mrrMovement.netChangeUsd ?? 0, emphasize: true, negative: (revenue?.mrrMovement.netChangeUsd ?? 0) < 0 },
+                  { label: t("Net Change", "Variation nette", "Nettoveränderung", "Cambio neto", "Variacao liquida"), value: revenue?.mrrMovement.netChangeUsd ?? 0, emphasize: true, negative: (revenue?.mrrMovement.netChangeUsd ?? 0) < 0 },
                 ]}
               />
             </div>
@@ -652,7 +652,7 @@ export default function AdminMetricsPage() {
           ) : (
             <div className="space-y-3">
               <div className="rounded-xl border border-border/60 p-4">
-                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("Subscribers at Risk", "Abonnes a risque", "Gefährdete Abonnenten", "Suscriptores en riesgo", "Subscritores em risco")}</p>
+                <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("Subscribers at Risk", "Abonnés a risque", "Gefährdete Abonnenten", "Suscriptores en riesgo", "Subscritores em risco")}</p>
                 <p className="mt-1 text-2xl font-semibold text-foreground">{churnRetention.subscribersAtRisk}</p>
                 <div className="mt-1">
                   <Delta value={churnRetention.atRiskDelta7d} compareLabel={t("since last week", "depuis la semaine derni?re", "seit letzter Woche", "desde la semana pasada", "desde a semana passada")} mode="muted" precision={0} />
@@ -661,12 +661,12 @@ export default function AdminMetricsPage() {
               <div className="rounded-xl border border-border/60 p-4">
                 <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("Voluntary Churn", "Churn volontaire", "Freiwillige Abwänderung", "Cancelación voluntaria", "Churn voluntario")}</p>
                 <p className="mt-1 text-2xl font-semibold text-foreground">{formatPercent(churnRetention.voluntaryChurnRate30d)}</p>
-                <p className="text-xs text-muted-foreground">{t("Last 30 days", "30 derniers jours", "Letzte 30 Tage", "?ltimos 30 d?as", "?ltimos 30 dias")}</p>
+                <p className="text-xs text-muted-foreground">{t("Last 30 days", "30 derniers jours", "Letzte 30 Tage", "Últimos 30 días", "Últimos 30 dias")}</p>
               </div>
               <div className="rounded-xl border border-border/60 p-4">
                 <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("Involuntary Churn", "Churn involontaire", "Unfreiwillige Abwänderung", "Cancelación involuntaria", "Churn involuntario")}</p>
                 <p className="mt-1 text-2xl font-semibold text-foreground">{formatPercent(churnRetention.involuntaryChurnRate30d)}</p>
-                <p className="text-xs text-muted-foreground">{t("Payment failures", "Echecs de paiement", "Zahlungsausfaelle", "Fallos de pago", "Falhas de pagamento")}</p>
+                <p className="text-xs text-muted-foreground">{t("Payment failures", "Échecs de paiement", "Zahlungsausfaelle", "Fallos de pago", "Falhas de pagamento")}</p>
               </div>
               <div className="rounded-xl border border-border/60 p-4">
                 <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("Retention Rate (30d)", "Taux de rétention (30j)", "Bindungsrate (30 T.)", "Tasa de retención (30d)", "Taxa de retenção (30d)")}</p>
@@ -708,7 +708,7 @@ export default function AdminMetricsPage() {
                 <p className="mt-2 text-2xl font-semibold text-foreground">{paymentHealth.failedCharges7d}</p>
               </div>
               <div className="min-w-0 rounded-xl border border-border/60 p-4">
-                <p className="text-xs uppercase leading-5 tracking-[0.1em] text-muted-foreground break-words">{t("Retry Success Rate", "Taux de succes des relances", "Erfolgsquote bei Wiederholungen", "Tasa de ?xito de reintentos", "Taxa de sucesso das tentativas")}</p>
+                <p className="text-xs uppercase leading-5 tracking-[0.1em] text-muted-foreground break-words">{t("Retry Success Rate", "Taux de succès des relances", "Erfolgsquote bei Wiederholungen", "Tasa de ?xito de reintentos", "Taxa de sucesso das tentativas")}</p>
                 <p className="mt-2 text-2xl font-semibold text-foreground">{formatPercent(paymentHealth.retrySuccessRate7d)}</p>
                 <div className="mt-1">
                   <Delta value={paymentHealth.retrySuccessRateDelta.deltaPercent} suffix="%" compareLabel={t("vs last period", "vs periode précédente", "gegenüber letzter Periode", "vs periodo anterior", "vs periodo anterior")} mode="muted" className="max-w-full" />
@@ -723,7 +723,7 @@ export default function AdminMetricsPage() {
               </div>
               <div className="min-w-0 rounded-xl border border-border/60 p-4">
                 <p className="text-[10px] uppercase leading-5 tracking-[0.08em] text-muted-foreground/85 break-words">
-                  {t("Subscription Refund Rate (30d)", "Taux de remboursement des abonnements (30j)", "Rückerstattungsquote fuer Abos (30 T.)", "Tasa de reembolso de suscripciones (30d)", "Taxa de reembolso de subscricoes (30d)")}
+                  {t("Subscription Refund Rate (30d)", "Taux de remboursement des abonnements (30j)", "Rückerstattungsquote für Abos (30 T.)", "Tasa de reembolso de suscripciones (30d)", "Taxa de reembolso de subscricoes (30d)")}
                 </p>
                 <p className="mt-2 text-2xl font-semibold text-foreground">{formatPercent(paymentHealth.refundRate30d)}</p>
                 <div className="mt-1">

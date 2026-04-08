@@ -165,14 +165,14 @@ function localizeSubscriptionServerMessage(
       "No active subscription was found.",
       "Aucun abonnement actif n'a \u00e9t\u00e9 trouv\u00e9.",
       "Es wurde kein aktives Abonnement gefunden.",
-      "No se encontro ninguna suscripción activa.",
+      "No se encontró ninguna suscripción activa.",
       "Não foi encontrada nenhuma subscrição ativa."
     ),
     "No active subscription was found for downgrade scheduling.": t(
       "No active subscription was found for downgrade scheduling.",
       "Aucun abonnement actif n'a \u00e9t\u00e9 trouv\u00e9 pour planifier le downgrade.",
       "Es wurde kein aktives Abonnement für die Planung eines Downgrades gefunden.",
-      "No se encontro ninguna suscripción activa para programar el downgrade.",
+      "No se encontró ninguna suscripción activa para programar el downgrade.",
       "Não foi encontrada nenhuma subscrição ativa para agendar o downgrade."
     ),
     "We could not determine your current billing period end.": t(
@@ -180,7 +180,7 @@ function localizeSubscriptionServerMessage(
       "Nous n'avons pas pu determiner la fin de votre periode de facturation actuelle.",
       "Das Ende deines aktuellen Abrechnungszeitraums konnte nicht ermittelt werden.",
       "No pudimos determinar el final de tu periodo de facturación actual.",
-      "Não foi poss?vel determinar o fim do seu periodo de faturação atual."
+      "Não foi possível determinar o fim do seu periodo de faturação atual."
     ),
     "Downgrade request failed.": t(
       "Downgrade request failed.",
@@ -194,14 +194,14 @@ function localizeSubscriptionServerMessage(
       "Impossible d annuler le downgrade en attente.",
       "Das ausstehende Downgrade konnte nicht storniert werden.",
       "No se pudo cancelar el downgrade pendiente.",
-      "Não foi poss?vel cancelar o downgrade pendente."
+      "Não foi possível cancelar o downgrade pendente."
     ),
     "Unable to schedule downgrade.": t(
       "Unable to schedule downgrade.",
       "Impossible de planifier le downgrade.",
       "Das Downgrade konnte nicht geplant werden.",
       "No se pudo programar el downgrade.",
-      "Não foi poss?vel agendar o downgrade."
+      "Não foi possível agendar o downgrade."
     ),
     "Only lower-tier plans can be scheduled as downgrades.": t(
       "Only lower-tier plans can be scheduled as downgrades.",
@@ -222,14 +222,14 @@ function localizeSubscriptionServerMessage(
       "Il n y a aucun downgrade planifie a annuler.",
       "Es gibt kein geplantes Downgrade zum Stornieren.",
       "No hay ningun downgrade programado para cancelar.",
-      "Não existe nenhum downgrade agendado para cancelar."
+      "Não éxiste nenhum downgrade agendado para cancelar."
     ),
     "Unable to open billing portal.": t(
       "Unable to open billing portal.",
       "Impossible d ouvrir le portail de facturation.",
       "Das Abrechnungsportal konnte nicht geöffnet werden.",
       "No se pudo abrir el portal de facturación.",
-      "Não foi poss?vel abrir o portal de faturação."
+      "Não foi possível abrir o portal de faturação."
     ),
     "Billing portal is unavailable right now.": t(
       "Billing portal is unavailable right now.",
@@ -240,17 +240,17 @@ function localizeSubscriptionServerMessage(
     ),
     "Unable to update auto-renew.": t(
       "Unable to update auto-renew.",
-      "Impossible de mettre ? jour le renouvellement auto.",
+      "Impossible de mettre à jour le renouvellement auto.",
       "Die automatische Verlängerung konnte nicht aktualisiert werden.",
-      "No se pudo actualizar la renovacion autom?tica.",
-      "Não foi poss?vel atualizar a renovacao autom?tica."
+      "No se pudo actualizar la renovacion automática.",
+      "Não foi possível atualizar a renovacao automática."
     ),
     "Manage auto-renew in the Stripe billing portal.": t(
       "Manage auto-renew in the Stripe billing portal.",
       "G?rez le renouvellement auto dans le portail de facturation Stripe.",
       "Verwalte die automatische Verlängerung im Stripe-Abrechnungsportal.",
-      "Gestiona la renovacion autom?tica en el portal de facturación de Stripe.",
-      "Gere a renovacao autom?tica no portal de faturação Stripe."
+      "Gestiona la renovacion automática en el portal de facturación de Stripe.",
+      "Gere a renovacao automática no portal de faturação Stripe."
     ),
     "Manage plan changes in the Stripe billing portal.": t(
       "Manage plan changes in the Stripe billing portal.",
@@ -263,36 +263,36 @@ function localizeSubscriptionServerMessage(
       "Auto-renew changes for this billing provider are not self-serve in the dashboard yet.",
       "Les changements de renouvellement auto pour ce fournisseur ne sont pas encore disponibles en libre-service dans le tableau de bord.",
       "Änderungen der automatischen Verlängerung für diesen Anbieter sind im Dashboard noch nicht im Selbstbedienungsmodus verfügbar.",
-      "Los cambios de renovacion autom?tica para este proveedor aún no est?n disponibles desde el panel.",
-      "As alteracoes da renovacao autom?tica para este fornecedor ainda não estão dispon?veis no painel."
+      "Los cambios de renovacion automática para este proveedor aún no est?n disponibles desde el panel.",
+      "As alteracoes da renovacao automática para este fornecedor ainda não estão disponíveis no painel."
     ),
     "Plan downgrades for this billing provider are not self-serve in the dashboard yet.": t(
       "Plan downgrades for this billing provider are not self-serve in the dashboard yet.",
       "Les downgrades de plan pour ce fournisseur ne sont pas encore disponibles en libre-service dans le tableau de bord.",
       "Plan-Downgrades für diesen Anbieter sind im Dashboard noch nicht im Selbstbedienungsmodus verfügbar.",
       "Los downgrades de plan para este proveedor aún no est?n disponibles desde el panel.",
-      "Os downgrades de plano para este fornecedor ainda não estão dispon?veis no painel."
+      "Os downgrades de plano para este fornecedor ainda não estão disponíveis no painel."
     ),
     "Auto-renew is already turned off for the end of this billing period.": t(
       "Auto-renew is already turned off for the end of this billing period.",
       "Le renouvellement auto est déjà d?sactiv? pour la fin de cette periode de facturation.",
       "Die automatische Verlängerung ist für das Ende dieses Abrechnungszeitraums bereits deaktiviert.",
-      "La renovacion autom?tica ya esta desactivada para el final de este periodo de facturación.",
-      "A renovacao autom?tica ja esta desativada para o final deste periodo de faturação."
+      "La renovacion automática ya esta desactivada para el final de este periodo de facturación.",
+      "A renovacao automática ja esta desativada para o final deste periodo de faturação."
     ),
     "Auto-renew is already active for this subscription.": t(
       "Auto-renew is already active for this subscription.",
       "Le renouvellement auto est déjà actif pour cet abonnement.",
       "Die automatische Verlängerung ist für dieses Abonnement bereits aktiv.",
-      "La renovacion autom?tica ya esta activa para esta suscripción.",
-      "A renovacao autom?tica ja est? ativa para esta subscrição."
+      "La renovacion automática ya esta activa para esta suscripción.",
+      "A renovacao automática ja est? ativa para esta subscrição."
     ),
     "Unable to start renewal right now.": t(
       "Unable to start renewal right now.",
       "Impossible de lancer le renouvellement pour le moment.",
       "Die Verlängerung kann gerade nicht gestartet werden.",
       "No se pudo iniciar la renovacion en este momento.",
-      "Não foi poss?vel iniciar a renovacao neste momento."
+      "Não foi possível iniciar a renovacao neste momento."
     ),
     "This renewal flow is not available for the current billing provider.": t(
       "This renewal flow is not available for the current billing provider.",
@@ -312,20 +312,20 @@ function localizeSubscriptionServerMessage(
       "Auto-renew is turned off for this subscription.",
       "Le renouvellement auto est d?sactiv? pour cet abonnement.",
       "Die automatische Verlängerung ist für dieses Abonnement deaktiviert.",
-      "La renovacion autom?tica esta desactivada para esta suscripción.",
-      "A renovacao autom?tica esta desativada para esta subscrição."
+      "La renovacion automática esta desactivada para esta suscripción.",
+      "A renovacao automática esta desativada para esta subscrição."
     ),
     "This renewal amount could not be calculated safely.": t(
       "This renewal amount could not be calculated safely.",
       "Le montant du renouvellement n'a pas pu être calcule en toute sécurité.",
       "Der Verlängerungsbetrag konnte nicht sicher berechnet werden.",
       "No se pudo calcular con seguridad el importe de la renovacion.",
-      "Não foi poss?vel calcular com seguran?a o valor da renovacao."
+      "Não foi possível calcular com segurança o valor da renovacao."
     ),
     "A Flutterwave renewal attempt is already in progress.": t(
       "A Flutterwave renewal attempt is already in progress.",
       "Une tentative de renouvellement Flutterwave est déjà en cours.",
-      "Ein Flutterwave-Verlängerungsversuch lauft bereits.",
+      "Ein Flutterwave-Verlängerungsversuch läuft bereits.",
       "Ya hay un intento de renovacion de Flutterwave en curso.",
       "Ja existe uma tentativa de renovacao da Flutterwave em curso."
     ),
@@ -340,8 +340,8 @@ function localizeSubscriptionServerMessage(
       "Billing country is missing for this saved payment method.",
       "Le pays de facturation manque pour cette methode de paiement enregistree.",
       "Das Abrechnungsland fehlt für diese gespeicherte Zahlungsmethode.",
-      "Falta el pa?s de facturación para este método de pago guardado.",
-      "Falta o pa?s de faturação para este método de pagamento guardado."
+      "Falta el país de facturación para este método de pago guardado.",
+      "Falta o país de faturação para este método de pagamento guardado."
     ),
   };
 
@@ -462,28 +462,28 @@ export default function SubscriptionPage() {
       fr: "Concu pour les individus qui demarrent avec les automatisations.",
       de: "Konzipiert für Einzelpersonen, die mit Automatisierungen starten.",
       es: "Disenado para personas que empiezan con automatizaciones.",
-      pt: "Concebido para pessoas que estão a comecar com automatizacoes.",
+      pt: "Concebido para pessoas que estão a começar com automatizacoes.",
     },
     PRO: {
       en: "Built for professionals running active automations.",
       fr: "Concu pour les professionnels avec des automatisations actives.",
       de: "Für Fachleute mit aktiven Automatisierungen entwickelt.",
       es: "Creado para profesionales que ejecutan automatizaciones activas.",
-      pt: "Criado para profissionais com automacoes ativas.",
+      pt: "Criado para profissionais com automações ativas.",
     },
     GROWTH: {
       en: "Optimized for scaling teams and higher execution volume.",
       fr: "Optimise pour les équipes en croissance et volume élevé.",
-      de: "Optimiert für wachsende Teams und hoheres Ausfuhrungsvolumen.",
-      es: "Optimizado para equipos en crecimiento y mayor volumen de ejecuci?n.",
-      pt: "Otimizado para equipas em crescimento e maior volume de execu??o.",
+      de: "Optimiert für wachsende Teams und hoheres Ausführungsvolumen.",
+      es: "Optimizado para equipos en crecimiento y mayor volumen de ejecución.",
+      pt: "Otimizado para equipas em crescimento e maior volume de execução.",
     },
     BUSINESS: {
       en: "Optimized for scaling teams and higher execution volume.",
       fr: "Optimise pour les équipes en croissance et volume élevé.",
-      de: "Optimiert für wachsende Teams und hoheres Ausfuhrungsvolumen.",
-      es: "Optimizado para equipos en crecimiento y mayor volumen de ejecuci?n.",
-      pt: "Otimizado para equipas em crescimento e maior volume de execu??o.",
+      de: "Optimiert für wachsende Teams und hoheres Ausführungsvolumen.",
+      es: "Optimizado para equipos en crecimiento y mayor volumen de ejecución.",
+      pt: "Otimizado para equipas em crescimento e maior volume de execução.",
     },
     ENTERPRISE: {
       en: "Built for organizations running production workloads.",
@@ -528,7 +528,7 @@ export default function SubscriptionPage() {
       "Les limites se reinitialisent a chaque cycle",
       "Nutzungslimits werden in jedem Abrechnungszyklus zurückgesetzt",
       "Los limites de uso se restablecen en cada ciclo de facturación",
-      "Os limites de utilização s?o repostos em cada ciclo de faturação"
+      "Os limites de utilização são repostos em cada ciclo de faturação"
     );
   };
 
@@ -579,12 +579,12 @@ export default function SubscriptionPage() {
       return t("Off, ends at period close", "D?sactiv?, fin au prochain terme", "Aus, endet zum Periodenende", "Desactivado, termina al final del periodo", "Desativado, termina no fim do periodo");
     }
     if (sub?.autoRenew === true && sub?.cancelAtPeriodEnd === false) {
-      return t("On, renews automatically", "Active, renouvellement automatique", "Ein, automatische Verlängerung", "Activo, se renueva autom?ticamente", "Ativo, renova automaticamente");
+      return t("On, renews automatically", "Active, renouvellement automatique", "Ein, automatische Verlängerung", "Activo, se renueva automáticamente", "Ativo, renova automaticamente");
     }
     if (management?.stateSource === "org_subscription") {
       return t("Syncing billing state", "Synchronisation de l'etat", "Abrechnungsstatus wird synchronisiert", "Sincronizando estado de facturación", "A sincronizar estado de faturação");
     }
-    return t("Unavailable", "Indisponible", "Nicht verfügbar", "No disponible", "Indispon?vel");
+    return t("Unavailable", "Indisponible", "Nicht verfügbar", "No disponible", "Indisponível");
   };
 
   const handleDowngrade = async () => {
@@ -644,7 +644,7 @@ export default function SubscriptionPage() {
               "Impossible d annuler le downgrade en attente.",
               "Das ausstehende Downgrade konnte nicht storniert werden.",
               "No se pudo cancelar el downgrade pendiente.",
-              "Não foi poss?vel cancelar o downgrade pendente."
+              "Não foi possível cancelar o downgrade pendente."
             ),
           variant: "error",
         });
@@ -684,7 +684,7 @@ export default function SubscriptionPage() {
               "Impossible d'ouvrir le portail de facturation.",
               "Das Abrechnungsportal konnte nicht geöffnet werden.",
               "No se pudo abrir el portal de facturación.",
-              "Não foi poss?vel abrir o portal de faturação."
+              "Não foi possível abrir o portal de faturação."
             ),
           variant: "error",
         });
@@ -738,10 +738,10 @@ export default function SubscriptionPage() {
             (typeof payload?.error === "string" && localizeSubscriptionServerMessage(payload.error, t)) ||
             t(
               "Unable to update auto-renew.",
-              "Impossible de mettre ? jour le renouvellement auto.",
+              "Impossible de mettre à jour le renouvellement auto.",
               "Die automatische Verlängerung konnte nicht aktualisiert werden.",
-              "No se pudo actualizar la renovacion autom?tica.",
-              "Não foi poss?vel atualizar a renovacao autom?tica."
+              "No se pudo actualizar la renovacion automática.",
+              "Não foi possível atualizar a renovacao automática."
             ),
           variant: "error",
         });
@@ -755,15 +755,15 @@ export default function SubscriptionPage() {
               "Auto-renew is active again for this subscription.",
               "Le renouvellement auto est de nouveau actif pour cet abonnement.",
               "Die automatische Verlängerung ist für dieses Abonnement wieder aktiv.",
-              "La renovacion autom?tica vuelve a estar activa para esta suscripción.",
-              "A renovacao autom?tica voltou a estar ativa para esta subscrição."
+              "La renovacion automática vuelve a estar activa para esta suscripción.",
+              "A renovacao automática voltou a estar ativa para esta subscrição."
             )
           : t(
               "Auto-renew will stop at the end of the current billing period.",
               "Le renouvellement auto s arretera a la fin de la periode de facturation en cours.",
               "Die automatische Verlängerung endet am Ende des aktuellen Abrechnungszeitraums.",
-              "La renovacion autom?tica se detendra al final del periodo de facturación actual.",
-              "A renovacao autom?tica sera interrompida no fim do periodo de faturação atual."
+              "La renovacion automática se detendra al final del periodo de facturación actual.",
+              "A renovacao automática sera interrompida no fim do periodo de faturação atual."
             ),
         variant: "success",
       });
@@ -828,7 +828,7 @@ export default function SubscriptionPage() {
               "Impossible de lancer le renouvellement pour le moment.",
               "Die Verlängerung kann gerade nicht gestartet werden.",
               "No se pudo iniciar la renovacion en este momento.",
-              "Não foi poss?vel iniciar a renovacao neste momento."
+              "Não foi possível iniciar a renovacao neste momento."
             ),
           variant: "error",
         });
@@ -958,10 +958,10 @@ export default function SubscriptionPage() {
                     {t(
                       planDescriptions[planKey] || {
                         en: "Plan details are available after activation.",
-                        fr: "D?tails du plan disponibles apres activation.",
+                        fr: "D?tails du plan disponibles après activation.",
                         de: "Plandetails sind nach der Aktivierung verfügbar.",
-                        es: "Los detalles del plan estaran disponibles despues de la activacion.",
-                        pt: "Os detalhes do plano ficam dispon?veis após a ativacao.",
+                        es: "Los detalles del plan estaran disponibles después de la activacion.",
+                        pt: "Os detalhes do plano ficam disponíveis após a ativacao.",
                       }
                     )}
                   </p>
@@ -1031,7 +1031,7 @@ export default function SubscriptionPage() {
                       onClick={() => handleAutoRenewChange(true)}
                       loading={renewalActionLoading}
                     >
-                      {t("Resume auto-renew", "Reprendre le renouvellement auto", "Automatische Verlängerung fortsetzen", "Reactivar renovacion autom?tica", "Retomar renovacao autom?tica")}
+                      {t("Resume auto-renew", "Reprendre le renouvellement auto", "Automatische Verlängerung fortsetzen", "Reactivar renovacion automática", "Retomar renovacao automática")}
                     </Button>
                   ) : (
                     <Button
@@ -1040,7 +1040,7 @@ export default function SubscriptionPage() {
                       onClick={() => setShowCancelConfirm(true)}
                       loading={renewalActionLoading}
                     >
-                      {t("Cancel auto-renew", "Desactiver le renouvellement auto", "Automatische Verlängerung beenden", "Cancelar renovacion autom?tica", "Cancelar renovacao autom?tica")}
+                      {t("Cancel auto-renew", "Desactiver le renouvellement auto", "Automatische Verlängerung beenden", "Cancelar renovacion automática", "Cancelar renovacao automática")}
                     </Button>
                   )
                 ) : null}
@@ -1066,7 +1066,7 @@ export default function SubscriptionPage() {
                       onClick={() => handleAutoRenewChange(false)}
                       loading={renewalActionLoading}
                     >
-                      {t("Yes, cancel auto-renew", "Oui, desactiver le renouvellement auto", "Ja, automatische Verlängerung beenden", "Si, cancelar renovacion autom?tica", "Sim, cancelar renovacao autom?tica")}
+                      {t("Yes, cancel auto-renew", "Oui, désactiver le renouvellement auto", "Ja, automatische Verlängerung beenden", "Si, cancelar renovacion automática", "Sim, cancelar renovacao automática")}
                     </Button>
                     <Button
                       type="button"
@@ -1082,7 +1082,7 @@ export default function SubscriptionPage() {
               {canManageActiveSubscription && management?.billingMode === "provider_external" ? (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100">
                   <p className="font-medium">
-                    {t("Billing changes are provider-managed.", "Les changements de facturation sont geres par le fournisseur.", "Abrechnungsänderungen werden vom Anbieter verwaltet.", "Los cambios de facturación los gestiona el proveedor.", "As alteracoes de faturação s?o geridas pelo fornecedor.")}
+                    {t("Billing changes are provider-managed.", "Les changements de facturation sont geres par le fournisseur.", "Abrechnungsänderungen werden vom Anbieter verwaltet.", "Los cambios de facturación los gestiona el proveedor.", "As alteracoes de faturação são geridas pelo fornecedor.")}
                   </p>
                   <p className="mt-1 text-amber-800 dark:text-amber-200">
                     {t(
@@ -1103,10 +1103,10 @@ export default function SubscriptionPage() {
                   <p className="mt-1 text-sky-800 dark:text-sky-200">
                     {t(
                       "Some renewal controls stay hidden until the subscription mirror is fully synced.",
-                      "Certains controles de renouvellement restent masques jusqu'a la synchronisation complete du miroir d'abonnement.",
+                      "Certains controles de renouvellement restent masqués jusqu'a la synchronisation complete du miroir d'abonnement.",
                       "Einige Verlängerungsoptionen bleiben verborgen, bis der Abonnementspiegel vollstandig synchronisiert ist.",
                       "Algunos controles de renovacion permanecen ocultos hasta que se sincronice por completo el reflejo de la suscripción.",
-                      "Alguns controlos de renovacao permanecem ocultos at? que o espelho da subscrição esteja totalmente sincronizado."
+                      "Alguns controlos de renovacao permanecem ocultos até que o espelho da subscrição esteja totalmente sincronizado."
                     )}
                   </p>
                 </div>
@@ -1152,10 +1152,10 @@ export default function SubscriptionPage() {
                       <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
                         {t(
                           "Provider-managed billing will not apply this local downgrade automatically. Clear it here and manage the change with your billing provider.",
-                          "La facturation g?r?e par le fournisseur n appliquera pas automatiquement ce downgrade local. Supprimez-le ici puis g?rez le changement avec votre fournisseur de facturation.",
+                          "La facturation g?r?e par le fournisseur n appliquera pas automatiquement ce downgrade local. Supprimez-le ici puis gèrez le changement avec votre fournisseur de facturation.",
                           "Provider-verwaltete Abrechnung wird dieses lokale Downgrade nicht automatisch anwenden. Entferne es hier und verwalte die Änderung bei deinem Zahlungsanbieter.",
-                          "La facturación gestionada por el proveedor no aplicara autom?ticamente este downgrade local. Eliminalo aqui y gestiona el cambio con tu proveedor de facturación.",
-                          "A faturação gerida pelo fornecedor não aplicara automaticamente este downgrade local. Limpe-o aqui e gira a alteração com o seu fornecedor de faturação."
+                          "La facturación gestionada por el proveedor no aplicara automáticamente este downgrade local. Eliminalo aquí y gestiona el cambio con tu proveedor de facturación.",
+                          "A faturação gerida pelo fornecedor não aplicara automaticamente este downgrade local. Limpe-o aquí e gira a alteração com o seu fornecedor de faturação."
                         )}
                       </p>
                     ) : null}
@@ -1237,7 +1237,7 @@ export default function SubscriptionPage() {
                           "Aucun plan inferieur disponible.",
                           "Für diesen Plan sind keine niedrigeren Stufen verfügbar.",
                           "No hay niveles inferiores disponibles para este plan.",
-                          "Não existem niveis inferiores dispon?veis para este plano."
+                          "Não éxistem niveis inferiores disponíveis para este plano."
                         )}
                       </p>
                     ) : (
@@ -1247,7 +1247,7 @@ export default function SubscriptionPage() {
                           "Le downgrade n est pas disponible sans abonnement actif.",
                           "Downgrade-Steuerelemente sind ohne aktives Abonnement nicht verfügbar.",
                           "Los controles de downgrade no est?n disponibles sin una suscripción activa.",
-                          "Os controlos de downgrade não estão dispon?veis sem uma subscrição ativa."
+                          "Os controlos de downgrade não estão disponíveis sem uma subscrição ativa."
                         )}
                       </p>
                     )}
@@ -1261,7 +1261,7 @@ export default function SubscriptionPage() {
                       "Les upgrades s appliquent immediatement avec credit au prorata. Les downgrades sont planifies pour le cycle suivant et appliques par la tache de facturation.",
                       "Upgrades werden sofort mit anteiligem Guthaben angewendet. Downgrades werden für den nächsten Zyklus geplant und vom Abrechnungsjob ausgeführt.",
                       "Las mejoras se aplican de inmediato con cr?dito prorrateado. Los downgrades se programan para el siguiente ciclo y los aplica el trabajo de facturación.",
-                      "Os upgrades s?o aplicados de imediato com cr?dito proporcional. Os downgrades s?o agendados para o ciclo seguinte e aplicados pelo processo de faturação."
+                      "Os upgrades são aplicados de imediato com cr?dito proporcional. Os downgrades são agendados para o ciclo seguinte e aplicados pelo processo de faturação."
                     )
                   : management?.billingMode === "provider_portal"
                     ? t(
@@ -1269,22 +1269,22 @@ export default function SubscriptionPage() {
                         "Les upgrades demarrent toujours au paiement. Les downgrades et changements de cycle de facturation pour cet abonnement sont geres dans Stripe.",
                         "Upgrades starten weiterhin im Checkout. Downgrades und Änderungen des Abrechnungszyklus für dieses Abonnement werden in Stripe verwaltet.",
                         "Las mejoras siguen iniciandose en el checkout. Los downgrades y cambios de ciclo de facturación para esta suscripción se gestionan en Stripe.",
-                        "Os upgrades continuam a comecar no checkout. Os downgrades e alteracoes do ciclo de faturação desta subscrição s?o geridos no Stripe."
+                        "Os upgrades continuam a começar no checkout. Os downgrades e alteracoes do ciclo de faturação desta subscrição são geridos no Stripe."
                       )
                     : management?.billingMode === "provider_external"
                       ? t(
                           "Upgrades still start in checkout. Downgrades and billing-cycle changes for this subscription are managed outside the dashboard.",
                           "Les upgrades demarrent toujours au paiement. Les downgrades et changements de cycle de facturation pour cet abonnement sont geres hors du tableau de bord.",
                           "Upgrades starten weiterhin im Checkout. Downgrades und Änderungen des Abrechnungszyklus für dieses Abonnement werden außerhalb des Dashboards verwaltet.",
-                          "Las mejoras siguen iniciandose en el checkout. Los downgrades y cambios de ciclo de facturación para esta suscripción se gestionan fuera del panel.",
-                          "Os upgrades continuam a comecar no checkout. Os downgrades e alteracoes do ciclo de faturação desta subscrição s?o geridos fora do painel."
+                          "Las mejoras siguen iniciandose en el checkout. Los downgrades y cambios de ciclo de facturación para esta suscripción se gestionan füra del panel.",
+                          "Os upgrades continuam a começar no checkout. Os downgrades e alteracoes do ciclo de faturação desta subscrição são geridos fora do painel."
                         )
                       : t(
                           "Upgrades apply immediately with prorated credit.",
                           "Les upgrades s appliquent immediatement avec credit au prorata.",
                           "Upgrades werden sofort mit anteiligem Guthaben angewendet.",
                           "Las mejoras se aplican de inmediato con cr?dito prorrateado.",
-                          "Os upgrades s?o aplicados de imediato com cr?dito proporcional."
+                          "Os upgrades são aplicados de imediato com cr?dito proporcional."
                         )}
               </p>
             </div>
@@ -1318,7 +1318,7 @@ export default function SubscriptionPage() {
               </div>
               <div className="flex flex-col items-start justify-between gap-1 border-t border-border/40 pt-2 sm:flex-row sm:gap-4">
                 <span className="min-w-[120px] text-muted-foreground">
-                  {t("Auto-renew", "Renouvellement auto", "Automatische Verlängerung", "Renovacion autom?tica", "Renovacao autom?tica")}
+                  {t("Auto-renew", "Renouvellement auto", "Automatische Verlängerung", "Renovacion automática", "Renovacao automática")}
                 </span>
                 <span className="text-right font-medium text-foreground">{resolveAutoRenew(activeSub)}</span>
               </div>
@@ -1348,7 +1348,7 @@ export default function SubscriptionPage() {
                     onClick={downloadReceipt}
                   >
                     <ReceiptText className="h-4 w-4 opacity-70" />
-                    {t("Download latest receipt", "Télécharger le dernier recu", "Letzten Beleg herunterladen", "Descargar el ?ltimo recibo", "Transferir o recibo mais recente")}
+                    {t("Download latest receipt", "Télécharger le dernier recu", "Letzten Beleg herunterladen", "Descargar el Último recibo", "Transferir o recibo mais recente")}
                   </Button>
                 )}
               </div>

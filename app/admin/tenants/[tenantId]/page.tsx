@@ -94,7 +94,7 @@ export default function AdminTenantDetailPage() {
       setReason("");
       setFeedback({
         variant: "success",
-        message: kind === "suspend" ? t("Tenant suspended.", "Locataire suspendu.", "Mandant gesperrt.", "Tenant suspendido.", "Tenant suspenso.") : t("Tenant reactivated.", "Locataire reactive.", "Mandant reaktiviert.", "Tenant reactivado.", "Tenant reativado."),
+        message: kind === "suspend" ? t("Tenant suspended.", "Locataire suspendu.", "Mandant gesperrt.", "Tenant suspendido.", "Tenant suspenso.") : t("Tenant reactivated.", "Locataire réactivé.", "Mandant reaktiviert.", "Tenant reactivado.", "Tenant reativado."),
       });
       await mutate();
     } catch (actionError) {
@@ -136,7 +136,7 @@ export default function AdminTenantDetailPage() {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(String((payload as { error?: string })?.error || t("Unable to start impersonation.", "Impossible de demarrer l'usurpation.", "Imitation konnte nicht gestartet werden.", "No se pudo iniciar la suplantacion.", "Não foi poss?vel iniciar a impersonação.")));
+        throw new Error(String((payload as { error?: string })?.error || t("Unable to start impersonation.", "Impossible de démarrer l'usurpation.", "Imitation konnte nicht gestartet werden.", "No se pudo iniciar la suplantacion.", "Não foi possível iniciar a impersonação.")));
       }
       const redirectTo = String((payload as { redirectTo?: string })?.redirectTo || "/dashboard");
       setShowImpersonationModal(false);
@@ -150,9 +150,9 @@ export default function AdminTenantDetailPage() {
             ? localizeAdminServerMessage(
                 impersonationError.message,
                 language,
-                t("Unable to start impersonation.", "Impossible de demarrer l'usurpation.", "Imitation konnte nicht gestartet werden.", "No se pudo iniciar la suplantacion.", "Não foi poss?vel iniciar a impersonação.")
+                t("Unable to start impersonation.", "Impossible de démarrer l'usurpation.", "Imitation konnte nicht gestartet werden.", "No se pudo iniciar la suplantacion.", "Não foi possível iniciar a impersonação.")
               )
-            : t("Unable to start impersonation.", "Impossible de demarrer l'usurpation.", "Imitation konnte nicht gestartet werden.", "No se pudo iniciar la suplantacion.", "Não foi poss?vel iniciar a impersonação."),
+            : t("Unable to start impersonation.", "Impossible de démarrer l'usurpation.", "Imitation konnte nicht gestartet werden.", "No se pudo iniciar la suplantacion.", "Não foi possível iniciar a impersonação."),
       });
     } finally {
       setStartingImpersonation(false);
@@ -200,11 +200,11 @@ export default function AdminTenantDetailPage() {
     return [
       {
         key: "last-activity",
-        title: t("Last Activity", "Derni?re activite", "Letzte Aktivitaet", "?ltima actividad", "?ltima atividade"),
+        title: t("Last Activity", "Derni?re activité", "Letzte Aktivitaet", "Última actividad", "Última atividade"),
         lines: [
           `${t("Created", "Cr??", "Erstellt", "Creado", "Criado")} ${formatDateTimeDMY(new Date(data.tenant.createdAt), LANGUAGE_LOCALES[language])}`,
           data.tenant.lastActivityAt
-            ? `${t("Last activity", "Derni?re activite", "Letzte Aktivitaet", "?ltima actividad", "?ltima atividade")} ${formatDateTimeDMY(new Date(data.tenant.lastActivityAt), LANGUAGE_LOCALES[language])}`
+            ? `${t("Last activity", "Derni?re activité", "Letzte Aktivitaet", "Última actividad", "Última atividade")} ${formatDateTimeDMY(new Date(data.tenant.lastActivityAt), LANGUAGE_LOCALES[language])}`
             : t("No activity recorded yet.", "Aucune activité enregistree pour le moment.", "Noch keine Aktivitaet aufgezeichnet.", "Aún no hay actividad registrada.", "Ainda não ha atividade registada."),
         ],
       },
@@ -220,16 +220,16 @@ export default function AdminTenantDetailPage() {
         key: "integrations",
         title: t("Integrations", "Integrations", "Integrationen", "Integraciónes", "Integrações"),
         lines: [
-          `${t("Paystack subaccount:", "Sous-compte Paystack :", "Paystack-Unterkonto:", "Subcuenta Paystack:", "Subconta Paystack:")} ${data.overview.integrations.paystackSubaccountCode || t("Not connected", "Non connect?", "Nicht verbunden", "No conectado", "Não ligado")}`,
-          `${t("Flutterwave subaccount:", "Sous-compte Flutterwave :", "Flutterwave-Unterkonto:", "Subcuenta Flutterwave:", "Subconta Flutterwave:")} ${data.overview.integrations.flutterwaveSubaccountId || t("Not connected", "Non connect?", "Nicht verbunden", "No conectado", "Não ligado")}`,
+          `${t("Paystack subaccount:", "Sous-compte Paystack :", "Paystack-Unterkonto:", "Subcuenta Paystack:", "Subconta Paystack:")} ${data.overview.integrations.paystackSubaccountCode || t("Not connected", "Non connecté", "Nicht verbunden", "No conectado", "Não ligado")}`,
+          `${t("Flutterwave subaccount:", "Sous-compte Flutterwave :", "Flutterwave-Unterkonto:", "Subcuenta Flutterwave:", "Subconta Flutterwave:")} ${data.overview.integrations.flutterwaveSubaccountId || t("Not connected", "Non connecté", "Nicht verbunden", "No conectado", "Não ligado")}`,
           `${t("Payout provider:", "Fournisseur de paiement :", "Auszahlungsanbieter:", "Proveedor de pagos:", "Fornecedor de pagamentos:")} ${data.overview.integrations.payoutProvider ? localizeAdminProvider(data.overview.integrations.payoutProvider, language) : t("Not configured", "Non configure", "Nicht konfiguriert", "No configurado", "Não configurado")}`,
         ],
       },
       {
         key: "webhook-failures",
-        title: t("Webhook Failures", "Echecs webhook", "Webhook-Fehler", "Fallos de webhook", "Falhas de webhook"),
+        title: t("Webhook Failures", "Échecs webhook", "Webhook-Fehler", "Fallos de webhook", "Falhas de webhook"),
         lines: [
-          `${t("Webhook failures (7d):", "Echecs webhook (7j) :", "Webhook-Fehler (7T):", "Fallos de webhook (7d):", "Falhas de webhook (7d):")} ${data.overview.riskSignals.webhookFailures7d}`,
+          `${t("Webhook failures (7d):", "Échecs webhook (7j) :", "Webhook-Fehler (7T):", "Fallos de webhook (7d):", "Falhas de webhook (7d):")} ${data.overview.riskSignals.webhookFailures7d}`,
           `${t("Webhook health:", "Sante webhook :", "Webhook-Zustand:", "Salud del webhook:", "Saude do webhook:")} ${data.billing.webhookHealth}`,
         ],
       },
@@ -269,7 +269,7 @@ export default function AdminTenantDetailPage() {
               "Impossible de charger le detail du locataire pour le moment.",
               "Mandantendetails koennen derzeit nicht geladen werden.",
               "No se puede cargar el detalle del tenant en este momento.",
-              "N?o foi poss?vel carregar o detalhe do tenant neste momento."
+              "Não foi possível carregar o detalhe do tenant neste momento."
             )
           )}
         </Alert>
@@ -294,7 +294,7 @@ export default function AdminTenantDetailPage() {
               <p className="mt-1 break-words text-sm text-muted-foreground">{t("Owner email:", "E-mail du proprietaire :", "E-Mail des Inhabers:", "Correo del propietario:", "E-mail do proprietário:")} {data.owner.email}</p>
               <p className="mt-1 break-words text-xs text-muted-foreground">
                 {t("Plan:", "Forfait :", "Plan:", "Plan:", "Plano:")} {data.subscription.plan || "-"} | {t("Created", "Cr??", "Erstellt", "Creado", "Criado")} {formatDateTimeDMY(new Date(data.tenant.createdAt), LANGUAGE_LOCALES[language])}
-                {data.tenant.lastActivityAt ? ` | ${t("Last activity", "Derni?re activite", "Letzte Aktivitaet", "?ltima actividad", "?ltima atividade")} ${formatDateTimeDMY(new Date(data.tenant.lastActivityAt), LANGUAGE_LOCALES[language])}` : ""}
+                {data.tenant.lastActivityAt ? ` | ${t("Last activity", "Derni?re activité", "Letzte Aktivitaet", "Última actividad", "Última atividade")} ${formatDateTimeDMY(new Date(data.tenant.lastActivityAt), LANGUAGE_LOCALES[language])}` : ""}
               </p>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-3">
@@ -307,7 +307,7 @@ export default function AdminTenantDetailPage() {
                   document.getElementById("tenant-logs")?.scrollIntoView({ behavior: "smooth", block: "start" });
                 }}
               >
-                {t("View audit events", "Voir les ?v?nements d'audit", "Audit-Ereignisse ansehen", "Ver eventos de auditoria", "Ver eventos de auditoria")}
+                {t("View audit events", "Voir les événements d'audit", "Audit-Ereignisse ansehen", "Ver eventos de auditoria", "Ver eventos de auditoria")}
               </Button>
               {isSuperAdmin ? (
                 data.tenant.status === "SUSPENDED" ? (
@@ -406,12 +406,12 @@ export default function AdminTenantDetailPage() {
                 {data.usage.channelTotals ? (
                   <div className="pt-2 text-sm text-muted-foreground">
                     <p className="font-medium text-foreground">
-                      {t("Messaging activity", "Activite de messagerie", "Nachrichtenaktivitat", "Actividad de mensajeria", "Atividade de mensagens")}
+                      {t("Messaging activity", "Activité de messagerie", "Nachrichtenaktivitat", "Actividad de mensajeria", "Atividade de mensagens")}
                     </p>
                     <p>{t("Billing period:", "Periode de facturation :", "Abrechnungszeitraum:", "Periodo de facturación:", "Periodo de faturação:")} {data.usage.channelTotals.billingPeriod}</p>
-                    <p>{t("Email messages sent:", "E-mails envoyes :", "Gesendete E-Mails:", "Mensajes de correo enviados:", "Mensagens de e-mail enviadas:")} {data.usage.channelTotals.emailMessagesSent}</p>
-                    <p>{t("WhatsApp messages sent:", "Messages WhatsApp envoyes :", "Gesendete WhatsApp-Nachrichten:", "Mensajes de WhatsApp enviados:", "Mensagens de WhatsApp enviadas:")} {data.usage.channelTotals.whatsappMessagesSent}</p>
-                    <p>{t("Total messages sent:", "Total des messages envoyes :", "Gesamt gesendete Nachrichten:", "Total de mensajes enviados:", "Total de mensagens enviadas:")} {data.usage.channelTotals.totalMessagesSent}</p>
+                    <p>{t("Email messages sent:", "E-mails envoyés :", "Gesendete E-Mails:", "Mensajes de correo enviados:", "Mensagens de e-mail enviadas:")} {data.usage.channelTotals.emailMessagesSent}</p>
+                    <p>{t("WhatsApp messages sent:", "Messages WhatsApp envoyés :", "Gesendete WhatsApp-Nachrichten:", "Mensajes de WhatsApp enviados:", "Mensagens de WhatsApp enviadas:")} {data.usage.channelTotals.whatsappMessagesSent}</p>
+                    <p>{t("Total messages sent:", "Total des messages envoyés :", "Gesamt gesendete Nachrichten:", "Total de mensajes enviados:", "Total de mensagens enviadas:")} {data.usage.channelTotals.totalMessagesSent}</p>
                     {data.usage.messagingActivityUpdatedAt ? (
                       <p>
                         {t("Updated:", "Mis a jour :", "Aktualisiert:", "Actualizado:", "Atualizado:")}{" "}
@@ -420,7 +420,7 @@ export default function AdminTenantDetailPage() {
                     ) : null}
                   </div>
                 ) : (
-                  <p className="pt-2 text-sm text-muted-foreground">{t("Usage counters are not available yet for this tenant.", "Les compteurs d'utilisation ne sont pas encore disponibles pour ce locataire.", "Nutzungszaehler sind fuer diesen Mandanten noch nicht verfuegbar.", "Los contadores de uso aún no est?n disponibles para este tenant.", "Os contadores de utilização ainda não estão dispon?veis para este tenant.")}</p>
+                  <p className="pt-2 text-sm text-muted-foreground">{t("Usage counters are not available yet for this tenant.", "Les compteurs d'utilisation ne sont pas encore disponibles pour ce locataire.", "Nutzungszähler sind für diesen Mandanten noch nicht verfügbar.", "Los contadores de uso aún no est?n disponibles para este tenant.", "Os contadores de utilização ainda não estão disponíveis para este tenant.")}</p>
                 )}
               </div>
             )}
@@ -475,7 +475,7 @@ export default function AdminTenantDetailPage() {
                 <Skeleton className="h-44 rounded-lg" />
               ) : data.logs.length === 0 ? (
                 <p className="rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-                  {t("No logs for this tenant yet.", "Aucun journal pour ce locataire pour le moment.", "Noch keine Protokolle fuer diesen Mandanten.", "Aún no hay registros para este tenant.", "Ainda não ha registos para este tenant.")}
+                  {t("No logs for this tenant yet.", "Aucun journal pour ce locataire pour le moment.", "Noch keine Protokolle für diesen Mandanten.", "Aún no hay registros para este tenant.", "Ainda não ha registos para este tenant.")}
                 </p>
               ) : (
                 <div className="max-h-[300px] space-y-2 overflow-y-auto pr-1">
@@ -503,7 +503,7 @@ export default function AdminTenantDetailPage() {
       <Modal open={showSuspend} onClose={() => !savingAction && setShowSuspend(false)} title={t("Suspend tenant", "Suspendre le locataire", "Mandanten sperren", "Suspender tenant", "Suspender tenant")}>
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            {t("This tenant will be blocked from login and API access until reactivated.", "Ce locataire sera bloque de la connexion et de l'accès API jusqu'a sa reactivation.", "Dieser Mandant wird bis zur Reaktivierung fuer Login und API-Zugriff gesperrt.", "Este tenant quedara bloqueado del inicio de sesión y del acceso a la API hasta ser reactivado.", "Este tenant ficara bloqueado do inicio de sessão e do acesso a API at? ser reativado.")}
+            {t("This tenant will be blocked from login and API access until reactivated.", "Ce locataire sera bloque de la connexion et de l'accès API jusqu'a sa reactivation.", "Dieser Mandant wird bis zur Reaktivierung für Login und API-Zugriff gesperrt.", "Este tenant quedara bloqueado del inicio de sesión y del acceso a la API hasta ser reactivado.", "Este tenant ficara bloqueado do inicio de sessão e do acesso a API at? ser reativado.")}
           </p>
           <Input
             label={t("Reason (optional)", "Raison (optionnelle)", "Grund (optional)", "Motivo (opcional)", "Motivo (opcional)")}
