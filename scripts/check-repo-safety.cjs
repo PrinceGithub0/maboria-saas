@@ -37,7 +37,11 @@ const secretPatterns = [
   { label: "Publishable key", regex: /\bpk_(live|test)_[A-Za-z0-9]{16,}\b/g },
   { label: "Google API key", regex: /\bAIza[0-9A-Za-z\-_]{20,}\b/g },
   { label: "AWS access key", regex: /\bAKIA[0-9A-Z]{16}\b/g },
-  { label: "Private key block", regex: /-----BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/g },
+  {
+    label: "Private key block",
+    regex:
+      /-----BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----[\s\S]{20,}-----END (RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/g,
+  },
 ];
 
 function getTrackedFiles() {
