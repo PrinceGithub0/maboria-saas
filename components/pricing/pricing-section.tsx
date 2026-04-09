@@ -21,21 +21,21 @@ const copy = {
   sectionTitle: {
     en: "Stop Chasing Payments Across Inboxes and Spreadsheets",
     fr: "Arretez de courir après les paiements entre boites mail et feuilles de calcul",
-    de: "Jagen Sie Zahlungen nicht langer zwischen Postfaechern und Tabellen hinterher",
+    de: "Jagen Sie Zahlungen nicht länger zwischen Postfächern und Tabellen hinterher",
     es: "Deja de perseguir pagos entre bandejas de entrada y hojas de calculo",
     pt: "Deixe de perseguir pagamentos entre caixas de entrada e folhas de calculo",
   } satisfies LocalizedText,
   sectionSubtitle: {
     en: "Maboria brings invoicing, payment follow-ups, automation, and team inbox operations into one workspace so your team moves faster and misses less revenue.",
     fr: "Maboria regroupe la facturation, les relances de paiement, l'automatisation et les opérations de boîte d'équipe dans un seul espace afin que votre équipe avance plus vite et laisse passer moins de revenus.",
-    de: "Maboria vereint Rechnungsstellung, Zahlungsnachverfolgung, Automatisierung und Team-Postfachprozesse in einem Workspace, damit Ihr Team schneller arbeitet und weniger Umsatz liegen laesst.",
+    de: "Maboria vereint Rechnungsstellung, Zahlungsnachverfolgung, Automatisierung und Team-Postfachprozesse in einem Workspace, damit Ihr Team schneller arbeitet und weniger Umsatz liegen lässt.",
     es: "Maboria integra facturación, seguimientos de pago, automatización y operaciónes de bandeja del equipo en un solo espacio para que tu equipo avance más rápido y deje escapar menos ingresos.",
     pt: "A Maboria junta faturação, seguimentos de pagamento, automação e operações de caixa da equipa num unico espaço para que a sua equipa avance mais depressa e perca menos receita.",
   } satisfies LocalizedText,
   ownConnections: {
     en: "Connect your existing Gmail, Outlook, and WhatsApp channels in minutes.",
     fr: "Connectez vos canaux Gmail, Outlook et WhatsApp existants en quelques minutes.",
-    de: "Verbinden Sie Ihre bestehenden Gmail-, Outlook- und WhatsApp-Kanaele in wenigen Minuten.",
+    de: "Verbinden Sie Ihre bestehenden Gmail-, Outlook- und WhatsApp-Kanäle in wenigen Minuten.",
     es: "Conecta tus canales existentes de Gmail, Outlook y WhatsApp en minutos.",
     pt: "Ligue os seus canais existentes de Gmail, Outlook e WhatsApp em minutos.",
   } satisfies LocalizedText,
@@ -248,7 +248,7 @@ const featureCopy: Record<string, LocalizedText> = {
   "3 seats": {
     en: "3 seats",
     fr: "3 sieges",
-    de: "3 Sitzplatze",
+    de: "3 Sitzplätze",
     es: "3 asientos",
     pt: "3 utilizadores",
   },
@@ -283,7 +283,7 @@ const featureCopy: Record<string, LocalizedText> = {
   "Longer history retention": {
     en: "Longer history retention",
     fr: "Historique conserve plus longtemps",
-    de: "Langere Verlaufsspeicherung",
+    de: "Längere Verlaufsspeicherung",
     es: "Retención historica más larga",
     pt: "Retenção de histórico mais longa",
   },
@@ -297,7 +297,7 @@ const featureCopy: Record<string, LocalizedText> = {
   "Up to 8 seats": {
     en: "Up to 8 seats",
     fr: "Jusqu a 8 sieges",
-    de: "Bis zu 8 Sitzplatze",
+    de: "Bis zu 8 Sitzplätze",
     es: "Hasta 8 asientos",
     pt: "Até 8 utilizadores",
   },
@@ -360,7 +360,7 @@ const featureCopy: Record<string, LocalizedText> = {
   "Up to 15 seats": {
     en: "Up to 15 seats",
     fr: "Jusqu a 15 sieges",
-    de: "Bis zu 15 Sitzplatze",
+    de: "Bis zu 15 Sitzplätze",
     es: "Hasta 15 asientos",
     pt: "Até 15 utilizadores",
   },
@@ -457,7 +457,7 @@ const planUi: Record<
     audience: {
       en: "For small teams running customer communication and daily operations together.",
       fr: "Pour les petites équipes qui gèrent ensemble communication client et operations.",
-      de: "Für kleine Teams, die Kundenkommunikation und Tagesgeschaeft gemeinsam steuern.",
+      de: "Für kleine Teams, die Kundenkommunikation und Tagesgeschäft gemeinsam steuern.",
       es: "Para pequenos equipos que gestionan juntos comunicacion con clientes y operaciónes diarias.",
       pt: "Para pequenas equipas que gerem juntas a comunicacao com clientes e a operacao diaria.",
     },
