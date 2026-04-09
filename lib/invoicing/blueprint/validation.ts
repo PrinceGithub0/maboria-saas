@@ -102,6 +102,16 @@ const buildTaxBreakdownFromLines = (
   taxLabel: string,
   reverseChargeApplies: boolean
 ): UniversalInvoiceDocument["taxBreakdown"] => {
+  const hasExplicitTaxData = lines.some(
+    (line) =>
+      line.taxRate !== null ||
+      line.taxAmount !== null ||
+      Boolean(String(line.exemptionReason || "").trim())
+  );
+  if (!hasExplicitTaxData) {
+    return [];
+  }
+
   const grouped = new Map<
     string,
     { taxRate: number | null; taxableAmount: number; taxAmount: number; exemptionReason: Set<string> }

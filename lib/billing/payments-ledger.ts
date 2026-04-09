@@ -384,7 +384,7 @@ export async function getPaymentsLedgerData(args: QueryArgs): Promise<PaymentsLe
   const receiptMap = new Map<string, { receiptUrl: string | null; invoiceId: string }>();
   receiptLinks.forEach((row) => {
     receiptMap.set(row.id, {
-      receiptUrl: row.receipt?.pdfUrl || null,
+      receiptUrl: row.receipt?.pdfUrl ? `/api/billing/payments/${row.id}/receipt` : null,
       invoiceId: row.invoiceId,
     });
   });

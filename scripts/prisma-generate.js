@@ -1,4 +1,7 @@
 const { spawnSync } = require("child_process");
+const { loadLocalEnv } = require("./load-local-env");
+
+loadLocalEnv();
 
 function runPrismaGenerate() {
   if (!process.env.DATABASE_URL) {
@@ -9,12 +12,19 @@ function runPrismaGenerate() {
   }
 
   const env = { ...process.env };
+  const command =
+    process.platform === "win32"
+      ? process.env.ComSpec || "cmd.exe"
+      : "npx";
+  const args =
+    process.platform === "win32"
+      ? ["/d", "/s", "/c", "npx prisma generate"]
+      : ["prisma", "generate"];
 
   // Force a normal engine-backed Prisma Client for local Postgres usage.
   delete env.PRISMA_GENERATE_NO_ENGINE;
 
-  const result = spawnSync("npx", ["prisma", "generate"], {
-    shell: true,
+  const result = spawnSync(command, args, {
     env,
     encoding: "utf8",
   });

@@ -12,7 +12,7 @@ import {
   resolveInvoicePaymentDetails,
   resolveInvoiceCustomer,
 } from "@/lib/invoice";
-import { buildInvoiceReceiptPdfBuffer } from "@/lib/invoice-receipt";
+import { buildInvoiceReceiptPdfBuffer, readStoredInvoiceReceiptPdf } from "@/lib/invoice-receipt";
 import { buildSubscriptionReceiptPdfBuffer } from "@/lib/subscription-receipt";
 import { normalizeVatSettings } from "@/lib/vat";
 
@@ -386,8 +386,7 @@ async function buildRealPaymentReceipt(exampleId: string): Promise<ReceiptPrevie
   }
 
   if (receipt.pdfUrl) {
-    const localPath = path.join(process.cwd(), "public", receipt.pdfUrl.replace(/^\/+/, ""));
-    const existing = await fs.readFile(localPath).catch(() => null);
+    const existing = await readStoredInvoiceReceiptPdf(receipt.pdfUrl);
     if (existing) {
       return {
         buffer: existing,

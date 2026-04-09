@@ -3,11 +3,14 @@
 import Link from "next/link";
 import useSWR from "swr";
 import { useEffect, useMemo, useState } from "react";
-import { ChevronRight, Plus, Search, User, X } from "lucide-react";
+import { ChevronRight, Plus, Search, User, UserPlus, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { CountrySelect } from "@/components/ui/country-select";
 import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Alert } from "@/components/ui/alert";
 import { TransientAlert } from "@/components/ui/transient-alert";
 import { formatCurrency } from "@/lib/currency";
@@ -77,7 +80,24 @@ const fetcher = async (url: string): Promise<CustomersResponse> => {
 };
 
 export default function CustomersPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+
+  const buildFreshCustomerForm = () => ({
+    name: "",
+    companyName: "",
+    email: "",
+    phone: "",
+    taxId: "",
+    registrationNumber: "",
+    branchCode: "",
+    addressLine1: "",
+    addressLine2: "",
+    city: "",
+    state: "",
+    postalCode: "",
+    country: "",
+    deliveryPreference: "",
+  });
 
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -85,18 +105,7 @@ export default function CustomersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<{ variant: "success" | "error" | "info" | "warning"; message: string } | null>(null);
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    addressLine1: "",
-    addressLine2: "",
-    city: "",
-    state: "",
-    postalCode: "",
-    country: "",
-    deliveryPreference: "EMAIL",
-  });
+  const [form, setForm] = useState(buildFreshCustomerForm);
 
   const pageSize = 10;
   useEffect(() => {
@@ -136,23 +145,35 @@ export default function CustomersPage() {
     (_, index) => pageWindowStart + index
   ).filter((value) => value <= totalPages);
 
-  const resetForm = () =>
-    setForm({
-      name: "",
-      email: "",
-      phone: "",
-      addressLine1: "",
-      addressLine2: "",
-      city: "",
-      state: "",
-      postalCode: "",
-      country: "",
-      deliveryPreference: "EMAIL",
-    });
+  const resetForm = () => setForm(buildFreshCustomerForm());
 
   const submitNewCustomer = async (event: React.FormEvent) => {
     event.preventDefault();
     setStatus(null);
+    const requiresPhoneForDelivery =
+      form.deliveryPreference === "WHATSAPP" || form.deliveryPreference === "BOTH";
+    if (
+      !form.name.trim() ||
+      !form.email.trim() ||
+      !form.addressLine1.trim() ||
+      !form.city.trim() ||
+      !form.state.trim() ||
+      !form.country.trim() ||
+      !form.deliveryPreference.trim() ||
+      (requiresPhoneForDelivery && !form.phone.trim())
+    ) {
+      setStatus({
+        variant: "warning",
+        message: t(
+          "Name, email, delivery method, address, city, state, and country are required. Phone is required for WhatsApp delivery.",
+          "Nom, email, mode de livraison, adresse, ville, etat et pays sont requis. Le tÃ©lÃ©phone est requis pour WhatsApp.",
+          "Name, E-Mail, Zustellmethode, Adresse, Stadt, Bundesland und Land sind erforderlich. FÃ¼r die WhatsApp-Zustellung ist eine Telefonnummer erforderlich.",
+          "Nombre, correo, mÃ©todo de entrega, direcci?n, ciudad, estado y paÃ­s son obligatorios. El telÃ©fono es obligatorio para la entrega por WhatsApp.",
+          "Nome, email, mÃ©todo de entrega, endereco, cidade, estado e paÃ­s sÃ£o obrigatorios. O telefone e obrigatÃ³rio para entrega por WhatsApp."
+        ),
+      });
+      return;
+    }
     if (!form.name.trim() || !form.email.trim()) {
       setStatus({
         variant: "warning",
@@ -457,110 +478,219 @@ export default function CustomersPage() {
         </Card>
       </div>
 
-      {modalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-4xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950">
-            <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-foreground">{t("New Customer", "Nouveau client", "Neuer Kunde", "Nuevo cliente", "Novo cliente")}</h2>
-              <button
-                type="button"
-                onClick={() => setModalOpen(false)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-slate-100 hover:text-foreground dark:hover:bg-slate-900"
-              >
-                <X className="h-4 w-4" />
-              </button>
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        hideHeader
+        className="max-w-[1120px] rounded-[2rem] border-border/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.94))] p-0 shadow-[0_38px_90px_-42px_rgba(15,23,42,0.48)] dark:border-slate-800 dark:bg-[linear-gradient(180deg,rgba(7,12,24,0.98),rgba(10,16,30,0.96))] dark:shadow-[0_42px_100px_-44px_rgba(0,0,0,0.82)] max-md:max-w-none"
+        bodyClassName="max-h-[82vh] pr-0"
+      >
+        <div className="border-b border-border/60 bg-[radial-gradient(circle_at_top_left,rgba(79,70,229,0.12),transparent_38%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.9))] px-6 py-5 dark:border-slate-800 dark:bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.22),transparent_34%),linear-gradient(180deg,rgba(8,14,28,0.98),rgba(10,18,32,0.94))]">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex min-w-0 items-start gap-4">
+              <div className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#5b4df5,#4338ca)] text-white shadow-[0_20px_45px_-24px_rgba(79,70,229,0.9)]">
+                <UserPlus className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-indigo-600/80 dark:text-indigo-300/90">
+                  {t("Customer profile", "Profil client", "Kundenprofil", "Perfil del cliente", "Perfil do cliente")}
+                </p>
+                <h3 className="mt-1 text-[1.7rem] font-semibold tracking-tight text-foreground">
+                  {t("Add New Customer", "Ajouter un client", "Neuen Kunden hinzufuegen", "Anadir cliente", "Adicionar cliente")}
+                </h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {t(
+                    "Create a complete customer record for invoices and payment follow-up.",
+                    "Creez une fiche client complete pour la facturation et le suivi des paiements.",
+                    "Erstelle einen vollstaendigen Kundendatensatz fuer Rechnungen und Zahlungsnachverfolgung.",
+                    "Crea un registro completo del cliente para facturas y seguimiento de pagos.",
+                    "Crie um registo completo do cliente para faturas e acompanhamento de pagamentos."
+                  )}
+                </p>
+              </div>
             </div>
-            <form onSubmit={submitNewCustomer} className="space-y-6">
-              <div className="grid gap-6 md:grid-cols-2">
-                <section className="space-y-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{t("Basic info", "Infos de base", "Basisdaten", "Información basica", "Informação basica")}</p>
-                  <Input
-                    label={t("Name", "Nom", "Name", "Nombre", "Nome")}
-                    value={form.name}
-                    onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-                    required
-                  />
-                  <Input
-                    label={t("Email", "Email", "E-Mail", "Correo electr?nico", "Email")}
-                    type="email"
-                    value={form.email}
-                    onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
-                    required
-                  />
-                  <Input
-                    label={t("Phone", "T?l?phone", "Telefon", "Tel?fono", "Telefonee")}
-                    value={form.phone}
-                    onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
-                    required={form.deliveryPreference === "WHATSAPP" || form.deliveryPreference === "BOTH"}
-                  />
-                </section>
-                <section className="space-y-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{t("Contact info", "Coordonnees", "Kontaktinformationen", "Información de contacto", "Informação de contacto")}</p>
-                  <Input
-                    label={t("Address line 1", "Adresse ligne 1", "Adresszeile 1", "Direcci?n linea 1", "Endereco linha 1")}
-                    value={form.addressLine1}
-                    onChange={(event) => setForm((prev) => ({ ...prev, addressLine1: event.target.value }))}
-                    required
-                  />
-                  <Input
-                    label={t("Address line 2", "Adresse ligne 2", "Adresszeile 2", "Direcci?n linea 2", "Endereco linha 2")}
-                    value={form.addressLine2}
-                    onChange={(event) => setForm((prev) => ({ ...prev, addressLine2: event.target.value }))}
-                  />
-                  <div className="grid grid-cols-2 gap-3">
-                    <Input
-                      label={t("City", "Ville", "Stadt", "Ciudad", "Cidade")}
-                      value={form.city}
-                      onChange={(event) => setForm((prev) => ({ ...prev, city: event.target.value }))}
-                      required
-                    />
-                    <Input
-                      label={t("State", "Etat", "Bundesland", "Estado", "Estado")}
-                      value={form.state}
-                      onChange={(event) => setForm((prev) => ({ ...prev, state: event.target.value }))}
-                      required
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Input
-                      label={t("Postal code", "Code postal", "Postleitzahl", "Código postal", "Código postal")}
-                      value={form.postalCode}
-                      onChange={(event) => setForm((prev) => ({ ...prev, postalCode: event.target.value }))}
-                    />
-                    <Input
-                      label={t("Country", "Pays", "Land", "Pa?s", "Pa?s")}
-                      value={form.country}
-                      onChange={(event) => setForm((prev) => ({ ...prev, country: event.target.value }))}
-                      required
-                      maxLength={2}
-                    />
-                  </div>
-                  <label className="flex flex-col gap-1 text-sm text-foreground">
-                    {t("Delivery preference", "Preference de livraison", "Lieferpraferenz", "Preferencia de entrega", "Preferencia de entrega")}
-                    <select
-                      value={form.deliveryPreference}
-                      onChange={(event) => setForm((prev) => ({ ...prev, deliveryPreference: event.target.value }))}
-                      className="h-10 rounded-lg border border-input bg-background px-3 text-foreground focus:border-indigo-400 focus:outline-none"
-                    >
-                      <option value="EMAIL">{t("Email", "Email", "E-Mail", "Correo", "Email")}</option>
-                      <option value="WHATSAPP">{t("WhatsApp", "WhatsApp", "WhatsApp", "WhatsApp", "WhatsApp")}</option>
-                      <option value="BOTH">{t("Both", "Les deux", "Beides", "Ambos", "Ambos")}</option>
-                    </select>
-                  </label>
-                </section>
-              </div>
-              <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
-                <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>
-                  {t("Cancel", "Annuler", "Abbrechen", "Cancelar", "Cancelar")}
-                </Button>
-                <Button type="submit" loading={saving}>
-                  {t("Save Customer", "Enregistrer le client", "Kunden speichern", "Guardar cliente", "Guardar cliente")}
-                </Button>
-              </div>
-            </form>
+            <button
+              type="button"
+              aria-label={t("Close", "Fermer", "Schliessen", "Cerrar", "Fechar")}
+              onClick={() => setModalOpen(false)}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-border/70 bg-white/85 text-muted-foreground shadow-[0_18px_36px_-30px_rgba(15,23,42,0.55)] transition hover:border-slate-300 hover:text-foreground dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-300 dark:shadow-[0_18px_36px_-30px_rgba(0,0,0,0.8)] dark:hover:border-slate-500 dark:hover:text-slate-100"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
         </div>
-      ) : null}
+        <form
+          className="grid grid-cols-1 gap-x-5 gap-y-5 px-6 py-5 text-foreground dark:[color-scheme:dark] dark:text-slate-100 lg:grid-cols-2"
+          onSubmit={submitNewCustomer}
+        >
+          <div>
+            <Input
+              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 text-[15px] leading-tight shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
+              label={t("Name", "Nom", "Name", "Nombre", "Nome")}
+              value={form.name}
+              onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+              required
+              placeholder={t("Customer name", "Nom du client", "Kundenname", "Nombre del cliente", "Nome do cliente")}
+              autoComplete="off"
+              spellCheck={false}
+              formNoValidate={false}
+            />
+          </div>
+          <div>
+            <Input
+              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 text-[15px] leading-tight shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
+              label={t("Company / legal name (optional)", "Raison sociale / nom legal (optionnel)", "Firma / rechtlicher Name (optional)", "Nombre legal de la empresa (opcional)", "Nome legal da empresa (opcional)")}
+              value={form.companyName}
+              onChange={(event) => setForm((prev) => ({ ...prev, companyName: event.target.value }))}
+              placeholder={t("Company name", "Raison sociale", "Firmenname", "Nombre de la empresa", "Nome da empresa")}
+            />
+          </div>
+          <div>
+            <Input
+              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 text-[15px] leading-tight shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
+              label={t("Email", "Email", "E-Mail", "Correo", "Email")}
+              type="email"
+              value={form.email}
+              onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
+              required
+              placeholder={t("customer@email.com", "client@email.com", "kunde@email.com", "cliente@email.com", "cliente@email.com")}
+            />
+          </div>
+          <div>
+            <PhoneInput
+              label={t("Phone", "Telephone", "Telefon", "Telefono", "Telefone")}
+              value={form.phone}
+              locale={language}
+              defaultCountry={form.country || "US"}
+              onChange={(value) => setForm((prev) => ({ ...prev, phone: value }))}
+              required={form.deliveryPreference === "WHATSAPP" || form.deliveryPreference === "BOTH"}
+              fieldClassName="h-12 rounded-2xl border-border/80 bg-white/85 px-3 shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
+            />
+          </div>
+          <label className="flex flex-col gap-1 text-sm text-foreground dark:text-slate-200">
+            <span className="font-medium">{t("Delivery method", "Mode de livraison", "Zustellmethode", "Metodo de entrega", "Metodo de entrega")} *</span>
+            <select
+              value={form.deliveryPreference}
+              onChange={(event) => setForm((prev) => ({ ...prev, deliveryPreference: event.target.value }))}
+              required
+              className="h-12 rounded-2xl border border-border/80 bg-white/85 px-4 text-foreground shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] focus:border-indigo-400 focus:outline-none dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
+            >
+              <option value="">{t("Choose a method", "Choisir un mode", "Methode auswahlen", "Elegir un metodo", "Escolher um metodo")}</option>
+              <option value="EMAIL">{t("Email", "Email", "E-Mail", "Correo", "Email")}</option>
+              <option value="WHATSAPP">{t("WhatsApp", "WhatsApp", "WhatsApp", "WhatsApp", "WhatsApp")}</option>
+              <option value="BOTH">{t("Both", "Les deux", "Beide", "Ambos", "Ambos")}</option>
+            </select>
+          </label>
+          <div>
+            <Input
+              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 text-[15px] leading-tight shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
+              label={t("Address line 1", "Adresse ligne 1", "Adresszeile 1", "Linea de direccion 1", "Linha de endereco 1")}
+              value={form.addressLine1}
+              onChange={(event) => setForm((prev) => ({ ...prev, addressLine1: event.target.value }))}
+              required
+              placeholder={t("Street address", "Adresse postale", "Strassenadresse", "Direccion postal", "Endereco postal")}
+            />
+          </div>
+          <div>
+            <Input
+              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 text-[15px] leading-tight shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
+              label={t("Address line 2 (optional)", "Adresse ligne 2 (optionnelle)", "Adresszeile 2 (optional)", "Linea de direccion 2 (opcional)", "Linha de endereco 2 (opcional)")}
+              value={form.addressLine2}
+              onChange={(event) => setForm((prev) => ({ ...prev, addressLine2: event.target.value }))}
+            />
+          </div>
+          <div>
+            <Input
+              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
+              label={t("Tax ID (optional)", "Numero fiscal (optionnel)", "Steuer-ID (optional)", "ID fiscal (opcional)", "NIF (opcional)")}
+              value={form.taxId}
+              onChange={(event) => setForm((prev) => ({ ...prev, taxId: event.target.value }))}
+              placeholder={t("Tax or VAT ID", "Numero fiscal ou TVA", "Steuer- oder MwSt.-ID", "ID fiscal o IVA", "NIF ou IVA")}
+            />
+          </div>
+          <div>
+            <Input
+              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
+              label={t("Business registration number (optional)", "Numero d immatriculation de l entreprise (optionnel)", "Handelsregisternummer (optional)", "Numero de registro de la empresa (opcional)", "Numero de registro da empresa (opcional)")}
+              value={form.registrationNumber}
+              onChange={(event) => setForm((prev) => ({ ...prev, registrationNumber: event.target.value }))}
+              placeholder={t("Registration number", "Numero d immatriculation", "Registernummer", "Numero de registro", "Numero de registro")}
+            />
+          </div>
+          <div>
+            <Input
+              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
+              label={t("Branch code (optional)", "Code de succursale (optionnel)", "Filialcode (optional)", "Codigo de sucursal (opcional)", "Codigo da filial (opcional)")}
+              value={form.branchCode}
+              onChange={(event) => setForm((prev) => ({ ...prev, branchCode: event.target.value }))}
+              placeholder={t("Branch code", "Code agence", "Filialcode", "Codigo de sucursal", "Codigo da filial")}
+            />
+          </div>
+          <div>
+            <Input
+              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 text-[15px] leading-tight shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
+              label={t("City", "Ville", "Stadt", "Ciudad", "Cidade")}
+              value={form.city}
+              onChange={(event) => setForm((prev) => ({ ...prev, city: event.target.value }))}
+              required
+            />
+          </div>
+          <div>
+            <Input
+              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 text-[15px] leading-tight shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
+              label={t("State", "Etat", "Bundesland", "Estado", "Estado")}
+              value={form.state}
+              onChange={(event) => setForm((prev) => ({ ...prev, state: event.target.value }))}
+              required
+            />
+          </div>
+          <div>
+            <Input
+              className="h-12 rounded-2xl border-border/80 bg-white/85 px-4 shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:placeholder:text-slate-400 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
+              label={t("Postal code", "Code postal", "Postleitzahl", "Codigo postal", "Codigo postal")}
+              value={form.postalCode}
+              onChange={(event) => setForm((prev) => ({ ...prev, postalCode: event.target.value }))}
+              placeholder={t("ZIP / postal code", "Code ZIP / postal", "ZIP / Postleitzahl", "ZIP / codigo postal", "ZIP / codigo postal")}
+            />
+          </div>
+          <div>
+            <CountrySelect
+              label={t("Country", "Pays", "Land", "Pais", "Pais")}
+              value={form.country}
+              locale={language}
+              onChange={(value) => setForm((prev) => ({ ...prev, country: value }))}
+              required
+              triggerClassName="h-12 rounded-2xl border-border/80 bg-white/85 px-4 shadow-[0_10px_24px_-22px_rgba(15,23,42,0.45)] dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:shadow-[0_14px_28px_-24px_rgba(0,0,0,0.75)]"
+            />
+          </div>
+          <div className="flex flex-col gap-4 border-t border-border/60 pt-5 dark:border-slate-800 lg:col-span-2 lg:flex-row lg:items-center lg:justify-between">
+            <p className="text-sm text-muted-foreground dark:text-slate-400">
+              <span className="font-semibold text-foreground dark:text-slate-100">{t("Required fields", "Champs requis", "Pflichtfelder", "Campos obligatorios", "Campos obrigatorios")}</span>
+              <span className="ml-2">
+                {t("must be completed before saving.", "doivent etre remplis avant l enregistrement.", "muessen vor dem Speichern ausgefuellt werden.", "deben completarse antes de guardar.", "devem ser preenchidos antes de guardar.")}
+              </span>
+            </p>
+            <div className="flex items-center justify-end gap-3 whitespace-nowrap">
+              <Button
+                type="button"
+                variant="secondary"
+                className="h-12 min-w-[136px] rounded-2xl border-slate-300 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(241,245,249,0.92))] px-6 text-[15px] font-semibold text-slate-700 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.45)] hover:border-slate-400 hover:bg-[linear-gradient(180deg,rgba(255,255,255,1),rgba(248,250,252,0.96))] hover:text-slate-900 dark:border-slate-700 dark:bg-[linear-gradient(180deg,rgba(15,23,42,0.98),rgba(15,23,42,0.9))] dark:text-slate-200 dark:shadow-[0_18px_40px_-30px_rgba(0,0,0,0.82)] dark:hover:border-slate-500 dark:hover:bg-[linear-gradient(180deg,rgba(17,24,39,1),rgba(15,23,42,0.94))] dark:hover:text-slate-100"
+                onClick={() => setModalOpen(false)}
+              >
+                {t("Cancel", "Annuler", "Abbrechen", "Cancelar", "Cancelar")}
+              </Button>
+              <Button
+                type="submit"
+                loading={saving}
+                className="h-12 min-w-[208px] rounded-2xl border border-indigo-400/30 bg-[linear-gradient(135deg,#6657ff_0%,#5547f0_48%,#4338ca_100%)] px-7 text-[15px] font-semibold text-white shadow-[0_24px_54px_-20px_rgba(79,70,229,0.95)] ring-1 ring-white/10 hover:bg-[linear-gradient(135deg,#7163ff_0%,#5f51f4_48%,#4b3fd4_100%)]"
+              >
+                {t("Save customer", "Enregistrer client", "Kunden speichern", "Guardar cliente", "Guardar cliente")}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
+

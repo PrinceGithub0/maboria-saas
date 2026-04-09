@@ -209,6 +209,12 @@ enum ConnectedMailboxStatus {
   ERROR
 }
 
+enum WorkspaceSenderType {
+  GMAIL
+  OUTLOOK
+  WHATSAPP
+}
+
 enum CustomerMailboxConversationStatus {
   OPEN
   PENDING
@@ -1152,6 +1158,8 @@ model Business {
   usageResetAt DateTime?
   autoCloseEnabled Boolean @default(true)
   autoCloseAfterHours Int @default(48)
+  workspaceDefaultSenderId String? @map("workspace_default_sender_id")
+  workspaceDefaultSenderType WorkspaceSenderType? @map("workspace_default_sender_type")
   createdAt   DateTime           @default(now())
   members     BusinessMember[]
   invites     BusinessInvite[]

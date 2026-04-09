@@ -18,6 +18,8 @@ import {
   getEInvoiceSendBlockingReason,
   getInvoiceSendBlockingReason,
   normalizeInvoiceItems,
+  normalizeInvoiceItemsForTaxContext,
+  normalizeInvoiceMetadataForStorage,
   persistInvoiceDeliveryAttempt,
   resolveInvoiceCustomer,
   submitRequiredInvoiceEInvoicing,
@@ -37,6 +39,7 @@ import { resolveEInvoiceConnectionForUser, toConnectionConfig } from "@/lib/einv
 import { upsertInvoiceComplianceArtifacts } from "@/lib/invoicing/blueprint/storage";
 import { getInvoiceComplianceRecord } from "@/lib/invoicing/blueprint/read";
 import { getIssuedInvoiceEditBlockingReason } from "@/lib/invoice-editing";
+import { resolveInvoiceSenderForCustomer, setWorkspaceDefaultInvoiceSender } from "@/lib/invoice-sender-resolver";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -138,6 +141,8 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
   }
   const { id: rawRouteId } = await params;
   const body = await req.json();
+  const selectedSenderId = String(body?.selectedSenderId || "").trim() || null;
+  const setDefaultSender = body?.setDefaultSender === true;
   const parsed = invoiceSchema.partial().parse(body);
   let nextCurrency: string | undefined;
   if (parsed.currency) {
@@ -243,12 +248,6 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
   }
 
   if (parsed.status === "SENT") {
-    if (!nextCustomer.email) {
-      return NextResponse.json(
-        { error: "Customer is required." },
-        { status: 400 }
-      );
-    }
     const invoiceCurrency = nextCurrency || normalizeCurrency(existing.currency || "USD");
     const merchant = await prisma.merchantAccount.findUnique({
       where: { userId: targetUserId },
@@ -371,7 +370,7 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
     processingRestrictedAt: nextCustomer.processingRestrictedAt,
     erasedAt: nextCustomer.erasedAt,
   };
-  const nextItems = normalizeInvoiceItems(parsed.items ?? (existing as any).items);
+  const rawItems = normalizeInvoiceItems(parsed.items ?? (existing as any).items);
   const discountAmount =
     typeof parsed.discount === "number" ? parsed.discount : Number((existing as any).discount || 0);
   const businessProfile = await prisma.businessProfile.findUnique({
@@ -412,19 +411,33 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
         ? "inclusive"
         : "exclusive",
   });
-  const totals = calculateTotalsFromAmounts(nextItems, vatSettings, discountAmount);
+  const totals = calculateTotalsFromAmounts(rawItems, vatSettings, discountAmount);
   const lateFeeAccumulated = Number(existing.lateFeeTotalAccumulated || existing.lateFeeAmount || 0);
   const nextTotalDue = totals.total + lateFeeAccumulated;
   const compliance = buildInvoiceComplianceSnapshot({
     business: businessSnapshot,
     customer: liveCustomer,
-    items: nextItems,
+    items: rawItems,
     buyerType:
       parsed.buyerType ??
       ((existingMeta?.compliance?.buyerType as "B2B" | "B2C" | null | undefined) ?? null),
     supplyType:
       parsed.supplyType ??
       ((existingMeta?.compliance?.supplyType as "SAAS" | "SERVICES" | "GOODS" | null | undefined) ?? null),
+  });
+  const nextItems = normalizeInvoiceItemsForTaxContext({
+    items: rawItems,
+    totals: {
+      subtotal: totals.subtotal,
+      taxAmount: totals.taxAmount,
+      discountAmount,
+      total: totals.total,
+      vatRate: totals.vatRate,
+      vatMode: totals.vatMode,
+      vatEnabled: totals.vatEnabled,
+    },
+    business: businessSnapshot,
+    compliance,
   });
   const eInvoicingConnection = toConnectionConfig(
     await resolveEInvoiceConnectionForUser({
@@ -509,6 +522,12 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
     if (eInvoiceBlockingReason) {
       return NextResponse.json({ error: eInvoiceBlockingReason }, { status: 400 });
     }
+    await resolveInvoiceSenderForCustomer({
+      workspaceId: access.businessId,
+      selectedSenderId,
+      replyToAddress: businessSnapshot.businessEmail || null,
+      customer: liveCustomer,
+    });
   }
 
   let updated = await prisma.invoice.update({
@@ -517,7 +536,7 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
       customerId: nextCustomer.id,
       invoiceNumber: nextInvoiceNumber ?? undefined,
       poNumber: shouldUpdatePoNumber ? parsed.poNumber ?? null : undefined,
-      items: parsed.items ?? undefined,
+      items: shouldUpdateCompliance || parsed.items ? (nextItems as any) : undefined,
       currency: nextCurrency,
       status: parsed.status as any,
       generatedAt: issueDate ?? undefined,
@@ -530,7 +549,7 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
           : undefined,
       metadata:
         shouldUpdateCompliance
-        ? {
+        ? normalizeInvoiceMetadataForStorage({
             ...(invoiceNumberChanged ? appendInvoiceNumberAlias(existingMeta, existing.invoiceNumber) : existingMeta),
             businessProfile: businessSnapshot,
             customer: liveCustomer,
@@ -550,7 +569,7 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
               vatMode: totals.vatMode,
               vatEnabled: totals.vatEnabled,
             },
-          }
+          })
         : undefined,
     },
   });
@@ -600,10 +619,10 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
           where: { id: updated.id },
           data: {
             status: canRemainSent ? "SENT" : "DRAFT",
-            metadata: {
+            metadata: normalizeInvoiceMetadataForStorage({
               ...((updated.metadata as any) || {}),
               eInvoicing: eInvoiceResult.snapshot,
-            },
+            }),
           },
         });
         if (!canRemainSent) {
@@ -619,6 +638,13 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
     if (businessProfile?.businessName) {
       const customer = resolveInvoiceCustomer(updated.metadata as any);
       try {
+        if (setDefaultSender && selectedSenderId) {
+          await setWorkspaceDefaultInvoiceSender({
+            workspaceId: access.businessId,
+            senderId: selectedSenderId,
+            replyToAddress: businessProfile.businessEmail || null,
+          });
+        }
         const { pdfBuffer } = await generateAndStoreInvoicePdf(updated as any, businessProfile, customer);
         await deliverInvoiceToCustomer(updated as any, businessProfile, {
           ...customer,
@@ -628,13 +654,21 @@ export const PUT = withErrorHandling(async (req: Request, { params }: Params) =>
           whatsappOptOut: nextCustomer.whatsappOptOut,
           processingRestrictedAt: nextCustomer.processingRestrictedAt,
           erasedAt: nextCustomer.erasedAt,
-        }, pdfBuffer);
+        }, pdfBuffer, {
+          workspaceId: access.businessId,
+          selectedSenderId,
+          setDefaultSender: false,
+        });
       } catch (error: any) {
         updated = await persistInvoiceDeliveryAttempt({
           invoiceId: updated.id,
           currentMetadata: ((updated.metadata as any) || {}) as Record<string, unknown>,
           status: "FAILED",
           errorMessage: error?.message || "Could not send invoice.",
+          sender:
+            error && typeof error === "object" && "resolvedSender" in error
+              ? ((error as { resolvedSender?: any }).resolvedSender ?? null)
+              : null,
         });
         deliveryWarning = error?.message || "Invoice was issued, but delivery failed.";
       }

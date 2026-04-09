@@ -1,4 +1,7 @@
 const { spawnSync } = require("child_process");
+const { loadLocalEnv } = require("./load-local-env");
+
+loadLocalEnv();
 
 function main() {
   // Prisma generate requires DATABASE_URL to be present because schema.prisma reads env("DATABASE_URL").
@@ -10,12 +13,19 @@ function main() {
   }
 
   const env = { ...process.env };
+  const command =
+    process.platform === "win32"
+      ? process.env.ComSpec || "cmd.exe"
+      : "npx";
+  const args =
+    process.platform === "win32"
+      ? ["/d", "/s", "/c", "npx prisma generate"]
+      : ["prisma", "generate"];
 
   // Prevent shell-level no-engine settings from generating an Accelerate-only client.
   delete env.PRISMA_GENERATE_NO_ENGINE;
 
-  const result = spawnSync("npx", ["prisma", "generate"], {
-    shell: true,
+  const result = spawnSync(command, args, {
     env,
     encoding: "utf8",
   });

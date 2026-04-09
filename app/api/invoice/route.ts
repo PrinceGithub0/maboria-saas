@@ -14,6 +14,7 @@ import {
   getEInvoiceSendBlockingReason,
   getInvoiceSendBlockingReason,
 } from "@/lib/invoice";
+import { resolveInvoiceSenderForCustomer } from "@/lib/invoice-sender-resolver";
 import { parseDateInput } from "@/lib/date";
 import { assertRateLimit } from "@/lib/rate-limit";
 import { withErrorHandling } from "@/lib/api-handler";
@@ -263,6 +264,8 @@ export const POST = withErrorHandling(async (req: Request) => {
   }
 
   const body = await req.json();
+  const selectedSenderId = String(body?.selectedSenderId || "").trim() || null;
+  const setDefaultSender = body?.setDefaultSender === true;
   const parsed = invoiceSchema.parse(body);
   const normalizedCurrency = normalizeCurrency(parsed.currency);
   if (!isSupportedBusinessCurrency(normalizedCurrency)) {
@@ -411,9 +414,6 @@ export const POST = withErrorHandling(async (req: Request) => {
     if (eInvoiceBlockingReason) {
       return NextResponse.json({ error: eInvoiceBlockingReason }, { status: 400 });
     }
-    if (!customer.email) {
-      return NextResponse.json({ error: "Customer is required." }, { status: 400 });
-    }
     const merchant = await prisma.merchantAccount.findUnique({
       where: { userId: targetUserId },
     });
@@ -448,10 +448,17 @@ export const POST = withErrorHandling(async (req: Request) => {
         { status: 400 }
       );
     }
+    await resolveInvoiceSenderForCustomer({
+      workspaceId: access.businessId,
+      selectedSenderId,
+      replyToAddress: businessSnapshot.businessEmail || null,
+      customer: customerSnapshot,
+    });
   }
   assertRateLimit(`invoice:${targetUserId}`, 50, 60_000);
   const invoice = await createInvoiceRecord({
     userId: targetUserId,
+    workspaceId: access.businessId,
     customerId: customer.id,
     invoiceNumber: parsed.invoiceNumber,
     poNumber: parsed.poNumber,
@@ -466,6 +473,8 @@ export const POST = withErrorHandling(async (req: Request) => {
     note: parsed.note,
     buyerType: parsed.buyerType,
     supplyType: parsed.supplyType,
+    selectedSenderId,
+    setDefaultSender,
   });
   await prisma.activityLog.create({
     data: {

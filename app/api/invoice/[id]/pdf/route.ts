@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { withErrorHandling } from "@/lib/api-handler";
 import { enforceEntitlement } from "@/lib/entitlements";
 import { requireBillingAccess } from "@/lib/permissions";
-import { ensureInvoicePdf, resolveInvoiceCustomer } from "@/lib/invoice";
+import { ensureInvoicePdf, normalizeInvoiceMetadataForStorage, resolveInvoiceCustomer } from "@/lib/invoice";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -107,10 +107,10 @@ export const GET = withErrorHandling(async (_req: Request, { params }: Params) =
     await prisma.invoice.update({
       where: { id: invoice.id },
       data: {
-        metadata: {
+        metadata: normalizeInvoiceMetadataForStorage({
           ...metadata,
           businessProfile: business,
-        },
+        }),
       },
     });
   }

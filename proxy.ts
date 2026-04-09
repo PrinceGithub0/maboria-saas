@@ -166,7 +166,6 @@ async function handleProxy(req: NextRequest) {
     "/api/invoice/pay",
     "/api/invoice/confirm",
     "/api/invoice/receipt",
-    "/api/invoice/",
     "/api/payments/callback",
     "/api/subscription/process-renewals",
     "/api/subscription/apply-pending-downgrades",

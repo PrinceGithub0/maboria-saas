@@ -5,6 +5,7 @@ import { prisma } from "./prisma";
 import { log } from "./logger";
 import { enforceEntitlement } from "./entitlements";
 import { recordAnalyticsEvent } from "./analytics";
+import { normalizeInternationalPhoneDigits } from "./phone";
 
 const WHATSAPP_ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN || "";
 const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID || "";
@@ -49,28 +50,19 @@ function maskPhone(value: string) {
 }
 
 export function normalizePhoneNumber(input: string) {
-  const digits = String(input || "").replace(/\D/g, "");
-  if (!digits) {
-    const error = new Error("Phone number is required");
-    (error as any).status = 400;
-    throw error;
-  }
-
-  let normalized = digits;
-  if (normalized.startsWith("00")) {
-    normalized = normalized.slice(2);
-  }
-
-  if (normalized.startsWith("0")) {
-    if (normalized.length === 11) {
-      normalized = `234${normalized.slice(1)}`;
-    } else if (normalized.length >= 10 && normalized.length <= 13) {
-      normalized = `49${normalized.slice(1)}`;
-    } else {
-      const error = new Error("Invalid phone number");
+  let normalized = "";
+  try {
+    const nextNormalized = normalizeInternationalPhoneDigits(input);
+    if (!nextNormalized) {
+      const error = new Error("Phone number is required");
       (error as any).status = 400;
       throw error;
     }
+    normalized = nextNormalized;
+  } catch (error) {
+    const nextError = error instanceof Error ? error : new Error("Invalid phone number");
+    (nextError as any).status = 400;
+    throw nextError;
   }
 
   if (normalized.length < 8 || normalized.length > 15) {

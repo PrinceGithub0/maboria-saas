@@ -17,6 +17,7 @@ import { isCustomerReminderInvoiceStatus } from "@/lib/customers/statuses";
 import { formatCurrency } from "@/lib/currency";
 import { useLanguage } from "@/components/providers/language-provider";
 import { LANGUAGE_LOCALES } from "@/lib/i18n";
+import { formatInternationalPhoneDisplay } from "@/lib/phone";
 
 type TabKey = "overview" | "invoices" | "payments" | "activity" | "notes";
 
@@ -880,7 +881,7 @@ export default function CustomerProfilePage() {
               {customer.phone ? (
                 <span className="inline-flex items-center gap-1">
                   <Phone className="h-4 w-4" />
-                  {customer.phone}
+                  {formatInternationalPhoneDisplay(customer.phone)}
                 </span>
               ) : null}
               <span>|</span>

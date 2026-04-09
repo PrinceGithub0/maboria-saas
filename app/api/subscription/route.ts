@@ -77,7 +77,7 @@ function mapSubscriptionRowToView(sub: {
     createdAt: sub.createdAt,
     updatedAt: sub.updatedAt,
     invoices: [],
-    receiptUrl: sub.receiptUrl,
+    receiptUrl: sub.receiptUrl ? `/api/subscription/receipt?subscriptionId=${encodeURIComponent(sub.id)}` : null,
     receiptNumber: sub.receiptNumber,
     receiptIssuedAt: sub.receiptIssuedAt,
     lastPaymentReference: sub.lastPaymentReference,

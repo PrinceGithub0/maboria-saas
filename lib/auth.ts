@@ -11,6 +11,17 @@ import { emitSystemEvent } from "./system-events";
 
 type StoredBackupCode = { hash: string; usedAt: string | null };
 
+async function runAuthSideEffect(label: string, work: () => Promise<void>) {
+  try {
+    await work();
+  } catch (error) {
+    console.error("auth_side_effect_failed", {
+      label,
+      error: error instanceof Error ? error.message : "unknown",
+    });
+  }
+}
+
 function normalizeBackupCodes(value: unknown): StoredBackupCode[] {
   if (!Array.isArray(value)) return [];
   return value
@@ -132,10 +143,23 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const valid = await verifyPassword(
-          credentials.password,
-          user.passwordHash
-        );
+        const passwordHash = typeof user.passwordHash === "string" ? user.passwordHash : "";
+        if (!passwordHash) {
+          await recordLoginFailure("password_unavailable", user.id);
+          return null;
+        }
+
+        let valid = false;
+        try {
+          valid = await verifyPassword(credentials.password, passwordHash);
+        } catch (error) {
+          console.error("auth_password_verify_failed", {
+            userId: user.id,
+            error: error instanceof Error ? error.message : "unknown",
+          });
+          await recordLoginFailure("password_verify_error", user.id);
+          return null;
+        }
 
         if (!valid) {
           await recordLoginFailure("invalid_password", user.id);
@@ -252,44 +276,53 @@ export const authOptions: NextAuthOptions = {
             ? "PASSWORD"
             : "SSO";
 
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          lastLoginAt: new Date(),
-          authProvider: authProvider as any,
-        },
-      });
-
-      await prisma.activityLog.create({
-        data: {
-          userId,
-          action: "USER_SIGNIN",
-          metadata: {
-            provider: message.account?.provider,
+      await runAuthSideEffect("update_user_last_login", async () => {
+        await prisma.user.update({
+          where: { id: userId },
+          data: {
+            lastLoginAt: new Date(),
+            authProvider: authProvider as any,
           },
-        },
+        });
       });
 
-      await logUserActivity({
-        userId,
-        actorId: userId,
-        eventType: "login",
-        metadata: {
-          provider: message.account?.provider || "credentials",
-        },
+      await runAuthSideEffect("activity_log_signin", async () => {
+        await prisma.activityLog.create({
+          data: {
+            userId,
+            action: "USER_SIGNIN",
+            metadata: {
+              provider: message.account?.provider,
+            },
+          },
+        });
       });
-      await emitSystemEvent({
-        userId,
-        actorId: userId,
-        eventType: "user_login_success",
-        severity: "INFO",
-        source: "AUTH",
-        entityType: "user",
-        entityId: userId,
-        message: "User login succeeded.",
-        metadata: {
-          provider: message.account?.provider || "credentials",
-        },
+
+      await runAuthSideEffect("user_activity_login", async () => {
+        await logUserActivity({
+          userId,
+          actorId: userId,
+          eventType: "login",
+          metadata: {
+            provider: message.account?.provider || "credentials",
+          },
+        });
+      });
+
+      await runAuthSideEffect("system_event_login_success", async () => {
+        await emitSystemEvent({
+          userId,
+          actorId: userId,
+          eventType: "user_login_success",
+          severity: "INFO",
+          source: "AUTH",
+          entityType: "user",
+          entityId: userId,
+          message: "User login succeeded.",
+          metadata: {
+            provider: message.account?.provider || "credentials",
+          },
+        });
       });
     },
     async signOut(message) {
@@ -297,17 +330,21 @@ export const authOptions: NextAuthOptions = {
         ((message as any)?.token?.id as string | undefined) ||
         ((message as any)?.session?.user?.id as string | undefined);
       if (!userId) return;
-      await prisma.activityLog.create({
-        data: {
-          userId,
-          action: "USER_SIGNOUT",
-        },
+      await runAuthSideEffect("activity_log_signout", async () => {
+        await prisma.activityLog.create({
+          data: {
+            userId,
+            action: "USER_SIGNOUT",
+          },
+        });
       });
 
-      await logUserActivity({
-        userId,
-        actorId: userId,
-        eventType: "logout",
+      await runAuthSideEffect("user_activity_logout", async () => {
+        await logUserActivity({
+          userId,
+          actorId: userId,
+          eventType: "logout",
+        });
       });
     },
   },

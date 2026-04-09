@@ -7,6 +7,7 @@ import { sendBillingMail } from "./email";
 import { log } from "./logger";
 import { formatCurrency } from "./currency";
 import { formatDateDMY } from "./date";
+import { readStoredAssetFromRoots } from "./file-storage";
 import { STANDARD_VAT_RATE } from "./vat";
 
 export const SUPPORTED_SUBSCRIPTION_RECEIPT_PROVIDERS = ["PAYSTACK", "FLUTTERWAVE", "STRIPE"] as const;
@@ -49,11 +50,18 @@ function sanitizeFilename(value: string) {
 async function persistSubscriptionReceiptPdf(receiptNumber: string, pdfBuffer: Buffer) {
   const safeNumber = sanitizeFilename(receiptNumber);
   const fileName = `Subscription_Receipt_${safeNumber}.pdf`;
-  const dir = path.join(process.cwd(), "public", "receipts", "subscriptions");
+  const dir = path.join(process.cwd(), "uploads", "receipts", "subscriptions");
   await fs.mkdir(dir, { recursive: true });
   const filePath = path.join(dir, fileName);
   await fs.writeFile(filePath, pdfBuffer);
   return `/receipts/subscriptions/${fileName}`;
+}
+
+export async function readStoredSubscriptionReceiptPdf(pdfUrl?: string | null) {
+  return readStoredAssetFromRoots(pdfUrl, [
+    path.join(process.cwd(), "uploads"),
+    path.join(process.cwd(), "public"),
+  ]);
 }
 
 function formatBillingInterval(interval: "monthly" | "yearly") {

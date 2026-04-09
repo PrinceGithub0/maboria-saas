@@ -6,6 +6,7 @@ import { Prisma, UnifiedInbox, UnifiedMessageChannel } from "@prisma/client";
 import { encryptInboxSecret, safeDecryptInboxSecret } from "@/lib/crypto";
 import { log } from "@/lib/logger";
 import { sanitizeInboundEmailDisplayText } from "@/lib/inbox/message-format";
+import { normalizeInternationalPhoneDigits, normalizeInternationalPhoneE164 } from "@/lib/phone";
 import {
   isOauthMailboxProvider,
   normalizeMailboxAttachments,
@@ -483,12 +484,20 @@ function resolveWhatsAppConfig(credentials: DecryptedInboxCredentials) {
   };
 }
 
-function normalizePhone(value: string) {
-  const digits = String(value || "").replace(/\D/g, "");
-  if (!digits) return "";
-  if (digits.startsWith("00")) return digits.slice(2);
-  if (digits.startsWith("0") && digits.length >= 10) return `234${digits.slice(1)}`;
-  return digits;
+function normalizePhoneForProvider(value: string) {
+  try {
+    return normalizeInternationalPhoneDigits(value, { allowEmpty: true }) || "";
+  } catch {
+    return "";
+  }
+}
+
+function normalizePhoneForStorage(value: string) {
+  try {
+    return normalizeInternationalPhoneE164(value, { allowEmpty: true }) || "";
+  } catch {
+    return "";
+  }
 }
 
 function isLikelySystemSenderEmail(email: string | null | undefined) {
@@ -535,7 +544,7 @@ export async function sendOutboundWhatsApp(input: {
     } satisfies OutboundChannelResult;
   }
 
-  const to = normalizePhone(input.toPhone);
+  const to = normalizePhoneForProvider(input.toPhone);
   if (!to) {
     return {
       externalId: null,
@@ -823,7 +832,7 @@ export async function createOrResolveCustomerForInbound(input: {
   displayName?: string | null;
   }) {
     const normalizedEmail = input.email?.toLowerCase().trim() || null;
-    const normalizedPhone = input.phone ? normalizePhone(input.phone) : null;
+    const normalizedPhone = input.phone ? normalizePhoneForStorage(input.phone) : null;
     let existing = await prisma.customer.findFirst({
     where: {
       userId: input.ownerId,

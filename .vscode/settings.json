@@ -1,4 +1,6 @@
 {
     "git.ignoreLimitWarning": true,
-    "chatgpt.openOnStartup": false
+    "chatgpt.openOnStartup": false,
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "typescript.enablePromptUseWorkspaceTsdk": true
 }

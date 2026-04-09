@@ -1,3 +1,5 @@
+import { getBusinessCurrencyName } from "../business-currencies";
+
 const fallbackAllowedCurrencies = [
   "USD",
   "EUR",
@@ -27,17 +29,6 @@ const stripeSupportedCurrencies =
     : [...fallbackAllowedCurrencies];
 
 export const allowedCurrencies = [...stripeSupportedCurrencies];
-
-const currencyDisplayNamesCache = new Map<string, Intl.DisplayNames>();
-
-function getCurrencyDisplayNames(locale: string) {
-  const normalizedLocale = String(locale || "en").trim() || "en";
-  const cached = currencyDisplayNamesCache.get(normalizedLocale);
-  if (cached) return cached;
-  const displayNames = new Intl.DisplayNames([normalizedLocale], { type: "currency" });
-  currencyDisplayNamesCache.set(normalizedLocale, displayNames);
-  return displayNames;
-}
 
 export const providerSupport: Record<"PAYSTACK" | "FLUTTERWAVE" | "STRIPE", string[]> = {
   PAYSTACK: ["NGN", "GHS", "KES", "ZAR", "XOF"],
@@ -88,8 +79,12 @@ export function normalizeCurrency(value: string) {
 
 export function getCurrencyDisplayName(code: string, locale = "en") {
   const normalized = normalizeCurrency(code);
+  const staticName = getBusinessCurrencyName(normalized, locale);
+  if (staticName && staticName !== normalized) {
+    return staticName;
+  }
   try {
-    const name = getCurrencyDisplayNames(locale).of(normalized);
+    const name = new Intl.DisplayNames([locale || "en"], { type: "currency" }).of(normalized);
     return name ? name[0].toUpperCase() + name.slice(1) : normalized;
   } catch {
     return normalized;
@@ -99,7 +94,7 @@ export function getCurrencyDisplayName(code: string, locale = "en") {
 export function formatCurrencyOption(code: string, locale = "en") {
   const normalized = normalizeCurrency(code);
   const name = getCurrencyDisplayName(normalized, locale);
-  return name && name !== normalized ? `${normalized} · ${name}` : normalized;
+  return name && name !== normalized ? `${normalized} \u00B7 ${name}` : normalized;
 }
 
 export function isAllowedCurrency(value: string) {

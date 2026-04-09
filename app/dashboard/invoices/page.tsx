@@ -21,6 +21,7 @@ import { formatCurrency, formatCurrencyWithCode } from "@/lib/currency";
 import { parseDateInput } from "@/lib/date";
 import { calculateTotalsFromAmounts } from "@/lib/invoice-calculations";
 import { resolveInvoiceCompliance } from "@/lib/invoicing/resolve-compliance";
+import { formatInternationalPhoneDisplay } from "@/lib/phone";
 import {
   buildInvoiceIssuerCode,
   buildInvoiceNumberDraft,
@@ -32,7 +33,7 @@ import { formatVatRateLabel, normalizeVatSettings } from "@/lib/vat";
 import { useSession } from "next-auth/react";
 import { useLanguage } from "@/components/providers/language-provider";
 import { formatBusinessAddress, hasRequiredAddress, parseBusinessAddress } from "@/lib/address";
-import { ChevronLeft, ChevronRight, Eye, MoreHorizontal, Paperclip, PencilLine, Send, Trash2, UserPlus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, MoreHorizontal, Paperclip, PencilLine, RefreshCw, Send, Trash2, UserPlus, X } from "lucide-react";
 
 type CustomerRecord = {
   id: string;
@@ -78,6 +79,36 @@ type InvoiceHistoryResponse = {
   summary: InvoiceHistorySummary;
   suggestedInvoiceNumber?: string;
 };
+
+type InvoiceSenderOption = {
+  id: string;
+  senderType: "gmail" | "outlook" | "whatsapp";
+  senderAddress: string;
+  replyToAddress: string | null;
+  isVerified: boolean;
+  sendMode: "direct_connection";
+  isDefault: boolean;
+  label: string;
+};
+
+type InvoiceSendersResponse = {
+  items: InvoiceSenderOption[];
+  workspaceDefaultSenderId: string | null;
+  workspaceDefaultSenderType: "gmail" | "outlook" | "whatsapp" | null;
+  platformFallback: {
+    sendMode: "platform_fallback";
+    replyToAddress: string | null;
+  };
+};
+
+type InvoiceSendFlowState =
+  | {
+      mode: "create";
+    }
+  | {
+      mode: "draft";
+      invoice: any;
+    };
 
 type InvoiceBuyerType = "B2B" | "B2C";
 type InvoiceSupplyType = "SAAS" | "SERVICES" | "GOODS";
@@ -233,6 +264,40 @@ function localizeInvoiceStatus(
   return labels[normalized] || normalized;
 }
 
+function hasTimestamp(value?: string | null) {
+  if (!value) return false;
+  const parsed = new Date(value);
+  return !Number.isNaN(parsed.getTime());
+}
+
+function canSendInvoiceWithSender(
+  sender: Pick<InvoiceSenderOption, "senderType">,
+  customer:
+    | Pick<
+        CustomerRecord,
+        "email" | "phone" | "deliveryPreference"
+      >
+    | {
+        email?: string | null;
+        phone?: string | null;
+        deliveryPreference?: "EMAIL" | "WHATSAPP" | "BOTH" | null;
+        emailOptOut?: boolean | null;
+        whatsappOptOut?: boolean | null;
+        processingRestrictedAt?: string | null;
+        erasedAt?: string | null;
+      }
+    | null
+    | undefined
+) {
+  const preference = String(customer?.deliveryPreference || "EMAIL").toUpperCase();
+  const canProcess = !hasTimestamp((customer as any)?.processingRestrictedAt) && !hasTimestamp((customer as any)?.erasedAt);
+  const emailAvailable = Boolean(String(customer?.email || "").trim()) && !(customer as any)?.emailOptOut;
+  const whatsappAvailable = Boolean(String(customer?.phone || "").trim()) && !(customer as any)?.whatsappOptOut;
+  const shouldEmail = canProcess && emailAvailable && (preference === "EMAIL" || preference === "BOTH");
+  const shouldWhatsapp = canProcess && whatsappAvailable && (preference === "WHATSAPP" || preference === "BOTH");
+  return sender.senderType === "whatsapp" ? shouldWhatsapp : shouldEmail;
+}
+
 export default function InvoicesPage() {
   const { data: session, status: sessionStatus } = useSession();
   const searchParams = useSearchParams();
@@ -256,6 +321,12 @@ export default function InvoicesPage() {
   const { data: businessProfile, mutate: refreshBusinessProfile } = useSWR(
     "/api/business-profile",
     profileFetcher
+  );
+  const invoiceSendersKey =
+    sessionStatus === "authenticated" && session?.user?.id ? "/api/invoice/senders" : null;
+  const { data: invoiceSenders, error: invoiceSendersError } = useSWR<InvoiceSendersResponse>(
+    invoiceSendersKey,
+    fetcher
   );
   const [customerQuery, setCustomerQuery] = useState("");
   const [debouncedCustomerQuery, setDebouncedCustomerQuery] = useState("");
@@ -283,6 +354,9 @@ export default function InvoicesPage() {
   const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
   const [supportingFilesError, setSupportingFilesError] = useState<string | null>(null);
   const [invoiceActionStatus, setInvoiceActionStatus] = useState<{ message: string; variant: "success" | "error" | "info" } | null>(null);
+  const [sendFlow, setSendFlow] = useState<InvoiceSendFlowState | null>(null);
+  const [sendFlowSenderId, setSendFlowSenderId] = useState("");
+  const [sendFlowSetDefault, setSendFlowSetDefault] = useState(false);
   const [customerModalOpen, setCustomerModalOpen] = useState(false);
   const [customerDropdownOpen, setCustomerDropdownOpen] = useState(false);
   const [selectedCustomerSnapshot, setSelectedCustomerSnapshot] = useState<CustomerRecord | null>(null);
@@ -310,6 +384,7 @@ export default function InvoicesPage() {
   });
   const [status, setStatus] = useState<{ message: string; variant: "success" | "error" | "info" } | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [recheckingComplianceId, setRecheckingComplianceId] = useState<string | null>(null);
   const [deletingInvoiceId, setDeletingInvoiceId] = useState<string | null>(null);
   const [openInvoiceMenuId, setOpenInvoiceMenuId] = useState<string | null>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<any | null>(null);
@@ -660,6 +735,25 @@ export default function InvoicesPage() {
     (selectedCustomerSnapshot?.id === form.customerId ? selectedCustomerSnapshot : null) ||
     customerItems.find((item) => item.id === form.customerId) ||
     invoiceCustomerMatch;
+  const sendFlowCustomer = useMemo(() => {
+    if (!sendFlow) return null;
+    if (sendFlow.mode === "create") return selectedCustomer || null;
+    return sendFlow.invoice?.customer || sendFlow.invoice?.invoiceCustomerSnapshot || sendFlow.invoice?.metadata?.customer || null;
+  }, [sendFlow, selectedCustomer]);
+  const compatibleInvoiceSenders = useMemo(
+    () =>
+      (invoiceSenders?.items || []).filter((sender) => canSendInvoiceWithSender(sender, sendFlowCustomer)),
+    [invoiceSenders?.items, sendFlowCustomer]
+  );
+  const sendFlowSelectedSender = useMemo(
+    () => compatibleInvoiceSenders.find((sender) => sender.id === sendFlowSenderId) || null,
+    [compatibleInvoiceSenders, sendFlowSenderId]
+  );
+  const workspaceHasInvoiceSenders = (invoiceSenders?.items?.length || 0) > 0;
+  const sendFlowCanUsePlatformFallback = canSendInvoiceWithSender({ senderType: "gmail" }, sendFlowCustomer);
+  const sendFlowUsesPlatformFallback =
+    Boolean(sendFlow) && compatibleInvoiceSenders.length === 0 && sendFlowCanUsePlatformFallback;
+  const invoiceSendersLoading = Boolean(sendFlow) && !invoiceSenders && !invoiceSendersError;
   useEffect(() => {
     if (hasManualBuyerTypeSelection) return;
     const nextBuyerType: InvoiceBuyerType = String(selectedCustomer?.taxId || "").trim() ? "B2B" : "B2C";
@@ -667,6 +761,17 @@ export default function InvoicesPage() {
       prev.buyerType === nextBuyerType ? prev : { ...prev, buyerType: nextBuyerType }
     );
   }, [hasManualBuyerTypeSelection, selectedCustomer?.id, selectedCustomer?.taxId]);
+  useEffect(() => {
+    if (!sendFlow) return;
+    const defaultCompatibleSender =
+      compatibleInvoiceSenders.find((sender) => sender.isDefault) || compatibleInvoiceSenders[0] || null;
+    setSendFlowSenderId((current) =>
+      current && compatibleInvoiceSenders.some((sender) => sender.id === current)
+        ? current
+        : defaultCompatibleSender?.id || ""
+    );
+    setSendFlowSetDefault(false);
+  }, [compatibleInvoiceSenders, sendFlow]);
   const requestedCustomerId = String(searchParams.get("customerId") || "").trim();
   const requestedCustomerKey =
     sessionStatus === "authenticated" &&
@@ -1448,7 +1553,10 @@ export default function InvoicesPage() {
     }
   };
 
-  const sendDraft = async (invoice: any) => {
+  const sendDraft = async (
+    invoice: any,
+    options?: { selectedSenderId?: string; setDefaultSender?: boolean }
+  ) => {
     const invoiceId = String(invoice?.id || invoice?.invoiceNumber || "");
     if (!invoiceId) return;
     const customerId = String(invoice?.customerId || "");
@@ -1475,6 +1583,8 @@ export default function InvoicesPage() {
           status: "SENT",
           invoiceNumber: invoice?.invoiceNumber,
           customerId,
+          selectedSenderId: options?.selectedSenderId,
+          setDefaultSender: options?.setDefaultSender === true,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -1511,6 +1621,60 @@ export default function InvoicesPage() {
       });
     } finally {
       setSendingId(null);
+    }
+  };
+
+  const recheckDraftCompliance = async (invoice: any) => {
+    const invoiceId = String(invoice?.id || invoice?.invoiceNumber || "");
+    if (!invoiceId) return;
+
+    setRecheckingComplianceId(invoiceId);
+    setStatus(null);
+    try {
+      const res = await fetch(`/api/invoice/${encodeURIComponent(invoiceId)}/compliance/recheck`, {
+        method: "POST",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setStatus({
+          message:
+            (typeof data?.error === "string" &&
+              (localizeInvoiceServerMessage(data.error, t) || data.error)) ||
+            t(
+              "Could not recheck invoice compliance.",
+              "Impossible de reverifier la conformite de la facture.",
+              "Die Rechnungs-Compliance konnte nicht erneut gepruft werden.",
+              "No se pudo volver a comprobar el cumplimiento de la factura.",
+              "Nao foi possivel voltar a verificar a conformidade da fatura."
+            ),
+          variant: "error",
+        });
+        return;
+      }
+      setStatus({
+        message: t(
+          "Invoice compliance refreshed.",
+          "La conformite de la facture a ete actualisee.",
+          "Die Rechnungs-Compliance wurde aktualisiert.",
+          "El cumplimiento de la factura se ha actualizado.",
+          "A conformidade da fatura foi atualizada."
+        ),
+        variant: "success",
+      });
+      mutate();
+    } catch {
+      setStatus({
+        message: t(
+          "Could not recheck invoice compliance.",
+          "Impossible de reverifier la conformite de la facture.",
+          "Die Rechnungs-Compliance konnte nicht erneut gepruft werden.",
+          "No se pudo volver a comprobar el cumplimiento de la factura.",
+          "Nao foi possivel voltar a verificar a conformidade da fatura."
+        ),
+        variant: "error",
+      });
+    } finally {
+      setRecheckingComplianceId(null);
     }
   };
 
@@ -1573,7 +1737,42 @@ export default function InvoicesPage() {
     setDeleteCandidate(invoice || null);
   };
 
-  const createInvoiceWithStatus = async (statusOverride?: "DRAFT" | "SENT") => {
+  const openSendModal = (flow: InvoiceSendFlowState) => {
+    setStatus(null);
+    setInvoiceActionStatus(null);
+    setSendFlow(flow);
+  };
+
+  const closeSendModal = () => {
+    if (sendingId || submittingInvoiceStatus === "SENT") return;
+    setSendFlow(null);
+    setSendFlowSenderId("");
+    setSendFlowSetDefault(false);
+  };
+
+  const confirmSendModal = async () => {
+    if (!sendFlow) return;
+    const selectedSenderId = sendFlowUsesPlatformFallback ? undefined : sendFlowSelectedSender?.id;
+    const setDefaultSender = Boolean(selectedSenderId) && sendFlowSetDefault;
+    const currentFlow = sendFlow;
+    closeSendModal();
+    if (currentFlow.mode === "create") {
+      await createInvoiceWithStatus("SENT", {
+        selectedSenderId,
+        setDefaultSender,
+      });
+      return;
+    }
+    await sendDraft(currentFlow.invoice, {
+      selectedSenderId,
+      setDefaultSender,
+    });
+  };
+
+  const createInvoiceWithStatus = async (
+    statusOverride?: "DRAFT" | "SENT",
+    options?: { selectedSenderId?: string; setDefaultSender?: boolean }
+  ) => {
     const nextStatus = statusOverride || (form.status as "DRAFT" | "SENT");
     if (submittingInvoiceRef.current) return;
     setInvoiceActionStatus(null);
@@ -1657,7 +1856,11 @@ export default function InvoicesPage() {
       const res = await fetch("/api/invoice", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          ...payload,
+          selectedSenderId: options?.selectedSenderId,
+          setDefaultSender: options?.setDefaultSender === true,
+        }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -2228,7 +2431,9 @@ export default function InvoicesPage() {
                         <p className="truncate text-sm font-semibold text-slate-950 dark:text-slate-50">{selectedCustomer.name}</p>
                         <p className="mt-1 truncate text-[13px] text-slate-500 dark:text-slate-300">{selectedCustomer.email}</p>
                         {selectedCustomer.phone ? (
-                          <p className="mt-1 truncate text-[13px] text-slate-500 dark:text-slate-300">{selectedCustomer.phone}</p>
+                          <p className="mt-1 truncate text-[13px] text-slate-500 dark:text-slate-300">
+                            {formatInternationalPhoneDisplay(selectedCustomer.phone)}
+                          </p>
                         ) : null}
                         {selectedCustomer.taxId ? (
                           <p className="mt-1 truncate text-[13px] text-slate-500 dark:text-slate-300">
@@ -2943,7 +3148,7 @@ export default function InvoicesPage() {
                     className="h-12 rounded-2xl bg-[linear-gradient(135deg,#6657ff_0%,#5547f0_48%,#4338ca_100%)] px-7 text-[0.95rem] font-semibold text-white shadow-[0_24px_50px_-24px_rgba(79,70,229,0.9)] ring-1 ring-white/10 hover:bg-[linear-gradient(135deg,#7163ff_0%,#5f51f4_48%,#4b3fd4_100%)] dark:shadow-[0_28px_56px_-26px_rgba(79,70,229,0.82)] sm:min-w-[184px]"
                     loading={submittingInvoiceStatus === "SENT"}
                     disabled={submittingInvoiceStatus !== null || Boolean(sendBlockingReason)}
-                    onClick={() => createInvoiceWithStatus("SENT")}
+                    onClick={() => openSendModal({ mode: "create" })}
                   >
                             {t("Save & Send", "Enregistrer et envoyer", "Speichern und senden", "Guardar y enviar", "Guardar e enviar")}
                   </Button>
@@ -3187,9 +3392,13 @@ export default function InvoicesPage() {
                                 role="menuitem"
                                 onClick={() => {
                                   setOpenInvoiceMenuId(null);
-                                  sendDraft(row);
+                                  openSendModal({ mode: "draft", invoice: row });
                                 }}
-                                disabled={sendingId === row?.id || deletingInvoiceId === row?.id}
+                                disabled={
+                                  sendingId === row?.id ||
+                                  deletingInvoiceId === row?.id ||
+                                  recheckingComplianceId === row?.id
+                                }
                                 className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50"
                               >
                                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
@@ -3202,9 +3411,34 @@ export default function InvoicesPage() {
                                 role="menuitem"
                                 onClick={() => {
                                   setOpenInvoiceMenuId(null);
+                                  recheckDraftCompliance(row);
+                                }}
+                                disabled={
+                                  recheckingComplianceId === row?.id ||
+                                  deletingInvoiceId === row?.id ||
+                                  sendingId === row?.id
+                                }
+                                className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-medium text-sky-700 transition hover:bg-sky-50 disabled:opacity-50"
+                              >
+                                <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-sky-50 text-sky-700">
+                                  <RefreshCw className={`h-4 w-4 ${recheckingComplianceId === row?.id ? "animate-spin" : ""}`} />
+                                </span>
+                                {recheckingComplianceId === row?.id
+                                  ? t("Rechecking...", "Verification...", "Wird neu gepruft...", "Revisando...", "A reverificar...")
+                                  : t("Recheck compliance", "Reverifier la conformite", "Compliance neu prufen", "Volver a comprobar", "Reverificar conformidade")}
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => {
+                                  setOpenInvoiceMenuId(null);
                                   openDeleteDraftModal(row);
                                 }}
-                                disabled={deletingInvoiceId === row?.id || sendingId === row?.id}
+                                disabled={
+                                  deletingInvoiceId === row?.id ||
+                                  sendingId === row?.id ||
+                                  recheckingComplianceId === row?.id
+                                }
                                 className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-medium text-rose-700 transition hover:bg-rose-50 disabled:opacity-50"
                               >
                                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-rose-50 text-rose-700">
@@ -3231,7 +3465,7 @@ export default function InvoicesPage() {
                           <span className="text-muted-foreground">·</span>
                           <button
                             type="button"
-                            onClick={() => sendDraft(row)}
+                            onClick={() => openSendModal({ mode: "draft", invoice: row })}
                             disabled={sendingId === row?.id || deletingInvoiceId === row?.id}
                             className="text-sm font-medium text-emerald-700 hover:text-emerald-600 disabled:opacity-50"
                           >
@@ -3293,6 +3527,246 @@ export default function InvoicesPage() {
           </div>
         )}
       </Card>
+
+      <Modal
+        open={Boolean(sendFlow)}
+        onClose={closeSendModal}
+        hideHeader
+      >
+        <div className="space-y-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-2">
+              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-indigo-700/80">
+                {t("Send invoice", "Envoyer la facture", "Rechnung senden", "Enviar factura", "Enviar fatura")}
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#5b4df5,#4338ca)] text-white shadow-[0_20px_45px_-24px_rgba(79,70,229,0.9)]">
+                  <Send className="h-4.5 w-4.5" />
+                </div>
+                <div>
+                  <p className="text-[1.55rem] font-semibold leading-tight text-foreground">
+                    {t("Choose sender", "Choisir l expediteur", "Absender wahlen", "Elegir remitente", "Escolher remetente")}
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    {t(
+                      "Only this workspace’s verified senders are available here.",
+                      "Seuls les expediteurs verifies de cet espace sont disponibles ici.",
+                      "Hier sind nur verifizierte Sender dieses Workspace verfugbar.",
+                      "Aqui solo aparecen remitentes verificados de este espacio.",
+                      "Apenas os remetentes verificados deste workspace aparecem aqui."
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              aria-label={t("Close", "Fermer", "Schließen", "Cerrar", "Fechar")}
+              onClick={closeSendModal}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-border/70 bg-background text-muted-foreground transition hover:text-foreground"
+            >
+              <X className="h-4.5 w-4.5" />
+            </button>
+          </div>
+
+          <div className="rounded-[1.5rem] border border-border/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92))] p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.4)]">
+            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              {t("Recipient", "Destinataire", "Empfanger", "Destinatario", "Destinatario")}
+            </p>
+            <div className="mt-3 space-y-1">
+              <p className="text-[1.05rem] font-semibold text-foreground">
+                {String(sendFlowCustomer?.name || t("Customer", "Client", "Kunde", "Cliente", "Cliente"))}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {String(sendFlowCustomer?.email || sendFlowCustomer?.phone || "--")}
+              </p>
+            </div>
+          </div>
+
+          {invoiceSendersError ? (
+            <Alert variant="error">
+              {t(
+                "Could not load workspace senders.",
+                "Impossible de charger les expediteurs du workspace.",
+                "Workspace-Sender konnten nicht geladen werden.",
+                "No se pudieron cargar los remitentes del workspace.",
+                "Nao foi possivel carregar os remetentes do workspace."
+              )}
+            </Alert>
+          ) : null}
+
+          {invoiceSendersLoading ? (
+            <div className="rounded-[1.5rem] border border-slate-200/80 bg-white px-5 py-6 text-sm text-muted-foreground dark:border-slate-700 dark:bg-slate-950">
+              {t(
+                "Loading workspace senders...",
+                "Chargement des expediteurs du workspace...",
+                "Workspace-Sender werden geladen...",
+                "Cargando remitentes del workspace...",
+                "A carregar remetentes do workspace..."
+              )}
+            </div>
+          ) : compatibleInvoiceSenders.length > 0 ? (
+            <div className="space-y-3">
+              <p className="text-[0.72rem] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                {t("Send from", "Envoyer depuis", "Senden von", "Enviar desde", "Enviar de")}
+              </p>
+              <div className="space-y-2">
+                {compatibleInvoiceSenders.map((sender) => (
+                  <label
+                    key={sender.id}
+                    className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition ${
+                      sendFlowSenderId === sender.id
+                        ? "border-indigo-300 bg-indigo-50/80 dark:border-indigo-400/40 dark:bg-indigo-500/10"
+                        : "border-slate-200/80 bg-white dark:border-slate-700 dark:bg-slate-950"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="invoice-send-from"
+                      checked={sendFlowSenderId === sender.id}
+                      onChange={() => setSendFlowSenderId(sender.id)}
+                      className="mt-1 h-4 w-4 border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold text-foreground">{sender.label}</span>
+                        {sender.isDefault ? (
+                          <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-white dark:bg-slate-100 dark:text-slate-900">
+                            {t("Default", "Defaut", "Standard", "Predeterminado", "Padrao")}
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">{sender.senderAddress}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+
+              <label className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-950">
+                <input
+                  type="checkbox"
+                  checked={sendFlowSetDefault}
+                  onChange={(event) => setSendFlowSetDefault(event.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-foreground">
+                    {t(
+                      "Set as default for this workspace",
+                      "Definir comme expediteur par defaut pour cet espace",
+                      "Als Standard fur diesen Workspace festlegen",
+                      "Establecer como remitente predeterminado de este espacio",
+                      "Definir como remetente padrao deste workspace"
+                    )}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {t(
+                      "Future invoice sends will use this sender first when it remains connected.",
+                      "Les prochains envois de factures utiliseront cet expediteur en premier s il reste connecte.",
+                      "Zukunftige Rechnungen verwenden diesen Sender zuerst, solange er verbunden bleibt.",
+                      "Los proximos envios de factura usaran este remitente primero mientras siga conectado.",
+                      "Os proximos envios de fatura usarao este remetente primeiro enquanto ele continuar ligado."
+                    )}
+                  </p>
+                </div>
+              </label>
+            </div>
+          ) : sendFlowCanUsePlatformFallback ? (
+            <div className="space-y-4 rounded-[1.5rem] border border-amber-200/70 bg-amber-50/80 p-5 text-amber-950 dark:border-amber-400/30 dark:bg-amber-500/10 dark:text-amber-100">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold">
+                  {workspaceHasInvoiceSenders
+                    ? t(
+                        "No compatible direct sender",
+                        "Aucun expediteur direct compatible",
+                        "Kein kompatibler direkter Sender",
+                        "No hay remitente directo compatible",
+                        "Nenhum remetente direto compativel"
+                      )
+                    : t(
+                        "No sending account connected",
+                        "Aucun compte d envoi connecte",
+                        "Kein Sendekonto verbunden",
+                        "No hay una cuenta de envio conectada",
+                        "Nenhuma conta de envio ligada"
+                      )}
+                </p>
+                <p className="text-sm leading-6 text-amber-900/80 dark:text-amber-100/80">
+                  {t(
+                    "This invoice will be sent through the platform billing domain. Replies go to your business email.",
+                    "Cette facture sera envoyee via le domaine de facturation de la plateforme. Les reponses iront vers votre email professionnel.",
+                    "Diese Rechnung wird uber die Plattform-Abrechnungsdomain gesendet. Antworten gehen an deine Unternehmens-E-Mail.",
+                    "Esta factura se enviara desde el dominio de facturacion de la plataforma. Las respuestas iran a tu correo del negocio.",
+                    "Esta fatura sera enviada pelo dominio de faturacao da plataforma. As respostas vao para o email do negocio."
+                  )}
+                </p>
+              </div>
+              <Link
+                href="/dashboard/inbox"
+                className="inline-flex h-11 items-center justify-center rounded-2xl border border-amber-300/80 bg-white px-4 text-sm font-semibold text-amber-900 transition hover:bg-amber-100 dark:border-amber-300/30 dark:bg-slate-950 dark:text-amber-100 dark:hover:bg-amber-500/10"
+              >
+                {t(
+                  "Connect Gmail, Outlook, or WhatsApp",
+                  "Connecter Gmail, Outlook ou WhatsApp",
+                  "Gmail, Outlook oder WhatsApp verbinden",
+                  "Conectar Gmail, Outlook o WhatsApp",
+                  "Ligar Gmail, Outlook ou WhatsApp"
+                )}
+              </Link>
+            </div>
+          ) : (
+            <Alert variant="error">
+              {t(
+                "This customer cannot receive the invoice through any available sender yet.",
+                "Ce client ne peut pas encore recevoir la facture via un expediteur disponible.",
+                "Dieser Kunde kann die Rechnung noch nicht uber einen verfugbaren Sender erhalten.",
+                "Este cliente aun no puede recibir la factura con ningun remitente disponible.",
+                "Este cliente ainda nao pode receber a fatura por nenhum remetente disponivel."
+              )}
+            </Alert>
+          )}
+
+          {sendFlowUsesPlatformFallback && invoiceSenders?.platformFallback?.replyToAddress ? (
+            <p className="rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+              {t(
+                "Sent via platform billing domain. Replies go to your business email.",
+                "Envoye via le domaine de facturation de la plateforme. Les reponses vont a votre email professionnel.",
+                "Versendet uber die Plattform-Abrechnungsdomain. Antworten gehen an deine Unternehmens-E-Mail.",
+                "Se enviara desde el dominio de facturacion de la plataforma. Las respuestas llegan a tu correo del negocio.",
+                "Enviado pelo dominio de faturacao da plataforma. As respostas vao para o email do negocio."
+              )}
+            </p>
+          ) : null}
+
+          <div className="flex flex-col-reverse gap-3 border-t border-border/60 pt-4 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-11 sm:min-w-[130px]"
+              disabled={Boolean(sendingId) || submittingInvoiceStatus === "SENT"}
+              onClick={closeSendModal}
+            >
+              {t("Cancel", "Annuler", "Abbrechen", "Cancelar", "Cancelar")}
+            </Button>
+            <Button
+              type="button"
+              className="h-11 sm:min-w-[180px]"
+              loading={Boolean(
+                (sendFlow?.mode === "draft" && sendFlow && sendingId === (sendFlow as any).invoice?.id) ||
+                  (sendFlow?.mode === "create" && submittingInvoiceStatus === "SENT")
+              )}
+              disabled={
+                invoiceSendersLoading ||
+                Boolean(invoiceSendersError) ||
+                (compatibleInvoiceSenders.length > 0 ? !sendFlowSelectedSender : !sendFlowCanUsePlatformFallback)
+              }
+              onClick={confirmSendModal}
+            >
+              {t("Send invoice", "Envoyer la facture", "Rechnung senden", "Enviar factura", "Enviar fatura")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         open={Boolean(deleteCandidate)}

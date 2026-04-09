@@ -14,6 +14,7 @@ import {
   normalizeInvoiceItems,
   resolveInvoiceCustomer,
 } from "./invoice";
+import { readStoredAssetFromRoots } from "./file-storage";
 import { formatVatRateLabel, normalizeVatSettings } from "./vat";
 import { logUserActivity } from "./user-activity";
 
@@ -32,11 +33,18 @@ function sanitizeFilename(value: string) {
 async function persistInvoiceReceiptPdf(receiptNumber: string, pdfBuffer: Buffer) {
   const safeNumber = sanitizeFilename(receiptNumber);
   const fileName = `Invoice_Receipt_${safeNumber}.pdf`;
-  const dir = path.join(process.cwd(), "public", "receipts", "invoices");
+  const dir = path.join(process.cwd(), "uploads", "receipts", "invoices");
   await fs.mkdir(dir, { recursive: true });
   const filePath = path.join(dir, fileName);
   await fs.writeFile(filePath, pdfBuffer);
   return `/receipts/invoices/${fileName}`;
+}
+
+export async function readStoredInvoiceReceiptPdf(pdfUrl?: string | null) {
+  return readStoredAssetFromRoots(pdfUrl, [
+    path.join(process.cwd(), "uploads"),
+    path.join(process.cwd(), "public"),
+  ]);
 }
 
 export function buildInvoiceReceiptPdfBuffer(input: {
@@ -415,7 +423,6 @@ export async function maybeCreateInvoiceReceipt({
   });
   return receipt;
 }
-
 
 
 

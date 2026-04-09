@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { PaymentProvider, PaymentStatus } from "@prisma/client";
-import path from "path";
-import { promises as fs } from "fs";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { withErrorHandling } from "@/lib/api-handler";
 import { requireOrgPermission } from "@/lib/org-auth";
 import { ensureCurrentSubscriptionForOrg } from "@/lib/subscription-downgrade";
-import { buildSubscriptionReceiptPdfBuffer, isSubscriptionReceiptProvider } from "@/lib/subscription-receipt";
+import {
+  buildSubscriptionReceiptPdfBuffer,
+  isSubscriptionReceiptProvider,
+  readStoredSubscriptionReceiptPdf,
+} from "@/lib/subscription-receipt";
 
 function mapReceiptPlanLabel(plan: string | null | undefined) {
   const value = String(plan || "").toUpperCase();
@@ -113,6 +115,7 @@ async function buildReceiptPdfFromDb(input: { userId: string; subscriptionId?: s
 export const GET = withErrorHandling(async (req: Request) => {
   const { searchParams } = new URL(req.url);
   const inline = searchParams.get("inline") === "1";
+  const requestedSubscriptionId = String(searchParams.get("subscriptionId") || "").trim();
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -132,8 +135,19 @@ export const GET = withErrorHandling(async (req: Request) => {
       where: { ownerId: access.context.ownerUserId },
     }),
   ]);
-  const subscription =
-    ownedBusinessCount > 1
+  const requestedSubscription = requestedSubscriptionId
+    ? await prisma.subscription.findFirst({
+        where: {
+          id: requestedSubscriptionId,
+          userId: access.context.ownerUserId,
+          receiptUrl: { not: null },
+        },
+        select: { id: true, receiptUrl: true, receiptNumber: true },
+      })
+    : null;
+  const subscription = requestedSubscription
+    ? requestedSubscription
+    : ownedBusinessCount > 1
       ? currentSubscription?.receiptUrl
         ? {
             id: currentSubscription.id,
@@ -151,13 +165,9 @@ export const GET = withErrorHandling(async (req: Request) => {
     return NextResponse.json({ error: "No receipt found" }, { status: 404 });
   }
 
-  const receiptPath = subscription.receiptUrl.replace(/^\/+/, "");
-  const filePath = path.join(process.cwd(), "public", receiptPath);
-
-  let pdfBuffer: Buffer;
-  try {
-    pdfBuffer = await fs.readFile(filePath);
-  } catch {
+  const storedBuffer = await readStoredSubscriptionReceiptPdf(subscription.receiptUrl);
+  let pdfBytes = storedBuffer ? new Uint8Array(storedBuffer) : null;
+  if (!pdfBytes) {
     const fallback = await buildReceiptPdfFromDb({
       userId: access.context.ownerUserId,
       subscriptionId: subscription.id,
@@ -165,11 +175,11 @@ export const GET = withErrorHandling(async (req: Request) => {
     if (!fallback) {
       return NextResponse.json({ error: "Receipt file missing" }, { status: 404 });
     }
-    pdfBuffer = fallback;
+    pdfBytes = new Uint8Array(fallback);
   }
 
   const filename = `Maboria_Receipt_${subscription.receiptNumber || "subscription"}.pdf`;
-  return new NextResponse(pdfBuffer as unknown as BodyInit, {
+  return new NextResponse(pdfBytes, {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
